@@ -1,26 +1,22 @@
-# Use an official Node.js runtime as a parent image
-FROM node:14
+# Use the official fastapi base image
+FROM tiangolo/uvicorn-gunicorn-fastapi:python3.9
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy package.json and package-lock.json
-COPY package*.json ./
-
-# Install app dependencies
-RUN npm install --omit=dev
-
-# Copy the rest of your application code
+# Copy the current directory contents into the container at /app
 COPY . .
 
-# Set environment variables for Railway deployment
-ENV PORT=3000
-EXPOSE $PORT
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Set environment variables
+ENV PORT=8000
+ENV VARIABLE1=value1  # Replace with actual environment variables needed
+ENV VARIABLE2=value2  # Replace with actual environment variables needed
+
+# Expose the port
+EXPOSE ${PORT}
 
 # Command to run the application
-CMD ["npm", "start"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT}"]
