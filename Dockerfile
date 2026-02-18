@@ -1,19 +1,26 @@
-FROM python:3.11-slim
+# Use an official Node.js runtime as a parent image
+FROM node:14
 
+# Set the working directory
 WORKDIR /app
 
-COPY backend/requirements.txt .
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy package.json and package-lock.json
+COPY package*.json ./
 
+# Install app dependencies
+RUN npm install --omit=dev
+
+# Copy the rest of your application code
 COPY . .
 
-WORKDIR /app/backend
+# Set environment variables for Railway deployment
+ENV PORT=3000
+EXPOSE $PORT
 
-EXPOSE 8000
-
-ENV MGX_IGNORE_INIT_DB=true
-ENV MGX_IGNORE_INIT_DATA=true
-ENV MGX_IGNORE_INIT_ADMIN=true
-
-CMD ["sh", "-c", "python -m uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Command to run the application
+CMD ["npm", "start"]
