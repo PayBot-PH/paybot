@@ -1,0 +1,14 @@
+{"name": "paybot",
+ "type": "web",
+ "version": "2.0",
+ "env": {
+   "NODE_ENV": "production"
+ },
+ "build": {
+   "command": "npm install",
+   "args": ["--prod"]
+ },
+ "deploy": {
+   "command": "npm start"
+ }
+}
