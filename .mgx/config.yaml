@@ -1,0 +1,4 @@
+build: null
+build_path: null
+dev: bash start_app_v2.sh
+install: null
