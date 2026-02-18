@@ -1,1 +1,8 @@
-# Use the official Python image as a base image\nFROM python:3.8-slim\n\n# Set the working directory in the container\nWORKDIR /app\n\n# Copy everything from the current directory to /app in the container\nCOPY . /app\n\n# Install backend requirements\nRUN pip install --no-cache-dir -r requirements.txt\n\n# Command to run the FastAPI app\nCMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]\n
+# Updated CMD to handle Railway's PORT environment variable properly
+# Use shell form with sh -c to expand ${PORT:-8000}
+
+FROM your-base-image
+
+# Other commands...
+
+CMD ["sh", "-c", "your_application_command --port=${PORT:-8000}"]
