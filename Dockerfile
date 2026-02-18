@@ -1,8 +1,1 @@
-# Updated CMD to handle Railway's PORT environment variable properly
-# Use shell form with sh -c to expand ${PORT:-8000}
-
-FROM your-base-image
-
-# Other commands...
-
-CMD ["sh", "-c", "your_application_command --port=${PORT:-8000}"]
+FROM python:3.11-slim\n\nWORKDIR /app\n\nCOPY . /app\n\nRUN pip install --no-cache-dir -r requirements.txt\n\nENV PORT=${PORT:-8000}\n\nCMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "${PORT}", "--reload"]
