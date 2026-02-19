@@ -1,0 +1,8 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "backend/Dockerfile"
+
+[deploy]
+startCommand = "bash backend/start.sh"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10

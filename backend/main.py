@@ -87,14 +87,29 @@ app = FastAPI(
 
 
 # MODULE_MIDDLEWARE_START
-app.add_middleware(
-    CORSMiddleware,
-    allow_origin_regex=r".*",
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
+# Read allowed origins from environment variable, fallback to allow all for development
+allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+if allowed_origins_env:
+    # Parse comma-separated origins
+    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
+else:
+    # Development mode: allow all origins
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=r".*",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["*"],
+    )
 # MODULE_MIDDLEWARE_END
 
 

@@ -4,6 +4,7 @@
 
 import asyncio
 import importlib
+import os
 import pkgutil
 from logging.config import fileConfig
 
@@ -11,6 +12,7 @@ import models
 from alembic import context
 from core.database import Base
 from sqlalchemy import pool
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
 
 # Automatically import all ORM models under Models
@@ -21,6 +23,16 @@ config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Read DATABASE_URL from environment variable
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    # Normalize database URL to use async driver (postgresql -> postgresql+asyncpg)
+    url = make_url(database_url)
+    if url.drivername in ("postgresql", "postgres"):
+        url = url.set(drivername="postgresql+asyncpg")
+        database_url = str(url)
+    config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = Base.metadata
 
