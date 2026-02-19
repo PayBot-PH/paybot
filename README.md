@@ -70,7 +70,7 @@ A full-featured **payment management platform** that combines a **Telegram Bot**
 | Layer | Technology |
 |-------|-----------|
 | **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui |
-| **Backend** | Python, FastAPI, SQLAlchemy (async), Alembic |
+| **Backend** | Python 3.11, FastAPI, SQLAlchemy (async), Alembic |
 | **Database** | PostgreSQL (via Atoms Cloud / Supabase) |
 | **Payments** | Xendit API (Philippines) |
 | **Bot** | Telegram Bot API |
@@ -84,6 +84,11 @@ A full-featured **payment management platform** that combines a **Telegram Bot**
 
 ```
 app/
+├── Dockerfile                        # Docker container configuration
+├── railway.json                      # Railway deployment config
+├── runtime.txt                       # Python runtime version (3.11)
+├── start.sh                          # Simple startup script
+├── start_app_v2.sh                   # Advanced startup with auto port assignment
 ├── backend/                          # Python FastAPI Backend
 │   ├── main.py                       # App entry point
 │   ├── requirements.txt              # Python dependencies
@@ -107,7 +112,7 @@ app/
 │   │   ├── xendit.py                 # Xendit webhooks & payments
 │   │   ├── gateway.py                # Full payment gateway API
 │   │   ├── telegram.py               # Telegram webhook handler
-│   │   └── events.py                 # SSE real-time events (if custom)
+│   │   └── events.py                 # SSE real-time events
 │   └── services/                     # Business logic
 │       ├── xendit_service.py         # Xendit API integration
 │       ├── telegram_service.py       # Telegram Bot API client
@@ -118,85 +123,373 @@ app/
 │   ├── package.json                  # Node dependencies
 │   ├── vite.config.ts                # Vite configuration
 │   ├── tailwind.config.ts            # Tailwind CSS config
-│   ├── src/
-│   │   ├── main.tsx                  # React entry point
-│   │   ├── App.tsx                   # Router & app shell
-│   │   ├── index.css                 # Global styles
-│   │   ├── contexts/
-│   │   │   └── AuthContext.tsx        # Auth state management
-│   │   ├── hooks/
-│   │   │   └── usePaymentEvents.ts   # SSE real-time hook
-│   │   ├── lib/
-│   │   │   ├── api.ts                # Web SDK client
-│   │   │   ├── auth.ts               # Auth utilities
-│   │   │   └── utils.ts              # Utility functions
-│   │   ├── pages/
-│   │   │   ├── Dashboard.tsx         # Main dashboard with stats
-│   │   │   ├── Wallet.tsx            # Wallet management
-│   │   │   ├── Transactions.tsx      # Transaction history
-│   │   │   ├── CreatePayment.tsx     # Legacy payment creation
-│   │   │   ├── PaymentsHub.tsx       # Full payments hub (5 methods)
-│   │   │   ├── DisbursementsPage.tsx # Disbursements, refunds, subs, customers
-│   │   │   ├── ReportsPage.tsx       # Analytics & reports
-│   │   │   ├── BotSettings.tsx       # Telegram bot configuration
-│   │   │   ├── AuthCallback.tsx      # OAuth callback handler
-│   │   │   └── AuthError.tsx         # Auth error page
-│   │   └── components/ui/            # shadcn/ui components
-│   └── public/                       # Static assets
+│   └── src/
+│       ├── main.tsx                  # React entry point
+│       ├── App.tsx                   # Router & app shell
+│       ├── contexts/AuthContext.tsx   # Auth state management
+│       ├── hooks/usePaymentEvents.ts # SSE real-time hook
+│       ├── lib/                      # Utilities (api, auth)
+│       ├── pages/                    # All page components
+│       └── components/ui/            # shadcn/ui components
 │
 └── README.md                         # This file
 ```
 
 ---
 
-## 🚀 Setup & Installation
+## 🚀 Deployment
 
-### Prerequisites
+### Option 1: Deploy on Railway (Recommended)
+
+Railway provides the easiest deployment experience with automatic builds from your GitHub repository.
+
+#### Prerequisites
+- A [Railway](https://railway.app) account
+- A GitHub repository with this project (e.g., `https://github.com/csphi/paybot`)
+- Your API keys ready (Xendit, Telegram)
+
+#### Step-by-Step
+
+1. **Connect GitHub to Railway**
+   - Go to [railway.app](https://railway.app) and sign in
+   - Click **"New Project"** → **"Deploy from GitHub Repo"**
+   - Select your `paybot` repository
+
+2. **Add a PostgreSQL Database**
+   - In your Railway project, click **"New"** → **"Database"** → **"PostgreSQL"**
+   - Railway will automatically provide the `DATABASE_URL` environment variable
+
+3. **Configure Environment Variables**
+   - Go to your service → **"Variables"** tab
+   - Add the following variables:
+
+   | Variable | Value | Description |
+   |----------|-------|-------------|
+   | `XENDIT_SECRET_KEY` | `xnd_production_...` | Your Xendit API secret key |
+   | `TELEGRAM_BOT_TOKEN` | `1234567890:AAE...` | Your Telegram bot token from @BotFather |
+   | `DATABASE_URL` | *(auto-provided by Railway PostgreSQL)* | PostgreSQL connection string |
+   | `PORT` | `8000` | Server port (Railway sets this automatically) |
+
+4. **Deploy**
+   - Railway will automatically build using the `Dockerfile` and deploy
+   - The build process:
+     - Installs Python 3.11 dependencies
+     - Copies the project files
+     - Starts the FastAPI server with uvicorn
+   - Your app will be available at `https://your-app.up.railway.app`
+
+5. **Set Up Custom Domain (Optional)**
+   - Go to **Settings** → **Networking** → **Custom Domain**
+   - Add your domain (e.g., `drl-developers.info`)
+   - Update your DNS records as instructed by Railway
+
+6. **Run Database Migrations**
+   - Open the Railway terminal or connect via Railway CLI:
+   ```bash
+   railway run alembic upgrade head
+   ```
+
+#### Railway CLI Deployment (Alternative)
+
+```bash
+# Install Railway CLI
+npm install -g @railway/cli
+
+# Login to Railway
+railway login
+
+# Link to your project
+railway link
+
+# Deploy
+railway up
+
+# View logs
+railway logs
+```
+
+---
+
+### Option 2: Deploy with Docker
+
+#### Prerequisites
+- Docker installed on your server
+- PostgreSQL database accessible
+- Domain name (optional, for webhooks)
+
+#### Step-by-Step
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/csphi/paybot.git
+   cd paybot
+   ```
+
+2. **Create a `.env` file in the `backend/` directory**
+   ```bash
+   cat > backend/.env << EOF
+   TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+   XENDIT_SECRET_KEY=your_xendit_secret_key_here
+   DATABASE_URL=postgresql+asyncpg://user:password@host:5432/paybot
+   EOF
+   ```
+
+3. **Build the Docker image**
+   ```bash
+   docker build -t paybot .
+   ```
+
+4. **Run the container**
+   ```bash
+   docker run -d \
+     --name paybot \
+     -p 8000:8000 \
+     --env-file backend/.env \
+     paybot
+   ```
+
+5. **Run database migrations**
+   ```bash
+   docker exec paybot python -m alembic upgrade head
+   ```
+
+6. **Verify the deployment**
+   ```bash
+   curl http://localhost:8000/health
+   ```
+
+#### Docker Compose (with PostgreSQL)
+
+Create a `docker-compose.yml` in the project root:
+
+```yaml
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: paybot
+      POSTGRES_PASSWORD: your_secure_password
+      POSTGRES_DB: paybot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://paybot:your_secure_password@db:5432/paybot
+      TELEGRAM_BOT_TOKEN: your_telegram_bot_token_here
+      XENDIT_SECRET_KEY: your_xendit_secret_key_here
+      PORT: 8000
+    depends_on:
+      - db
+
+volumes:
+  postgres_data:
+```
+
+Then run:
+```bash
+docker-compose up -d
+docker-compose exec app python -m alembic upgrade head
+```
+
+---
+
+### Option 3: Deploy on a VPS (Manual)
+
+#### Prerequisites
+- Ubuntu 20.04+ or similar Linux server
+- Python 3.11+
 - Node.js 18+ & pnpm
-- Python 3.10+
-- PostgreSQL database (Atoms Cloud or Supabase)
-- Xendit account (Philippine market)
-- Telegram Bot (via @BotFather)
+- PostgreSQL 15+
+- Nginx (for reverse proxy)
+- Domain name with SSL (for webhooks)
 
-### Environment Variables
+#### Step-by-Step
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `XENDIT_SECRET_KEY` | Xendit API secret key | ✅ |
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather | ✅ |
-| `DATABASE_URL` | PostgreSQL connection string | ✅ |
-| `SUPABASE_URL` | Supabase project URL | ✅ |
-| `SUPABASE_ANON_KEY` | Supabase anonymous key | ✅ |
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/csphi/paybot.git
+   cd paybot
+   ```
 
-### Backend Setup
+2. **Set up the backend**
+   ```bash
+   cd backend
 
+   # Create virtual environment
+   python3.11 -m venv venv
+   source venv/bin/activate
+
+   # Install dependencies
+   pip install -r requirements.txt
+
+   # Create .env file
+   cat > .env << EOF
+   TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+   XENDIT_SECRET_KEY=your_xendit_secret_key_here
+   DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/paybot
+   EOF
+
+   # Run database migrations
+   alembic upgrade head
+
+   # Test the server
+   uvicorn main:app --host 0.0.0.0 --port 8000
+   ```
+
+3. **Build the frontend**
+   ```bash
+   cd ../frontend
+
+   # Install dependencies
+   pnpm install
+
+   # Build for production
+   pnpm run build
+   ```
+
+4. **Set up systemd service**
+   ```bash
+   sudo cat > /etc/systemd/system/paybot.service << EOF
+   [Unit]
+   Description=PayBot FastAPI Application
+   After=network.target postgresql.service
+
+   [Service]
+   Type=simple
+   User=www-data
+   WorkingDirectory=/opt/paybot/backend
+   Environment=PATH=/opt/paybot/backend/venv/bin
+   ExecStart=/opt/paybot/backend/venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+   Restart=always
+   RestartSec=5
+
+   [Install]
+   WantedBy=multi-user.target
+   EOF
+
+   sudo systemctl daemon-reload
+   sudo systemctl enable paybot
+   sudo systemctl start paybot
+   ```
+
+5. **Configure Nginx reverse proxy**
+   ```nginx
+   server {
+       listen 80;
+       server_name your-domain.com;
+
+       # Frontend static files
+       location / {
+           root /opt/paybot/frontend/dist;
+           try_files $uri $uri/ /index.html;
+       }
+
+       # Backend API proxy
+       location /api/ {
+           proxy_pass http://127.0.0.1:8000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+
+       # Health check
+       location /health {
+           proxy_pass http://127.0.0.1:8000;
+       }
+
+       # SSE events (disable buffering)
+       location /api/v1/events/ {
+           proxy_pass http://127.0.0.1:8000;
+           proxy_set_header Connection '';
+           proxy_http_version 1.1;
+           chunked_transfer_encoding off;
+           proxy_buffering off;
+           proxy_cache off;
+       }
+   }
+   ```
+
+6. **Enable SSL with Let's Encrypt**
+   ```bash
+   sudo apt install certbot python3-certbot-nginx
+   sudo certbot --nginx -d your-domain.com
+   ```
+
+---
+
+### Option 4: Deploy on Atoms Platform
+
+If you built this project on [Atoms](https://atoms.dev/), deployment is one click:
+
+1. Click the **"Publish"** button in the App Viewer
+2. Edit the URL if desired
+3. Click **Publish** — your app is live!
+
+The Atoms platform handles:
+- Frontend build and hosting
+- Backend deployment with FastAPI
+- Database provisioning (Atoms Cloud)
+- SSL certificates
+- Environment variable management
+
+---
+
+## 🔧 Post-Deployment Setup
+
+After deploying, complete these steps to fully activate all features:
+
+### 1. Set Up Telegram Webhook
+- Open your deployed app's **Bot Settings** page
+- Enter your Telegram Bot Token
+- Set the webhook URL to: `https://your-domain.com/api/v1/telegram/webhook`
+- Click **"Set Webhook"**
+
+Or use the Telegram API directly:
 ```bash
-cd app/backend
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run database migrations
-alembic upgrade head
-
-# Start the server
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://your-domain.com/api/v1/telegram/webhook"}'
 ```
 
-### Frontend Setup
+### 2. Set Up Xendit Webhook
+1. Go to [Xendit Dashboard](https://dashboard.xendit.co) → **Settings** → **Webhooks**
+2. Add webhook URL: `https://your-domain.com/api/v1/xendit/webhook`
+3. Select events: `invoices`, `qr_codes`, `payment_links`, `disbursements`
 
+### 3. Verify Everything Works
 ```bash
-cd app/frontend
+# Check backend health
+curl https://your-domain.com/health
 
-# Install dependencies
-pnpm install
+# Check Telegram bot connection
+curl https://your-domain.com/api/v1/telegram/bot-info
 
-# Start development server
-pnpm run dev
-
-# Build for production
-pnpm run build
+# Check token configuration (debug)
+curl https://your-domain.com/api/v1/telegram/debug-token-check
 ```
+
+---
+
+## 🔑 Environment Variables Reference
+
+| Variable | Description | Required | Default |
+|----------|-------------|----------|---------|
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather | ✅ | — |
+| `XENDIT_SECRET_KEY` | Xendit API secret key | ✅ | — |
+| `DATABASE_URL` | PostgreSQL connection string | ✅ | — |
+| `PORT` | Server port | ❌ | `8000` |
+| `DEBUG` | Enable debug mode | ❌ | `false` |
+| `SUPABASE_URL` | Supabase project URL (if using Supabase) | ❌ | — |
+| `SUPABASE_ANON_KEY` | Supabase anonymous key (if using Supabase) | ❌ | — |
 
 ---
 
@@ -207,20 +500,20 @@ pnpm run build
 | `/start` | Welcome message & quick menu | `/start` |
 | `/help` | List all available commands | `/help` |
 | `/pay` | Interactive payment menu | `/pay` |
-| `/invoice <amount> <description>` | Create a payment invoice | `/invoice 500 Lunch payment` |
-| `/qr <amount> <description>` | Generate QR code payment | `/qr 150 Coffee` |
-| `/link <amount> <description>` | Create shareable payment link | `/link 1000 Freelance work` |
-| `/va <amount> <bank> <description>` | Create virtual account | `/va 2500 BDO Tuition fee` |
+| `/invoice <amount> <desc>` | Create a payment invoice | `/invoice 500 Lunch payment` |
+| `/qr <amount> <desc>` | Generate QR code payment | `/qr 150 Coffee` |
+| `/link <amount> <desc>` | Create shareable payment link | `/link 1000 Freelance work` |
+| `/va <amount> <bank> <desc>` | Create virtual account | `/va 2500 BDO Tuition fee` |
 | `/ewallet <amount> <wallet> <phone>` | Charge e-wallet | `/ewallet 300 GCASH 09171234567` |
-| `/status <transaction_id>` | Check payment status | `/status 42` |
+| `/status <txn_id>` | Check payment status | `/status 42` |
 | `/balance` | Check wallet balance | `/balance` |
 | `/send <amount> <user_id>` | Transfer to another user | `/send 100 user123` |
 | `/withdraw <amount>` | Withdraw from wallet | `/withdraw 500` |
-| `/disburse <amount> <bank> <account> <name>` | Send money to bank | `/disburse 1000 BPI 1234567890 Juan` |
+| `/disburse <amt> <bank> <acct> <name>` | Send money to bank | `/disburse 1000 BPI 1234567890 Juan` |
 | `/refund <txn_id> <amount>` | Process a refund | `/refund 42 250` |
 | `/report` | View revenue summary | `/report` |
 | `/fees <amount> <method>` | Calculate payment fees | `/fees 1000 invoice` |
-| `/subscribe <plan> <amount> <interval>` | Create subscription | `/subscribe Premium 999 monthly` |
+| `/subscribe <plan> <amt> <interval>` | Create subscription | `/subscribe Premium 999 monthly` |
 | `/remind <txn_id>` | Send payment reminder | `/remind 42` |
 
 ---
@@ -229,13 +522,13 @@ pnpm run build
 
 | Page | Route | Description |
 |------|-------|-------------|
-| **Dashboard** | `/` | Overview with wallet balance, transaction stats, quick actions, real-time indicator |
-| **Wallet** | `/wallet` | Balance management, deposit, withdraw, transfer, transaction history |
-| **Payments Hub** | `/payments` | Create payments via 5 methods (Invoice, QR, Link, VA, E-Wallet) |
-| **Transactions** | `/transactions` | Full transaction history with search, filter, and status tracking |
-| **Money Management** | `/disbursements` | Disbursements, refunds, subscriptions, and customer management |
-| **Reports** | `/reports` | Revenue analytics, breakdowns, success rates, fee calculator |
-| **Bot Settings** | `/bot-settings` | Configure Telegram bot token, webhook URL, and test connection |
+| **Dashboard** | `/` | Overview with wallet balance, transaction stats, quick actions |
+| **Wallet** | `/wallet` | Balance management, deposit, withdraw, transfer |
+| **Payments Hub** | `/payments` | Create payments via 5 methods |
+| **Transactions** | `/transactions` | Full transaction history with search & filter |
+| **Money Management** | `/disbursements` | Disbursements, refunds, subscriptions, customers |
+| **Reports** | `/reports` | Revenue analytics, breakdowns, fee calculator |
+| **Bot Settings** | `/bot-settings` | Configure Telegram bot and webhook |
 
 ---
 
@@ -264,15 +557,14 @@ pnpm run build
 | POST | `/expire-invoice/{id}` | Cancel pending invoice |
 | GET | `/available-banks` | List supported banks |
 
-### Xendit Webhooks (`/api/v1/xendit/`)
+### Xendit (`/api/v1/xendit/`)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/create-invoice` | Create Xendit invoice |
-| POST | `/create-qr` | Create QR code payment |
+| POST | `/create-qr-code` | Create QR code payment |
 | POST | `/create-payment-link` | Create payment link |
 | POST | `/webhook` | Receive Xendit payment callbacks |
-| GET | `/transactions` | List transactions |
 | GET | `/transaction-stats` | Get transaction statistics |
 
 ### Telegram (`/api/v1/telegram/`)
@@ -280,36 +572,9 @@ pnpm run build
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/webhook` | Receive Telegram updates |
-| POST | `/set-webhook` | Register webhook URL with Telegram |
-
----
-
-## 🔧 Webhook Setup
-
-### Xendit Webhook
-1. Go to [Xendit Dashboard](https://dashboard.xendit.co) → Settings → Webhooks
-2. Add your webhook URL: `https://your-domain.com/api/v1/xendit/webhook`
-3. Select events: `invoices`, `qr_codes`, `payment_links`
-
-### Telegram Webhook
-1. Open the Bot Settings page in the admin dashboard
-2. Enter your Telegram Bot Token
-3. Enter your webhook URL: `https://your-domain.com/api/v1/telegram/webhook`
-4. Click "Set Webhook" — the bot will start receiving messages
-
----
-
-## 🎨 Screenshots
-
-| Dashboard | Payments Hub | Reports |
-|-----------|-------------|---------|
-| ![Dashboard](docs/dashboard.png) | ![Payments](docs/payments.png) | ![Reports](docs/reports.png) |
-
-| Wallet | Disbursements | Bot Settings |
-|--------|--------------|-------------|
-| ![Wallet](docs/wallet.png) | ![Disbursements](docs/disbursements.png) | ![Bot](docs/bot.png) |
-
-> *Screenshots are placeholders — deploy the app to see the full UI!*
+| POST | `/set-webhook` | Register webhook URL |
+| GET | `/bot-info` | Get bot connection status |
+| GET | `/debug-token-check` | Debug token configuration |
 
 ---
 
@@ -335,6 +600,30 @@ pnpm run build
 
 ---
 
+## 🐛 Troubleshooting
+
+### "No API Key detected" from Xendit
+- Ensure `XENDIT_SECRET_KEY` is set in your environment variables
+- On Railway: check the Variables tab in your service settings
+- The backend has a fallback mechanism in `core/config.py` — verify the Settings class loads correctly
+
+### "TELEGRAM_BOT_TOKEN is not configured"
+- Ensure `TELEGRAM_BOT_TOKEN` is set in your environment variables
+- Use the debug endpoint to verify: `GET /api/v1/telegram/debug-token-check`
+- The backend falls back to hardcoded defaults in `core/config.py` if env vars are missing
+
+### Bot shows "Not Connected" on Bot Settings page
+- Verify the token is valid by calling: `https://api.telegram.org/bot<TOKEN>/getMe`
+- Check if the `/api/v1/telegram/bot-info` endpoint returns successfully
+- Ensure the backend server is running and accessible
+
+### Database connection errors
+- Verify `DATABASE_URL` is correctly formatted: `postgresql+asyncpg://user:pass@host:5432/dbname`
+- Ensure the PostgreSQL server is accessible from your deployment
+- Run migrations: `alembic upgrade head`
+
+---
+
 ## 📄 License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
@@ -347,6 +636,7 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 - [Telegram Bot API](https://core.telegram.org/bots/api) — Bot platform
 - [shadcn/ui](https://ui.shadcn.com/) — Beautiful UI components
 - [Atoms Cloud](https://atoms.dev/) — Backend-as-a-Service platform
+- [Railway](https://railway.app/) — Cloud deployment platform
 
 ---
 
