@@ -1,64 +1,28 @@
-import axios, { AxiosInstance } from 'axios';
-import { getAPIBaseURL } from './config';
+import { client } from './api';
 
-class RPApi {
-  private client: AxiosInstance;
-
-  constructor() {
-    this.client = axios.create({
-      withCredentials: true,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-  }
-
-  private getBaseURL() {
-    return getAPIBaseURL();
-  }
-
+export const authApi = {
   async getCurrentUser() {
     try {
-      const response = await this.client.get(
-        `${this.getBaseURL()}/api/v1/auth/me`
-      );
-      return response.data;
-    } catch (error) {
-      if (error.response?.status === 401) {
-        return null;
+      const response = await client.auth.me();
+      if (response?.data) {
+        return {
+          id: response.data.id || response.data.sub,
+          email: response.data.email || '',
+          name: response.data.name || response.data.email || '',
+          role: response.data.role || 'user',
+        };
       }
-      throw new Error(
-        error.response?.data?.detail || 'Failed to get user info'
-      );
+      return null;
+    } catch {
+      return null;
     }
-  }
+  },
 
   async login() {
-    try {
-      const response = await this.client.get(
-        `${this.getBaseURL()}/api/v1/auth/login`
-      );
-      // The backend will redirect to OIDC provider
-      // SSO will work via cookies automatically
-      window.location.href = response.data.redirect_url;
-    } catch (error) {
-      throw new Error(
-        error.response?.data?.detail || 'Failed to initiate login'
-      );
-    }
-  }
+    await client.auth.toLogin();
+  },
 
   async logout() {
-    try {
-      const response = await this.client.get(
-        `${this.getBaseURL()}/api/v1/auth/logout`
-      );
-      // The backend will redirect to OIDC provider logout
-      window.location.href = response.data.redirect_url;
-    } catch (error) {
-      throw new Error(error.response?.data?.detail || 'Failed to logout');
-    }
-  }
-}
-
-export const authApi = new RPApi();
+    await client.auth.logout();
+  },
+};

@@ -17,7 +17,15 @@ class XenditService:
     def __init__(self):
         self.secret_key = os.environ.get("XENDIT_SECRET_KEY", "")
         if not self.secret_key:
-            logger.warning("XENDIT_SECRET_KEY not set in environment")
+            try:
+                from core.config import settings
+                self.secret_key = settings.xendit_secret_key
+                if self.secret_key:
+                    logger.info("XENDIT_SECRET_KEY resolved via settings")
+            except (AttributeError, ImportError) as e:
+                logger.warning(f"Failed to get XENDIT_SECRET_KEY via settings: {e}")
+        if not self.secret_key:
+            logger.warning("XENDIT_SECRET_KEY not configured - Xendit API calls will fail")
 
     def _get_auth(self):
         return (self.secret_key, "")

@@ -28,17 +28,19 @@ interface UsePaymentEventsOptions {
 /**
  * Hook for real-time payment and wallet notifications.
  * Uses polling to /api/v1/events/recent for reliable cross-environment support.
+ * Silently handles all errors to prevent UI disruption.
  */
 export function usePaymentEvents({
   enabled = true,
   onStatusChange,
   onWalletUpdate,
-  pollInterval = 5000,
+  pollInterval = 10000,
 }: UsePaymentEventsOptions = {}) {
   const [lastEvent, setLastEvent] = useState<PaymentEvent | null>(null);
   const [connected, setConnected] = useState(false);
   const lastTimestampRef = useRef<number>(Date.now() / 1000);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const failCountRef = useRef<number>(0);
 
   const showNotification = useCallback((event: PaymentEvent) => {
     const eventType = event.event_type || event.type;
@@ -119,6 +121,8 @@ export function usePaymentEvents({
         data: { since: lastTimestampRef.current },
       });
 
+      // Reset fail count on success
+      failCountRef.current = 0;
       if (!connected) setConnected(true);
 
       const events: PaymentEvent[] = res.data?.events || [];
@@ -143,21 +147,28 @@ export function usePaymentEvents({
         }
       }
     } catch {
-      // Silently fail - will retry on next poll
-      if (connected) setConnected(false);
+      // Silently fail - increment fail count and back off
+      failCountRef.current += 1;
+      if (connected && failCountRef.current > 2) {
+        setConnected(false);
+      }
+      // Don't show any error toast - this is background polling
     }
   }, [connected, onStatusChange, onWalletUpdate, showNotification]);
 
   useEffect(() => {
     if (!enabled) return;
 
-    // Initial poll
-    pollEvents();
+    // Delay initial poll slightly to let auth settle
+    const initialTimeout = setTimeout(() => {
+      pollEvents();
+    }, 2000);
 
     // Set up interval
     intervalRef.current = setInterval(pollEvents, pollInterval);
 
     return () => {
+      clearTimeout(initialTimeout);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;

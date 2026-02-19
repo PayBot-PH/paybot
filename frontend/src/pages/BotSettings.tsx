@@ -42,6 +42,7 @@ export default function BotSettings() {
   const { user } = useAuth();
   const [botInfo, setBotInfo] = useState<BotInfo | null>(null);
   const [botLoading, setBotLoading] = useState(false);
+  const [botError, setBotError] = useState<string>('');
   const [webhookUrl, setWebhookUrl] = useState('');
   const [webhookLoading, setWebhookLoading] = useState(false);
   const [chatId, setChatId] = useState('');
@@ -55,8 +56,20 @@ export default function BotSettings() {
   const [simDescription, setSimDescription] = useState('');
   const [simLoading, setSimLoading] = useState(false);
 
+  const getErrorDetail = (error: unknown): string => {
+    const err = error as { data?: { detail?: string; message?: string }; response?: { data?: { detail?: string } }; message?: string };
+    return err?.data?.detail || err?.data?.message || err?.response?.data?.detail || err?.message || 'Unknown error';
+  };
+
+  const is401Error = (err: unknown): boolean => {
+    const e = err as { status?: number; response?: { status?: number }; data?: { detail?: string } };
+    return e?.status === 401 || e?.response?.status === 401 ||
+      (typeof e?.data?.detail === 'string' && e.data.detail.toLowerCase().includes('unauthorized'));
+  };
+
   const fetchBotInfo = async () => {
     setBotLoading(true);
+    setBotError('');
     try {
       const res = await client.apiCall.invoke({
         url: '/api/v1/telegram/bot-info',
@@ -65,21 +78,29 @@ export default function BotSettings() {
       });
       if (res.data?.success) {
         setBotInfo(res.data.data as BotInfo);
+        setBotError('');
       } else {
-        toast.error(res.data?.message || 'Failed to get bot info');
+        const msg = res.data?.message || 'Failed to get bot info';
+        setBotError(msg);
+        toast.error(msg);
       }
-    } catch (err) {
-      console.error('Failed to get bot info:', err);
+    } catch (err: unknown) {
+      if (is401Error(err)) {
+        setBotError('Authentication required. Please log in first.');
+      } else {
+        const errorMsg = getErrorDetail(err);
+        console.error('Failed to get bot info:', errorMsg);
+        setBotError(errorMsg);
+        toast.error(`Bot connection failed: ${errorMsg}`);
+      }
     } finally {
       setBotLoading(false);
     }
   };
 
   useEffect(() => {
-    if (user) {
-      fetchBotInfo();
-    }
-  }, [user]);
+    fetchBotInfo();
+  }, []);
 
   const handleSetWebhook = async () => {
     if (!webhookUrl) {
@@ -99,8 +120,12 @@ export default function BotSettings() {
         toast.error(res.data?.message || 'Failed to set webhook');
       }
     } catch (err: unknown) {
-      const errorMsg = (err as { data?: { detail?: string } })?.data?.detail || 'Failed to set webhook';
-      toast.error(errorMsg);
+      if (is401Error(err)) {
+        toast.error('Please log in first to set the webhook.');
+      } else {
+        const errorMsg = getErrorDetail(err);
+        toast.error(errorMsg);
+      }
     } finally {
       setWebhookLoading(false);
     }
@@ -125,8 +150,12 @@ export default function BotSettings() {
         toast.error(res.data?.message || 'Failed to send message');
       }
     } catch (err: unknown) {
-      const errorMsg = (err as { data?: { detail?: string } })?.data?.detail || 'Failed to send message';
-      toast.error(errorMsg);
+      if (is401Error(err)) {
+        toast.error('Please log in first to send messages.');
+      } else {
+        const errorMsg = getErrorDetail(err);
+        toast.error(errorMsg);
+      }
     } finally {
       setSendLoading(false);
     }
@@ -159,8 +188,12 @@ export default function BotSettings() {
         toast.error('Failed to simulate webhook');
       }
     } catch (err: unknown) {
-      const errorMsg = (err as { data?: { detail?: string } })?.data?.detail || 'Failed to simulate webhook';
-      toast.error(errorMsg);
+      if (is401Error(err)) {
+        toast.error('Please log in first to simulate webhooks.');
+      } else {
+        const errorMsg = getErrorDetail(err);
+        toast.error(errorMsg);
+      }
     } finally {
       setSimLoading(false);
     }
@@ -259,17 +292,34 @@ export default function BotSettings() {
                 <div className="text-center py-8">
                   <XCircle className="h-12 w-12 text-red-400 mx-auto mb-3" />
                   <p className="text-slate-400 mb-3">Bot not connected</p>
-                  <p className="text-xs text-slate-500">
-                    Make sure TELEGRAM_BOT_TOKEN is configured
-                  </p>
-                  <Button
-                    onClick={fetchBotInfo}
-                    variant="outline"
-                    size="sm"
-                    className="mt-3 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700"
-                  >
-                    Retry
-                  </Button>
+                  {botError ? (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-3 text-left">
+                      <p className="text-xs text-red-300 font-medium mb-1">Error Details:</p>
+                      <p className="text-xs text-red-400 font-mono break-all">{botError}</p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500 mb-3">
+                      Make sure TELEGRAM_BOT_TOKEN is configured
+                    </p>
+                  )}
+                  {botError && botError.includes('Authentication required') && !user ? (
+                    <Button
+                      onClick={() => client.auth.toLogin()}
+                      size="sm"
+                      className="mt-1 bg-blue-600 hover:bg-blue-700 text-white"
+                    >
+                      Log In to Connect Bot
+                    </Button>
+                  ) : (
+                    <Button
+                      onClick={fetchBotInfo}
+                      variant="outline"
+                      size="sm"
+                      className="mt-1 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700"
+                    >
+                      Retry
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>
@@ -284,15 +334,18 @@ export default function BotSettings() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 space-y-2">
                 <div className="flex items-start space-x-2">
                   <Info className="h-4 w-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-blue-300">
-                    Set the webhook URL to your deployed backend endpoint. Format:
-                    <code className="bg-slate-800 px-1 rounded ml-1">
-                      https://your-domain.com/api/v1/telegram/webhook
-                    </code>
-                  </p>
+                  <div className="text-xs text-blue-300 space-y-1">
+                    <p className="font-semibold text-blue-200">⚡ Setup Steps:</p>
+                    <ol className="list-decimal list-inside space-y-1 ml-1">
+                      <li><strong>Publish</strong> this app first using the Publish button</li>
+                      <li>Copy your published URL (e.g., <code className="bg-slate-800 px-1 rounded">https://your-app.atoms.dev</code>)</li>
+                      <li>Set the webhook URL below to: <code className="bg-slate-800 px-1 rounded">https://your-app-url/api/v1/telegram/webhook</code></li>
+                    </ol>
+                    <p className="text-amber-300 mt-1">⚠️ The bot will only respond after the app is published and the webhook is configured.</p>
+                  </div>
                 </div>
               </div>
 

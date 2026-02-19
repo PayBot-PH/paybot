@@ -15,7 +15,6 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  Plus,
   Bot,
   LogIn,
   BarChart3,
@@ -54,6 +53,16 @@ interface Transaction {
   payment_url: string;
 }
 
+const defaultStats: Stats = {
+  total_count: 0,
+  paid_count: 0,
+  pending_count: 0,
+  expired_count: 0,
+  total_amount: 0,
+  paid_amount: 0,
+  pending_amount: 0,
+};
+
 const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
   paid: { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: <CheckCircle className="h-3 w-3" /> },
   pending: { color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', icon: <Clock className="h-3 w-3" /> },
@@ -68,25 +77,47 @@ const typeIcons: Record<string, React.ReactNode> = {
 
 export default function Dashboard() {
   const { user, loading: authLoading, login } = useAuth();
-  const [stats, setStats] = useState<Stats | null>(null);
+  const [stats, setStats] = useState<Stats>(defaultStats);
   const [recentTxns, setRecentTxns] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatedTxnIds, setUpdatedTxnIds] = useState<Set<number>>(new Set());
-  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number>(0);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
     try {
-      const [statsRes, txnRes, walletRes] = await Promise.all([
+      // Use Promise.allSettled so individual failures don't break everything
+      const results = await Promise.allSettled([
         client.apiCall.invoke({ url: '/api/v1/xendit/transaction-stats', method: 'GET', data: {} }),
         client.entities.transactions.query({ query: {}, sort: '-created_at', limit: 5 }),
         client.apiCall.invoke({ url: '/api/v1/wallet/balance', method: 'GET', data: {} }),
       ]);
-      setStats(statsRes.data);
-      setRecentTxns(txnRes.data?.items || []);
-      setWalletBalance(walletRes.data?.balance ?? 0);
+
+      // Handle stats result
+      if (results[0].status === 'fulfilled') {
+        const statsData = results[0].value?.data;
+        if (statsData) setStats(statsData);
+      } else {
+        console.warn('Failed to fetch transaction stats:', results[0].reason);
+      }
+
+      // Handle transactions result
+      if (results[1].status === 'fulfilled') {
+        const txnData = results[1].value?.data?.items;
+        if (txnData) setRecentTxns(txnData);
+      } else {
+        console.warn('Failed to fetch recent transactions:', results[1].reason);
+      }
+
+      // Handle wallet result
+      if (results[2].status === 'fulfilled') {
+        const walletData = results[2].value?.data;
+        if (walletData?.balance != null) setWalletBalance(walletData.balance);
+      } else {
+        console.warn('Failed to fetch wallet balance:', results[2].reason);
+      }
     } catch (err) {
-      console.error('Failed to fetch dashboard data:', err);
+      console.error('Unexpected error in fetchData:', err);
     }
   }, [user]);
 
@@ -109,7 +140,7 @@ export default function Dashboard() {
     onWalletUpdate: useCallback(() => {
       fetchData();
     }, [fetchData]),
-    pollInterval: 5000,
+    pollInterval: 10000,
   });
 
   useEffect(() => {
@@ -135,7 +166,7 @@ export default function Dashboard() {
       <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
         <div className="text-center space-y-6 max-w-md px-6">
           <div className="relative">
-            <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"></div>
+            <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full pointer-events-none"></div>
             <img
               src="https://mgx-backend-cdn.metadl.com/generate/images/368645/2026-02-18/b7a3226a-8029-4dad-a8fe-3bfcd3bda329.png"
               alt="Payment Dashboard"
@@ -151,7 +182,7 @@ export default function Dashboard() {
           <Button
             onClick={login}
             size="lg"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg"
+            className="relative z-10 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg"
           >
             <LogIn className="h-5 w-5 mr-2" />
             Sign In to Continue
@@ -262,7 +293,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm text-slate-400">Total Transactions</p>
                   <p className="text-3xl font-bold text-white mt-1 transition-all duration-300">
-                    {loading ? '...' : stats?.total_count || 0}
+                    {loading ? '...' : stats.total_count}
                   </p>
                 </div>
                 <div className="h-12 w-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
@@ -270,7 +301,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <p className="text-xs text-slate-500 mt-2">
-                ₱{loading ? '...' : (stats?.total_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{loading ? '...' : (stats.total_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </p>
             </CardContent>
           </Card>
@@ -281,7 +312,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm text-slate-400">Paid</p>
                   <p className="text-3xl font-bold text-emerald-400 mt-1 transition-all duration-300">
-                    {loading ? '...' : stats?.paid_count || 0}
+                    {loading ? '...' : stats.paid_count}
                   </p>
                 </div>
                 <div className="h-12 w-12 bg-emerald-500/20 rounded-xl flex items-center justify-center">
@@ -289,7 +320,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <p className="text-xs text-slate-500 mt-2">
-                ₱{loading ? '...' : (stats?.paid_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{loading ? '...' : (stats.paid_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </p>
             </CardContent>
           </Card>
@@ -300,7 +331,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm text-slate-400">Pending</p>
                   <p className="text-3xl font-bold text-amber-400 mt-1 transition-all duration-300">
-                    {loading ? '...' : stats?.pending_count || 0}
+                    {loading ? '...' : stats.pending_count}
                   </p>
                 </div>
                 <div className="h-12 w-12 bg-amber-500/20 rounded-xl flex items-center justify-center">
@@ -308,7 +339,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <p className="text-xs text-slate-500 mt-2">
-                ₱{loading ? '...' : (stats?.pending_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{loading ? '...' : (stats.pending_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </p>
             </CardContent>
           </Card>
@@ -319,7 +350,7 @@ export default function Dashboard() {
                 <div>
                   <p className="text-sm text-slate-400">Expired</p>
                   <p className="text-3xl font-bold text-red-400 mt-1 transition-all duration-300">
-                    {loading ? '...' : stats?.expired_count || 0}
+                    {loading ? '...' : stats.expired_count}
                   </p>
                 </div>
                 <div className="h-12 w-12 bg-red-500/20 rounded-xl flex items-center justify-center">
@@ -408,7 +439,7 @@ export default function Dashboard() {
                 <div className="text-center py-8">
                   <DollarSign className="h-12 w-12 text-slate-600 mx-auto mb-3" />
                   <p className="text-slate-400">No transactions yet</p>
-                  <Link to="/create-payment">
+                  <Link to="/payments">
                     <Button size="sm" className="mt-3 bg-blue-600 hover:bg-blue-700 text-white">
                       Create Your First Payment
                     </Button>

@@ -1,8 +1,12 @@
 import logging
 import os
+from pathlib import Path
 from typing import Any
 
 from pydantic_settings import BaseSettings
+
+_BACKEND_DIR = Path(__file__).resolve().parent.parent
+_ENV_FILE = _BACKEND_DIR / ".env"
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +26,10 @@ class Settings(BaseSettings):
     lambda_function_name: str = "fastapi-backend"
     aws_region: str = "us-east-1"
 
+    # API Keys - hardcoded defaults as fallback
+    telegram_bot_token: str = "8514779423:AAER8WD2AAMesBI_hrjG-fwBnp6XwkW61to"
+    xendit_secret_key: str = "xnd_production_wr4sXW9604LTqnbWTdEHPzpGYzwYAOruW0vCAJnYnMByVk8dGFOSB4TG2a46Ds"
+
     @property
     def backend_url(self) -> str:
         """Generate backend URL from host and port."""
@@ -38,6 +46,8 @@ class Settings(BaseSettings):
     class Config:
         case_sensitive = False
         extra = "ignore"
+        env_file = str(_ENV_FILE) if _ENV_FILE.exists() else ".env"
+        env_file_encoding = "utf-8"
 
     def __getattr__(self, name: str) -> Any:
         """

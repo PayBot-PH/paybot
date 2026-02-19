@@ -67,7 +67,6 @@ export default defineConfig(({ mode }) => ({
           ],
           'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
           'utils-vendor': [
-            'axios',
             'clsx',
             'tailwind-merge',
             'class-variance-authority',
