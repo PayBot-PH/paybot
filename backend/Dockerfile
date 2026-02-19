@@ -25,5 +25,5 @@ EXPOSE 8000
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Run migrations and start the server
-CMD alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Run migrations and start the server (fallback for direct Docker usage)
+CMD ["bash", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
