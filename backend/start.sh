@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+# Railway backend entrypoint
+
 echo "Running database migrations..."
 alembic upgrade head
 
