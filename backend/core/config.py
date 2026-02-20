@@ -33,6 +33,12 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     xendit_secret_key: str = ""
 
+    # Simple admin authentication
+    admin_user_id: str = "admin"
+    admin_user_email: str = "admin@paybot.local"
+    admin_user_password: str = ""
+    telegram_admin_ids: str = ""
+
     @property
     def backend_url(self) -> str:
         """Generate backend URL from host and port."""

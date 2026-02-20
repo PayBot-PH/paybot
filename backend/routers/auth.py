@@ -22,6 +22,7 @@ from fastapi.responses import RedirectResponse
 from models.auth import User
 from schemas.auth import (
     PlatformTokenExchangeRequest,
+    TelegramLoginRequest,
     TokenExchangeResponse,
     UserResponse,
 )
@@ -71,6 +72,57 @@ def get_dynamic_backend_url(request: Request) -> str:
 
 def derive_name_from_email(email: str) -> str:
     return email.split("@", 1)[0] if email else ""
+
+
+def _get_allowed_telegram_admin_ids() -> set[str]:
+    configured_ids = set()
+
+    admin_user_id = str(getattr(settings, "admin_user_id", "") or "").strip()
+    if admin_user_id:
+        configured_ids.add(admin_user_id)
+
+    raw_admin_ids = str(getattr(settings, "telegram_admin_ids", "") or "")
+    if raw_admin_ids:
+        for admin_id in raw_admin_ids.split(","):
+            cleaned = admin_id.strip()
+            if cleaned:
+                configured_ids.add(cleaned)
+
+    return configured_ids
+
+
+@router.post("/telegram-login", response_model=TokenExchangeResponse)
+async def telegram_login(payload: TelegramLoginRequest, db: AsyncSession = Depends(get_db)):
+    """Telegram-based admin login. Only configured bot admins can log in."""
+    telegram_user_id = str(payload.telegram_user_id or "").strip()
+    if not telegram_user_id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram user ID is required")
+
+    configured_password = str(getattr(settings, "admin_user_password", "") or "")
+    allowed_admin_ids = _get_allowed_telegram_admin_ids()
+
+    if not allowed_admin_ids or not configured_password:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Telegram admin authentication is not configured",
+        )
+
+    if payload.password != configured_password:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram credentials")
+
+    if telegram_user_id not in allowed_admin_ids:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You are not a bot admin and cannot log in",
+        )
+
+    admin_email = getattr(settings, "admin_user_email", "") or f"{telegram_user_id}@paybot.local"
+    user = User(id=telegram_user_id, email=admin_email, name=telegram_user_id, role="admin")
+    auth_service = AuthService(db)
+    app_token, _, _ = await auth_service.issue_app_token(user=user)
+
+    logger.info("[telegram-login] Bot admin authenticated: %s", telegram_user_id)
+    return TokenExchangeResponse(token=app_token)
 
 
 @router.get("/login")

@@ -11,8 +11,7 @@ import PaymentsHub from './pages/PaymentsHub';
 import DisbursementsPage from './pages/DisbursementsPage';
 import ReportsPage from './pages/ReportsPage';
 import BotSettings from './pages/BotSettings';
-import AuthCallback from './pages/AuthCallback';
-import AuthError from './pages/AuthError';
+import Login from './pages/Login';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -24,6 +23,7 @@ const App = () => (
         <Toaster />
         <BrowserRouter>
           <Routes>
+            <Route path="/login" element={<Login />} />
             <Route path="/" element={<Dashboard />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/transactions" element={<Transactions />} />
@@ -32,8 +32,6 @@ const App = () => (
             <Route path="/disbursements" element={<DisbursementsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/bot-settings" element={<BotSettings />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/auth/error" element={<AuthError />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

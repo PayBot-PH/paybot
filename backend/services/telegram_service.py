@@ -45,6 +45,18 @@ class TelegramService:
         self.bot_token = _resolve_bot_token()
         if not self.bot_token:
             logger.warning("TELEGRAM_BOT_TOKEN not set - bot will not function")
+        self._timeout = httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0)
+
+    async def _post_with_retry(self, url: str, payload: Dict[str, Any]) -> httpx.Response:
+        last_error: Optional[Exception] = None
+        for _ in range(2):
+            try:
+                async with httpx.AsyncClient(timeout=self._timeout) as client:
+                    response = await client.post(url, json=payload)
+                    return response
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                last_error = exc
+        raise last_error if last_error else RuntimeError("Telegram request failed")
 
     @property
     def api_url(self):
@@ -53,8 +65,8 @@ class TelegramService:
     async def get_bot_info(self) -> Dict[str, Any]:
         """Get bot information"""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.get(f"{self.api_url}/getMe", timeout=15.0)
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.get(f"{self.api_url}/getMe")
                 response.raise_for_status()
                 data = response.json()
                 if data.get("ok"):
@@ -67,11 +79,10 @@ class TelegramService:
     async def set_webhook(self, webhook_url: str) -> Dict[str, Any]:
         """Set the Telegram webhook URL"""
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
                 response = await client.post(
                     f"{self.api_url}/setWebhook",
                     json={"url": webhook_url},
-                    timeout=15.0,
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -90,21 +101,31 @@ class TelegramService:
     ) -> Dict[str, Any]:
         """Send a message to a Telegram chat"""
         try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{self.api_url}/sendMessage",
-                    json={
+            payload: Dict[str, Any] = {
+                "chat_id": chat_id,
+                "text": text,
+                "parse_mode": parse_mode,
+            }
+
+            response = await self._post_with_retry(f"{self.api_url}/sendMessage", payload)
+            data = response.json()
+
+            if response.status_code == 400 and isinstance(data, dict):
+                description = str(data.get("description", "")).lower()
+                if "can't parse entities" in description or "parse" in description:
+                    fallback_payload = {
                         "chat_id": chat_id,
                         "text": text,
-                        "parse_mode": parse_mode,
-                    },
-                    timeout=15.0,
-                )
-                response.raise_for_status()
-                data = response.json()
-                if data.get("ok"):
-                    return {"success": True, "message_id": data["result"]["message_id"]}
-                return {"success": False, "error": data.get("description", "Unknown error")}
+                    }
+                    response = await self._post_with_retry(f"{self.api_url}/sendMessage", fallback_payload)
+                    data = response.json()
+
+            if response.status_code >= 400:
+                return {"success": False, "error": data.get("description", f"HTTP {response.status_code}")}
+
+            if data.get("ok"):
+                return {"success": True, "message_id": data["result"]["message_id"]}
+            return {"success": False, "error": data.get("description", "Unknown error")}
         except Exception as e:
             logger.error(f"Error sending message: {str(e)}")
             return {"success": False, "error": str(e)}

@@ -39,7 +39,7 @@ interface BotInfo {
 }
 
 export default function BotSettings() {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const [botInfo, setBotInfo] = useState<BotInfo | null>(null);
   const [botLoading, setBotLoading] = useState(false);
   const [botError, setBotError] = useState<string>('');
@@ -304,7 +304,7 @@ export default function BotSettings() {
                   )}
                   {botError && botError.includes('Authentication required') && !user ? (
                     <Button
-                      onClick={() => client.auth.toLogin()}
+                      onClick={() => login()}
                       size="sm"
                       className="mt-1 bg-blue-600 hover:bg-blue-700 text-white"
                     >

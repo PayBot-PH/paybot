@@ -79,4 +79,7 @@ export default defineConfig(({ mode }) => ({
     },
     chunkSizeWarningLimit: 1000,
   },
+  preview: {
+    allowedHosts: ['paybot-frontend-production.up.railway.app'],
+  },
 }));

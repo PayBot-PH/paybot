@@ -18,7 +18,7 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
-  login: () => Promise<void>;
+  login: (userId?: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
   refetch: () => Promise<void>;
   isAdmin: boolean;
@@ -57,10 +57,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async () => {
+  const login = async (userId?: string, password?: string) => {
     try {
       setError(null);
-      await authApi.login();
+
+      if (!userId || !password) {
+        window.location.href = '/login';
+        return;
+      }
+
+      await authApi.login(userId, password);
+      await checkAuthStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     }

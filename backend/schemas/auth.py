@@ -21,6 +21,11 @@ class PlatformTokenExchangeRequest(BaseModel):
     platform_token: str
 
 
+class TelegramLoginRequest(BaseModel):
+    telegram_user_id: str
+    password: str
+
+
 class TokenExchangeResponse(BaseModel):
     """Response body for issued application token."""
 
