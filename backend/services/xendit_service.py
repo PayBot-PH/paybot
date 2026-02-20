@@ -81,10 +81,10 @@ class XenditService:
             return {"success": False, "error": str(e)}
 
     # ==================== QR CODES ====================
-    async def create_qr_code(self, amount: float, description: str = "", external_id: str = "") -> Dict[str, Any]:
+    async def create_qr_code(self, amount: float, description: str = "", external_id: str = "", channel_code: str = "RCBC") -> Dict[str, Any]:
         if not external_id:
             external_id = f"qr-{uuid.uuid4().hex[:12]}"
-        payload = {"reference_id": external_id, "type": "DYNAMIC", "currency": "PHP", "amount": amount, "channel_code": "RCBC"}
+        payload = {"reference_id": external_id, "type": "DYNAMIC", "currency": "PHP", "amount": amount, "channel_code": channel_code}
         if description:
             payload["metadata"] = {"description": description}
         try:
@@ -98,6 +98,11 @@ class XenditService:
             return {"success": False, "error": e.response.text}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    async def create_alipay_qr(self, amount: float, description: str = "", external_id: str = "") -> Dict[str, Any]:
+        if not external_id:
+            external_id = f"alipay-{uuid.uuid4().hex[:12]}"
+        return await self.create_qr_code(amount=amount, description=description, external_id=external_id, channel_code="QRIS")
 
     # ==================== PAYMENT LINKS ====================
     async def create_payment_link(self, amount: float, description: str = "",

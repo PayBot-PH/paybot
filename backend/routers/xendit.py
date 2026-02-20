@@ -34,6 +34,11 @@ class CreateQRCodeRequest(BaseModel):
     description: str = ""
 
 
+class CreateAlipayQRRequest(BaseModel):
+    amount: float
+    description: str = ""
+
+
 class CreatePaymentLinkRequest(BaseModel):
     amount: float
     description: str = ""
@@ -168,6 +173,60 @@ async def create_qr_code(
         )
     except Exception as e:
         logger.error(f"Error creating QR code: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/create-alipay-qr", response_model=PaymentResponse)
+async def create_alipay_qr(
+    data: CreateAlipayQRRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create an Alipay QR code payment"""
+    try:
+        service = XenditService()
+        result = await service.create_alipay_qr(
+            amount=data.amount,
+            description=data.description,
+        )
+
+        if not result.get("success"):
+            return PaymentResponse(
+                success=False,
+                message=result.get("error", "Failed to create Alipay QR code"),
+            )
+
+        now = datetime.now()
+        txn = Transactions(
+            user_id=str(current_user.id),
+            transaction_type="alipay_qr",
+            external_id=result.get("external_id", ""),
+            xendit_id=result.get("qr_id", ""),
+            amount=data.amount,
+            currency="PHP",
+            status="pending",
+            description=data.description,
+            qr_code_url=result.get("qr_string", ""),
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(txn)
+        await db.commit()
+        await db.refresh(txn)
+
+        return PaymentResponse(
+            success=True,
+            message="Alipay QR code created successfully",
+            data={
+                "transaction_id": txn.id,
+                "qr_id": result.get("qr_id", ""),
+                "qr_string": result.get("qr_string", ""),
+                "external_id": result.get("external_id", ""),
+                "amount": data.amount,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error creating Alipay QR code: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

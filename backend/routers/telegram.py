@@ -128,6 +128,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "💳 <b>Payment Commands:</b>\n"
                 "/invoice [amount] [desc] - Create invoice\n"
                 "/qr [amount] [desc] - QR code payment\n"
+                "/alipay [amount] [desc] - Alipay QR payment\n"
                 "/link [amount] [desc] - Payment link\n"
                 "/va [amount] [bank] - Virtual account\n"
                 "/ewallet [amount] [provider] - E-wallet charge\n\n"
@@ -219,6 +220,46 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /qr: {e}", exc_info=True)
+                            try:
+                                await db.rollback()
+                            except Exception:
+                                pass
+                    else:
+                        await tg.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
+                except ValueError:
+                    await tg.send_message(chat_id, "❌ Invalid amount.")
+
+        # ==================== /alipay ====================
+        elif text.startswith("/alipay"):
+            parts = text.split(maxsplit=2)
+            if len(parts) < 2:
+                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]")
+            else:
+                try:
+                    amount = float(parts[1])
+                    description = parts[2] if len(parts) > 2 else "Alipay payment"
+                    xendit = XenditService()
+                    result = await xendit.create_alipay_qr(amount=amount, description=description)
+                    if result.get("success"):
+                        reply = (
+                            f"✅ <b>Alipay QR Created!</b>\n\n💰 ₱{amount:,.2f}\n"
+                            f"📱 QR: <code>{result.get('qr_string', '')}</code>\n"
+                            f"🆔 <code>{result.get('external_id', '')}</code>"
+                        )
+                        await tg.send_message(chat_id, reply)
+                        try:
+                            now = datetime.now()
+                            txn = Transactions(
+                                user_id="telegram", transaction_type="alipay_qr",
+                                external_id=result.get("external_id", ""), xendit_id=result.get("qr_id", ""),
+                                amount=amount, currency="PHP", status="pending", description=description,
+                                qr_code_url=result.get("qr_string", ""), telegram_chat_id=chat_id,
+                                created_at=now, updated_at=now,
+                            )
+                            db.add(txn)
+                            await db.commit()
+                        except Exception as e:
+                            logger.error(f"DB save failed for /alipay: {e}", exc_info=True)
                             try:
                                 await db.rollback()
                             except Exception:
@@ -773,6 +814,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "Choose a payment method:\n\n"
                 "📄 /invoice [amount] [desc] - Invoice\n"
                 "📱 /qr [amount] [desc] - QR Code\n"
+                "🏧 /alipay [amount] [desc] - Alipay QR\n"
                 "🔗 /link [amount] [desc] - Payment Link\n"
                 "🏦 /va [amount] [bank] - Virtual Account\n"
                 "📲 /ewallet [amount] [provider] - E-Wallet\n\n"
@@ -788,6 +830,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "/pay - Payment menu\n"
                 "/invoice [amt] [desc] - Invoice\n"
                 "/qr [amt] [desc] - QR Code\n"
+                "/alipay [amt] [desc] - Alipay QR\n"
                 "/link [amt] [desc] - Payment Link\n"
                 "/va [amt] [bank] - Virtual Account\n"
                 "/ewallet [amt] [provider] - E-Wallet\n\n"
