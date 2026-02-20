@@ -21,14 +21,17 @@ class Settings(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
 
+    # Database
+    database_url: str = "sqlite+aiosqlite:///./paybot.db"
+
     # AWS Lambda Configuration
     is_lambda: bool = False
     lambda_function_name: str = "fastapi-backend"
     aws_region: str = "us-east-1"
 
-    # API Keys - hardcoded defaults as fallback
-    telegram_bot_token: str = "8514779423:AAER8WD2AAMesBI_hrjG-fwBnp6XwkW61to"
-    xendit_secret_key: str = "xnd_production_wr4sXW9604LTqnbWTdEHPzpGYzwYAOruW0vCAJnYnMByVk8dGFOSB4TG2a46Ds"
+    # API Keys
+    telegram_bot_token: str = ""
+    xendit_secret_key: str = ""
 
     @property
     def backend_url(self) -> str:

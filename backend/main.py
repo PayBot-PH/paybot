@@ -65,6 +65,24 @@ async def lifespan(app: FastAPI):
     logger = logging.getLogger(__name__)
     logger.info("=== Application startup initiated ===")
 
+    environment = os.getenv("ENVIRONMENT", "dev").lower()
+    missing_required_secrets = [
+        key
+        for key, value in {
+            "TELEGRAM_BOT_TOKEN": settings.telegram_bot_token,
+            "XENDIT_SECRET_KEY": settings.xendit_secret_key,
+        }.items()
+        if not value
+    ]
+
+    if missing_required_secrets:
+        message = f"Missing required environment variables: {', '.join(missing_required_secrets)}"
+        if environment == "dev":
+            logger.warning(message)
+        else:
+            logger.error(message)
+            raise RuntimeError(message)
+
     # MODULE_STARTUP_START
     await initialize_database()
     await initialize_mock_data()

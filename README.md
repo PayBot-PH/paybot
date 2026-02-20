@@ -80,6 +80,30 @@ A full-featured **payment management platform** that combines a **Telegram Bot**
 
 ---
 
+## 🪟 Windows Local Quick Start
+
+Run from the repository root in PowerShell:
+
+```powershell
+./setup_windows.ps1
+./start_local_windows.ps1
+```
+
+What this does:
+- Installs Python 3.11 and Node.js LTS via `winget` (user scope)
+- Enables `pnpm` via Corepack
+- Creates `backend/.env` and `frontend/.env` if missing
+- Installs backend/frontend dependencies
+- Starts backend (`:8000`) and frontend (`:3000`) in separate terminals
+
+If PowerShell blocks script execution for the current terminal session:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+```
+
+---
+
 ## 📁 Project Structure
 
 ```
