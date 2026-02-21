@@ -94,6 +94,100 @@ async def setup_webhook(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/webhook-info")
+async def get_webhook_info(current_user: UserResponse = Depends(get_current_user)):
+    """Return what webhook URL Telegram currently has on file for this bot.
+
+    This is the single most useful diagnostic: if the URL is empty or wrong
+    the bot will never receive messages no matter what else is configured.
+    """
+    token = _resolve_bot_token()
+    if not token:
+        return {
+            "success": False,
+            "token_configured": False,
+            "webhook": {},
+            "message": "TELEGRAM_BOT_TOKEN is not set — bot cannot work without it.",
+        }
+    service = TelegramService()
+    result = await service.get_webhook_info()
+    webhook = result.get("webhook", {})
+    url = webhook.get("url", "")
+    pending = webhook.get("pending_update_count", 0)
+    last_error = webhook.get("last_error_message", "")
+    return {
+        "success": result.get("success", False),
+        "token_configured": True,
+        "webhook": webhook,
+        "webhook_url": url,
+        "is_registered": bool(url),
+        "pending_update_count": pending,
+        "last_error_message": last_error,
+        "message": (
+            "Webhook is registered and active." if url
+            else "No webhook registered -- bot will NOT receive messages. Use Auto-Setup to fix this."
+        ),
+    }
+
+
+@router.post("/auto-setup")
+async def auto_setup_webhook(
+    request: Request,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """One-click webhook setup: detect this server's public URL from request
+    headers and register it as the Telegram webhook.
+
+    Works on Railway, Render, any reverse-proxy, or direct HTTPS.
+    """
+    token = _resolve_bot_token()
+    if not token:
+        raise HTTPException(
+            status_code=400,
+            detail="TELEGRAM_BOT_TOKEN is not configured. Add it in your environment variables first.",
+        )
+
+    # Detect public URL from request headers (Railway/nginx/cloudflare set these)
+    scheme = request.headers.get("x-forwarded-proto", "https")
+    host = (
+        request.headers.get("x-forwarded-host")
+        or request.headers.get("host")
+        or ""
+    )
+    if not host:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot detect public URL from request headers. Set PYTHON_BACKEND_URL env var instead.",
+        )
+
+    # Strip port from host if it looks like a public HTTPS deployment
+    detected_base = f"{scheme}://{host}"
+    webhook_url = f"{detected_base.rstrip('/')}/api/v1/telegram/webhook"
+
+    service = TelegramService()
+
+    # Set webhook
+    set_result = await service.set_webhook(webhook_url)
+    if not set_result.get("success"):
+        return {
+            "success": False,
+            "webhook_url": webhook_url,
+            "message": f"Failed to register webhook: {set_result.get('error', 'Unknown error')}",
+        }
+
+    # Verify it took effect
+    info_result = await service.get_webhook_info()
+    webhook_info = info_result.get("webhook", {})
+
+    logger.info(f"[auto-setup] Webhook registered: {webhook_url}")
+    return {
+        "success": True,
+        "webhook_url": webhook_url,
+        "webhook_info": webhook_info,
+        "message": f"Webhook registered at {webhook_url} -- bot will now respond to messages.",
+    }
+
+
 @router.post("/webhook")
 async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """Receive Telegram bot updates (no auth required).
