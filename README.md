@@ -9,6 +9,29 @@ A full-featured **payment management platform** that combines a **Telegram Bot**
 
 ---
 
+## 🌐 Accessing the Dashboard
+
+Open your browser to the URL that matches your environment:
+
+| Environment | URL |
+|-------------|-----|
+| **Local dev** (Vite frontend dev server) | `http://localhost:3000` |
+| **Local / Docker** (backend serves built UI) | `http://localhost:8000` |
+| **Railway production** | `https://<your-project>.up.railway.app` |
+
+> **Finding your Railway URL:** go to your Railway project → select the service → **Settings → Domains**. It looks like `https://paybot-production-xxxx.up.railway.app`.
+
+### Dashboard Pages
+
+| Page | Path | Description |
+|------|------|-------------|
+| Dashboard | `/` | Stats, wallet balance, recent transactions |
+| Transactions | `/transactions` | Full history with search & filters |
+| Create Payment | `/create-payment` | Invoice / QR / payment link form |
+| Bot Settings | `/bot-settings` | Test bot, set webhook, send test message |
+
+---
+
 ## ✨ Features
 
 ### 💳 Payment Collection (5 Methods)
