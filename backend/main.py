@@ -5,12 +5,14 @@ import pkgutil
 import traceback
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 
 from core.config import settings
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.routing import APIRouter
+from fastapi.staticfiles import StaticFiles
 
 # MODULE_IMPORTS_START
 from services.database import initialize_database, close_database
@@ -262,14 +264,43 @@ async def general_exception_handler(request: Request, exc: Exception):
         )
 
 
-@app.get("/")
-def root():
-    return {"message": "FastAPI Modular Template is running"}
-
-
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
+
+
+# ── Frontend SPA serving ─────────────────────────────────────────────────────
+# Serve the built React admin UI from backend/static/ (populated by the
+# multi-stage Docker build).  This must be registered AFTER all API routers so
+# that /api/... routes take priority.
+
+_STATIC_DIR = Path(__file__).parent / "static"
+
+if _STATIC_DIR.exists():
+    # Mount the Vite-generated assets bundle directory for efficient serving
+    _assets_dir = _STATIC_DIR / "assets"
+    if _assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    async def serve_root():
+        """Serve the admin dashboard SPA."""
+        return FileResponse(str(_STATIC_DIR / "index.html"))
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        """Catch-all: serve static files or fall back to index.html for React Router."""
+        file_path = (_STATIC_DIR / full_path).resolve()
+        # Guard against path traversal attacks
+        if not str(file_path).startswith(str(_STATIC_DIR.resolve())):
+            return FileResponse(str(_STATIC_DIR / "index.html"))
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(_STATIC_DIR / "index.html"))
+else:
+    @app.get("/")
+    def root():
+        return {"message": "PayBot API is running. Deploy with frontend for the admin UI."}
 
 
 def run_in_debug_mode(app: FastAPI):
