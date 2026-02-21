@@ -156,6 +156,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Invoice payment"
                     xendit = XenditService()
                     result = await xendit.create_invoice(amount=amount, description=description)
@@ -197,6 +201,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "QR payment"
                     xendit = XenditService()
                     result = await xendit.create_qr_code(amount=amount, description=description)
@@ -237,6 +245,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
                     xendit = XenditService()
                     result = await xendit.create_alipay_qr(amount=amount, description=description)
@@ -277,6 +289,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Payment link"
                     xendit = XenditService()
                     result = await xendit.create_payment_link(amount=amount, description=description)
@@ -316,6 +332,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     bank_code = parts[2].upper()
                     xendit = XenditService()
                     result = await xendit.create_virtual_account(amount=amount, bank_code=bank_code, name=username)
@@ -356,6 +376,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     provider = parts[2].upper()
                     channel_map = {
                         "GCASH": "PH_GCASH", "GRABPAY": "PH_GRABPAY", "PAYMAYA": "PH_PAYMAYA",
@@ -402,6 +426,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     bank_code = parts[2].upper()
                     account_number = parts[3]
                     xendit = XenditService()
@@ -462,8 +490,17 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 elif txn.status != "paid":
                     await tg.send_message(chat_id, "❌ Only paid transactions can be refunded.")
                 else:
-                    refund_amount = float(parts[2]) if len(parts) > 2 else txn.amount
-                    if refund_amount > txn.amount:
+                    try:
+                        refund_amount = float(parts[2]) if len(parts) > 2 else txn.amount
+                    except ValueError:
+                        await tg.send_message(chat_id, "❌ Invalid refund amount.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+                    if refund_amount <= 0:
+                        await tg.send_message(chat_id, "❌ Refund amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+                    elif refund_amount > txn.amount:
                         await tg.send_message(chat_id, "❌ Refund amount exceeds transaction amount.")
                     else:
                         xendit = XenditService()
