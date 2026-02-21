@@ -656,6 +656,12 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 
 ## 🙏 Acknowledgments
 
+### Development Team
+
+Special thanks to **Sir Den Russell "Camus" Leonardo** and the entire **DRL Solutions** team for their exceptional work on the bot development and payment integration features.
+
+### Technologies & Platforms
+
 - [Xendit](https://www.xendit.co/) — Payment gateway for Southeast Asia
 - [Telegram Bot API](https://core.telegram.org/bots/api) — Bot platform
 - [shadcn/ui](https://ui.shadcn.com/) — Beautiful UI components
