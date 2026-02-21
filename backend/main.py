@@ -18,6 +18,29 @@ from services.mock_data import initialize_mock_data
 from services.auth import initialize_admin_user
 # MODULE_IMPORTS_END
 
+# Telegram bot commands registered on startup
+BOT_COMMANDS = [
+    {"command": "start", "description": "Welcome message & quick menu"},
+    {"command": "help", "description": "List all available commands"},
+    {"command": "pay", "description": "Interactive payment menu"},
+    {"command": "invoice", "description": "Create a payment invoice"},
+    {"command": "qr", "description": "Generate QR code payment"},
+    {"command": "alipay", "description": "Alipay QR payment"},
+    {"command": "link", "description": "Create shareable payment link"},
+    {"command": "va", "description": "Create virtual account"},
+    {"command": "ewallet", "description": "Charge e-wallet"},
+    {"command": "disburse", "description": "Send money to bank account"},
+    {"command": "refund", "description": "Process a refund"},
+    {"command": "status", "description": "Check payment status"},
+    {"command": "balance", "description": "Check wallet balance"},
+    {"command": "send", "description": "Transfer to another user"},
+    {"command": "withdraw", "description": "Withdraw from wallet"},
+    {"command": "report", "description": "View revenue summary"},
+    {"command": "fees", "description": "Calculate payment fees"},
+    {"command": "subscribe", "description": "Create subscription"},
+    {"command": "remind", "description": "Send payment reminder"},
+]
+
 
 def setup_logging():
     """Configure the logging system."""
@@ -88,6 +111,27 @@ async def lifespan(app: FastAPI):
     await initialize_mock_data()
     await initialize_admin_user()
     # MODULE_STARTUP_END
+
+    # Auto-register Telegram webhook and bot commands if backend URL is configured
+    backend_url = settings.backend_url
+    _local_prefixes = ("http://127.0.0.1", "https://127.0.0.1", "http://localhost", "https://localhost", "http://0.0.0.0", "https://0.0.0.0")
+    if settings.telegram_bot_token and backend_url and not any(backend_url.startswith(p) for p in _local_prefixes):
+        try:
+            from services.telegram_service import TelegramService
+            tg = TelegramService()
+            webhook_url = f"{backend_url.rstrip('/')}/api/v1/telegram/webhook"
+            webhook_result = await tg.set_webhook(webhook_url)
+            if webhook_result.get("success"):
+                logger.info(f"Telegram webhook registered: {webhook_url}")
+            else:
+                logger.warning(f"Telegram webhook registration failed: {webhook_result.get('error')}")
+            cmd_result = await tg.set_my_commands(BOT_COMMANDS)
+            if cmd_result.get("success"):
+                logger.info("Telegram bot commands registered successfully")
+            else:
+                logger.warning(f"Telegram bot commands registration failed: {cmd_result.get('error')}")
+        except Exception as e:
+            logger.warning(f"Telegram startup setup failed (non-fatal): {e}")
 
     logger.info("=== Application startup completed successfully ===")
     yield
