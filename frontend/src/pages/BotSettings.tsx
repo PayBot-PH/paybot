@@ -28,6 +28,7 @@ import {
   Info,
   Zap,
   Radio,
+  FlaskConical,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,6 +37,12 @@ interface BotInfo {
   is_bot: boolean;
   first_name: string;
   username: string;
+}
+
+interface TestCheck {
+  name: string;
+  passed: boolean;
+  detail: string;
 }
 
 export default function BotSettings() {
@@ -55,6 +62,11 @@ export default function BotSettings() {
   const [simAmount, setSimAmount] = useState('1000');
   const [simDescription, setSimDescription] = useState('');
   const [simLoading, setSimLoading] = useState(false);
+
+  // Bot connectivity test state
+  const [testChecks, setTestChecks] = useState<TestCheck[]>([]);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testRan, setTestRan] = useState(false);
 
   const getErrorDetail = (error: unknown): string => {
     const err = error as { data?: { detail?: string; message?: string }; response?: { data?: { detail?: string } }; message?: string };
@@ -199,6 +211,36 @@ export default function BotSettings() {
     }
   };
 
+  const handleTestBot = async () => {
+    setTestLoading(true);
+    setTestChecks([]);
+    setTestRan(false);
+    try {
+      const res = await client.apiCall.invoke({
+        url: '/api/v1/telegram/test',
+        method: 'GET',
+        data: {},
+      });
+      const data = res.data as { success?: boolean; checks?: TestCheck[] };
+      if (Array.isArray(data?.checks)) {
+        setTestChecks(data.checks);
+        setTestRan(true);
+        if (data.success) {
+          toast.success('Bot is working correctly!');
+        } else {
+          toast.error('Some checks failed — see results below.');
+        }
+      } else {
+        toast.error('Unexpected response from server');
+      }
+    } catch (err: unknown) {
+      const errorMsg = getErrorDetail(err);
+      toast.error(`Test failed: ${errorMsg}`);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#0F172A] text-slate-100">
       {/* Header */}
@@ -320,6 +362,66 @@ export default function BotSettings() {
                       Retry
                     </Button>
                   )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Test Bot Connection */}
+          <Card className="bg-[#1E293B] border-slate-700/50">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center space-x-2">
+                <FlaskConical className="h-5 w-5 text-green-400" />
+                <span>Test Bot Connection</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-slate-400">
+                Run a quick connectivity check to confirm the bot token is configured and the Telegram API is reachable.
+              </p>
+
+              <Button
+                onClick={handleTestBot}
+                disabled={testLoading}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
+              >
+                {testLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Running Tests...
+                  </>
+                ) : (
+                  <>
+                    <FlaskConical className="h-4 w-4 mr-2" />
+                    Run Bot Test
+                  </>
+                )}
+              </Button>
+
+              {testRan && (
+                <div className="space-y-2 pt-1">
+                  {testChecks.map((check) => (
+                    <div
+                      key={check.name}
+                      className={`flex items-start space-x-3 rounded-lg p-3 ${
+                        check.passed
+                          ? 'bg-emerald-500/10 border border-emerald-500/20'
+                          : 'bg-red-500/10 border border-red-500/20'
+                      }`}
+                    >
+                      {check.passed ? (
+                        <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                      )}
+                      <div>
+                        <p className={`text-sm font-medium ${check.passed ? 'text-emerald-300' : 'text-red-300'}`}>
+                          {check.name}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">{check.detail}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>

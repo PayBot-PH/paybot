@@ -19,7 +19,7 @@ from models.disbursements import Disbursements
 from models.refunds import Refunds
 from models.subscriptions import Subscriptions
 from schemas.auth import UserResponse
-from services.telegram_service import TelegramService
+from services.telegram_service import TelegramService, _resolve_bot_token
 from services.xendit_service import XenditService
 from services.event_bus import payment_event_bus
 
@@ -914,7 +914,6 @@ async def debug_token_check():
         settings_err = str(e)
 
     # Check _resolve_bot_token
-    from services.telegram_service import _resolve_bot_token
     resolved = bool(_resolve_bot_token())
 
     return {
@@ -931,7 +930,6 @@ async def debug_token_check():
 async def get_bot_info():
     """Get bot info. No auth required — bot username/id is not sensitive."""
     try:
-        from services.telegram_service import _resolve_bot_token
         token = _resolve_bot_token()
         if not token:
             return TelegramResponse(
@@ -946,3 +944,58 @@ async def get_bot_info():
     except Exception as e:
         logger.error(f"Error getting bot info: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/test")
+async def test_bot():
+    """Run a structured connectivity test for the Telegram bot.
+
+    Returns a list of named checks so the frontend can render a
+    pass / fail checklist without requiring authentication.
+    """
+    checks = []
+
+    # ── Check 1: token is configured ─────────────────────────────────────────
+    token = _resolve_bot_token()
+    token_ok = bool(token)
+    checks.append({
+        "name": "Bot token configured",
+        "passed": token_ok,
+        "detail": "TELEGRAM_BOT_TOKEN is set" if token_ok else "TELEGRAM_BOT_TOKEN is missing — add it in Secrets",
+    })
+
+    bot_data: dict = {}
+
+    # ── Check 2: Telegram API reachable & token valid ─────────────────────────
+    if token_ok:
+        try:
+            service = TelegramService()
+            result = await service.get_bot_info()
+            api_ok = result.get("success", False)
+            bot_data = result.get("bot", {})
+            checks.append({
+                "name": "Telegram API reachable",
+                "passed": api_ok,
+                "detail": "Connected to api.telegram.org" if api_ok else result.get("error", "Could not reach Telegram API"),
+            })
+            # ── Check 3: bot identity returned ────────────────────────────────
+            identity_ok = bool(bot_data.get("username"))
+            checks.append({
+                "name": "Bot identity verified",
+                "passed": identity_ok,
+                "detail": f"@{bot_data['username']} (id {bot_data.get('id')})" if identity_ok else "No bot identity returned",
+            })
+        except Exception as exc:
+            logger.error(f"Bot test failed during API call: {exc}", exc_info=True)
+            checks.append({"name": "Telegram API reachable", "passed": False, "detail": str(exc)})
+            checks.append({"name": "Bot identity verified", "passed": False, "detail": "Skipped — API call failed"})
+    else:
+        checks.append({"name": "Telegram API reachable", "passed": False, "detail": "Skipped — token not configured"})
+        checks.append({"name": "Bot identity verified", "passed": False, "detail": "Skipped — token not configured"})
+
+    all_passed = all(c["passed"] for c in checks)
+    return {
+        "success": all_passed,
+        "checks": checks,
+        "bot": bot_data,
+    }
