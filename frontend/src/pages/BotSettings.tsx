@@ -28,6 +28,9 @@ import {
   Info,
   Zap,
   Radio,
+  FlaskConical,
+  AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -36,6 +39,21 @@ interface BotInfo {
   is_bot: boolean;
   first_name: string;
   username: string;
+}
+
+interface TestCheck {
+  name: string;
+  passed: boolean;
+  detail: string;
+}
+
+interface WebhookInfo {
+  webhook_url: string;
+  is_registered: boolean;
+  pending_update_count: number;
+  last_error_message: string;
+  message: string;
+  token_configured: boolean;
 }
 
 export default function BotSettings() {
@@ -55,6 +73,16 @@ export default function BotSettings() {
   const [simAmount, setSimAmount] = useState('1000');
   const [simDescription, setSimDescription] = useState('');
   const [simLoading, setSimLoading] = useState(false);
+
+  // Bot connectivity test state
+  const [testChecks, setTestChecks] = useState<TestCheck[]>([]);
+  const [testLoading, setTestLoading] = useState(false);
+  const [testRan, setTestRan] = useState(false);
+
+  // Webhook status state
+  const [webhookInfo, setWebhookInfo] = useState<WebhookInfo | null>(null);
+  const [webhookInfoLoading, setWebhookInfoLoading] = useState(false);
+  const [autoSetupLoading, setAutoSetupLoading] = useState(false);
 
   const getErrorDetail = (error: unknown): string => {
     const err = error as { data?: { detail?: string; message?: string }; response?: { data?: { detail?: string } }; message?: string };
@@ -199,6 +227,86 @@ export default function BotSettings() {
     }
   };
 
+  const handleTestBot = async () => {
+    setTestLoading(true);
+    setTestChecks([]);
+    setTestRan(false);
+    try {
+      const res = await client.apiCall.invoke({
+        url: '/api/v1/telegram/test',
+        method: 'GET',
+        data: {},
+      });
+      const data = res.data as { success?: boolean; checks?: TestCheck[] };
+      if (Array.isArray(data?.checks)) {
+        setTestChecks(data.checks);
+        setTestRan(true);
+        if (data.success) {
+          toast.success('Bot is working correctly!');
+        } else {
+          toast.error('Some checks failed — see results below.');
+        }
+      } else {
+        toast.error('Unexpected response from server');
+      }
+    } catch (err: unknown) {
+      const errorMsg = getErrorDetail(err);
+      toast.error(`Test failed: ${errorMsg}`);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  const fetchWebhookInfo = async () => {
+    setWebhookInfoLoading(true);
+    try {
+      const res = await client.apiCall.invoke({
+        url: '/api/v1/telegram/webhook-info',
+        method: 'GET',
+        data: {},
+      });
+      setWebhookInfo(res.data as WebhookInfo);
+    } catch (err: unknown) {
+      if (!is401Error(err)) {
+        toast.error(`Could not fetch webhook status: ${getErrorDetail(err)}`);
+      }
+    } finally {
+      setWebhookInfoLoading(false);
+    }
+  };
+
+  const handleAutoSetup = async () => {
+    setAutoSetupLoading(true);
+    try {
+      const res = await client.apiCall.invoke({
+        url: '/api/v1/telegram/auto-setup',
+        method: 'POST',
+        data: {},
+      });
+      const data = res.data as { success?: boolean; webhook_url?: string; message?: string };
+      if (data?.success) {
+        toast.success(data.message || 'Webhook registered!');
+        await fetchWebhookInfo();
+      } else {
+        toast.error(data?.message || 'Auto-setup failed');
+      }
+    } catch (err: unknown) {
+      if (is401Error(err)) {
+        toast.error('Please log in first.');
+      } else {
+        toast.error(`Auto-setup failed: ${getErrorDetail(err)}`);
+      }
+    } finally {
+      setAutoSetupLoading(false);
+    }
+  };
+
+  // Load webhook info alongside bot info on mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (user) fetchWebhookInfo();
+  }, [user]);
+
   return (
     <div className="min-h-screen bg-[#0F172A] text-slate-100">
       {/* Header */}
@@ -247,6 +355,94 @@ export default function BotSettings() {
         <h1 className="text-2xl font-bold text-white mb-6">Bot Settings</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          {/* Webhook Status — shown first because it's the #1 reason the bot doesn't respond */}
+          <Card className={`border ${
+            webhookInfo === null
+              ? 'bg-[#1E293B] border-slate-700/50'
+              : webhookInfo.is_registered
+              ? 'bg-emerald-900/20 border-emerald-500/40'
+              : 'bg-red-900/20 border-red-500/40'
+          }`}>
+            <CardHeader>
+              <CardTitle className="text-white flex items-center space-x-2">
+                <Webhook className="h-5 w-5 text-purple-400" />
+                <span>Webhook Status</span>
+                {webhookInfo && (
+                  <span className={`ml-auto text-xs font-normal px-2 py-0.5 rounded-full ${
+                    webhookInfo.is_registered
+                      ? 'bg-emerald-500/20 text-emerald-400'
+                      : 'bg-red-500/20 text-red-400'
+                  }`}>
+                    {webhookInfo.is_registered ? '✅ Registered' : '❌ Not Registered'}
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {webhookInfoLoading ? (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-purple-400" />
+                </div>
+              ) : !user ? (
+                <p className="text-sm text-slate-400">Log in to see webhook status.</p>
+              ) : webhookInfo ? (
+                <>
+                  {!webhookInfo.token_configured && (
+                    <div className="flex items-start space-x-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                      <AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-red-300">TELEGRAM_BOT_TOKEN is not set. The bot cannot work without it.</p>
+                    </div>
+                  )}
+                  <div className="bg-slate-800/60 rounded-lg p-3 space-y-1">
+                    <p className="text-xs text-slate-400">Current webhook URL</p>
+                    <p className="text-xs font-mono text-white break-all">
+                      {webhookInfo.webhook_url || <span className="text-red-400 italic">none -- bot is silent</span>}
+                    </p>
+                  </div>
+                  {webhookInfo.pending_update_count > 0 && (
+                    <div className="flex items-center space-x-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2">
+                      <AlertTriangle className="h-3 w-3 text-amber-400 flex-shrink-0" />
+                      <p className="text-xs text-amber-300">{webhookInfo.pending_update_count} pending update(s) — messages waiting to be delivered</p>
+                    </div>
+                  )}
+                  {webhookInfo.last_error_message && (
+                    <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2">
+                      <p className="text-xs text-red-300">Last Telegram error: {webhookInfo.last_error_message}</p>
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-400">{webhookInfo.message}</p>
+                </>
+              ) : (
+                <p className="text-xs text-slate-400">Could not load webhook status.</p>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                <Button
+                  onClick={handleAutoSetup}
+                  disabled={autoSetupLoading || !user}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-sm"
+                >
+                  {autoSetupLoading ? (
+                    <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Setting up…</>
+                  ) : (
+                    <><Zap className="h-3 w-3 mr-1" />Auto-Setup Webhook</>
+                  )}
+                </Button>
+                <Button
+                  onClick={fetchWebhookInfo}
+                  disabled={webhookInfoLoading || !user}
+                  variant="outline"
+                  size="icon"
+                  className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700"
+                  title="Refresh webhook status"
+                >
+                  <RefreshCw className={`h-3 w-3 ${webhookInfoLoading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Bot Info */}
           <Card className="bg-[#1E293B] border-slate-700/50">
             <CardHeader>
@@ -320,6 +516,66 @@ export default function BotSettings() {
                       Retry
                     </Button>
                   )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Test Bot Connection */}
+          <Card className="bg-[#1E293B] border-slate-700/50">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center space-x-2">
+                <FlaskConical className="h-5 w-5 text-green-400" />
+                <span>Test Bot Connection</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-slate-400">
+                Run a quick connectivity check to confirm the bot token is configured and the Telegram API is reachable.
+              </p>
+
+              <Button
+                onClick={handleTestBot}
+                disabled={testLoading}
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
+              >
+                {testLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Running Tests...
+                  </>
+                ) : (
+                  <>
+                    <FlaskConical className="h-4 w-4 mr-2" />
+                    Run Bot Test
+                  </>
+                )}
+              </Button>
+
+              {testRan && (
+                <div className="space-y-2 pt-1">
+                  {testChecks.map((check) => (
+                    <div
+                      key={check.name}
+                      className={`flex items-start space-x-3 rounded-lg p-3 ${
+                        check.passed
+                          ? 'bg-emerald-500/10 border border-emerald-500/20'
+                          : 'bg-red-500/10 border border-red-500/20'
+                      }`}
+                    >
+                      {check.passed ? (
+                        <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5 flex-shrink-0" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
+                      )}
+                      <div>
+                        <p className={`text-sm font-medium ${check.passed ? 'text-emerald-300' : 'text-red-300'}`}>
+                          {check.name}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">{check.detail}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>

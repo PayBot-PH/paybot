@@ -93,6 +93,20 @@ class TelegramService:
             logger.error(f"Error setting webhook: {str(e)}")
             return {"success": False, "error": str(e)}
 
+    async def get_webhook_info(self) -> Dict[str, Any]:
+        """Get the currently registered webhook info from Telegram."""
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.get(f"{self.api_url}/getWebhookInfo")
+                response.raise_for_status()
+                data = response.json()
+                if data.get("ok"):
+                    return {"success": True, "webhook": data.get("result", {})}
+                return {"success": False, "error": data.get("description", "Unknown error")}
+        except Exception as e:
+            logger.error(f"Error getting webhook info: {str(e)}")
+            return {"success": False, "error": str(e)}
+
     async def set_my_commands(self, commands: list) -> Dict[str, Any]:
         """Register bot commands with Telegram (shown in the / menu)."""
         try:

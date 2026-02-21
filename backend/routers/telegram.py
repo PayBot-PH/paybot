@@ -19,7 +19,7 @@ from models.disbursements import Disbursements
 from models.refunds import Refunds
 from models.subscriptions import Subscriptions
 from schemas.auth import UserResponse
-from services.telegram_service import TelegramService
+from services.telegram_service import TelegramService, _resolve_bot_token
 from services.xendit_service import XenditService
 from services.event_bus import payment_event_bus
 
@@ -94,6 +94,100 @@ async def setup_webhook(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/webhook-info")
+async def get_webhook_info(current_user: UserResponse = Depends(get_current_user)):
+    """Return what webhook URL Telegram currently has on file for this bot.
+
+    This is the single most useful diagnostic: if the URL is empty or wrong
+    the bot will never receive messages no matter what else is configured.
+    """
+    token = _resolve_bot_token()
+    if not token:
+        return {
+            "success": False,
+            "token_configured": False,
+            "webhook": {},
+            "message": "TELEGRAM_BOT_TOKEN is not set — bot cannot work without it.",
+        }
+    service = TelegramService()
+    result = await service.get_webhook_info()
+    webhook = result.get("webhook", {})
+    url = webhook.get("url", "")
+    pending = webhook.get("pending_update_count", 0)
+    last_error = webhook.get("last_error_message", "")
+    return {
+        "success": result.get("success", False),
+        "token_configured": True,
+        "webhook": webhook,
+        "webhook_url": url,
+        "is_registered": bool(url),
+        "pending_update_count": pending,
+        "last_error_message": last_error,
+        "message": (
+            "Webhook is registered and active." if url
+            else "No webhook registered -- bot will NOT receive messages. Use Auto-Setup to fix this."
+        ),
+    }
+
+
+@router.post("/auto-setup")
+async def auto_setup_webhook(
+    request: Request,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """One-click webhook setup: detect this server's public URL from request
+    headers and register it as the Telegram webhook.
+
+    Works on Railway, Render, any reverse-proxy, or direct HTTPS.
+    """
+    token = _resolve_bot_token()
+    if not token:
+        raise HTTPException(
+            status_code=400,
+            detail="TELEGRAM_BOT_TOKEN is not configured. Add it in your environment variables first.",
+        )
+
+    # Detect public URL from request headers (Railway/nginx/cloudflare set these)
+    scheme = request.headers.get("x-forwarded-proto", "https")
+    host = (
+        request.headers.get("x-forwarded-host")
+        or request.headers.get("host")
+        or ""
+    )
+    if not host:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot detect public URL from request headers. Set PYTHON_BACKEND_URL env var instead.",
+        )
+
+    # Strip port from host if it looks like a public HTTPS deployment
+    detected_base = f"{scheme}://{host}"
+    webhook_url = f"{detected_base.rstrip('/')}/api/v1/telegram/webhook"
+
+    service = TelegramService()
+
+    # Set webhook
+    set_result = await service.set_webhook(webhook_url)
+    if not set_result.get("success"):
+        return {
+            "success": False,
+            "webhook_url": webhook_url,
+            "message": f"Failed to register webhook: {set_result.get('error', 'Unknown error')}",
+        }
+
+    # Verify it took effect
+    info_result = await service.get_webhook_info()
+    webhook_info = info_result.get("webhook", {})
+
+    logger.info(f"[auto-setup] Webhook registered: {webhook_url}")
+    return {
+        "success": True,
+        "webhook_url": webhook_url,
+        "webhook_info": webhook_info,
+        "message": f"Webhook registered at {webhook_url} -- bot will now respond to messages.",
+    }
+
+
 @router.post("/webhook")
 async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db)):
     """Receive Telegram bot updates (no auth required).
@@ -156,6 +250,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Invoice payment"
                     xendit = XenditService()
                     result = await xendit.create_invoice(amount=amount, description=description)
@@ -197,6 +295,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "QR payment"
                     xendit = XenditService()
                     result = await xendit.create_qr_code(amount=amount, description=description)
@@ -237,6 +339,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
                     xendit = XenditService()
                     result = await xendit.create_alipay_qr(amount=amount, description=description)
@@ -277,6 +383,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Payment link"
                     xendit = XenditService()
                     result = await xendit.create_payment_link(amount=amount, description=description)
@@ -316,6 +426,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     bank_code = parts[2].upper()
                     xendit = XenditService()
                     result = await xendit.create_virtual_account(amount=amount, bank_code=bank_code, name=username)
@@ -356,6 +470,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     provider = parts[2].upper()
                     channel_map = {
                         "GCASH": "PH_GCASH", "GRABPAY": "PH_GRABPAY", "PAYMAYA": "PH_PAYMAYA",
@@ -402,6 +520,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             else:
                 try:
                     amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     bank_code = parts[2].upper()
                     account_number = parts[3]
                     xendit = XenditService()
@@ -462,8 +584,17 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 elif txn.status != "paid":
                     await tg.send_message(chat_id, "❌ Only paid transactions can be refunded.")
                 else:
-                    refund_amount = float(parts[2]) if len(parts) > 2 else txn.amount
-                    if refund_amount > txn.amount:
+                    try:
+                        refund_amount = float(parts[2]) if len(parts) > 2 else txn.amount
+                    except ValueError:
+                        await tg.send_message(chat_id, "❌ Invalid refund amount.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+                    if refund_amount <= 0:
+                        await tg.send_message(chat_id, "❌ Refund amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+                    elif refund_amount > txn.amount:
                         await tg.send_message(chat_id, "❌ Refund amount exceeds transaction amount.")
                     else:
                         xendit = XenditService()
@@ -914,7 +1045,6 @@ async def debug_token_check():
         settings_err = str(e)
 
     # Check _resolve_bot_token
-    from services.telegram_service import _resolve_bot_token
     resolved = bool(_resolve_bot_token())
 
     return {
@@ -931,7 +1061,6 @@ async def debug_token_check():
 async def get_bot_info():
     """Get bot info. No auth required — bot username/id is not sensitive."""
     try:
-        from services.telegram_service import _resolve_bot_token
         token = _resolve_bot_token()
         if not token:
             return TelegramResponse(
@@ -946,3 +1075,58 @@ async def get_bot_info():
     except Exception as e:
         logger.error(f"Error getting bot info: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/test")
+async def test_bot():
+    """Run a structured connectivity test for the Telegram bot.
+
+    Returns a list of named checks so the frontend can render a
+    pass / fail checklist without requiring authentication.
+    """
+    checks = []
+
+    # ── Check 1: token is configured ─────────────────────────────────────────
+    token = _resolve_bot_token()
+    token_ok = bool(token)
+    checks.append({
+        "name": "Bot token configured",
+        "passed": token_ok,
+        "detail": "TELEGRAM_BOT_TOKEN is set" if token_ok else "TELEGRAM_BOT_TOKEN is missing — add it in Secrets",
+    })
+
+    bot_data: dict = {}
+
+    # ── Check 2: Telegram API reachable & token valid ─────────────────────────
+    if token_ok:
+        try:
+            service = TelegramService()
+            result = await service.get_bot_info()
+            api_ok = result.get("success", False)
+            bot_data = result.get("bot", {})
+            checks.append({
+                "name": "Telegram API reachable",
+                "passed": api_ok,
+                "detail": "Connected to api.telegram.org" if api_ok else result.get("error", "Could not reach Telegram API"),
+            })
+            # ── Check 3: bot identity returned ────────────────────────────────
+            identity_ok = bool(bot_data.get("username"))
+            checks.append({
+                "name": "Bot identity verified",
+                "passed": identity_ok,
+                "detail": f"@{bot_data['username']} (id {bot_data.get('id')})" if identity_ok else "No bot identity returned",
+            })
+        except Exception as exc:
+            logger.error(f"Bot test failed during API call: {exc}", exc_info=True)
+            checks.append({"name": "Telegram API reachable", "passed": False, "detail": str(exc)})
+            checks.append({"name": "Bot identity verified", "passed": False, "detail": "Skipped — API call failed"})
+    else:
+        checks.append({"name": "Telegram API reachable", "passed": False, "detail": "Skipped — token not configured"})
+        checks.append({"name": "Bot identity verified", "passed": False, "detail": "Skipped — token not configured"})
+
+    all_passed = all(c["passed"] for c in checks)
+    return {
+        "success": all_passed,
+        "checks": checks,
+        "bot": bot_data,
+    }
