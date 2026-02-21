@@ -15,10 +15,9 @@ This guide will walk you through deploying the PayBot application to Railway wit
 1. [Railway Setup](#1-railway-setup)
 2. [Environment Variables Setup](#2-environment-variables-setup)
 3. [Database Migration](#3-database-migration)
-4. [Supabase Configuration](#4-supabase-configuration)
-5. [Webhook Configuration](#5-webhook-configuration)
-6. [Post-Deployment Steps](#6-post-deployment-steps)
-7. [Troubleshooting](#7-troubleshooting)
+4. [Webhook Configuration](#4-webhook-configuration)
+5. [Post-Deployment Steps](#5-post-deployment-steps)
+6. [Troubleshooting](#6-troubleshooting)
 
 ---
 
@@ -72,9 +71,10 @@ Railway will automatically create services based on your `railway.toml` configur
 | `DATABASE_URL` | PostgreSQL connection string (auto-added by Railway) | `postgresql://user:pass@host:5432/db` |
 | `TELEGRAM_BOT_TOKEN` | Your Telegram bot token | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11` |
 | `XENDIT_SECRET_KEY` | Your Xendit API secret key | `xnd_production_...` |
-| `SUPABASE_URL` | Your Supabase project URL | `https://xxxxx.supabase.co` |
-| `SUPABASE_ANON_KEY` | Your Supabase anonymous key | `eyJhbGciOiJIUzI1NiIsInR5cCI6...` |
-| `SUPABASE_SERVICE_KEY` | Your Supabase service role key | `eyJhbGciOiJIUzI1NiIsInR5cCI6...` |
+| `PYTHON_BACKEND_URL` | Your Railway backend public URL (for Telegram webhook) | `https://your-backend.railway.app` |
+| `JWT_SECRET_KEY` | Secret key for signing JWT tokens | Run `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ADMIN_USER_PASSWORD` | Password for admin dashboard login | `your_secure_password` |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram user IDs allowed as admin | `123456789,987654321` |
 
 #### Optional Variables:
 
@@ -84,24 +84,17 @@ Railway will automatically create services based on your `railway.toml` configur
 | `DEBUG` | Enable debug mode | `false` |
 | `PORT` | Server port (auto-set by Railway) | `8000` |
 | `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins | Empty (allows all) |
+| `JWT_ALGORITHM` | JWT signing algorithm | `HS256` |
+| `JWT_EXPIRE_MINUTES` | JWT token expiry in minutes | `60` |
 
 #### Example ALLOWED_ORIGINS:
 ```
 ALLOWED_ORIGINS=https://your-frontend.railway.app,http://localhost:3000
 ```
 
-### 2.2 Frontend Environment Variables (if deploying frontend)
+### 2.2 Frontend Environment Variables (if deploying frontend separately)
 
-If you're deploying the frontend separately:
-
-1. Create a new service for the frontend
-2. Add the following environment variables:
-
-| Variable Name | Description | Example Value |
-|--------------|-------------|---------------|
-| `VITE_API_URL` | Backend API URL | `https://your-backend.railway.app` |
-| `VITE_SUPABASE_URL` | Your Supabase project URL | `https://xxxxx.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | Your Supabase anonymous key | `eyJhbGciOiJIUzI1NiIsInR5cCI6...` |
+The frontend is served directly by the backend as a static SPA, so no separate frontend deployment is needed. All requests to `/api/...` are handled by the backend, and the React app is served from the same URL.
 
 ---
 
@@ -150,53 +143,24 @@ To see migration history:
 railway run alembic history
 ```
 
----
-
-## 4. Supabase Configuration
-
-### 4.1 Get Supabase Credentials
-
-1. Log in to [Supabase](https://supabase.com)
-2. Select or create your project
-3. Go to **Settings** → **API**
-4. Copy the following values:
-
-   - **Project URL**: Found under "Project URL" (e.g., `https://xxxxx.supabase.co`)
-   - **Anon Key**: Found under "Project API keys" → "anon public"
-   - **Service Role Key**: Found under "Project API keys" → "service_role" (keep this secret!)
-
-### 4.2 Configure Supabase Authentication
-
-1. In Supabase dashboard, go to **Authentication** → **Providers**
-2. Configure your desired authentication providers (Email, Google, GitHub, etc.)
-3. Add your Railway backend URL to the **Site URL** and **Redirect URLs**:
-   - Site URL: `https://your-backend.railway.app`
-   - Redirect URLs: `https://your-backend.railway.app/auth/callback`
-
-### 4.3 Add Environment Variables
-
-Add the Supabase credentials to your Railway backend service as described in section 2.1.
-
----
-
-## 5. Webhook Configuration
+## 4. Webhook Configuration
 
 After deployment, you need to configure webhooks for external services.
 
-### 5.1 Get Your Backend URL
+### 4.1 Get Your Backend URL
 
 1. Go to your Railway backend service
 2. Click on the **"Settings"** tab
 3. Find the **"Public Networking"** section
 4. Copy your **Railway domain** (e.g., `https://your-backend.railway.app`)
 
-### 5.2 Xendit Webhook Setup
+### 4.2 Xendit Webhook Setup
 
 1. Log in to your [Xendit Dashboard](https://dashboard.xendit.co)
 2. Go to **Settings** → **Webhooks**
 3. Add a new webhook URL:
    ```
-   https://your-backend.railway.app/webhooks/xendit
+   https://your-backend.railway.app/api/v1/xendit/webhook
    ```
 4. Select the events you want to receive:
    - `payment.succeeded`
@@ -206,15 +170,15 @@ After deployment, you need to configure webhooks for external services.
 
 5. Save the webhook configuration
 
-### 5.3 Telegram Webhook Setup
+### 4.3 Telegram Webhook Setup
 
-Set up the Telegram webhook using the Telegram Bot API:
+The Telegram webhook is automatically registered on startup when `PYTHON_BACKEND_URL` is set. To set it up manually:
 
 ```bash
 curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://your-backend.railway.app/webhooks/telegram"
+    "url": "https://your-backend.railway.app/api/v1/telegram/webhook"
   }'
 ```
 
@@ -228,9 +192,9 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 
 ---
 
-## 6. Post-Deployment Steps
+## 5. Post-Deployment Steps
 
-### 6.1 Verify Backend is Running
+### 5.1 Verify Backend is Running
 
 Check the health endpoint:
 
@@ -245,14 +209,14 @@ Expected response:
 }
 ```
 
-### 6.2 Verify Frontend is Running (if deployed)
+### 5.2 Verify Frontend is Running (if deployed)
 
 Open your frontend URL in a browser:
 ```
 https://your-frontend.railway.app
 ```
 
-### 6.3 Check Database Connection
+### 5.3 Check Database Connection
 
 1. Go to your Railway project dashboard
 2. Click on the backend service
@@ -266,19 +230,19 @@ Database connection initialized successfully
 Tables initialized successfully
 ```
 
-### 6.4 Test Telegram Bot
+### 5.4 Test Telegram Bot
 
 1. Open Telegram and find your bot
 2. Send `/start` command
 3. Verify the bot responds correctly
 
-### 6.5 Test Payment Functionality
+### 5.5 Test Payment Functionality
 
 1. Create a test payment through your application
 2. Check the Xendit dashboard to verify the payment was created
 3. Verify webhook events are being received by checking Railway logs
 
-### 6.6 Monitor Logs
+### 5.6 Monitor Logs
 
 To view real-time logs:
 
@@ -296,7 +260,7 @@ railway logs
 
 ---
 
-## 7. Troubleshooting
+## 6. Troubleshooting
 
 ### Common Issues
 
@@ -353,20 +317,22 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
    ```
 2. Check if the URL is accessible:
    ```bash
-   curl https://your-backend.railway.app/webhooks/telegram
+   curl https://your-backend.railway.app/api/v1/telegram/webhook
    ```
 3. Delete and reset the webhook:
    ```bash
    curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/deleteWebhook"
-   curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" -d "url=https://your-backend.railway.app/webhooks/telegram"
+   curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" -d "url=https://your-backend.railway.app/api/v1/telegram/webhook"
    ```
 
-#### Supabase Authentication Issues
+#### Admin Login Issues
+
+**Error**: `Telegram admin authentication is not configured` (500 error on login)
 
 **Solution**:
-1. Verify all three Supabase environment variables are set correctly
-2. Check Site URL in Supabase dashboard matches your backend URL
-3. Ensure redirect URLs include your backend callback endpoint
+1. Set `ADMIN_USER_PASSWORD` environment variable
+2. Set `TELEGRAM_ADMIN_IDS` to your Telegram numeric user ID (find it via [@userinfobot](https://t.me/userinfobot))
+3. Set `JWT_SECRET_KEY` to a secure random string
 
 ---
 
@@ -375,7 +341,6 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
 - [Railway Documentation](https://docs.railway.app)
 - [Alembic Documentation](https://alembic.sqlalchemy.org)
 - [FastAPI Documentation](https://fastapi.tiangolo.com)
-- [Supabase Documentation](https://supabase.com/docs)
 - [Xendit API Documentation](https://developers.xendit.co)
 - [Telegram Bot API](https://core.telegram.org/bots/api)
 
@@ -385,8 +350,8 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 If you encounter any issues:
 
-1. Check the [Railway logs](#66-monitor-logs) for detailed error messages
-2. Review the [Troubleshooting](#7-troubleshooting) section
+1. Check the [Railway logs](#56-monitor-logs) for detailed error messages
+2. Review the [Troubleshooting](#6-troubleshooting) section
 3. Consult the official documentation links above
 4. Open an issue on the GitHub repository
 
@@ -400,7 +365,7 @@ You should now have:
 ✅ PostgreSQL database provisioned and connected  
 ✅ Database migrations running automatically  
 ✅ Environment variables configured  
-✅ Supabase authentication integrated  
+✅ JWT authentication configured for admin dashboard  
 ✅ Webhooks configured for Xendit and Telegram  
 ✅ Health checks passing  
 ✅ Logs accessible for monitoring  

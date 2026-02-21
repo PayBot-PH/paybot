@@ -57,4 +57,5 @@ coverage/
 *.temp
 
 # Atoms Cloud config (keep but ignore sensitive data)
-# .mgx/
+# .mgx/backend/paybot.db
+*.db
