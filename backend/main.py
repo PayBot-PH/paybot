@@ -19,6 +19,38 @@ from services.auth import initialize_admin_user
 # MODULE_IMPORTS_END
 
 
+async def setup_telegram_webhook():
+    """Automatically register the Telegram webhook using PYTHON_BACKEND_URL on startup."""
+    backend_url = os.environ.get("PYTHON_BACKEND_URL", "").rstrip("/")
+    if not backend_url:
+        logging.getLogger(__name__).info(
+            "PYTHON_BACKEND_URL not set — skipping automatic Telegram webhook registration"
+        )
+        return
+    webhook_url = f"{backend_url}/api/v1/telegram/webhook"
+    try:
+        from services.telegram_service import TelegramService
+        svc = TelegramService()
+        if not svc.bot_token:
+            logging.getLogger(__name__).info(
+                "TELEGRAM_BOT_TOKEN not set — skipping automatic webhook registration"
+            )
+            return
+        result = await svc.set_webhook(webhook_url)
+        if result.get("success"):
+            logging.getLogger(__name__).info(
+                f"Telegram webhook registered: {webhook_url}"
+            )
+        else:
+            logging.getLogger(__name__).warning(
+                f"Telegram webhook registration failed: {result.get('error')}"
+            )
+    except Exception as exc:
+        logging.getLogger(__name__).warning(
+            f"Telegram webhook registration error (non-fatal): {exc}"
+        )
+
+
 def setup_logging():
     """Configure the logging system."""
     if os.environ.get("IS_LAMBDA") == "true":
@@ -87,6 +119,7 @@ async def lifespan(app: FastAPI):
     await initialize_database()
     await initialize_mock_data()
     await initialize_admin_user()
+    await setup_telegram_webhook()
     # MODULE_STARTUP_END
 
     logger.info("=== Application startup completed successfully ===")
