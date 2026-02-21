@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     admin_user_password: str = ""
     telegram_admin_ids: str = ""
 
+    # JWT configuration
+    jwt_secret_key: str = ""
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 60
+
     @property
     def backend_url(self) -> str:
         """Generate backend URL from host and port."""

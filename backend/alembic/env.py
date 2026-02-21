@@ -26,6 +26,14 @@ if config.config_file_name is not None:
 
 # Read DATABASE_URL from environment variable
 database_url = os.environ.get("DATABASE_URL")
+if not database_url:
+    # Fall back to settings default (e.g. SQLite for local dev)
+    try:
+        from core.config import settings as _settings
+        database_url = _settings.database_url
+    except (ImportError, AttributeError, Exception) as _e:
+        import logging as _logging
+        _logging.getLogger(__name__).warning("Could not load settings for database URL: %s", _e)
 if database_url:
     # Normalize database URL to use async driver (postgresql -> postgresql+asyncpg)
     url = make_url(database_url)
