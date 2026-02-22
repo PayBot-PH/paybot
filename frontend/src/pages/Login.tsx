@@ -17,10 +17,6 @@ export default function Login() {
   const widgetContainerRef = useRef<HTMLDivElement | null>(null);
   const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
 
-  if (user) {
-    return <Navigate to="/" replace />;
-  }
-
   useEffect(() => {
     if (!botUsername) {
       setLocalError('Telegram sign-in is not configured. Please set VITE_TELEGRAM_BOT_USERNAME.');
@@ -56,6 +52,10 @@ export default function Login() {
       delete window.onTelegramAuth;
     };
   }, [botUsername, loginWithTelegram]);
+
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-[#0F172A] flex items-center justify-center px-4">

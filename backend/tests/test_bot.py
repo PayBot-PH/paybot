@@ -145,15 +145,15 @@ class TestBotEndpoints:
         assert "success" in data
 
     def test_bot_test_no_token(self, client):
-        """Structured check returns 3 checks, all failed (no token in test env)."""
+        """Structured check returns 3 checks with correct structure."""
         r = client.get("/api/v1/telegram/test")
         assert r.status_code == 200
         data = r.json()
         assert "checks" in data
         assert len(data["checks"]) == 3
         assert data["checks"][0]["name"] == "Bot token configured"
-        # In test env no real token is set, so first check fails
-        assert data["checks"][0]["passed"] is False
+        # A fake test token IS configured, so this check passes
+        assert data["checks"][0]["passed"] is True
 
     def test_debug_token_check(self, client):
         r = client.get("/api/v1/telegram/debug-token-check")
