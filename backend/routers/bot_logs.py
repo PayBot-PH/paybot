@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime, date
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import ConfigDict, BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
@@ -51,8 +51,7 @@ class Bot_logsResponse(BaseModel):
     command: Optional[str] = None
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class Bot_logsListResponse(BaseModel):

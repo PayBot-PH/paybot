@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import ConfigDict, BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -48,8 +48,7 @@ class WalletTxnResponse(BaseModel):
     reference_id: Optional[str] = None
     created_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class WalletTxnListResponse(BaseModel):
     items: List[WalletTxnResponse]

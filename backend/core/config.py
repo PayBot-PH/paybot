@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
 _ENV_FILE = _BACKEND_DIR / ".env"
@@ -57,11 +57,12 @@ class Settings(BaseSettings):
             display_host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
             return os.environ.get("PYTHON_BACKEND_URL", f"http://{display_host}:{self.port}")
 
-    class Config:
-        case_sensitive = False
-        extra = "ignore"
-        env_file = str(_ENV_FILE) if _ENV_FILE.exists() else ".env"
-        env_file_encoding = "utf-8"
+    model_config = SettingsConfigDict(
+        case_sensitive=False,
+        extra="ignore",
+        env_file=str(_ENV_FILE) if _ENV_FILE.exists() else ".env",
+        env_file_encoding="utf-8",
+    )
 
     def __getattr__(self, name: str) -> Any:
         """

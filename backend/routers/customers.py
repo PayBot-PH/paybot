@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime, date
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import ConfigDict, BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
@@ -57,8 +57,7 @@ class CustomersResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CustomersListResponse(BaseModel):

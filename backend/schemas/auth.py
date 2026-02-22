@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import ConfigDict, BaseModel
 
 
 class UserResponse(BaseModel):
@@ -11,8 +11,7 @@ class UserResponse(BaseModel):
     role: str = "user"  # user/admin
     last_login: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PlatformTokenExchangeRequest(BaseModel):
