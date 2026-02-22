@@ -1,12 +1,15 @@
 """Tests for PayBot — bot command handlers, health endpoints, and core API flows."""
 import os
 import copy
+import hashlib
+import hmac
+import time
 import pytest
 
 os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:////tmp/test_paybot_{os.getpid()}.db")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-ci")
-os.environ.setdefault("ADMIN_USER_PASSWORD", "testpass123")
-os.environ.setdefault("TELEGRAM_ADMIN_IDS", "test_admin")
+os.environ.setdefault("TELEGRAM_BOT_TOKEN", "123456:TEST_BOT_TOKEN")
+os.environ.setdefault("TELEGRAM_ADMIN_IDS", "123456789")
 
 from fastapi.testclient import TestClient
 from main import app  # noqa: E402
@@ -20,9 +23,25 @@ def client():
 
 @pytest.fixture(scope="module")
 def auth_token(client):
+    bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
+    auth_date = int(time.time())
+    payload = {
+        "id": 123456789,
+        "auth_date": auth_date,
+        "first_name": "Test",
+        "username": "test_admin",
+    }
+    data_check_string = "\n".join(
+        f"{key}={value}"
+        for key, value in sorted(payload.items())
+        if value is not None and value != ""
+    )
+    secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
+    payload["hash"] = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+
     r = client.post(
-        "/api/v1/auth/telegram-login",
-        json={"telegram_user_id": "test_admin", "password": "testpass123"},
+        "/api/v1/auth/telegram-login-widget",
+        json=payload,
     )
     assert r.status_code == 200
     return r.json()["token"]
@@ -59,25 +78,46 @@ class TestHealth:
 # Auth
 # ---------------------------------------------------------------------------
 class TestAuth:
-    def test_telegram_login_success(self, client):
+    def test_telegram_login_legacy_disabled(self, client):
         r = client.post(
             "/api/v1/auth/telegram-login",
-            json={"telegram_user_id": "test_admin", "password": "testpass123"},
+            json={"telegram_user_id": "123456789", "password": "any"},
         )
-        assert r.status_code == 200
-        assert "token" in r.json()
+        assert r.status_code == 410
 
-    def test_telegram_login_wrong_password(self, client):
+    def test_telegram_widget_login_invalid_hash(self, client):
         r = client.post(
-            "/api/v1/auth/telegram-login",
-            json={"telegram_user_id": "test_admin", "password": "wrongpass"},
+            "/api/v1/auth/telegram-login-widget",
+            json={
+                "id": 123456789,
+                "auth_date": int(time.time()),
+                "first_name": "Test",
+                "username": "test_admin",
+                "hash": "bad_hash",
+            },
         )
         assert r.status_code == 401
 
-    def test_telegram_login_unknown_user(self, client):
+    def test_telegram_widget_login_unknown_user(self, client):
+        bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
+        auth_date = int(time.time())
+        payload = {
+            "id": 999999999,
+            "auth_date": auth_date,
+            "first_name": "Stranger",
+            "username": "stranger",
+        }
+        data_check_string = "\n".join(
+            f"{key}={value}"
+            for key, value in sorted(payload.items())
+            if value is not None and value != ""
+        )
+        secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
+        payload["hash"] = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+
         r = client.post(
-            "/api/v1/auth/telegram-login",
-            json={"telegram_user_id": "stranger", "password": "testpass123"},
+            "/api/v1/auth/telegram-login-widget",
+            json=payload,
         )
         assert r.status_code == 403
 
@@ -85,7 +125,7 @@ class TestAuth:
         r = client.get("/api/v1/auth/me", headers=auth_headers)
         assert r.status_code == 200
         data = r.json()
-        assert data["id"] == "test_admin"
+        assert data["id"] == "123456789"
         assert data["role"] == "admin"
 
     def test_me_unauthenticated(self, client):

@@ -5,7 +5,7 @@ import React, {
   useEffect,
   ReactNode,
 } from 'react';
-import { authApi } from '../lib/auth';
+import { authApi, TelegramWidgetUser } from '../lib/auth';
 
 interface User {
   id: string;
@@ -19,6 +19,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (userId?: string, password?: string) => Promise<void>;
+  loginWithTelegram: (user: TelegramWidgetUser) => Promise<void>;
   logout: () => Promise<void>;
   refetch: () => Promise<void>;
   isAdmin: boolean;
@@ -73,6 +74,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const loginWithTelegram = async (telegramUser: TelegramWidgetUser) => {
+    try {
+      setError(null);
+      await authApi.loginWithTelegram(telegramUser);
+      await checkAuthStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Telegram login failed');
+    }
+  };
+
   const logout = async () => {
     try {
       setError(null);
@@ -92,6 +103,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     loading,
     error,
     login,
+    loginWithTelegram,
     logout,
     refetch: checkAuthStatus,
     isAdmin: user?.role === 'admin',

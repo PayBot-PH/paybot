@@ -21,9 +21,14 @@ class PlatformTokenExchangeRequest(BaseModel):
     platform_token: str
 
 
-class TelegramLoginRequest(BaseModel):
-    telegram_user_id: str
-    password: str
+class TelegramWidgetLoginRequest(BaseModel):
+    id: int
+    auth_date: int
+    hash: str
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    username: Optional[str] = None
+    photo_url: Optional[str] = None
 
 
 class TokenExchangeResponse(BaseModel):

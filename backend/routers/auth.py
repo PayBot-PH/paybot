@@ -1,5 +1,8 @@
 import logging
 import os
+import hashlib
+import hmac
+import time
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -22,7 +25,7 @@ from fastapi.responses import RedirectResponse
 from models.auth import User
 from schemas.auth import (
     PlatformTokenExchangeRequest,
-    TelegramLoginRequest,
+    TelegramWidgetLoginRequest,
     TokenExchangeResponse,
     UserResponse,
 )
@@ -77,10 +80,6 @@ def derive_name_from_email(email: str) -> str:
 def _get_allowed_telegram_admin_ids() -> set[str]:
     configured_ids = set()
 
-    admin_user_id = str(getattr(settings, "admin_user_id", "") or "").strip()
-    if admin_user_id:
-        configured_ids.add(admin_user_id)
-
     raw_admin_ids = str(getattr(settings, "telegram_admin_ids", "") or "")
     if raw_admin_ids:
         for admin_id in raw_admin_ids.split(","):
@@ -91,37 +90,76 @@ def _get_allowed_telegram_admin_ids() -> set[str]:
     return configured_ids
 
 
-@router.post("/telegram-login", response_model=TokenExchangeResponse)
-async def telegram_login(payload: TelegramLoginRequest, db: AsyncSession = Depends(get_db)):
-    """Telegram-based admin login. Only configured bot admins can log in."""
-    telegram_user_id = str(payload.telegram_user_id or "").strip()
-    if not telegram_user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram user ID is required")
+def _verify_telegram_widget_payload(payload: TelegramWidgetLoginRequest, bot_token: str, max_age_seconds: int = 86400) -> bool:
+    if not bot_token:
+        return False
 
-    configured_password = str(getattr(settings, "admin_user_password", "") or "")
+    now = int(time.time())
+    if payload.auth_date > now or (now - payload.auth_date) > max_age_seconds:
+        return False
+
+    fields = {
+        "auth_date": str(payload.auth_date),
+        "first_name": payload.first_name,
+        "id": str(payload.id),
+        "last_name": payload.last_name,
+        "photo_url": payload.photo_url,
+        "username": payload.username,
+    }
+
+    data_check_string = "\n".join(f"{key}={value}" for key, value in sorted(fields.items()) if value is not None and value != "")
+    secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
+    computed_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(computed_hash, payload.hash)
+
+
+@router.post("/telegram-login", response_model=TokenExchangeResponse)
+async def telegram_login_legacy_disabled():
+    """Legacy endpoint intentionally disabled: use Telegram Login Widget flow instead."""
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="Legacy login is disabled. Use Telegram Login Widget sign-in.",
+    )
+
+
+@router.post("/telegram-login-widget", response_model=TokenExchangeResponse)
+async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSession = Depends(get_db)):
+    """Telegram Login Widget admin login with Telegram-signed payload validation."""
+    bot_token = str(getattr(settings, "telegram_bot_token", "") or "")
     allowed_admin_ids = _get_allowed_telegram_admin_ids()
 
-    if not allowed_admin_ids or not configured_password:
+    if not bot_token:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Telegram bot token is not configured",
+        )
+
+    if not allowed_admin_ids:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Telegram admin authentication is not configured",
         )
 
-    if payload.password != configured_password:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram credentials")
-
+    telegram_user_id = str(payload.id)
     if telegram_user_id not in allowed_admin_ids:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not a bot admin and cannot log in",
         )
 
+    if not _verify_telegram_widget_payload(payload, bot_token):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram login payload")
+
+    display_name = " ".join(part for part in [payload.first_name, payload.last_name] if part).strip()
+    if not display_name:
+        display_name = payload.username or telegram_user_id
+
     admin_email = getattr(settings, "admin_user_email", "") or f"{telegram_user_id}@paybot.local"
-    user = User(id=telegram_user_id, email=admin_email, name=telegram_user_id, role="admin")
+    user = User(id=telegram_user_id, email=admin_email, name=display_name, role="admin")
     auth_service = AuthService(db)
     app_token, _, _ = await auth_service.issue_app_token(user=user)
 
-    logger.info("[telegram-login] Bot admin authenticated: %s", telegram_user_id)
+    logger.info("[telegram-login-widget] Bot admin authenticated: %s", telegram_user_id)
     return TokenExchangeResponse(token=app_token)
 
 

@@ -1,35 +1,61 @@
-import { FormEvent, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import type { TelegramWidgetUser } from '@/lib/auth';
+
+declare global {
+  interface Window {
+    onTelegramAuth?: (user: TelegramWidgetUser) => void;
+  }
+}
 
 export default function Login() {
-  const { user, login, loading, error } = useAuth();
-  const [userId, setUserId] = useState('');
-  const [password, setPassword] = useState('');
+  const { user, loginWithTelegram, loading, error } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const widgetContainerRef = useRef<HTMLDivElement | null>(null);
+  const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
 
   if (user) {
     return <Navigate to="/" replace />;
   }
 
-  const onSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setLocalError(null);
-
-    if (!userId.trim() || !password.trim()) {
-      setLocalError('Please enter user ID and password');
+  useEffect(() => {
+    if (!botUsername) {
+      setLocalError('Telegram sign-in is not configured. Please set VITE_TELEGRAM_BOT_USERNAME.');
       return;
     }
 
-    setSubmitting(true);
-    await login(userId.trim(), password);
-    setSubmitting(false);
-  };
+    if (!widgetContainerRef.current) return;
+
+    setLocalError(null);
+
+    window.onTelegramAuth = async (telegramUser: TelegramWidgetUser) => {
+      setSubmitting(true);
+      setLocalError(null);
+      await loginWithTelegram(telegramUser);
+      setSubmitting(false);
+    };
+
+    widgetContainerRef.current.innerHTML = '';
+    const script = document.createElement('script');
+    script.async = true;
+    script.src = 'https://telegram.org/js/telegram-widget.js?22';
+    script.setAttribute('data-telegram-login', botUsername);
+    script.setAttribute('data-size', 'large');
+    script.setAttribute('data-userpic', 'false');
+    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+    script.setAttribute('data-request-access', 'write');
+    widgetContainerRef.current.appendChild(script);
+
+    return () => {
+      if (widgetContainerRef.current) {
+        widgetContainerRef.current.innerHTML = '';
+      }
+      delete window.onTelegramAuth;
+    };
+  }, [botUsername, loginWithTelegram]);
 
   return (
     <div className="min-h-screen bg-[#0F172A] flex items-center justify-center px-4">
@@ -38,42 +64,13 @@ export default function Login() {
           <CardTitle className="text-white text-2xl">Telegram Admin Login</CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div>
-              <Label className="text-slate-300">Telegram User ID</Label>
-              <Input
-                value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                className="mt-1 bg-slate-800 border-slate-600 text-white"
-                placeholder="Enter your Telegram user ID"
-                autoComplete="username"
-              />
-            </div>
-
-            <div>
-              <Label className="text-slate-300">Password</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 bg-slate-800 border-slate-600 text-white"
-                placeholder="Enter your password"
-                autoComplete="current-password"
-              />
-            </div>
-
-            {(localError || error) && (
-              <p className="text-red-400 text-sm">{localError || error}</p>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-              disabled={submitting || loading}
-            >
-              {submitting ? 'Signing in...' : 'Sign In'}
-            </Button>
-          </form>
+          <div className="space-y-4">
+            <p className="text-slate-300 text-sm">Use your Telegram account to sign in as admin.</p>
+            <div ref={widgetContainerRef} className="flex justify-center" />
+            {submitting && <p className="text-slate-300 text-sm">Signing in...</p>}
+            {(localError || error) && <p className="text-red-400 text-sm">{localError || error}</p>}
+            {loading && <p className="text-slate-400 text-sm">Checking session...</p>}
+          </div>
         </CardContent>
       </Card>
     </div>
