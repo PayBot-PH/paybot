@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     # Application
-    app_name: str = "FastAPI Modular Template"
+    app_name: str = "PayBot"
     debug: bool = False
     version: str = "1.0.0"
 
