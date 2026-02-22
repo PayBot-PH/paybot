@@ -433,3 +433,77 @@ class TestTransactionStats:
         for field in ("total_count", "paid_count", "pending_count", "expired_count"):
             assert field in data
             assert isinstance(data[field], int)
+
+
+# ---------------------------------------------------------------------------
+# Demo / seed data
+# ---------------------------------------------------------------------------
+class TestDemoData:
+    """Verify that the mock_data seed files are loaded on a fresh database."""
+
+    def test_demo_transactions_loaded(self, client, auth_headers):
+        """At least the 8 demo transactions should be present."""
+        r = client.get("/api/v1/entities/transactions", headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 8
+
+    def test_demo_transactions_have_paid_status(self, client, auth_headers):
+        """At least one transaction with status 'paid' must exist."""
+        import json as _json
+        r = client.get(
+            "/api/v1/entities/transactions",
+            params={"query": _json.dumps({"status": "paid"})},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 1
+        for item in data["items"]:
+            assert item["status"] == "paid"
+
+    def test_demo_wallet_has_balance(self, client, auth_headers):
+        """The admin demo wallet should have a positive balance."""
+        r = client.get("/api/v1/entities/wallets", headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 1
+        assert data["items"][0]["balance"] > 0
+
+    def test_demo_customers_loaded(self, client, auth_headers):
+        """At least the 5 demo customers should be present."""
+        r = client.get("/api/v1/entities/customers", headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 5
+
+    def test_demo_disbursements_loaded(self, client, auth_headers):
+        """At least the 3 demo disbursements should be present."""
+        r = client.get("/api/v1/entities/disbursements", headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 3
+
+    def test_demo_subscriptions_loaded(self, client, auth_headers):
+        """At least the 3 demo subscriptions should be present."""
+        r = client.get("/api/v1/entities/subscriptions", headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 3
+
+    def test_demo_wallet_transactions_loaded(self, client, auth_headers):
+        """At least the 8 demo wallet transactions should be present."""
+        r = client.get("/api/v1/entities/wallet_transactions", headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] >= 8
+
+    def test_demo_transaction_stats_reflect_seed(self, client, auth_headers):
+        """Transaction stats should reflect the seeded paid/pending/expired records."""
+        r = client.get("/api/v1/xendit/transaction-stats", headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        # Seed data has 6 paid, 1 pending, 1 expired
+        assert data["paid_count"] >= 5
+        assert data["pending_count"] >= 1
+        assert data["expired_count"] >= 1

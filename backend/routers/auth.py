@@ -30,6 +30,7 @@ from schemas.auth import (
     UserResponse,
 )
 from services.auth import AuthService
+from services.telegram_service import TelegramService
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
@@ -168,6 +169,38 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
 
     logger.info("[telegram-login-widget] Bot admin authenticated: %s", telegram_user_id)
     return TokenExchangeResponse(token=app_token)
+
+
+@router.get("/telegram-login-config")
+async def telegram_login_config():
+    """Provide Telegram Login Widget config at runtime."""
+    configured_username = (os.getenv("VITE_TELEGRAM_BOT_USERNAME") or os.getenv("TELEGRAM_BOT_USERNAME") or "").strip()
+    if configured_username:
+        return {"bot_username": configured_username.lstrip("@")}
+
+    bot_token = str(getattr(settings, "telegram_bot_token", "") or "")
+    if not bot_token:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram bot token is not configured",
+        )
+
+    service = TelegramService()
+    result = await service.get_bot_info()
+    if not result.get("success"):
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Unable to resolve Telegram bot username",
+        )
+
+    username = str(result.get("bot", {}).get("username", "") or "").strip()
+    if not username:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram bot username is unavailable",
+        )
+
+    return {"bot_username": username}
 
 
 @router.get("/login")

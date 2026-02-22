@@ -16,6 +16,23 @@ MOCK_DATA_DIR = Path(__file__).resolve().parent.parent / "mock_data"
 MAX_CONCURRENT_LOADS = 5
 
 
+def _resolve_demo_owner_id() -> str:
+    """Resolve the user_id to assign to demo seed records.
+
+    Priority:
+    1. First ID in TELEGRAM_ADMIN_IDS (the Telegram-authenticated admin)
+    2. ADMIN_USER_ID setting (default: "admin")
+    """
+    from core.config import settings
+
+    raw_admin_ids = str(getattr(settings, "telegram_admin_ids", ""))
+    if raw_admin_ids:
+        first_id = raw_admin_ids.split(",")[0].strip()
+        if first_id:
+            return first_id
+    return str(getattr(settings, "admin_user_id", "") or "admin")
+
+
 async def initialize_mock_data():
     """Populate tables with mock JSON data when they are empty."""
     if "MGX_IGNORE_INIT_DATA" in os.environ:
@@ -34,12 +51,15 @@ async def initialize_mock_data():
         logger.info("No mock JSON files detected; skipping mock initialization")
         return
 
+    owner_id = _resolve_demo_owner_id()
+    logger.info("Demo seed data will be owned by user_id: %s", owner_id)
+
     semaphore = asyncio.Semaphore(MAX_CONCURRENT_LOADS)
 
     async def load_file(data_file: Path):
         async with semaphore:
             try:
-                await _load_table_from_file(data_file)
+                await _load_table_from_file(data_file, owner_id=owner_id)
             except Exception as exc:  # pragma: no cover - defensive
                 logger.error("Unexpected error loading %s: %s", data_file.name, exc)
 
@@ -120,7 +140,17 @@ async def _reflect_table(conn, table_name: str) -> Table:
     return await conn.run_sync(_reflect)
 
 
-async def _load_table_from_file(data_file: Path):
+def _substitute_owner(raw_data: Any, owner_id: str) -> None:
+    """Replace the placeholder 'admin' user_id in demo records with the real owner_id."""
+    if isinstance(raw_data, list):
+        for item in raw_data:
+            if isinstance(item, dict) and item.get("user_id") == "admin":
+                item["user_id"] = owner_id
+    elif isinstance(raw_data, dict) and raw_data.get("user_id") == "admin":
+        raw_data["user_id"] = owner_id
+
+
+async def _load_table_from_file(data_file: Path, owner_id: str = "admin"):
     table_name = data_file.stem
     logger.info("Processing mock data file %s for table %s", data_file.name, table_name)
 
@@ -144,6 +174,9 @@ async def _load_table_from_file(data_file: Path):
         except json.JSONDecodeError as exc:
             logger.error("Invalid JSON in %s: %s", data_file.name, exc)
             return
+
+        # Replace placeholder user_id with the configured admin owner
+        _substitute_owner(raw_records, owner_id)
 
         records = _prepare_records(raw_records, table)
         if not records:

@@ -15,37 +15,61 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const widgetContainerRef = useRef<HTMLDivElement | null>(null);
-  const botUsername = import.meta.env.VITE_TELEGRAM_BOT_USERNAME;
+  const [botUsername, setBotUsername] = useState<string>((import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim());
 
   useEffect(() => {
-    if (!botUsername) {
-      setLocalError('Telegram sign-in is not configured. Please set VITE_TELEGRAM_BOT_USERNAME.');
-      return;
-    }
+    let canceled = false;
 
-    if (!widgetContainerRef.current) return;
-
-    setLocalError(null);
-
-    window.onTelegramAuth = async (telegramUser: TelegramWidgetUser) => {
-      setSubmitting(true);
-      setLocalError(null);
-      await loginWithTelegram(telegramUser);
-      setSubmitting(false);
+    const resolveBotUsername = async () => {
+      if (botUsername) return botUsername;
+      try {
+        const response = await fetch('/api/v1/auth/telegram-login-config');
+        if (!response.ok) return '';
+        const data = await response.json();
+        const runtimeUsername = (data?.bot_username || '').toString().trim();
+        if (!canceled && runtimeUsername) {
+          setBotUsername(runtimeUsername);
+        }
+        return runtimeUsername;
+      } catch {
+        return '';
+      }
     };
 
-    widgetContainerRef.current.innerHTML = '';
-    const script = document.createElement('script');
-    script.async = true;
-    script.src = 'https://telegram.org/js/telegram-widget.js?22';
-    script.setAttribute('data-telegram-login', botUsername);
-    script.setAttribute('data-size', 'large');
-    script.setAttribute('data-userpic', 'false');
-    script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-    script.setAttribute('data-request-access', 'write');
-    widgetContainerRef.current.appendChild(script);
+    const renderWidget = async () => {
+      const resolvedUsername = await resolveBotUsername();
+      if (!resolvedUsername) {
+        setLocalError('Telegram sign-in is not configured. Please set TELEGRAM_BOT_USERNAME or VITE_TELEGRAM_BOT_USERNAME.');
+        return;
+      }
+
+      if (!widgetContainerRef.current) return;
+
+      setLocalError(null);
+
+      window.onTelegramAuth = async (telegramUser: TelegramWidgetUser) => {
+        setSubmitting(true);
+        setLocalError(null);
+        await loginWithTelegram(telegramUser);
+        setSubmitting(false);
+      };
+
+      widgetContainerRef.current.innerHTML = '';
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://telegram.org/js/telegram-widget.js?22';
+      script.setAttribute('data-telegram-login', resolvedUsername);
+      script.setAttribute('data-size', 'large');
+      script.setAttribute('data-userpic', 'false');
+      script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+      script.setAttribute('data-request-access', 'write');
+      widgetContainerRef.current.appendChild(script);
+    };
+
+    renderWidget();
 
     return () => {
+      canceled = true;
       if (widgetContainerRef.current) {
         widgetContainerRef.current.innerHTML = '';
       }
