@@ -40,6 +40,7 @@ EXPOSE 8000
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
+ENV ENVIRONMENT=production
 
 # Run migrations and start the server
 CMD ["bash", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

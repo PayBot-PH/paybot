@@ -130,14 +130,14 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
 
     if not bot_token:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Telegram bot token is not configured",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram bot token is not configured. Add TELEGRAM_BOT_TOKEN to environment variables.",
         )
 
     if not allowed_admin_ids:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Telegram admin authentication is not configured",
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Telegram admin IDs are not configured. Add TELEGRAM_ADMIN_IDS to environment variables.",
         )
 
     telegram_user_id = str(payload.id)
@@ -157,7 +157,14 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
     admin_email = getattr(settings, "admin_user_email", "") or f"{telegram_user_id}@paybot.local"
     user = User(id=telegram_user_id, email=admin_email, name=display_name, role="admin")
     auth_service = AuthService(db)
-    app_token, _, _ = await auth_service.issue_app_token(user=user)
+    try:
+        app_token, _, _ = await auth_service.issue_app_token(user=user)
+    except ValueError as exc:
+        logger.error("[telegram-login-widget] Failed to issue token: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication service is not configured. Ensure JWT_SECRET_KEY is set in environment variables.",
+        )
 
     logger.info("[telegram-login-widget] Bot admin authenticated: %s", telegram_user_id)
     return TokenExchangeResponse(token=app_token)
