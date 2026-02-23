@@ -34,16 +34,19 @@ Open your browser to the URL that matches your environment:
 
 ## ✨ Features
 
-### 💳 Payment Collection (5 Methods)
-- **Invoices** — Generate professional invoices with custom amounts, descriptions, and customer details
+### 💳 Payment Collection (7 Methods)
+- **Invoices** — Generate professional invoices with custom amounts and customer details
 - **QR Codes** — Create QRIS-compatible QR code payments for in-person transactions
+- **Alipay QR** — Alipay-compatible QR via Xendit QRIS
+- **Maya Checkout** — Maya payment via Security Bank Collect (SBC)
 - **Payment Links** — Shareable payment URLs for online collection
 - **Virtual Accounts** — Bank transfer payments via BDO, BPI, UnionBank, RCBC, Metrobank, PNB, ChinaBank
 - **E-Wallets** — Accept payments through GCash, GrabPay, and PayMaya
 
 ### 💰 Wallet System
 - Internal wallet with balance tracking
-- Deposit, withdraw, and transfer between users
+- **Top Up** via Xendit invoice (auto-credited on payment)
+- Withdraw and transfer between users
 - Auto-credit on successful payments
 - Full transaction history with filtering
 
@@ -75,11 +78,17 @@ Open your browser to the URL that matches your environment:
 - Xendit account balance check
 - Fee calculator for all payment methods
 
-### 🤖 Telegram Bot (17 Commands)
+### 🤖 Telegram Bot (22 Commands)
 - Full payment gateway accessible via chat commands
 - Real-time payment notifications
 - Interactive menus and inline keyboards
 - Webhook-based for instant responses
+
+### 🔐 Admin Management
+- Role-based access control with per-admin permissions
+- Only Telegram bot users can access the admin UI
+- Super admin can add/remove admins and toggle permissions
+- Contact support button linking to [@traxionpay](https://t.me/traxionpay)
 
 ### 🔔 Real-Time Notifications
 - Server-Sent Events (SSE) for live dashboard updates
@@ -239,23 +248,27 @@ curl https://your-domain.com/api/v1/telegram/debug-token-check
 | Command | Description | Example |
 |---------|-------------|---------|
 | `/start` | Welcome message & quick menu | `/start` |
-| `/help` | List all available commands | `/help` |
+| `/help` | Full command reference | `/help` |
 | `/pay` | Interactive payment menu | `/pay` |
-| `/invoice <amount> <desc>` | Create a payment invoice | `/invoice 500 Lunch payment` |
-| `/qr <amount> <desc>` | Generate QR code payment | `/qr 150 Coffee` |
+| `/invoice <amount> <desc>` | Create a payment invoice | `/invoice 500 Monthly subscription` |
+| `/qr <amount> <desc>` | Generate QRIS QR code payment | `/qr 150 Coffee` |
+| `/alipay <amount> <desc>` | Alipay-compatible QR via Xendit QRIS | `/alipay 500 Coffee order` |
+| `/wechat <amount> <desc>` | Maya checkout via Security Bank Collect | `/wechat 500 Coffee order` |
 | `/link <amount> <desc>` | Create shareable payment link | `/link 1000 Freelance work` |
-| `/va <amount> <bank> <desc>` | Create virtual account | `/va 2500 BDO Tuition fee` |
-| `/ewallet <amount> <wallet> <phone>` | Charge e-wallet | `/ewallet 300 GCASH 09171234567` |
-| `/status <txn_id>` | Check payment status | `/status 42` |
-| `/balance` | Check wallet balance | `/balance` |
-| `/send <amount> <user_id>` | Transfer to another user | `/send 100 user123` |
+| `/va <amount> <bank>` | Create virtual account | `/va 2500 BDO` |
+| `/ewallet <amount> <provider>` | Charge e-wallet (GCASH, GRABPAY, PAYMAYA) | `/ewallet 300 GCASH` |
+| `/disburse <amt> <bank> <acct> <name>` | Send money to bank account | `/disburse 1000 BPI 1234567890 Juan` |
+| `/refund <id> <amount>` | Process a refund | `/refund inv-abc123 500` |
+| `/status <id>` | Check payment status | `/status 42` |
+| `/balance` | Check wallet balance & history | `/balance` |
 | `/withdraw <amount>` | Withdraw from wallet | `/withdraw 500` |
-| `/disburse <amt> <bank> <acct> <name>` | Send money to bank | `/disburse 1000 BPI 1234567890 Juan` |
-| `/refund <txn_id> <amount>` | Process a refund | `/refund 42 250` |
-| `/report` | View revenue summary | `/report` |
+| `/send <amount> <user>` | Transfer to another user | `/send 100 user123` |
+| `/list` | List recent transactions | `/list` |
+| `/cancel <id>` | Cancel a pending payment | `/cancel 42` |
+| `/report [daily\|weekly\|monthly]` | View revenue summary | `/report weekly` |
 | `/fees <amount> <method>` | Calculate payment fees | `/fees 1000 invoice` |
 | `/subscribe <plan> <amt> <interval>` | Create subscription | `/subscribe Premium 999 monthly` |
-| `/remind <txn_id>` | Send payment reminder | `/remind 42` |
+| `/remind <id>` | Send payment reminder | `/remind 42` |
 
 ---
 
@@ -264,12 +277,14 @@ curl https://your-domain.com/api/v1/telegram/debug-token-check
 | Page | Route | Description |
 |------|-------|-------------|
 | **Dashboard** | `/` | Overview with wallet balance, transaction stats, quick actions |
-| **Wallet** | `/wallet` | Balance management, deposit, withdraw, transfer |
-| **Payments Hub** | `/payments` | Create payments via 5 methods |
+| **Wallet** | `/wallet` | Balance management, top up via Xendit, withdraw, disburse |
+| **Payments Hub** | `/payments` | Create payments via Invoice, QR, Payment Link, VA, E-Wallet, Alipay, Maya |
+| **Create Payment** | `/create-payment` | Quick payment creation form |
 | **Transactions** | `/transactions` | Full transaction history with search & filter |
 | **Money Management** | `/disbursements` | Disbursements, refunds, subscriptions, customers |
 | **Reports** | `/reports` | Revenue analytics, breakdowns, fee calculator |
 | **Bot Settings** | `/bot-settings` | Configure Telegram bot and webhook |
+| **Admin Management** | `/admin-management` | Add/remove admins, set permissions (super admin only) |
 
 ---
 
