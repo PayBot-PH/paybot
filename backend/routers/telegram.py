@@ -21,6 +21,7 @@ from models.subscriptions import Subscriptions
 from schemas.auth import UserResponse
 from services.telegram_service import TelegramService, _resolve_bot_token
 from services.xendit_service import XenditService
+from services.sbc_collect_service import SecurityBankCollectService
 from services.event_bus import payment_event_bus
 
 logger = logging.getLogger(__name__)
@@ -218,28 +219,32 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # ==================== /start ====================
         if text.startswith("/start"):
             welcome = (
-                "🤖 <b>Welcome to PayBot!</b>\n\n"
-                "Your complete Xendit payment gateway bot.\n\n"
-                "💳 <b>Payment Commands:</b>\n"
-                "/invoice [amount] [desc] - Create invoice\n"
-                "/qr [amount] [desc] - QR code payment\n"
-                "/alipay [amount] [desc] - Alipay QR payment\n"
-                "/link [amount] [desc] - Payment link\n"
-                "/va [amount] [bank] - Virtual account\n"
-                "/ewallet [amount] [provider] - E-wallet charge\n\n"
-                "💸 <b>Money Out:</b>\n"
-                "/disburse [amount] [bank] [account] - Send money\n"
-                "/refund [payment_id] [amount] - Process refund\n\n"
-                "📊 <b>Management:</b>\n"
-                "/status [id] - Check payment status\n"
-                "/balance - Wallet balance\n"
-                "/send [amount] [recipient] - Send from wallet\n"
-                "/withdraw [amount] - Withdraw from wallet\n"
-                "/report [daily|weekly|monthly] - Reports\n"
-                "/fees [amount] [method] - Calculate fees\n"
-                "/subscribe [amount] [plan] - Create subscription\n"
-                "/remind [payment_id] - Send reminder\n"
-                "/help - Show all commands"
+                "🤖 <b>Welcome to PayBot!</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "Your complete Xendit payment gateway.\n\n"
+                "💳 <b>Accept Payments:</b>\n"
+                "  /invoice [amt] [desc] — Invoice\n"
+                "  /qr [amt] [desc] — QR Code\n"
+                "  /link [amt] [desc] — Payment Link\n"
+                "  /va [amt] [bank] — Virtual Account\n"
+                "  /ewallet [amt] [provider] — E-Wallet\n"
+                "  /alipay [amt] [desc] — Alipay QR 🔴\n"
+                "  /wechat [amt] [desc] — WeChat Pay 🟢\n\n"
+                "💸 <b>Send Money:</b>\n"
+                "  /disburse [amt] [bank] [acct] [name] — Disburse\n"
+                "  /refund [id] [amt] — Refund\n\n"
+                "💰 <b>Wallet:</b>\n"
+                "  /balance — Balance + history\n"
+                "  /withdraw [amt] — Withdraw\n"
+                "  /send [amt] [to] — Send\n\n"
+                "📊 <b>Tools:</b>\n"
+                "  /status [id] — Payment status\n"
+                "  /list — Recent transactions\n"
+                "  /report [daily|weekly|monthly]\n"
+                "  /fees [amt] [method]\n"
+                "  /cancel [id] — Cancel pending\n"
+                "  /remind [id] — Send reminder\n\n"
+                "Type /help for full command reference."
             )
             await tg.send_message(chat_id, welcome)
 
@@ -259,12 +264,21 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     xendit = XenditService()
                     result = await xendit.create_invoice(amount=amount, description=description)
                     if result.get("success"):
+                        invoice_url = result.get('invoice_url', '')
+                        ext_id = result.get('external_id', '')
                         reply = (
-                            f"✅ <b>Invoice Created!</b>\n\n💰 Amount: ₱{amount:,.2f}\n📝 {description}\n"
-                            f"🔗 Pay: {result.get('invoice_url', '')}\n🆔 <code>{result.get('external_id', '')}</code>"
+                            f"✅ <b>Invoice Created!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"📝 {description}\n"
+                            f"🆔 <code>{ext_id}</code>\n\n"
+                            f"Tap the button below to pay 👇"
                         )
+                        keyboard = {
+                            "inline_keyboard": [[{"text": "💳 Pay Now", "url": invoice_url}]]
+                        } if invoice_url else None
                         # Send reply FIRST
-                        await tg.send_message(chat_id, reply)
+                        await tg.send_message(chat_id, reply, reply_markup=keyboard)
                         # Then try DB save
                         try:
                             now = datetime.now()
@@ -332,11 +346,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /alipay ====================
+        # ==================== /alipay (Security Bank Collect) ====================
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]")
+                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]\nExample: /alipay 500 Coffee order")
             else:
                 try:
                     amount = float(parts[1])
@@ -345,22 +359,30 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
-                    xendit = XenditService()
-                    result = await xendit.create_alipay_qr(amount=amount, description=description)
+                    sbc = SecurityBankCollectService()
+                    result = await sbc.create_alipay_qr(amount=amount, description=description)
                     if result.get("success"):
+                        qr_url = result.get("qr_url", "")
+                        ext_id = result.get("external_id", "")
                         reply = (
-                            f"✅ <b>Alipay QR Created!</b>\n\n💰 ₱{amount:,.2f}\n"
-                            f"📱 QR: <code>{result.get('qr_string', '')}</code>\n"
-                            f"🆔 <code>{result.get('external_id', '')}</code>"
+                            f"✅ <b>Alipay QR Created!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"📝 {description}\n"
+                            f"🆔 <code>{ext_id}</code>\n\n"
+                            f"📱 Scan QR in Alipay app to pay 👇"
                         )
-                        await tg.send_message(chat_id, reply)
+                        keyboard = {
+                            "inline_keyboard": [[{"text": "📱 Open Alipay QR", "url": qr_url}]]
+                        } if qr_url else None
+                        await tg.send_message(chat_id, reply, reply_markup=keyboard)
                         try:
                             now = datetime.now()
                             txn = Transactions(
                                 user_id="telegram", transaction_type="alipay_qr",
-                                external_id=result.get("external_id", ""), xendit_id=result.get("qr_id", ""),
+                                external_id=ext_id, xendit_id=result.get("source_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
-                                qr_code_url=result.get("qr_string", ""), telegram_chat_id=chat_id,
+                                qr_code_url=qr_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
                             db.add(txn)
@@ -372,7 +394,59 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
+                        await tg.send_message(chat_id, f"❌ Alipay QR failed: {result.get('error', 'Unknown error')}")
+                except ValueError:
+                    await tg.send_message(chat_id, "❌ Invalid amount.")
+
+        # ==================== /wechat (Security Bank Collect) ====================
+        elif text.startswith("/wechat"):
+            parts = text.split(maxsplit=2)
+            if len(parts) < 2:
+                await tg.send_message(chat_id, "❌ Usage: /wechat [amount] [description]\nExample: /wechat 500 Coffee order")
+            else:
+                try:
+                    amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+                    description = parts[2] if len(parts) > 2 else "WeChat payment"
+                    sbc = SecurityBankCollectService()
+                    result = await sbc.create_wechat_qr(amount=amount, description=description)
+                    if result.get("success"):
+                        qr_url = result.get("qr_url", "")
+                        ext_id = result.get("external_id", "")
+                        reply = (
+                            f"✅ <b>WeChat QR Created!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"📝 {description}\n"
+                            f"🆔 <code>{ext_id}</code>\n\n"
+                            f"📱 Scan QR in WeChat app to pay 👇"
+                        )
+                        keyboard = {
+                            "inline_keyboard": [[{"text": "📱 Open WeChat QR", "url": qr_url}]]
+                        } if qr_url else None
+                        await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                        try:
+                            now = datetime.now()
+                            txn = Transactions(
+                                user_id="telegram", transaction_type="wechat_qr",
+                                external_id=ext_id, xendit_id=result.get("source_id", ""),
+                                amount=amount, currency="PHP", status="pending", description=description,
+                                qr_code_url=qr_url, telegram_chat_id=chat_id,
+                                created_at=now, updated_at=now,
+                            )
+                            db.add(txn)
+                            await db.commit()
+                        except Exception as e:
+                            logger.error(f"DB save failed for /wechat: {e}", exc_info=True)
+                            try:
+                                await db.rollback()
+                            except Exception:
+                                pass
+                    else:
+                        await tg.send_message(chat_id, f"❌ WeChat QR failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
@@ -392,11 +466,20 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     xendit = XenditService()
                     result = await xendit.create_payment_link(amount=amount, description=description)
                     if result.get("success"):
+                        link_url = result.get('payment_link_url', '')
+                        ext_id = result.get('external_id', '')
                         reply = (
-                            f"✅ <b>Payment Link Created!</b>\n\n💰 ₱{amount:,.2f}\n📝 {description}\n"
-                            f"🔗 {result.get('payment_link_url', '')}\n🆔 <code>{result.get('external_id', '')}</code>"
+                            f"✅ <b>Payment Link Created!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"📝 {description}\n"
+                            f"🆔 <code>{ext_id}</code>\n\n"
+                            f"Tap the button below to pay 👇"
                         )
-                        await tg.send_message(chat_id, reply)
+                        keyboard = {
+                            "inline_keyboard": [[{"text": "🔗 Pay Now", "url": link_url}]]
+                        } if link_url else None
+                        await tg.send_message(chat_id, reply, reply_markup=keyboard)
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -515,9 +598,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /disburse ====================
         elif text.startswith("/disburse"):
-            parts = text.split(maxsplit=3)
-            if len(parts) < 4:
-                await tg.send_message(chat_id, "❌ Usage: /disburse [amount] [bank_code] [account_number]\nExample: /disburse 500 BDO 1234567890")
+            parts = text.split(maxsplit=4)
+            if len(parts) < 5:
+                await tg.send_message(
+                    chat_id,
+                    "❌ Usage: /disburse [amount] [bank] [account] [name]\n"
+                    "Example: /disburse 500 BDO 1234567890 Juan Dela Cruz\n\n"
+                    "Banks: BDO BPI UNIONBANK METROBANK LANDBANK PNB RCBC CHINABANK EASTWEST"
+                )
             else:
                 try:
                     amount = float(parts[1])
@@ -527,16 +615,23 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     bank_code = parts[2].upper()
                     account_number = parts[3]
+                    account_name = parts[4]
                     xendit = XenditService()
                     result = await xendit.create_disbursement(
                         amount=amount, bank_code=bank_code,
-                        account_number=account_number, account_name=username,
+                        account_number=account_number, account_name=account_name,
                         description=f"Disbursement via Telegram by @{username}",
                     )
                     if result.get("success"):
                         reply = (
-                            f"✅ <b>Disbursement Created!</b>\n\n💸 ₱{amount:,.2f}\n🏦 {bank_code}\n"
-                            f"🔢 {account_number}\n🆔 <code>{result.get('external_id', '')}</code>"
+                            f"✅ <b>Disbursement Queued!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💸 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"🏦 Bank: {bank_code}\n"
+                            f"🔢 Account: {account_number}\n"
+                            f"👤 Name: {account_name}\n"
+                            f"🆔 <code>{result.get('external_id', '')}</code>\n\n"
+                            f"Use /status {result.get('external_id', '')} to track."
                         )
                         await tg.send_message(chat_id, reply)
                         try:
@@ -544,7 +639,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             disb = Disbursements(
                                 user_id="telegram", external_id=result.get("external_id", ""),
                                 xendit_id=result.get("disbursement_id", ""), amount=amount, currency="PHP",
-                                bank_code=bank_code, account_number=account_number, account_name=username,
+                                bank_code=bank_code, account_number=account_number, account_name=account_name,
                                 description="TG disbursement", status="pending", disbursement_type="single",
                                 created_at=now, updated_at=now,
                             )
@@ -557,7 +652,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
+                        await tg.send_message(chat_id, f"❌ Disbursement failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
@@ -632,7 +727,27 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/status"):
             parts = text.split(maxsplit=1)
             if len(parts) < 2:
-                await tg.send_message(chat_id, "❌ Usage: /status [external_id]")
+                # No ID — show last 5 transactions
+                try:
+                    res = await db.execute(
+                        select(Transactions).order_by(Transactions.created_at.desc()).limit(5)
+                    )
+                    recent = res.scalars().all()
+                except Exception as e:
+                    logger.error(f"DB lookup failed for /status: {e}", exc_info=True)
+                    await tg.send_message(chat_id, "⚠️ Database temporarily unavailable.")
+                    await _safe_log(db, chat_id, username, text)
+                    return {"status": "ok"}
+                if not recent:
+                    await tg.send_message(chat_id, "📭 No transactions found.\n\nUsage: /status [external_id]")
+                else:
+                    s_map = {"paid": "✅", "pending": "⏳", "expired": "❌", "refunded": "↩️"}
+                    lines = ["📋 <b>Recent Transactions</b>\n━━━━━━━━━━━━━━━━━━━━"]
+                    for t in recent:
+                        em = s_map.get(t.status, "❓")
+                        lines.append(f"{em} ₱{t.amount:,.2f} — {t.transaction_type} — <code>{t.external_id}</code>")
+                    lines.append("\nUse /status [id] for details.")
+                    await tg.send_message(chat_id, "\n".join(lines))
             else:
                 ext_id = parts[1].strip()
                 try:
@@ -646,14 +761,24 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
                 if txn:
                     emoji = {"paid": "✅", "pending": "⏳", "expired": "❌", "refunded": "↩️"}.get(txn.status, "❓")
+                    created = txn.created_at.strftime("%b %d %H:%M") if txn.created_at else "N/A"
                     reply = (
-                        f"📊 <b>Transaction Status</b>\n\n🆔 <code>{txn.external_id}</code>\n"
-                        f"💰 ₱{txn.amount:,.2f}\n📋 {txn.transaction_type}\n{emoji} <b>{txn.status.upper()}</b>\n"
-                        f"📝 {txn.description or 'N/A'}"
+                        f"📊 <b>Transaction Details</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🆔 <code>{txn.external_id}</code>\n"
+                        f"💰 <b>₱{txn.amount:,.2f}</b>\n"
+                        f"📋 Type: {txn.transaction_type}\n"
+                        f"{emoji} Status: <b>{txn.status.upper()}</b>\n"
+                        f"📝 {txn.description or 'N/A'}\n"
+                        f"🕐 {created}"
                     )
+                    if txn.payment_url and txn.status == "pending":
+                        keyboard = {"inline_keyboard": [[{"text": "💳 Pay Now", "url": txn.payment_url}]]}
+                        await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                    else:
+                        await tg.send_message(chat_id, reply)
                 else:
-                    reply = f"❌ Not found: {ext_id}"
-                await tg.send_message(chat_id, reply)
+                    await tg.send_message(chat_id, f"❌ Not found: <code>{ext_id}</code>")
 
         # ==================== /balance ====================
         elif text.startswith("/balance"):
@@ -668,19 +793,37 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.refresh(wallet)
                 balance = wallet.balance
                 currency = wallet.currency or "PHP"
+                # Fetch last 3 wallet transactions
+                wt_res = await db.execute(
+                    select(Wallet_transactions)
+                    .where(Wallet_transactions.wallet_id == wallet.id)
+                    .order_by(Wallet_transactions.created_at.desc())
+                    .limit(3)
+                )
+                recent_wt = wt_res.scalars().all()
             except Exception as e:
                 logger.error(f"DB failed for /balance: {e}", exc_info=True)
                 balance = 0.0
                 currency = "PHP"
+                recent_wt = []
                 try:
                     await db.rollback()
                 except Exception:
                     pass
 
             reply = (
-                f"💰 <b>Wallet Balance</b>\n\n💵 <b>₱{balance:,.2f}</b>\n💱 {currency}\n\n"
-                f"/send [amount] [recipient] - Send\n/withdraw [amount] - Withdraw"
+                f"💰 <b>Wallet Balance</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"💵 <b>₱{balance:,.2f}</b> {currency}\n"
             )
+            if recent_wt:
+                t_map = {"send": "📤", "withdraw": "⬇️", "receive": "📥", "topup": "⬆️"}
+                reply += "\n📜 <b>Recent Activity:</b>\n"
+                for wt in recent_wt:
+                    em = t_map.get(wt.transaction_type, "💸")
+                    dt = wt.created_at.strftime("%b %d") if wt.created_at else ""
+                    reply += f"  {em} {wt.transaction_type} ₱{wt.amount:,.2f} — {dt}\n"
+            reply += "\n/withdraw [amt] · /send [amt] [to]"
             await tg.send_message(chat_id, reply)
 
         # ==================== /send ====================
@@ -927,29 +1070,105 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     return {"status": "ok"}
 
                 if txn and txn.status == "pending":
-                    msg = f"💳 <b>Payment Reminder</b>\n\n₱{txn.amount:,.2f} for {txn.description or 'your order'}"
+                    msg = (
+                        f"💳 <b>Payment Reminder</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"💰 ₱{txn.amount:,.2f} for {txn.description or 'your order'}\n"
+                        f"🆔 <code>{txn.external_id}</code>"
+                    )
+                    keyboard = None
                     if txn.payment_url:
-                        msg += f"\n🔗 Pay: {txn.payment_url}"
+                        keyboard = {"inline_keyboard": [[{"text": "💳 Pay Now", "url": txn.payment_url}]]}
                     if txn.telegram_chat_id:
-                        await tg.send_message(txn.telegram_chat_id, msg)
-                    reply = f"✅ Reminder sent for {ext_id}"
+                        await tg.send_message(txn.telegram_chat_id, msg, reply_markup=keyboard)
+                    reply = f"✅ Reminder sent for <code>{ext_id}</code>"
                 elif txn:
-                    reply = f"ℹ️ Transaction {ext_id} is already {txn.status}"
+                    reply = f"ℹ️ Transaction <code>{ext_id}</code> is already <b>{txn.status}</b>"
                 else:
-                    reply = f"❌ Not found: {ext_id}"
+                    reply = f"❌ Not found: <code>{ext_id}</code>"
                 await tg.send_message(chat_id, reply)
+
+        # ==================== /list ====================
+        elif text.startswith("/list"):
+            parts = text.split(maxsplit=1)
+            limit = 5
+            try:
+                res = await db.execute(
+                    select(Transactions).order_by(Transactions.created_at.desc()).limit(limit)
+                )
+                txns = res.scalars().all()
+            except Exception as e:
+                logger.error(f"DB failed for /list: {e}", exc_info=True)
+                await tg.send_message(chat_id, "⚠️ Database temporarily unavailable.")
+                await _safe_log(db, chat_id, username, text)
+                return {"status": "ok"}
+            if not txns:
+                await tg.send_message(chat_id, "📭 No transactions yet.")
+            else:
+                s_map = {"paid": "✅", "pending": "⏳", "expired": "❌", "refunded": "↩️"}
+                lines = [f"📋 <b>Last {len(txns)} Transactions</b>\n━━━━━━━━━━━━━━━━━━━━"]
+                for t in txns:
+                    em = s_map.get(t.status, "❓")
+                    dt = t.created_at.strftime("%b %d") if t.created_at else ""
+                    lines.append(
+                        f"{em} <b>₱{t.amount:,.2f}</b> — {t.transaction_type}\n"
+                        f"   <code>{t.external_id}</code> · {dt}"
+                    )
+                lines.append("\nUse /status [id] for details.")
+                await tg.send_message(chat_id, "\n".join(lines))
+
+        # ==================== /cancel ====================
+        elif text.startswith("/cancel"):
+            parts = text.split(maxsplit=1)
+            if len(parts) < 2:
+                await tg.send_message(chat_id, "❌ Usage: /cancel [external_id]\nExample: /cancel inv-abc123")
+            else:
+                ext_id = parts[1].strip()
+                try:
+                    result = await db.execute(select(Transactions).where(Transactions.external_id == ext_id))
+                    txn = result.scalar_one_or_none()
+                except Exception as e:
+                    logger.error(f"DB lookup failed for /cancel: {e}", exc_info=True)
+                    await tg.send_message(chat_id, "⚠️ Database temporarily unavailable.")
+                    await _safe_log(db, chat_id, username, text)
+                    return {"status": "ok"}
+                if not txn:
+                    await tg.send_message(chat_id, f"❌ Not found: <code>{ext_id}</code>")
+                elif txn.status != "pending":
+                    await tg.send_message(
+                        chat_id,
+                        f"⚠️ Cannot cancel — transaction is already <b>{txn.status}</b>."
+                    )
+                else:
+                    try:
+                        txn.status = "expired"
+                        txn.updated_at = datetime.now()
+                        await db.commit()
+                        await tg.send_message(
+                            chat_id,
+                            f"✅ <b>Cancelled</b>\n🆔 <code>{ext_id}</code> marked as expired."
+                        )
+                    except Exception as e:
+                        logger.error(f"DB update failed for /cancel: {e}", exc_info=True)
+                        try:
+                            await db.rollback()
+                        except Exception:
+                            pass
+                        await tg.send_message(chat_id, "⚠️ Failed to cancel. Please try again.")
 
         # ==================== /pay (interactive menu) ====================
         elif text.startswith("/pay"):
             menu = (
-                "💳 <b>Payment Menu</b>\n\n"
+                "💳 <b>Payment Menu</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
                 "Choose a payment method:\n\n"
-                "📄 /invoice [amount] [desc] - Invoice\n"
-                "📱 /qr [amount] [desc] - QR Code\n"
-                "🏧 /alipay [amount] [desc] - Alipay QR\n"
-                "🔗 /link [amount] [desc] - Payment Link\n"
-                "🏦 /va [amount] [bank] - Virtual Account\n"
-                "📲 /ewallet [amount] [provider] - E-Wallet\n\n"
+                "📄 /invoice [amt] [desc] — Invoice\n"
+                "📱 /qr [amt] [desc] — QR Code\n"
+                "🔗 /link [amt] [desc] — Payment Link\n"
+                "🏦 /va [amt] [bank] — Virtual Account\n"
+                "📲 /ewallet [amt] [provider] — E-Wallet\n"
+                "🔴 /alipay [amt] [desc] — Alipay (via SBC)\n"
+                "🟢 /wechat [amt] [desc] — WeChat Pay (via SBC)\n\n"
                 "💡 Example: /invoice 500 Coffee order"
             )
             await tg.send_message(chat_id, menu)
@@ -957,29 +1176,33 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # ==================== /help ====================
         elif text.startswith("/help"):
             help_text = (
-                "📋 <b>PayBot Commands</b>\n\n"
-                "💳 <b>Payments:</b>\n"
-                "/pay - Payment menu\n"
-                "/invoice [amt] [desc] - Invoice\n"
-                "/qr [amt] [desc] - QR Code\n"
-                "/alipay [amt] [desc] - Alipay QR\n"
-                "/link [amt] [desc] - Payment Link\n"
-                "/va [amt] [bank] - Virtual Account\n"
-                "/ewallet [amt] [provider] - E-Wallet\n\n"
-                "💸 <b>Money Out:</b>\n"
-                "/disburse [amt] [bank] [acct] - Disburse\n"
-                "/refund [id] [amt] - Refund\n\n"
+                "📋 <b>PayBot Commands</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "💳 <b>Accept Payments:</b>\n"
+                "  /pay — Payment menu\n"
+                "  /invoice [amt] [desc]\n"
+                "  /qr [amt] [desc]\n"
+                "  /alipay [amt] [desc] — via SBC 🔴\n"
+                "  /wechat [amt] [desc] — via SBC 🟢\n"
+                "  /link [amt] [desc]\n"
+                "  /va [amt] [bank]\n"
+                "  /ewallet [amt] [provider]\n\n"
+                "💸 <b>Send Money:</b>\n"
+                "  /disburse [amt] [bank] [acct] [name]\n"
+                "  /refund [id] [amt]\n\n"
                 "💰 <b>Wallet:</b>\n"
-                "/balance - Check balance\n"
-                "/send [amt] [to] - Send money\n"
-                "/withdraw [amt] - Withdraw\n\n"
+                "  /balance — Balance + history\n"
+                "  /send [amt] [to]\n"
+                "  /withdraw [amt]\n\n"
                 "📊 <b>Tools:</b>\n"
-                "/status [id] - Payment status\n"
-                "/report [period] - Reports\n"
-                "/fees [amt] [method] - Fees\n"
-                "/subscribe [amt] [plan] - Subscribe\n"
-                "/remind [id] - Send reminder\n"
-                "/help - This message"
+                "  /status [id] — Details (or list recent)\n"
+                "  /list — Last 5 transactions\n"
+                "  /cancel [id] — Cancel pending\n"
+                "  /report [daily|weekly|monthly]\n"
+                "  /fees [amt] [method]\n"
+                "  /subscribe [amt] [plan]\n"
+                "  /remind [id] — Send reminder\n"
+                "  /help — This message"
             )
             await tg.send_message(chat_id, help_text)
 

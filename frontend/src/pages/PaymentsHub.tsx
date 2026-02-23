@@ -101,6 +101,14 @@ export default function PaymentsHub() {
           endpoint = '/api/v1/gateway/ewallet-charge';
           payload = { amount: amt, channel_code: ewalletProvider, mobile_number: mobileNumber };
           break;
+        case 'alipay':
+          endpoint = '/api/v1/sbc/alipay/qr';
+          payload = { amount: amt, description: description || 'Alipay payment' };
+          break;
+        case 'wechat':
+          endpoint = '/api/v1/sbc/wechat/qr';
+          payload = { amount: amt, description: description || 'WeChat payment' };
+          break;
       }
 
       const res = await client.apiCall.invoke({ url: endpoint, method: 'POST', data: payload });
@@ -125,6 +133,8 @@ export default function PaymentsHub() {
     payment_link: { icon: <LinkIcon className="h-4 w-4" />, color: 'text-cyan-400' },
     virtual_account: { icon: <Building2 className="h-4 w-4" />, color: 'text-emerald-400' },
     ewallet: { icon: <Smartphone className="h-4 w-4" />, color: 'text-orange-400' },
+    alipay: { icon: <QrCode className="h-4 w-4" />, color: 'text-red-400' },
+    wechat: { icon: <QrCode className="h-4 w-4" />, color: 'text-green-400' },
   };
 
   return (
@@ -137,7 +147,7 @@ export default function PaymentsHub() {
             {Object.entries(tabConfig).map(([key, cfg]) => (
               <TabsTrigger key={key} value={key} className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
                 <span className={cfg.color}>{cfg.icon}</span>
-                <span className="ml-2 capitalize">{key.replace('_', ' ')}</span>
+                <span className="ml-2 capitalize">{key.replace(/_/g, ' ').replace('alipay', 'Alipay').replace('wechat', 'WeChat')}</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -145,7 +155,12 @@ export default function PaymentsHub() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card className="bg-[#1E293B] border-slate-700/50">
               <CardHeader>
-                <CardTitle className="text-white">Create {tab.replace('_', ' ')}</CardTitle>
+                <CardTitle className="text-white flex items-center gap-2">
+                  Create {tab.replace(/_/g, ' ').replace('alipay', 'Alipay').replace('wechat', 'WeChat')}
+                  {(tab === 'alipay' || tab === 'wechat') && (
+                    <span className="text-xs font-normal bg-red-900/40 text-red-300 border border-red-800/50 px-2 py-0.5 rounded-full">via Security Bank Collect</span>
+                  )}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -155,7 +170,7 @@ export default function PaymentsHub() {
                     className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
                 </div>
 
-                {(tab === 'invoice' || tab === 'qr_code' || tab === 'payment_link') && (
+                {(tab === 'invoice' || tab === 'qr_code' || tab === 'payment_link' || tab === 'alipay' || tab === 'wechat') && (
                   <div>
                     <Label className="text-slate-300">Description</Label>
                     <Textarea placeholder="Payment description..." value={description}

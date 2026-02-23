@@ -67,7 +67,7 @@ const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({
             </div>
 
             <div className="space-y-3">
-              <Button onClick={login} className="w-full" variant="outline">
+              <Button onClick={() => login()} className="w-full" variant="outline">
                 <LogIn className="h-4 w-4 mr-2" />
                 Switch account
               </Button>

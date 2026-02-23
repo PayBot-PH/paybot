@@ -740,32 +740,6 @@ export default function BotSettings() {
             </CardContent>
           </Card>
 
-          {/* Bot Commands Reference */}
-          <Card className="bg-[#1E293B] border-slate-700/50 md:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center space-x-2">
-                <Info className="h-5 w-5 text-amber-400" />
-                <span>Bot Commands Reference</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {[
-                  { cmd: '/start', desc: 'Show welcome message and available commands' },
-                  { cmd: '/invoice [amount] [description]', desc: 'Create a Xendit invoice' },
-                  { cmd: '/qrcode [amount] [description]', desc: 'Create a QR code payment' },
-                  { cmd: '/paymentlink [amount] [description]', desc: 'Create a payment link' },
-                  { cmd: '/status [external_id]', desc: 'Check payment status' },
-                  { cmd: '/help', desc: 'Show help message' },
-                ].map((item) => (
-                  <div key={item.cmd} className="flex items-start space-x-3 p-3 rounded-lg bg-slate-800/50">
-                    <code className="text-sm text-blue-400 font-mono whitespace-nowrap">{item.cmd}</code>
-                    <span className="text-sm text-slate-400">{item.desc}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </Layout>

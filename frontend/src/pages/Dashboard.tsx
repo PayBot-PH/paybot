@@ -178,7 +178,7 @@ export default function Dashboard() {
             Telegram Bot & Xendit Payment Management Dashboard
           </p>
           <Button
-            onClick={login}
+            onClick={() => login()}
             size="lg"
             className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >

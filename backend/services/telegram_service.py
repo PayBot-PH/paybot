@@ -127,6 +127,7 @@ class TelegramService:
         chat_id: str,
         text: str,
         parse_mode: str = "HTML",
+        reply_markup: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
         """Send a message to a Telegram chat"""
         try:
@@ -135,6 +136,8 @@ class TelegramService:
                 "text": text,
                 "parse_mode": parse_mode,
             }
+            if reply_markup:
+                payload["reply_markup"] = reply_markup
 
             response = await self._post_with_retry(f"{self.api_url}/sendMessage", payload)
             data = response.json()
