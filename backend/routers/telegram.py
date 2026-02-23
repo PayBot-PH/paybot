@@ -228,7 +228,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /link [amt] [desc] — Payment Link\n"
                 "  /va [amt] [bank] — Virtual Account\n"
                 "  /ewallet [amt] [provider] — E-Wallet\n"
-                "  /alipay [amt] [desc] — GCash checkout (via SBC) 💚\n"
+                "  /alipay [amt] [desc] — Alipay QR (via Xendit) 🔴\n"
                 "  /wechat [amt] [desc] — Maya checkout (via SBC) 💙\n\n"
                 "💸 <b>Send Money:</b>\n"
                 "  /disburse [amt] [bank] [acct] [name] — Disburse\n"
@@ -346,11 +346,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /alipay (SBC → GCash checkout) ====================
+        # ==================== /alipay (Xendit QRIS) ====================
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]\nExample: /alipay 500 Coffee order\n\n💡 <i>Creates a GCash checkout via Security Bank Collect</i>")
+                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]\nExample: /alipay 500 Coffee order\n\n💡 <i>Generates an Alipay-compatible QR via Xendit QRIS</i>")
             else:
                 try:
                     amount = float(parts[1])
@@ -358,43 +358,43 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
-                    description = parts[2] if len(parts) > 2 else "GCash payment"
-                    sbc = SecurityBankCollectService()
-                    result = await sbc.create_gcash_session(amount=amount, description=description)
+                    description = parts[2] if len(parts) > 2 else "Alipay payment"
+                    xendit = XenditService()
+                    result = await xendit.create_alipay_qr(amount=amount, description=description)
                     if result.get("success"):
-                        checkout_url = result.get("checkout_url", "")
+                        qr_url = result.get("qr_string", result.get("qr_code_url", ""))
                         ext_id = result.get("external_id", "")
                         reply = (
-                            f"✅ <b>GCash Checkout Created!</b>\n"
+                            f"✅ <b>Alipay QR Created!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
                             f"📝 {description}\n"
                             f"🆔 <code>{ext_id}</code>\n\n"
-                            f"📱 Tap the button below to pay via GCash (Security Bank Collect)"
+                            f"📱 Scan with Alipay or any QRIS-compatible app to pay"
                         )
                         keyboard = {
-                            "inline_keyboard": [[{"text": "💚 Pay via GCash (SBC)", "url": checkout_url}]]
-                        } if checkout_url else None
+                            "inline_keyboard": [[{"text": "🔴 View Alipay QR", "url": qr_url}]]
+                        } if qr_url else None
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
                         try:
                             now = datetime.now()
                             txn = Transactions(
-                                user_id="telegram", transaction_type="gcash_sbc",
-                                external_id=ext_id, xendit_id=result.get("session_id", ""),
+                                user_id="telegram", transaction_type="alipay_qr",
+                                external_id=ext_id, xendit_id=result.get("qr_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
-                                qr_code_url=checkout_url, telegram_chat_id=chat_id,
+                                qr_code_url=qr_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
                             db.add(txn)
                             await db.commit()
                         except Exception as e:
-                            logger.error(f"DB save failed for /alipay(gcash): {e}", exc_info=True)
+                            logger.error(f"DB save failed for /alipay: {e}", exc_info=True)
                             try:
                                 await db.rollback()
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ GCash checkout failed: {result.get('error', 'Unknown error')}")
+                        await tg.send_message(chat_id, f"❌ Alipay QR failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
@@ -1167,7 +1167,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "🔗 /link [amt] [desc] — Payment Link\n"
                 "🏦 /va [amt] [bank] — Virtual Account\n"
                 "📲 /ewallet [amt] [provider] — E-Wallet\n"
-                "🔴 /alipay [amt] [desc] — GCash checkout (via SBC) 💚\n"
+                "🔴 /alipay [amt] [desc] — Alipay QR (via Xendit) 🔴\n"
                 "🟢 /wechat [amt] [desc] — Maya checkout (via SBC) 💙\n\n"
                 "💡 Example: /invoice 500 Coffee order"
             )
@@ -1182,7 +1182,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /pay — Payment menu\n"
                 "  /invoice [amt] [desc]\n"
                 "  /qr [amt] [desc]\n"
-                "  /alipay [amt] [desc] — GCash via SBC 💚\n"
+                "  /alipay [amt] [desc] — Alipay QR (Xendit) 🔴\n"
                 "  /wechat [amt] [desc] — Maya via SBC 💙\n"
                 "  /link [amt] [desc]\n"
                 "  /va [amt] [bank]\n"

@@ -101,9 +101,9 @@ export default function PaymentsHub() {
           endpoint = '/api/v1/gateway/ewallet-charge';
           payload = { amount: amt, channel_code: ewalletProvider, mobile_number: mobileNumber };
           break;
-        case 'gcash_sbc':
-          endpoint = '/api/v1/sbc/gcash';
-          payload = { amount: amt, description: description || 'GCash payment' };
+        case 'alipay':
+          endpoint = '/api/v1/gateway/qr-code';
+          payload = { amount: amt, description: description || 'Alipay payment', channel_code: 'QRIS' };
           break;
         case 'maya_sbc':
           endpoint = '/api/v1/sbc/maya';
@@ -133,7 +133,7 @@ export default function PaymentsHub() {
     payment_link: { icon: <LinkIcon className="h-4 w-4" />, color: 'text-cyan-400' },
     virtual_account: { icon: <Building2 className="h-4 w-4" />, color: 'text-emerald-400' },
     ewallet: { icon: <Smartphone className="h-4 w-4" />, color: 'text-orange-400' },
-    gcash_sbc: { icon: <Smartphone className="h-4 w-4" />, color: 'text-green-400' },
+    alipay: { icon: <QrCode className="h-4 w-4" />, color: 'text-red-400' },
     maya_sbc: { icon: <Smartphone className="h-4 w-4" />, color: 'text-blue-400' },
   };
 
@@ -147,7 +147,7 @@ export default function PaymentsHub() {
             {Object.entries(tabConfig).map(([key, cfg]) => (
               <TabsTrigger key={key} value={key} className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
                 <span className={cfg.color}>{cfg.icon}</span>
-                <span className="ml-2 capitalize">{key.replace(/_/g, ' ').replace('gcash sbc', 'GCash (SBC)').replace('maya sbc', 'Maya (SBC)')}</span>
+                <span className="ml-2 capitalize">{key.replace(/_/g, ' ').replace('alipay', 'Alipay (Xendit)').replace('maya sbc', 'Maya (SBC)')}</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -156,8 +156,8 @@ export default function PaymentsHub() {
             <Card className="bg-[#1E293B] border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
-                  Create {tab.replace(/_/g, ' ').replace('gcash sbc', 'GCash').replace('maya sbc', 'Maya')}
-                  {(tab === 'gcash_sbc' || tab === 'maya_sbc') && (
+                  Create {tab.replace(/_/g, ' ').replace('alipay', 'Alipay').replace('maya sbc', 'Maya')}
+                  {(tab === 'alipay' || tab === 'maya_sbc') && (
                     <span className="text-xs font-normal bg-blue-900/40 text-blue-300 border border-blue-800/50 px-2 py-0.5 rounded-full">via Security Bank Collect</span>
                   )}
                 </CardTitle>
@@ -170,7 +170,7 @@ export default function PaymentsHub() {
                     className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
                 </div>
 
-                {(tab === 'invoice' || tab === 'qr_code' || tab === 'payment_link' || tab === 'gcash_sbc' || tab === 'maya_sbc') && (
+                {(tab === 'invoice' || tab === 'qr_code' || tab === 'payment_link' || tab === 'alipay' || tab === 'maya_sbc') && (
                   <div>
                     <Label className="text-slate-300">Description</Label>
                     <Textarea placeholder="Payment description..." value={description}
