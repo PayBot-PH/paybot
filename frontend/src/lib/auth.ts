@@ -1,4 +1,4 @@
-const TOKEN_KEY = 'paybot_auth_token';
+const TOKEN_KEY = 'token';
 
 export interface TelegramWidgetUser {
   id: number;

@@ -12,6 +12,9 @@ import DisbursementsPage from './pages/DisbursementsPage';
 import ReportsPage from './pages/ReportsPage';
 import BotSettings from './pages/BotSettings';
 import Login from './pages/Login';
+import AuthCallback from './pages/AuthCallback';
+import AuthError from './pages/AuthError';
+import LogoutCallbackPage from './pages/LogoutCallbackPage';
 import NotFound from './pages/NotFound';
 
 const queryClient = new QueryClient();
@@ -24,6 +27,9 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/auth/error" element={<AuthError />} />
+            <Route path="/logout-callback" element={<LogoutCallbackPage />} />
             <Route path="/" element={<Dashboard />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/transactions" element={<Transactions />} />
