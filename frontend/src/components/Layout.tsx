@@ -12,6 +12,7 @@ import {
   LogOut,
   ShieldCheck,
   MessageCircle,
+  ScrollText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -114,6 +115,15 @@ export default function Layout({ children, connected }: LayoutProps) {
                 </Link>
               )}
 
+              {/* Policies link (desktop) */}
+              <Link
+                to="/policies"
+                className={`hidden md:flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md font-medium transition-colors ${path === '/policies' ? 'bg-blue-600/20 text-blue-300' : 'text-slate-400 hover:text-blue-300 hover:bg-blue-600/10'}`}
+              >
+                <ScrollText className="h-3.5 w-3.5" />
+                Policies
+              </Link>
+
               {/* Contact Support (desktop) */}
               <a
                 href="https://t.me/traxionpay"
@@ -147,6 +157,12 @@ export default function Layout({ children, connected }: LayoutProps) {
       {/* Page Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24 md:pb-10">
         {children}
+        {/* Footer */}
+        <footer className="hidden md:block mt-10 pt-6 border-t border-slate-700/40 text-center text-slate-500 text-xs space-x-4">
+          <span>© {new Date().getFullYear()} DRL Solutions. All rights reserved.</span>
+          <Link to="/policies" className="hover:text-sky-400 transition-colors">Policies</Link>
+          <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="hover:text-sky-400 transition-colors">Support</a>
+        </footer>
       </main>
 
       {/* Mobile Bottom Nav */}

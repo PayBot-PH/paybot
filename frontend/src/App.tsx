@@ -12,6 +12,7 @@ import DisbursementsPage from './pages/DisbursementsPage';
 import ReportsPage from './pages/ReportsPage';
 import BotSettings from './pages/BotSettings';
 import AdminManagement from './pages/AdminManagement';
+import Policies from './pages/Policies';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import AuthError from './pages/AuthError';
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/bot-settings" element={<BotSettings />} />
             <Route path="/admin-management" element={<AdminManagement />} />
+            <Route path="/policies" element={<Policies />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
