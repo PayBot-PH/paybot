@@ -11,6 +11,7 @@ import {
   WifiOff,
   LogOut,
   ShieldCheck,
+  MessageCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -113,6 +114,18 @@ export default function Layout({ children, connected }: LayoutProps) {
                 </Link>
               )}
 
+              {/* Contact Support (desktop) */}
+              <a
+                href="https://t.me/traxionpay"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hidden md:flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md font-medium transition-colors text-slate-400 hover:text-sky-300 hover:bg-sky-500/10"
+                title="Contact Support on Telegram"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                Support
+              </a>
+
               {/* Logout button (desktop) */}
               {user && (
                 <Button
@@ -174,7 +187,19 @@ export default function Layout({ children, connected }: LayoutProps) {
               </span>
             </Link>
           )}
-          {/* Logout on mobile bottom nav */}
+          {/* Contact Support on mobile nav */}
+          <a
+            href="https://t.me/traxionpay"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-col items-center justify-center flex-1 gap-0.5 py-2 transition-colors"
+          >
+            <div className="p-1.5 rounded-lg transition-colors">
+              <MessageCircle className="h-5 w-5 text-slate-500" />
+            </div>
+            <span className="text-[10px] font-medium leading-none text-slate-500">Support</span>
+          </a>
+          {/* Logout button on mobile nav */}
           {user && (
             <button
               onClick={() => logout()}
