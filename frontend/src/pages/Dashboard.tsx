@@ -6,6 +6,7 @@ import { usePaymentEvents } from '@/hooks/usePaymentEvents';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import Layout from '@/components/Layout';
 import {
   FileText,
   QrCode,
@@ -17,9 +18,6 @@ import {
   XCircle,
   Bot,
   LogIn,
-  BarChart3,
-  Wifi,
-  WifiOff,
   Wallet,
   CreditCard,
   Building2,
@@ -164,25 +162,25 @@ export default function Dashboard() {
   if (!user) {
     return (
       <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
-        <div className="text-center space-y-6 max-w-md px-6">
+        <div className="text-center space-y-6 max-w-sm px-6">
           <div className="relative">
             <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full pointer-events-none"></div>
             <img
               src="https://mgx-backend-cdn.metadl.com/generate/images/368645/2026-02-18/b7a3226a-8029-4dad-a8fe-3bfcd3bda329.png"
               alt="Payment Dashboard"
-              className="relative rounded-2xl shadow-2xl border border-slate-700/50"
+              className="relative rounded-2xl shadow-2xl border border-slate-700/50 w-full"
             />
           </div>
-          <h1 className="text-4xl font-bold text-white">
+          <h1 className="text-3xl font-bold text-white">
             PayBot <span className="text-blue-400">Admin</span>
           </h1>
-          <p className="text-slate-400 text-lg">
+          <p className="text-slate-400">
             Telegram Bot & Xendit Payment Management Dashboard
           </p>
           <Button
             onClick={login}
             size="lg"
-            className="relative z-10 bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           >
             <LogIn className="h-5 w-5 mr-2" />
             Sign In to Continue
@@ -193,168 +191,96 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100">
-      {/* Header */}
-      <header className="border-b border-slate-700/50 bg-[#0F172A]/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Bot className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-white">PayBot</span>
-              {/* Real-time connection indicator */}
-              <div className="flex items-center space-x-1 ml-2">
-                {connected ? (
-                  <div className="flex items-center space-x-1 text-emerald-400">
-                    <Wifi className="h-3 w-3" />
-                    <span className="text-[10px] uppercase tracking-wider font-medium">Live</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-1 text-slate-500">
-                    <WifiOff className="h-3 w-3" />
-                    <span className="text-[10px] uppercase tracking-wider font-medium">Offline</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <nav className="flex items-center space-x-1 overflow-x-auto">
-              <Link to="/">
-                <Button variant="ghost" size="sm" className="text-white bg-slate-700/50">
-                  <BarChart3 className="h-4 w-4 mr-1" />
-                  Dashboard
-                </Button>
-              </Link>
-              <Link to="/wallet">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <Wallet className="h-4 w-4 mr-1" />
-                  Wallet
-                </Button>
-              </Link>
-              <Link to="/payments">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <CreditCard className="h-4 w-4 mr-1" />
-                  Payments
-                </Button>
-              </Link>
-              <Link to="/transactions">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <FileText className="h-4 w-4 mr-1" />
-                  Txns
-                </Button>
-              </Link>
-              <Link to="/disbursements">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <Building2 className="h-4 w-4 mr-1" />
-                  Manage
-                </Button>
-              </Link>
-              <Link to="/reports">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <PieChart className="h-4 w-4 mr-1" />
-                  Reports
-                </Button>
-              </Link>
-              <Link to="/bot-settings">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <Bot className="h-4 w-4 mr-1" />
-                  Bot
-                </Button>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Wallet Balance + Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
-          <Link to="/wallet" className="block">
+    <Layout connected={connected}>
+      <>
+      {/* Wallet Balance + Stats Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
+          <Link to="/wallet" className="block col-span-2 lg:col-span-1">
             <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 border-0 h-full hover:scale-[1.02] transition-transform cursor-pointer">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-blue-200">Wallet Balance</p>
-                    <p className="text-3xl font-bold text-white mt-1 transition-all duration-300">
+                    <p className="text-2xl sm:text-3xl font-bold text-white mt-1 transition-all duration-300">
                       {loading ? '...' : `₱${(walletBalance || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
                     </p>
                   </div>
-                  <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
-                    <Wallet className="h-6 w-6 text-white" />
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Wallet className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                   </div>
                 </div>
-                <p className="text-xs text-blue-200 mt-2">Click to manage →</p>
+                <p className="text-xs text-blue-200 mt-2">Tap to manage →</p>
               </CardContent>
             </Card>
           </Link>
           <Card className="bg-[#1E293B] border-slate-700/50 transition-all duration-500">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-400">Total Transactions</p>
-                  <p className="text-3xl font-bold text-white mt-1 transition-all duration-300">
+                  <p className="text-xs text-slate-400">Total</p>
+                  <p className="text-2xl font-bold text-white mt-0.5 transition-all duration-300">
                     {loading ? '...' : stats.total_count}
                   </p>
                 </div>
-                <div className="h-12 w-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-blue-400" />
+                <div className="h-9 w-9 bg-blue-500/20 rounded-xl flex items-center justify-center">
+                  <TrendingUp className="h-5 w-5 text-blue-400" />
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-2">
+              <p className="text-[11px] text-slate-500 mt-1 truncate">
                 ₱{loading ? '...' : (stats.total_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </p>
             </CardContent>
           </Card>
 
           <Card className="bg-[#1E293B] border-slate-700/50 transition-all duration-500">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-400">Paid</p>
-                  <p className="text-3xl font-bold text-emerald-400 mt-1 transition-all duration-300">
+                  <p className="text-xs text-slate-400">Paid</p>
+                  <p className="text-2xl font-bold text-emerald-400 mt-0.5 transition-all duration-300">
                     {loading ? '...' : stats.paid_count}
                   </p>
                 </div>
-                <div className="h-12 w-12 bg-emerald-500/20 rounded-xl flex items-center justify-center">
-                  <CheckCircle className="h-6 w-6 text-emerald-400" />
+                <div className="h-9 w-9 bg-emerald-500/20 rounded-xl flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-emerald-400" />
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-2">
+              <p className="text-[11px] text-slate-500 mt-1 truncate">
                 ₱{loading ? '...' : (stats.paid_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </p>
             </CardContent>
           </Card>
 
           <Card className="bg-[#1E293B] border-slate-700/50 transition-all duration-500">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-400">Pending</p>
-                  <p className="text-3xl font-bold text-amber-400 mt-1 transition-all duration-300">
+                  <p className="text-xs text-slate-400">Pending</p>
+                  <p className="text-2xl font-bold text-amber-400 mt-0.5 transition-all duration-300">
                     {loading ? '...' : stats.pending_count}
                   </p>
                 </div>
-                <div className="h-12 w-12 bg-amber-500/20 rounded-xl flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-amber-400" />
+                <div className="h-9 w-9 bg-amber-500/20 rounded-xl flex items-center justify-center">
+                  <Clock className="h-5 w-5 text-amber-400" />
                 </div>
               </div>
-              <p className="text-xs text-slate-500 mt-2">
+              <p className="text-[11px] text-slate-500 mt-1 truncate">
                 ₱{loading ? '...' : (stats.pending_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </p>
             </CardContent>
           </Card>
 
           <Card className="bg-[#1E293B] border-slate-700/50 transition-all duration-500">
-            <CardContent className="p-6">
+            <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-slate-400">Expired</p>
-                  <p className="text-3xl font-bold text-red-400 mt-1 transition-all duration-300">
+                  <p className="text-xs text-slate-400">Expired</p>
+                  <p className="text-2xl font-bold text-red-400 mt-0.5 transition-all duration-300">
                     {loading ? '...' : stats.expired_count}
                   </p>
                 </div>
-                <div className="h-12 w-12 bg-red-500/20 rounded-xl flex items-center justify-center">
-                  <XCircle className="h-6 w-6 text-red-400" />
+                <div className="h-9 w-9 bg-red-500/20 rounded-xl flex items-center justify-center">
+                  <XCircle className="h-5 w-5 text-red-400" />
                 </div>
               </div>
             </CardContent>
@@ -362,57 +288,57 @@ export default function Dashboard() {
         </div>
 
         {/* Quick Actions & Recent Transactions */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Quick Actions */}
           <Card className="bg-[#1E293B] border-slate-700/50">
-            <CardHeader>
-              <CardTitle className="text-white text-lg">Quick Actions</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white text-base">Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <Link to="/payments" className="block">
-                <Button className="w-full justify-start bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30">
+                <Button className="w-full justify-start bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 h-9 text-sm">
                   <CreditCard className="h-4 w-4 mr-3" />
                   Payments Hub
                 </Button>
               </Link>
               <Link to="/disbursements" className="block">
-                <Button className="w-full justify-start bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30">
+                <Button className="w-full justify-start bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 h-9 text-sm">
                   <Send className="h-4 w-4 mr-3" />
                   Disbursements
                 </Button>
               </Link>
               <Link to="/disbursements" className="block">
-                <Button className="w-full justify-start bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-500/30">
+                <Button className="w-full justify-start bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-500/30 h-9 text-sm">
                   <RotateCcw className="h-4 w-4 mr-3" />
                   Refunds
                 </Button>
               </Link>
               <Link to="/disbursements" className="block">
-                <Button className="w-full justify-start bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30">
+                <Button className="w-full justify-start bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 h-9 text-sm">
                   <CalendarDays className="h-4 w-4 mr-3" />
                   Subscriptions
                 </Button>
               </Link>
               <Link to="/disbursements" className="block">
-                <Button className="w-full justify-start bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30">
+                <Button className="w-full justify-start bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 h-9 text-sm">
                   <Users className="h-4 w-4 mr-3" />
                   Customers
                 </Button>
               </Link>
               <Link to="/reports" className="block">
-                <Button className="w-full justify-start bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 border border-yellow-500/30">
+                <Button className="w-full justify-start bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 border border-yellow-500/30 h-9 text-sm">
                   <PieChart className="h-4 w-4 mr-3" />
                   Reports & Analytics
                 </Button>
               </Link>
               <Link to="/wallet" className="block">
-                <Button className="w-full justify-start bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30">
+                <Button className="w-full justify-start bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 h-9 text-sm">
                   <Wallet className="h-4 w-4 mr-3" />
                   Wallet
                 </Button>
               </Link>
               <Link to="/bot-settings" className="block">
-                <Button className="w-full justify-start bg-slate-600/20 hover:bg-slate-600/30 text-slate-300 border border-slate-500/30">
+                <Button className="w-full justify-start bg-slate-600/20 hover:bg-slate-600/30 text-slate-300 border border-slate-500/30 h-9 text-sm">
                   <Bot className="h-4 w-4 mr-3" />
                   Bot Settings
                 </Button>
@@ -422,10 +348,10 @@ export default function Dashboard() {
 
           {/* Recent Transactions */}
           <Card className="bg-[#1E293B] border-slate-700/50 lg:col-span-2">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-white text-lg">Recent Transactions</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-white text-base">Recent Transactions</CardTitle>
               <Link to="/transactions">
-                <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300">
+                <Button variant="ghost" size="sm" className="text-blue-400 hover:text-blue-300 h-7 text-xs">
                   View All
                 </Button>
               </Link>
@@ -446,38 +372,38 @@ export default function Dashboard() {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {recentTxns.map((txn) => {
                     const sc = statusConfig[txn.status] || statusConfig.pending;
                     const isUpdated = updatedTxnIds.has(txn.id);
                     return (
                       <div
                         key={txn.id}
-                        className={`flex items-center justify-between p-3 rounded-lg transition-all duration-500 ${
+                        className={`flex items-center justify-between p-2.5 rounded-lg transition-all duration-500 ${
                           isUpdated
                             ? 'bg-blue-500/10 ring-1 ring-blue-500/40 scale-[1.01]'
                             : 'bg-slate-800/50 hover:bg-slate-800'
                         }`}
                       >
-                        <div className="flex items-center space-x-3">
-                          <div className="h-8 w-8 rounded-lg bg-slate-700/50 flex items-center justify-center">
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <div className="h-8 w-8 rounded-lg bg-slate-700/50 flex items-center justify-center shrink-0">
                             {typeIcons[txn.transaction_type] || <FileText className="h-4 w-4 text-slate-400" />}
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-white">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-white truncate">
                               {txn.description || txn.transaction_type.replace('_', ' ')}
                             </p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-500 truncate">
                               {txn.external_id || `#${txn.id}`}
                             </p>
                           </div>
                         </div>
-                        <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-2 ml-2 shrink-0">
                           <span className="text-sm font-mono font-medium text-white">
                             ₱{txn.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                           </span>
                           <Badge
-                            className={`${sc.color} border text-xs transition-all duration-500 ${
+                            className={`${sc.color} border text-xs transition-all duration-500 hidden sm:flex ${
                               isUpdated ? 'animate-pulse ring-2 ring-current' : ''
                             }`}
                           >
@@ -495,17 +421,17 @@ export default function Dashboard() {
         </div>
 
         {/* Feature Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-6">
           <Card className="bg-[#1E293B] border-slate-700/50 overflow-hidden">
             <img
               src="https://mgx-backend-cdn.metadl.com/generate/images/368645/2026-02-18/708b853e-3a23-4415-8775-d6be2fe19508.png"
               alt="Telegram Bot"
-              className="w-full h-32 object-cover"
+              className="w-full h-24 object-cover"
             />
-            <CardContent className="p-4">
-              <h3 className="font-semibold text-white">Telegram Bot</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Create payments directly from Telegram chat
+            <CardContent className="p-3">
+              <h3 className="font-semibold text-white text-sm">Telegram Bot</h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Create payments from Telegram chat
               </p>
             </CardContent>
           </Card>
@@ -513,30 +439,30 @@ export default function Dashboard() {
             <img
               src="https://mgx-backend-cdn.metadl.com/generate/images/368645/2026-02-18/bf6f862a-d725-4930-8bde-904d239336f7.png"
               alt="Xendit Integration"
-              className="w-full h-32 object-cover"
+              className="w-full h-24 object-cover"
             />
-            <CardContent className="p-4">
-              <h3 className="font-semibold text-white">Xendit Payments</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Invoices, QR codes & payment links via Xendit PH
+            <CardContent className="p-3">
+              <h3 className="font-semibold text-white text-sm">Xendit Payments</h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Invoices, QR codes & payment links
               </p>
             </CardContent>
           </Card>
-          <Card className="bg-[#1E293B] border-slate-700/50 overflow-hidden">
+          <Card className="bg-[#1E293B] border-slate-700/50 overflow-hidden col-span-2 md:col-span-1">
             <img
               src="https://mgx-backend-cdn.metadl.com/generate/images/368645/2026-02-18/aae06fae-2855-4dcc-aacd-03c555f1f7ac.png"
               alt="QR Payments"
-              className="w-full h-32 object-cover"
+              className="w-full h-24 object-cover"
             />
-            <CardContent className="p-4">
-              <h3 className="font-semibold text-white">QR Payments</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Generate QR codes for instant mobile payments
+            <CardContent className="p-3">
+              <h3 className="font-semibold text-white text-sm">QR Payments</h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Generate QR codes for mobile payments
               </p>
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+      </>
+    </Layout>
   );
 }
