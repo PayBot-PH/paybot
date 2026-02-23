@@ -91,7 +91,7 @@ class CheckoutStatusResponse(BaseModel):
     metadata: Dict[str, str] = Field(..., description="The metadata of the checkout session")
 
 
-def _classify_stripe_error(error: stripe.error.StripeError) -> Tuple[str, bool, bool, Optional[str]]:
+def _classify_stripe_error(error: stripe.StripeError) -> Tuple[str, bool, bool, Optional[str]]:
     """Classify Stripe error and return error type, retryable, fixable, and fix suggestion.
 
     Returns:
@@ -102,38 +102,38 @@ def _classify_stripe_error(error: stripe.error.StripeError) -> Tuple[str, bool, 
     fixable = False
     fix_suggestion = None
 
-    if isinstance(error, stripe.error.AuthenticationError):
+    if isinstance(error, stripe.AuthenticationError):
         error_type = "authentication"
         fixable = True
         fix_suggestion = "Check and update STRIPE_SECRET_KEY in environment variables or settings"
-    elif isinstance(error, stripe.error.APIConnectionError):
+    elif isinstance(error, stripe.APIConnectionError):
         error_type = "network"
         is_retryable = True
         fixable = False
         fix_suggestion = "Check network connectivity and Stripe API status"
-    elif isinstance(error, stripe.error.APIError):
+    elif isinstance(error, stripe.APIError):
         error_type = "api_error"
         # 5xx errors are retryable
         if hasattr(error, "http_status") and error.http_status and 500 <= error.http_status < 600:
             is_retryable = True
         fixable = False
         fix_suggestion = "Check Stripe API status and retry if it's a temporary server error"
-    elif isinstance(error, stripe.error.InvalidRequestError):
+    elif isinstance(error, stripe.InvalidRequestError):
         error_type = "validation"
         fixable = True
         fix_suggestion = (
             "Review request parameters and fix invalid values (e.g., invalid price_id, currency, or amount)"
         )
-    elif isinstance(error, stripe.error.CardError):
+    elif isinstance(error, stripe.CardError):
         error_type = "card_error"
         fixable = False
         fix_suggestion = "User needs to provide a valid payment method"
-    elif isinstance(error, stripe.error.RateLimitError):
+    elif isinstance(error, stripe.RateLimitError):
         error_type = "rate_limit"
         is_retryable = True
         fixable = False
         fix_suggestion = "Wait and retry after rate limit resets"
-    elif isinstance(error, stripe.error.IdempotencyError):
+    elif isinstance(error, stripe.IdempotencyError):
         error_type = "idempotency"
         fixable = True
         fix_suggestion = "Use a different idempotency_key or wait for the previous request to complete"
@@ -159,7 +159,7 @@ async def initialize_stripe():
         await stripe.Account.retrieve_async()
         logger.info("Stripe API key set successfully")
 
-    except stripe.error.AuthenticationError as e:
+    except stripe.AuthenticationError as e:
         stripe.api_key = ""
         error_type, is_retryable, fixable, fix_suggestion = _classify_stripe_error(e)
         raise CheckoutError(
@@ -170,7 +170,7 @@ async def initialize_stripe():
             fix_suggestion=fix_suggestion,
             original_error=e,
         )
-    except stripe.error.APIConnectionError as e:
+    except stripe.APIConnectionError as e:
         error_type, is_retryable, fixable, fix_suggestion = _classify_stripe_error(e)
         raise CheckoutError(
             f"Stripe API connection failed: {str(e)}",
@@ -180,7 +180,7 @@ async def initialize_stripe():
             fix_suggestion=fix_suggestion,
             original_error=e,
         )
-    except stripe.error.StripeError as e:
+    except stripe.StripeError as e:
         error_type, is_retryable, fixable, fix_suggestion = _classify_stripe_error(e)
         raise CheckoutError(
             f"Stripe error during initialization: {str(e)}",
@@ -285,7 +285,7 @@ class PaymentService:
                 session_id=session.id,
             )
 
-        except stripe.error.StripeError as e:
+        except stripe.StripeError as e:
             error_type, is_retryable, fixable, fix_suggestion = _classify_stripe_error(e)
             error_msg = f"Failed to create checkout session: {str(e)}"
             if hasattr(e, "param"):
@@ -340,7 +340,7 @@ class PaymentService:
                 metadata=session.metadata,
             )
 
-        except stripe.error.StripeError as e:
+        except stripe.StripeError as e:
             error_type, is_retryable, fixable, fix_suggestion = _classify_stripe_error(e)
             error_msg = f"Failed to retrieve session status for session_id={checkout_session_id}: {str(e)}"
             if hasattr(e, "param"):
