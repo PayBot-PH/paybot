@@ -196,6 +196,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
     database operations in a separate try/except so that DB failures
     never prevent the bot from responding to the user.
     """
+    chat_id = ""
     try:
         body = await request.json()
         logger.info(f"Telegram webhook received: {body}")

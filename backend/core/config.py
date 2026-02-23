@@ -53,9 +53,17 @@ class Settings(BaseSettings):
                 "PYTHON_BACKEND_URL", f"https://{self.lambda_function_name}.execute-api.{self.aws_region}.amazonaws.com"
             )
         else:
-            # Use localhost for external callbacks instead of 0.0.0.0
+            # 1. Explicit override (highest priority)
+            explicit_url = os.environ.get("PYTHON_BACKEND_URL", "")
+            if explicit_url:
+                return explicit_url
+            # 2. Railway auto-provided public domain (set automatically by Railway)
+            railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
+            if railway_domain:
+                return f"https://{railway_domain}"
+            # 3. Fallback to local address
             display_host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
-            return os.environ.get("PYTHON_BACKEND_URL", f"http://{display_host}:{self.port}")
+            return f"http://{display_host}:{self.port}"
 
     model_config = SettingsConfigDict(
         case_sensitive=False,
