@@ -4,12 +4,25 @@ from typing import Optional
 from pydantic import ConfigDict, BaseModel
 
 
+class UserPermissions(BaseModel):
+    is_super_admin: bool = False
+    can_manage_payments: bool = True
+    can_manage_disbursements: bool = True
+    can_view_reports: bool = True
+    can_manage_wallet: bool = True
+    can_manage_transactions: bool = True
+    can_manage_bot: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserResponse(BaseModel):
-    id: str  # Now a string UUID (platform sub)
+    id: str  # Telegram user ID
     email: str
     name: Optional[str] = None
     role: str = "user"  # user/admin
     last_login: Optional[datetime] = None
+    permissions: Optional[UserPermissions] = None
 
     model_config = ConfigDict(from_attributes=True)
 

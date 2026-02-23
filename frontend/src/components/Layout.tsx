@@ -10,6 +10,7 @@ import {
   Wifi,
   WifiOff,
   LogOut,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -40,7 +41,7 @@ interface LayoutProps {
 export default function Layout({ children, connected }: LayoutProps) {
   const location = useLocation();
   const path = location.pathname;
-  const { user, logout } = useAuth();
+  const { user, logout, isSuperAdmin } = useAuth();
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-slate-100">
@@ -101,6 +102,17 @@ export default function Layout({ children, connected }: LayoutProps) {
                 })}
               </nav>
 
+              {/* Admins link (desktop, super admin only) */}
+              {isSuperAdmin && (
+                <Link
+                  to="/admin-management"
+                  className={`hidden md:flex items-center gap-1 px-2.5 py-1.5 text-xs rounded-md font-medium transition-colors ${path === '/admin-management' ? 'bg-purple-600/20 text-purple-300' : 'text-slate-400 hover:text-purple-300 hover:bg-purple-600/10'}`}
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Admins
+                </Link>
+              )}
+
               {/* Logout button (desktop) */}
               {user && (
                 <Button
@@ -148,6 +160,20 @@ export default function Layout({ children, connected }: LayoutProps) {
               </Link>
             );
           })}
+          {/* Logout on mobile bottom nav */}
+          {isSuperAdmin && (
+            <Link
+              to="/admin-management"
+              className="flex flex-col items-center justify-center flex-1 gap-0.5 py-2 transition-colors"
+            >
+              <div className={`p-1.5 rounded-lg transition-colors ${path === '/admin-management' ? 'bg-purple-600/20' : ''}`}>
+                <ShieldCheck className={`h-5 w-5 ${path === '/admin-management' ? 'text-purple-400' : 'text-slate-500'}`} />
+              </div>
+              <span className={`text-[10px] font-medium leading-none ${path === '/admin-management' ? 'text-purple-400' : 'text-slate-500'}`}>
+                Admins
+              </span>
+            </Link>
+          )}
           {/* Logout on mobile bottom nav */}
           {user && (
             <button

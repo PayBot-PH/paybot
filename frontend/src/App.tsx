@@ -11,6 +11,7 @@ import PaymentsHub from './pages/PaymentsHub';
 import DisbursementsPage from './pages/DisbursementsPage';
 import ReportsPage from './pages/ReportsPage';
 import BotSettings from './pages/BotSettings';
+import AdminManagement from './pages/AdminManagement';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import AuthError from './pages/AuthError';
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/disbursements" element={<DisbursementsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/bot-settings" element={<BotSettings />} />
+            <Route path="/admin-management" element={<AdminManagement />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

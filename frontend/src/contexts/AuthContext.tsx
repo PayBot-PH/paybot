@@ -7,11 +7,22 @@ import React, {
 } from 'react';
 import { authApi, TelegramWidgetUser } from '../lib/auth';
 
+interface UserPermissions {
+  is_super_admin: boolean;
+  can_manage_payments: boolean;
+  can_manage_disbursements: boolean;
+  can_view_reports: boolean;
+  can_manage_wallet: boolean;
+  can_manage_transactions: boolean;
+  can_manage_bot: boolean;
+}
+
 interface User {
   id: string;
   email: string;
   name?: string;
   role: string;
+  permissions?: UserPermissions;
 }
 
 interface AuthContextType {
@@ -23,6 +34,8 @@ interface AuthContextType {
   logout: () => Promise<void>;
   refetch: () => Promise<void>;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
+  permissions: UserPermissions | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -107,6 +120,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     logout,
     refetch: checkAuthStatus,
     isAdmin: user?.role === 'admin',
+    isSuperAdmin: user?.permissions?.is_super_admin ?? false,
+    permissions: user?.permissions ?? null,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

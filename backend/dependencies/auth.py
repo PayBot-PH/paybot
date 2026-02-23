@@ -6,7 +6,7 @@ from typing import Optional
 from core.auth import AccessTokenError, decode_access_token
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from schemas.auth import UserResponse
+from schemas.auth import UserResponse, UserPermissions
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +53,7 @@ async def get_current_user(token: str = Depends(get_bearer_token)) -> UserRespon
         name=payload.get("name"),
         role=payload.get("role", "user"),
         last_login=last_login,
+        permissions=UserPermissions(**payload["permissions"]) if payload.get("permissions") else None,
     )
 
 

@@ -8,6 +8,7 @@ from core.auth import create_access_token
 from core.config import settings
 from core.database import db_manager
 from models.auth import OIDCState, User
+from schemas.auth import UserPermissions
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,6 +48,7 @@ class AuthService:
     async def issue_app_token(
         self,
         user: User,
+        permissions: Optional[UserPermissions] = None,
     ) -> Tuple[str, datetime, Dict[str, Any]]:
         """Generate application JWT token for the authenticated user."""
         try:
@@ -66,6 +68,8 @@ class AuthService:
             claims["name"] = user.name
         if user.last_login:
             claims["last_login"] = user.last_login.isoformat()
+        if permissions:
+            claims["permissions"] = permissions.model_dump()
         token = create_access_token(claims, expires_minutes=expires_minutes)
 
         return token, expires_at, claims

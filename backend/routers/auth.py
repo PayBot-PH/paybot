@@ -23,14 +23,17 @@ from dependencies.auth import get_current_user
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from models.auth import User
+from models.admin_users import AdminUser
 from schemas.auth import (
     PlatformTokenExchangeRequest,
     TelegramWidgetLoginRequest,
     TokenExchangeResponse,
     UserResponse,
+    UserPermissions,
 )
 from services.auth import AuthService
 from services.telegram_service import TelegramService
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
@@ -154,21 +157,38 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
             detail="Telegram bot token is not configured. Add TELEGRAM_BOT_TOKEN to environment variables.",
         )
 
-    if not allowed_admin_ids and not allowed_admin_usernames:
+    telegram_user_id = str(payload.id)
+    payload_username = (payload.username or "").lower()
+
+    # Check DB-managed admin list first
+    db_admin = None
+    try:
+        res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == telegram_user_id))
+        db_admin = res.scalar_one_or_none()
+    except Exception:
+        pass
+
+    # Allow login if: found in DB (active) OR in env var whitelist
+    in_env = telegram_user_id in allowed_admin_ids or payload_username in allowed_admin_usernames
+    in_db = db_admin is not None and db_admin.is_active
+
+    if not in_db and not in_env:
+        # Neither env nor DB — check if any DB admins exist at all
+        try:
+            count_res = await db.execute(select(AdminUser))
+            any_db_admins = count_res.first() is not None
+        except Exception:
+            any_db_admins = False
+
+        if any_db_admins or (allowed_admin_ids or allowed_admin_usernames):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You are not authorized to access the admin dashboard.",
+            )
+        # No admins configured anywhere — block login
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Telegram admin IDs are not configured. Add TELEGRAM_ADMIN_IDS to environment variables.",
-        )
-
-    telegram_user_id = str(payload.id)
-    # Note: payload.username is cryptographically covered by Telegram's HMAC-SHA256 hash
-    # (the `username` field is included in the data_check_string in _verify_telegram_widget_payload),
-    # so accepting it here is safe — a forged username cannot pass the hash check below.
-    payload_username = (payload.username or "").lower()
-    if telegram_user_id not in allowed_admin_ids and payload_username not in allowed_admin_usernames:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You are not a bot admin and cannot log in",
+            detail="No admin users configured. Add TELEGRAM_ADMIN_IDS or use the admin panel.",
         )
 
     if not _verify_telegram_widget_payload(payload, bot_token):
@@ -178,11 +198,61 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
     if not display_name:
         display_name = payload.username or telegram_user_id
 
+    # Build permissions from DB record (or default full access for env-whitelisted users)
+    if db_admin:
+        perms = UserPermissions(
+            is_super_admin=db_admin.is_super_admin,
+            can_manage_payments=db_admin.can_manage_payments,
+            can_manage_disbursements=db_admin.can_manage_disbursements,
+            can_view_reports=db_admin.can_view_reports,
+            can_manage_wallet=db_admin.can_manage_wallet,
+            can_manage_transactions=db_admin.can_manage_transactions,
+            can_manage_bot=db_admin.can_manage_bot,
+        )
+        # Auto-update name/username in DB
+        try:
+            db_admin.name = display_name
+            db_admin.telegram_username = payload.username or db_admin.telegram_username
+            await db.commit()
+        except Exception:
+            await db.rollback()
+    else:
+        # Env-whitelisted user gets super admin by default
+        perms = UserPermissions(
+            is_super_admin=True,
+            can_manage_payments=True,
+            can_manage_disbursements=True,
+            can_view_reports=True,
+            can_manage_wallet=True,
+            can_manage_transactions=True,
+            can_manage_bot=True,
+        )
+        # Auto-register in DB as super admin
+        try:
+            new_admin = AdminUser(
+                telegram_id=telegram_user_id,
+                telegram_username=payload.username,
+                name=display_name,
+                is_active=True,
+                is_super_admin=True,
+                can_manage_payments=True,
+                can_manage_disbursements=True,
+                can_view_reports=True,
+                can_manage_wallet=True,
+                can_manage_transactions=True,
+                can_manage_bot=True,
+                added_by="env_config",
+            )
+            db.add(new_admin)
+            await db.commit()
+        except Exception:
+            await db.rollback()
+
     admin_email = getattr(settings, "admin_user_email", "") or f"{telegram_user_id}@paybot.local"
     user = User(id=telegram_user_id, email=admin_email, name=display_name, role="admin")
     auth_service = AuthService(db)
     try:
-        app_token, _, _ = await auth_service.issue_app_token(user=user)
+        app_token, _, _ = await auth_service.issue_app_token(user=user, permissions=perms)
     except ValueError as exc:
         logger.error("[telegram-login-widget] Failed to issue token: %s", exc)
         raise HTTPException(
