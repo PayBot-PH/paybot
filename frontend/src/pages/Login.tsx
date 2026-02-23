@@ -95,6 +95,19 @@ export default function Login() {
             {(localError || error) && <p className="text-red-400 text-sm">{localError || error}</p>}
             {loading && <p className="text-slate-400 text-sm">Checking session...</p>}
           </div>
+          <div className="mt-6 pt-4 border-t border-slate-700/50 text-center">
+            <p className="text-slate-400 text-xs">
+              Having trouble signing in?{' '}
+              <a
+                href="https://t.me/traxionpay"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sky-400 hover:text-sky-300 underline underline-offset-2"
+              >
+                Contact us on Telegram
+              </a>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
