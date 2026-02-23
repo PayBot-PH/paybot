@@ -77,6 +77,48 @@ class TestHealth:
 # ---------------------------------------------------------------------------
 # Auth
 # ---------------------------------------------------------------------------
+class TestCreateAccessToken:
+    def test_claims_are_integer_timestamps(self):
+        """create_access_token must encode exp/iat/nbf as integer Unix timestamps."""
+        from core.auth import create_access_token
+        from core.config import settings
+        from jose import jwt as jose_jwt
+
+        token = create_access_token({"sub": "testuser"})
+        payload = jose_jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"verify_exp": False},
+        )
+        for claim in ("exp", "iat", "nbf"):
+            assert claim in payload, f"Missing claim: {claim}"
+            assert isinstance(payload[claim], int), (
+                f"Claim '{claim}' must be an integer timestamp, got {type(payload[claim]).__name__}"
+            )
+
+    def test_custom_expiry_reflected_in_exp(self):
+        """exp claim should be approximately now + expires_minutes."""
+        import time
+        from core.auth import create_access_token
+        from core.config import settings
+        from jose import jwt as jose_jwt
+
+        before = int(time.time())
+        token = create_access_token({"sub": "u"}, expires_minutes=30)
+        after = int(time.time())
+
+        payload = jose_jwt.decode(
+            token,
+            settings.jwt_secret_key,
+            algorithms=[settings.jwt_algorithm],
+            options={"verify_exp": False},
+        )
+        expected_min = before + 30 * 60
+        expected_max = after + 30 * 60
+        assert expected_min <= payload["exp"] <= expected_max
+
+
 class TestAuth:
     def test_telegram_login_legacy_disabled(self, client):
         r = client.post(
