@@ -109,9 +109,12 @@ async def lifespan(app: FastAPI):
             raise RuntimeError(message)
 
     # MODULE_STARTUP_START
-    await initialize_database()
-    await initialize_mock_data()
-    await initialize_admin_user()
+    try:
+        await initialize_database()
+        await initialize_mock_data()
+        await initialize_admin_user()
+    except Exception as e:
+        logger.error(f"Database startup failed (app will run in degraded mode): {e}")
     # MODULE_STARTUP_END
 
     # Auto-register Telegram webhook and bot commands if backend URL is configured
