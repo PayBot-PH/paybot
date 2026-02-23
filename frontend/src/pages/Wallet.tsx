@@ -73,12 +73,18 @@ const txnTypeConfig: Record<string, { label: string; color: string; icon: React.
 
 const BANKS = ['BDO', 'BPI', 'UNIONBANK', 'RCBC', 'CHINABANK', 'PNB', 'METROBANK'];
 
+interface BankOption {
+  name: string;
+  code: string;
+}
+
 export default function Wallet() {
   const { user, loading: authLoading, login } = useAuth();
   const [walletBalance, setWalletBalance] = useState<WalletBalance | null>(null);
   const [transactions, setTransactions] = useState<WalletTxn[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('withdraw');
+  const [bankOptions, setBankOptions] = useState<BankOption[]>([]);
 
   // Withdraw state
   const [withdrawAmount, setWithdrawAmount] = useState('');
@@ -120,6 +126,25 @@ export default function Wallet() {
     if (!user) return;
     const load = async () => { setLoading(true); await fetchWalletData(); setLoading(false); };
     load();
+    // Fetch available banks from Xendit
+    client.apiCall.invoke({ url: '/api/v1/gateway/available-banks', method: 'GET', data: {} })
+      .then((res) => {
+        const banks: BankOption[] = (res.data || []).map((b: { name: string; code: string }) => ({
+          name: b.name,
+          code: b.code,
+        }));
+        if (banks.length > 0) {
+          setBankOptions(banks);
+          setWithdrawBank(banks[0].code);
+          setDBank(banks[0].code);
+        }
+      })
+      .catch(() => {
+        // Fallback to static list if API fails
+        const fallback = BANKS.map(b => ({ name: b, code: b }));
+        setBankOptions(fallback);
+        setWithdrawBank(fallback[0].code);
+      });
   }, [user, fetchWalletData]);
 
   const handleWithdraw = async () => {
@@ -244,10 +269,17 @@ export default function Wallet() {
                       className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
                   </div>
                   <div>
-                    <Label className="text-slate-300 text-sm">Bank Name</Label>
-                    <Input placeholder="e.g., BDO, BPI, GCash" value={withdrawBank}
-                      onChange={e => setWithdrawBank(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                    <Label className="text-slate-300 text-sm">Bank</Label>
+                    <Select value={withdrawBank} onValueChange={setWithdrawBank}>
+                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                        <SelectValue placeholder="Select bank…" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-600 max-h-64">
+                        {(bankOptions.length > 0 ? bankOptions : BANKS.map(b => ({ name: b, code: b }))).map(b => (
+                          <SelectItem key={b.code} value={b.code} className="text-white">{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <Label className="text-slate-300 text-sm">Account Number</Label>
@@ -284,7 +316,9 @@ export default function Wallet() {
                     <Select value={dBank} onValueChange={setDBank}>
                       <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-slate-800 border-slate-600">
-                        {BANKS.map(b => <SelectItem key={b} value={b} className="text-white">{b}</SelectItem>)}
+                        {(bankOptions.length > 0 ? bankOptions : BANKS.map(b => ({ name: b, code: b }))).map(b => (
+                          <SelectItem key={b.code} value={b.code} className="text-white">{b.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
