@@ -13,6 +13,7 @@ import ReportsPage from './pages/ReportsPage';
 import BotSettings from './pages/BotSettings';
 import AdminManagement from './pages/AdminManagement';
 import Policies from './pages/Policies';
+import Features from './pages/Features';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import AuthError from './pages/AuthError';
@@ -29,6 +30,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/features" element={<Features />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/auth/error" element={<AuthError />} />
             <Route path="/logout-callback" element={<LogoutCallbackPage />} />
