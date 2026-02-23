@@ -73,6 +73,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Validate Railway token
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::error::RAILWAY_TOKEN secret is not set. Please add a Railway project token as a secret named RAILWAY_TOKEN in your repository or production environment settings. See DEPLOYMENT.md for setup instructions."
+            exit 1
+          fi
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
