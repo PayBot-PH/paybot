@@ -106,7 +106,6 @@ async def lifespan(app: FastAPI):
             logger.warning(message)
         else:
             logger.error(message)
-            raise RuntimeError(message)
 
     # MODULE_STARTUP_START
     try:
