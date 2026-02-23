@@ -78,17 +78,36 @@ def derive_name_from_email(email: str) -> str:
     return email.split("@", 1)[0] if email else ""
 
 
-def _get_allowed_telegram_admin_ids() -> set[str]:
-    configured_ids = set()
+def _get_allowed_telegram_admin_ids() -> tuple[set[str], set[str]]:
+    """Parse TELEGRAM_ADMIN_IDS into two sets: numeric IDs and lowercase usernames.
 
-    raw_admin_ids = str(getattr(settings, "telegram_admin_ids", "") or "")
-    if raw_admin_ids:
-        for admin_id in raw_admin_ids.split(","):
-            cleaned = admin_id.strip()
-            if cleaned:
-                configured_ids.add(cleaned)
+    Entries that consist only of digits are treated as numeric Telegram user IDs.
+    Entries that start with '@' or contain non-digit characters are treated as
+    Telegram usernames (the leading '@' is stripped and the value is lowercased).
 
-    return configured_ids
+    Examples:
+        TELEGRAM_ADMIN_IDS=123456789              -> ids={"123456789"}, usernames={}
+        TELEGRAM_ADMIN_IDS=@traxionpay            -> ids={}, usernames={"traxionpay"}
+        TELEGRAM_ADMIN_IDS=123456789,@traxionpay  -> ids={"123456789"}, usernames={"traxionpay"}
+    """
+    allowed_ids: set[str] = set()
+    allowed_usernames: set[str] = set()
+
+    raw = str(getattr(settings, "telegram_admin_ids", "") or "")
+    for entry in raw.split(","):
+        cleaned = entry.strip()
+        if not cleaned:
+            continue
+        # Strip leading '@' for username entries
+        if cleaned.startswith("@"):
+            allowed_usernames.add(cleaned[1:].lower())
+        elif cleaned.isdigit():
+            allowed_ids.add(cleaned)
+        else:
+            # Non-numeric entry without '@' — treat as username too
+            allowed_usernames.add(cleaned.lower())
+
+    return allowed_ids, allowed_usernames
 
 
 def _verify_telegram_widget_payload(payload: TelegramWidgetLoginRequest, bot_token: str, max_age_seconds: int = 86400) -> bool:
@@ -127,7 +146,7 @@ async def telegram_login_legacy_disabled():
 async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSession = Depends(get_db)):
     """Telegram Login Widget admin login with Telegram-signed payload validation."""
     bot_token = str(getattr(settings, "telegram_bot_token", "") or "")
-    allowed_admin_ids = _get_allowed_telegram_admin_ids()
+    allowed_admin_ids, allowed_admin_usernames = _get_allowed_telegram_admin_ids()
 
     if not bot_token:
         raise HTTPException(
@@ -135,14 +154,18 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
             detail="Telegram bot token is not configured. Add TELEGRAM_BOT_TOKEN to environment variables.",
         )
 
-    if not allowed_admin_ids:
+    if not allowed_admin_ids and not allowed_admin_usernames:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Telegram admin IDs are not configured. Add TELEGRAM_ADMIN_IDS to environment variables.",
         )
 
     telegram_user_id = str(payload.id)
-    if telegram_user_id not in allowed_admin_ids:
+    # Note: payload.username is cryptographically covered by Telegram's HMAC-SHA256 hash
+    # (the `username` field is included in the data_check_string in _verify_telegram_widget_payload),
+    # so accepting it here is safe — a forged username cannot pass the hash check below.
+    payload_username = (payload.username or "").lower()
+    if telegram_user_id not in allowed_admin_ids and payload_username not in allowed_admin_usernames:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You are not a bot admin and cannot log in",
