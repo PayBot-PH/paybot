@@ -16,6 +16,7 @@ import {
   Copy, ExternalLink, Wallet, CreditCard, Building2, Smartphone, Store,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import Layout from '@/components/Layout';
 
 const NAV = [
   { to: '/', icon: BarChart3, label: 'Dashboard' },
@@ -127,9 +128,8 @@ export default function PaymentsHub() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100">
-      <NavHeader />
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <Layout>
+      <div className="max-w-5xl mx-auto">
         <h1 className="text-2xl font-bold text-white mb-6">Payments Hub</h1>
 
         <Tabs value={tab} onValueChange={(v) => { setTab(v); setResult(null); }}>
@@ -261,7 +261,7 @@ export default function PaymentsHub() {
             </Card>
           </div>
         </Tabs>
-      </main>
-    </div>
+      </div>
+    </Layout>
   );
 }

@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import httpx
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -157,11 +158,13 @@ class XenditService:
                                      mobile_number: str = "", external_id: str = "") -> Dict[str, Any]:
         if not external_id:
             external_id = f"ew-{uuid.uuid4().hex[:12]}"
+        callback_url = f"{settings.backend_url}/api/v1/xendit/webhook"
         payload: Dict[str, Any] = {
             "reference_id": external_id, "currency": "PHP", "amount": amount,
             "checkout_method": "ONE_TIME_PAYMENT",
             "channel_code": channel_code,
             "channel_properties": {},
+            "callback_url": callback_url,
         }
         if mobile_number:
             payload["channel_properties"]["mobile_number"] = mobile_number
@@ -188,10 +191,12 @@ class XenditService:
                                    description: str = "", external_id: str = "") -> Dict[str, Any]:
         if not external_id:
             external_id = f"disb-{uuid.uuid4().hex[:12]}"
+        callback_url = f"{settings.backend_url}/api/v1/xendit/webhook"
         payload = {
             "external_id": external_id, "amount": amount,
             "bank_code": bank_code, "account_holder_name": account_name,
             "account_number": account_number, "description": description or "Disbursement",
+            "callback_url": callback_url,
         }
         try:
             async with httpx.AsyncClient() as c:

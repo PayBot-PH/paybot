@@ -33,6 +33,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import Layout from '@/components/Layout';
 
 interface Transaction {
   id: number;
@@ -151,65 +152,8 @@ export default function Transactions() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100">
-      {/* Header */}
-      <header className="border-b border-slate-700/50 bg-[#0F172A]/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <Link to="/" className="flex items-center space-x-3">
-                <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Bot className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold text-white">PayBot</span>
-              </Link>
-              {/* Real-time connection indicator */}
-              <div className="flex items-center space-x-1 ml-2">
-                {connected ? (
-                  <div className="flex items-center space-x-1 text-emerald-400">
-                    <Wifi className="h-3 w-3" />
-                    <span className="text-[10px] uppercase tracking-wider font-medium">Live</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-1 text-slate-500">
-                    <WifiOff className="h-3 w-3" />
-                    <span className="text-[10px] uppercase tracking-wider font-medium">Offline</span>
-                  </div>
-                )}
-              </div>
-            </div>
-            <nav className="flex items-center space-x-1">
-              <Link to="/">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Dashboard
-                </Button>
-              </Link>
-              <Link to="/transactions">
-                <Button variant="ghost" size="sm" className="text-white bg-slate-700/50">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Transactions
-                </Button>
-              </Link>
-              <Link to="/create-payment">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create
-                </Button>
-              </Link>
-              <Link to="/bot-settings">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <Bot className="h-4 w-4 mr-2" />
-                  Bot
-                </Button>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-6">
+    <Layout connected={connected}>
+      <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-white">Transactions</h1>
           <Link to="/create-payment">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -396,7 +340,6 @@ export default function Transactions() {
             )}
           </CardContent>
         </Card>
-      </main>
-    </div>
+    </Layout>
   );
 }
