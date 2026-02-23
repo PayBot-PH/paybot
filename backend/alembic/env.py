@@ -35,10 +35,13 @@ if not database_url:
         import logging as _logging
         _logging.getLogger(__name__).warning("Could not load settings for database URL: %s", _e)
 if database_url:
-    # Normalize database URL to use async driver (postgresql -> postgresql+asyncpg)
+    # Normalize database URL to use async driver
     url = make_url(database_url)
     if url.drivername in ("postgresql", "postgres"):
         url = url.set(drivername="postgresql+asyncpg")
+        database_url = str(url)
+    elif url.drivername == "sqlite":
+        url = url.set(drivername="sqlite+aiosqlite")
         database_url = str(url)
     config.set_main_option("sqlalchemy.url", database_url)
 

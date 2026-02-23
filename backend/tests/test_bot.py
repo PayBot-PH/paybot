@@ -132,6 +132,92 @@ class TestAuth:
         r = client.get("/api/v1/auth/me")
         assert r.status_code == 401
 
+    def test_widget_login_by_username(self, client):
+        """Admin configured as @username (not numeric ID) can log in."""
+        from unittest.mock import patch
+        bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
+        auth_date = int(time.time())
+        payload = {
+            "id": 88888888,
+            "auth_date": auth_date,
+            "first_name": "Traxion",
+            "username": "traxionpay",
+        }
+        data_check_string = "\n".join(
+            f"{key}={value}"
+            for key, value in sorted(payload.items())
+            if value is not None and value != ""
+        )
+        secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
+        payload["hash"] = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        import routers.auth as auth_mod
+        from core.config import Settings
+        patched = Settings()
+        patched.telegram_admin_ids = "@traxionpay"
+        with patch.object(auth_mod, "settings", patched):
+            r = client.post("/api/v1/auth/telegram-login-widget", json=payload)
+
+        assert r.status_code == 200
+        assert "token" in r.json()
+
+    def test_widget_login_by_username_without_at(self, client):
+        """Admin configured as plain username (no @) can log in."""
+        from unittest.mock import patch
+        bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
+        auth_date = int(time.time())
+        payload = {
+            "id": 77777777,
+            "auth_date": auth_date,
+            "first_name": "Traxion",
+            "username": "traxionpay",
+        }
+        data_check_string = "\n".join(
+            f"{key}={value}"
+            for key, value in sorted(payload.items())
+            if value is not None and value != ""
+        )
+        secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
+        payload["hash"] = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        import routers.auth as auth_mod
+        from core.config import Settings
+        patched = Settings()
+        patched.telegram_admin_ids = "traxionpay"
+        with patch.object(auth_mod, "settings", patched):
+            r = client.post("/api/v1/auth/telegram-login-widget", json=payload)
+
+        assert r.status_code == 200
+        assert "token" in r.json()
+
+    def test_widget_login_unknown_username_rejected(self, client):
+        """A username not in TELEGRAM_ADMIN_IDS is denied even with a valid hash."""
+        from unittest.mock import patch
+        bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
+        auth_date = int(time.time())
+        payload = {
+            "id": 66666666,
+            "auth_date": auth_date,
+            "first_name": "Intruder",
+            "username": "not_an_admin",
+        }
+        data_check_string = "\n".join(
+            f"{key}={value}"
+            for key, value in sorted(payload.items())
+            if value is not None and value != ""
+        )
+        secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
+        payload["hash"] = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        import routers.auth as auth_mod
+        from core.config import Settings
+        patched = Settings()
+        patched.telegram_admin_ids = "@traxionpay"
+        with patch.object(auth_mod, "settings", patched):
+            r = client.post("/api/v1/auth/telegram-login-widget", json=payload)
+
+        assert r.status_code == 403
+
 
 # ---------------------------------------------------------------------------
 # Bot info / test endpoints
