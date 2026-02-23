@@ -56,20 +56,22 @@ def alembic_include_object(object, name, type_, reflected, compare_to):
     return True
 
 
+def do_run_migrations(connection):
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+        compare_server_default=True,
+        include_object=alembic_include_object,
+    )
+    with context.begin_transaction():
+        context.run_migrations()
+
+
 async def run_migrations_online():
     connectable = create_async_engine(config.get_main_option("sqlalchemy.url"), poolclass=pool.NullPool)
     async with connectable.connect() as connection:
-        await connection.run_sync(
-            lambda sync_conn: context.configure(
-                connection=sync_conn,
-                target_metadata=target_metadata,
-                compare_type=True,
-                compare_server_default=True,
-                include_object=alembic_include_object,
-            )
-        )
-        async with connection.begin():
-            await connection.run_sync(lambda sync_conn: context.run_migrations())
+        await connection.run_sync(do_run_migrations)
     await connectable.dispose()
 
 
