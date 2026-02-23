@@ -87,9 +87,9 @@ def create_access_token(claims: Dict[str, Any], expires_minutes: Optional[int] =
 
     token_claims.update(
         {
-            "exp": expire_at,
-            "iat": now,
-            "nbf": now,
+            "exp": int(expire_at.timestamp()),
+            "iat": int(now.timestamp()),
+            "nbf": int(now.timestamp()),
         }
     )
 
