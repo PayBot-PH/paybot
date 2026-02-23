@@ -14,10 +14,11 @@ This guide will walk you through deploying the PayBot application to Railway wit
 
 1. [Railway Setup](#1-railway-setup)
 2. [Environment Variables Setup](#2-environment-variables-setup)
-3. [Database Migration](#3-database-migration)
-4. [Webhook Configuration](#4-webhook-configuration)
-5. [Post-Deployment Steps](#5-post-deployment-steps)
-6. [Troubleshooting](#6-troubleshooting)
+3. [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup)
+4. [Database Migration](#4-database-migration)
+5. [Webhook Configuration](#5-webhook-configuration)
+6. [Post-Deployment Steps](#6-post-deployment-steps)
+7. [Troubleshooting](#7-troubleshooting)
 
 ---
 
@@ -98,7 +99,47 @@ The frontend is served directly by the backend as a static SPA, so no separate f
 
 ---
 
-## 3. Database Migration
+## 3. GitHub Actions Secrets Setup
+
+The GitHub Actions deployment workflow (`deploy.yml`) deploys to Railway automatically on every push to `main`. It requires a Railway project token configured as a GitHub secret.
+
+### 3.1 Generate a Railway Project Token
+
+A **project token** is a scoped token that grants access only to a specific Railway project and environment. This is the recommended token type for CI/CD.
+
+1. Log in to [Railway](https://railway.app)
+2. Open your project
+3. Go to **Project Settings** → **Tokens**
+4. Click **"New Token"**
+5. Give it a name (e.g., `github-actions`) and select the **production** environment
+6. Copy the generated token
+
+### 3.2 Add the Token as a GitHub Secret
+
+The workflow uses the `production` environment in GitHub Actions. You can add the secret either at the repository level or the environment level:
+
+**Option A – Repository environment secret (recommended):**
+
+1. Go to your GitHub repository → **Settings** → **Environments**
+2. Click on **"production"** (create it if it doesn't exist)
+3. Under **"Environment secrets"**, click **"Add secret"**
+4. Name: `RAILWAY_TOKEN`
+5. Value: paste the Railway project token
+6. Click **"Add secret"**
+
+**Option B – Repository-level secret:**
+
+1. Go to your GitHub repository → **Settings** → **Secrets and variables** → **Actions**
+2. Click **"New repository secret"**
+3. Name: `RAILWAY_TOKEN`
+4. Value: paste the Railway project token
+5. Click **"Add secret"**
+
+> **Note:** If the `RAILWAY_TOKEN` secret is missing or empty, the deployment workflow will fail immediately with a clear error message pointing to this guide.
+
+---
+
+## 4. Database Migration
 
 ### Automatic Migrations
 
@@ -143,7 +184,7 @@ To see migration history:
 railway run alembic history
 ```
 
-## 4. Webhook Configuration
+## 5. Webhook Configuration
 
 After deployment, you need to configure webhooks for external services.
 
@@ -192,9 +233,9 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 
 ---
 
-## 5. Post-Deployment Steps
+## 6. Post-Deployment Steps
 
-### 5.1 Verify Backend is Running
+### 6.1 Verify Backend is Running
 
 Check the health endpoint:
 
@@ -209,14 +250,14 @@ Expected response:
 }
 ```
 
-### 5.2 Verify Frontend is Running (if deployed)
+### 6.2 Verify Frontend is Running (if deployed)
 
 Open your frontend URL in a browser:
 ```
 https://your-frontend.railway.app
 ```
 
-### 5.3 Check Database Connection
+### 6.3 Check Database Connection
 
 1. Go to your Railway project dashboard
 2. Click on the backend service
@@ -230,19 +271,19 @@ Database connection initialized successfully
 Tables initialized successfully
 ```
 
-### 5.4 Test Telegram Bot
+### 6.4 Test Telegram Bot
 
 1. Open Telegram and find your bot
 2. Send `/start` command
 3. Verify the bot responds correctly
 
-### 5.5 Test Payment Functionality
+### 6.5 Test Payment Functionality
 
 1. Create a test payment through your application
 2. Check the Xendit dashboard to verify the payment was created
 3. Verify webhook events are being received by checking Railway logs
 
-### 5.6 Monitor Logs
+### 6.6 Monitor Logs
 
 To view real-time logs:
 
@@ -260,9 +301,19 @@ railway logs
 
 ---
 
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 ### Common Issues
+
+#### Invalid or Missing RAILWAY_TOKEN
+
+**Error**: `Invalid RAILWAY_TOKEN. Please check that it is valid and has access to the resource you're trying to use.`
+
+**Solution**:
+1. Generate a Railway project token: **Project Settings** → **Tokens** → **New Token** (select the **production** environment)
+2. Add it as a GitHub secret named `RAILWAY_TOKEN` (see [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup) for detailed instructions)
+3. Verify the secret is added to the correct scope: the deploy workflow uses the `production` environment, so the secret should be an **environment secret** under the `production` environment, or a **repository secret**
+4. If the token was previously set but is now expired or revoked, generate a new token and update the secret
 
 #### Database Connection Errors
 
@@ -350,8 +401,8 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 If you encounter any issues:
 
-1. Check the [Railway logs](#56-monitor-logs) for detailed error messages
-2. Review the [Troubleshooting](#6-troubleshooting) section
+1. Check the [Railway logs](#66-monitor-logs) for detailed error messages
+2. Review the [Troubleshooting](#7-troubleshooting) section
 3. Consult the official documentation links above
 4. Open an issue on the GitHub repository
 
