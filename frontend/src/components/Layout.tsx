@@ -9,8 +9,10 @@ import {
   PieChart,
   Wifi,
   WifiOff,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
 
 const NAV_ITEMS = [
   { to: '/', icon: BarChart3, label: 'Dashboard' },
@@ -38,6 +40,7 @@ interface LayoutProps {
 export default function Layout({ children, connected }: LayoutProps) {
   const location = useLocation();
   const path = location.pathname;
+  const { user, logout } = useAuth();
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-slate-100">
@@ -97,6 +100,20 @@ export default function Layout({ children, connected }: LayoutProps) {
                   );
                 })}
               </nav>
+
+              {/* Logout button (desktop) */}
+              {user && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => logout()}
+                  className="hidden md:flex text-slate-400 hover:text-red-400 hover:bg-red-500/10 text-xs px-2.5"
+                  title="Sign out"
+                >
+                  <LogOut className="h-3.5 w-3.5 mr-1" />
+                  Logout
+                </Button>
+              )}
             </div>
           </div>
         </div>
@@ -131,8 +148,21 @@ export default function Layout({ children, connected }: LayoutProps) {
               </Link>
             );
           })}
+          {/* Logout on mobile bottom nav */}
+          {user && (
+            <button
+              onClick={() => logout()}
+              className="flex flex-col items-center justify-center flex-1 gap-0.5 py-2 transition-colors"
+            >
+              <div className="p-1.5 rounded-lg transition-colors">
+                <LogOut className="h-5 w-5 text-slate-500" />
+              </div>
+              <span className="text-[10px] font-medium leading-none text-slate-500">Logout</span>
+            </button>
+          )}
         </div>
       </nav>
     </div>
   );
 }
+
