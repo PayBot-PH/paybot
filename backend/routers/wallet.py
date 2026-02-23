@@ -11,8 +11,10 @@ from core.database import get_db
 from dependencies.auth import get_current_user
 from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
+from models.transactions import Transactions
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
+from services.xendit_service import XenditService
 
 logger = logging.getLogger(__name__)
 
@@ -243,3 +245,68 @@ async def top_up_from_payment(
     """Manual top-up trigger (for testing). In production, this is called by the Xendit webhook."""
     # This is a placeholder — actual top-up happens in xendit webhook
     raise HTTPException(status_code=400, detail="Use Xendit payments to top up wallet")
+
+
+class TopUpRequest(BaseModel):
+    amount: float
+    description: str = "Wallet Top Up"
+    customer_name: str = ""
+    customer_email: str = ""
+
+
+class TopUpResponse(BaseModel):
+    success: bool
+    invoice_id: str = ""
+    invoice_url: str = ""
+    external_id: str = ""
+    amount: float = 0.0
+    message: str = ""
+
+
+@router.post("/topup", response_model=TopUpResponse)
+async def create_topup(
+    req: TopUpRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a Xendit invoice for wallet top-up. Wallet is credited automatically on payment via webhook."""
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than zero")
+
+    xendit = XenditService()
+    result = await xendit.create_invoice(
+        amount=req.amount,
+        description=req.description or "Wallet Top Up",
+        customer_name=req.customer_name,
+        customer_email=req.customer_email,
+    )
+
+    if not result.get("success"):
+        raise HTTPException(status_code=502, detail=result.get("error", "Failed to create invoice"))
+
+    # Save transaction tagged with current user so webhook credits their wallet
+    now = datetime.now()
+    txn = Transactions(
+        user_id=current_user.id,
+        transaction_type="top_up",
+        external_id=result["external_id"],
+        xendit_id=result["invoice_id"],
+        amount=req.amount,
+        currency="PHP",
+        status="pending",
+        description=req.description or "Wallet Top Up",
+        payment_url=result["invoice_url"],
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(txn)
+    await db.commit()
+
+    return TopUpResponse(
+        success=True,
+        invoice_id=result["invoice_id"],
+        invoice_url=result["invoice_url"],
+        external_id=result["external_id"],
+        amount=req.amount,
+        message="Invoice created. Complete payment to credit your wallet.",
+    )

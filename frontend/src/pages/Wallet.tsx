@@ -21,6 +21,8 @@ import {
   Clock,
   XCircle,
   Building2,
+  PlusCircle,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -100,6 +102,13 @@ export default function Wallet() {
   const [dName, setDName] = useState('');
   const [dDesc, setDDesc] = useState('');
   const [dLoading, setDLoading] = useState(false);
+
+  // Top Up state
+  const [topupAmount, setTopupAmount] = useState('');
+  const [topupDesc, setTopupDesc] = useState('Wallet Top Up');
+  const [topupEmail, setTopupEmail] = useState('');
+  const [topupLoading, setTopupLoading] = useState(false);
+  const [topupResult, setTopupResult] = useState<{ invoice_url: string; amount: number } | null>(null);
 
   const fetchWalletData = useCallback(async () => {
     if (!user) return;
@@ -190,6 +199,27 @@ export default function Wallet() {
     } finally { setDLoading(false); }
   };
 
+  const handleTopup = async () => {
+    const amount = parseFloat(topupAmount);
+    if (!amount || amount <= 0) { toast.error('Enter a valid amount'); return; }
+    setTopupLoading(true);
+    setTopupResult(null);
+    try {
+      const res = await client.apiCall.invoke({
+        url: '/api/v1/wallet/topup', method: 'POST',
+        data: { amount, description: topupDesc || 'Wallet Top Up', customer_email: topupEmail },
+      });
+      if (res.data?.success) {
+        setTopupResult({ invoice_url: res.data.invoice_url, amount });
+        toast.success('Invoice created! Complete payment to credit your wallet.');
+      } else {
+        toast.error(res.data?.message || 'Failed to create top-up invoice');
+      }
+    } catch (err: unknown) {
+      toast.error((err as { data?: { detail?: string } })?.data?.detail || 'Top-up failed');
+    } finally { setTopupLoading(false); }
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
@@ -252,10 +282,17 @@ export default function Wallet() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="disburse"
-                  className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-slate-400 gap-2"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-slate-400 gap-2"
                 >
                   <Building2 className="h-4 w-4" />
                   Disburse
+                </TabsTrigger>
+                <TabsTrigger
+                  value="topup"
+                  className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-blue-400 text-slate-400 gap-2"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Top Up
                 </TabsTrigger>
               </TabsList>
 
@@ -347,6 +384,66 @@ export default function Wallet() {
                     ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
                     : <><Send className="h-4 w-4 mr-2" />Send Disbursement</>}
                 </Button>
+              </TabsContent>
+
+              {/* Top Up Tab */}
+              <TabsContent value="topup" className="p-4 sm:p-6 mt-0 space-y-4">
+                {topupResult ? (
+                  <div className="text-center space-y-4">
+                    <div className="bg-blue-900/30 border border-blue-700/50 rounded-xl p-4">
+                      <CheckCircle className="h-10 w-10 text-blue-400 mx-auto mb-3" />
+                      <p className="text-white font-semibold">Invoice Created!</p>
+                      <p className="text-slate-400 text-sm mt-1">₱{topupResult.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })} will be credited after payment</p>
+                    </div>
+                    <a
+                      href={topupResult.invoice_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Open Payment Page
+                    </a>
+                    <button
+                      onClick={() => { setTopupResult(null); setTopupAmount(''); }}
+                      className="text-slate-400 text-sm hover:text-slate-300 transition"
+                    >
+                      Create another top-up
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-slate-300 text-sm">Amount (₱)</Label>
+                        <Input type="number" placeholder="0.00" value={topupAmount}
+                          onChange={e => setTopupAmount(e.target.value)} min="1"
+                          className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      </div>
+                      <div>
+                        <Label className="text-slate-300 text-sm">Email (optional)</Label>
+                        <Input type="email" placeholder="your@email.com" value={topupEmail}
+                          onChange={e => setTopupEmail(e.target.value)}
+                          className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label className="text-slate-300 text-sm">Description</Label>
+                        <Input placeholder="Wallet Top Up" value={topupDesc}
+                          onChange={e => setTopupDesc(e.target.value)}
+                          className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      </div>
+                    </div>
+                    <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400">
+                      💡 A Xendit payment invoice will be generated. Pay via credit card, GCash, Maya, bank transfer, or any supported method. Your wallet is credited automatically once paid.
+                    </div>
+                    <Button onClick={handleTopup} disabled={topupLoading}
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                      {topupLoading
+                        ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating Invoice...</>
+                        : <><PlusCircle className="h-4 w-4 mr-2" />Generate Top Up Invoice</>}
+                    </Button>
+                  </>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>
