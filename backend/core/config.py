@@ -36,6 +36,8 @@ class Settings(BaseSettings):
             if public:
                 logger.debug("Switching DATABASE_URL to DATABASE_PUBLIC_URL (internal hostname detected)")
                 self.database_url = public
+        # Strip stray whitespace / newlines that can appear in Railway env vars.
+        self.database_url = self.database_url.strip()
         # SQLAlchemy 2.0 removed the bare 'postgres' dialect name; Railway still
         # emits URLs with the legacy postgres:// scheme.
         if self.database_url.startswith("postgres://"):

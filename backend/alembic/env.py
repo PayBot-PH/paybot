@@ -35,12 +35,33 @@ if not database_url:
         import logging as _logging
         _logging.getLogger(__name__).warning("Could not load settings for database URL: %s", _e)
 if database_url:
+    import logging as _log
+    _alembic_logger = _log.getLogger(__name__)
+
+    # Strip stray whitespace / newlines that can appear in Railway env vars.
+    database_url = database_url.strip()
+
     # Normalize postgres:// → postgresql:// (Railway uses the legacy scheme;
     # SQLAlchemy 2.0 no longer accepts it and raises a parse error).
     if database_url.startswith("postgres://"):
         database_url = "postgresql://" + database_url[len("postgres://"):]
-    # Normalize database URL to use async driver
-    url = make_url(database_url)
+
+    # Log the URL scheme for diagnostics without exposing credentials.
+    _scheme = database_url.split("://")[0] if "://" in database_url else "<no-scheme>"
+    _alembic_logger.info("Alembic database URL scheme: %s", _scheme)
+
+    # Normalize to async driver.
+    try:
+        url = make_url(database_url)
+    except Exception as _e:
+        # Emit a clear message so Railway logs show the problem immediately.
+        _alembic_logger.error(
+            "Cannot parse DATABASE_URL (scheme=%s, length=%d): %s",
+            _scheme,
+            len(database_url),
+            _e,
+        )
+        raise
     if url.drivername in ("postgresql", "postgres"):
         url = url.set(drivername="postgresql+asyncpg")
         database_url = str(url)
