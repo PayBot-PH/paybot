@@ -115,7 +115,7 @@ class MayaManagerService:
         self,
         amount: float,
         description: str = "WeChat Pay",
-        currency: str = "USD",
+        currency: str = "PHP",
         success_url: Optional[str] = None,
         cancel_url: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -134,11 +134,11 @@ class MayaManagerService:
         self,
         amount: float,
         description: str = "Alipay",
-        currency: str = "USD",
+        currency: str = "PHP",
         success_url: Optional[str] = None,
         cancel_url: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Create an Alipay QR checkout via Maya Business Manager in USD (or any currency)."""
+        """Create an Alipay QR checkout via Maya Business Manager (PHP)."""
         if not self.public_key:
             return {"success": False, "error": "MAYA_PUBLIC_KEY is not configured"}
         reference_number = f"alipay-{uuid.uuid4().hex[:12]}"

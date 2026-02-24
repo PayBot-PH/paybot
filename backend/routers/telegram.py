@@ -360,14 +360,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
                     maya = MayaManagerService()
-                    result = await maya.create_alipay_qr(amount=amount, description=description, currency="USD")
+                    result = await maya.create_alipay_qr(amount=amount, description=description, currency="PHP")
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
                         ref_num = result.get("reference_number", "")
                         reply = (
                             f"✅ <b>Alipay QR Created!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"💰 Amount: <b>${amount:,.2f} USD</b>\n"
+                            f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
                             f"🆔 <code>{ref_num}</code>\n\n"
                             f"📱 Tap the button below to scan Alipay QR"
@@ -381,7 +381,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             txn = Transactions(
                                 user_id="telegram", transaction_type="alipay_qr",
                                 external_id=ref_num, xendit_id=result.get("checkout_id", ""),
-                                amount=amount, currency="USD", status="pending", description=description,
+                                amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=checkout_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
@@ -412,14 +412,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
                     maya = MayaManagerService()
-                    result = await maya.create_wechat_qr(amount=amount, description=description, currency="USD")
+                    result = await maya.create_wechat_qr(amount=amount, description=description, currency="PHP")
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
                         ref_num = result.get("reference_number", "")
                         reply = (
                             f"✅ <b>WeChat QR Created!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"💰 Amount: <b>${amount:,.2f} USD</b>\n"
+                            f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
                             f"🆔 <code>{ref_num}</code>\n\n"
                             f"📱 Tap the button below to scan WeChat QR"
@@ -433,7 +433,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             txn = Transactions(
                                 user_id="telegram", transaction_type="wechat_qr",
                                 external_id=ref_num, xendit_id=result.get("checkout_id", ""),
-                                amount=amount, currency="USD", status="pending", description=description,
+                                amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=checkout_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
