@@ -73,26 +73,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate Railway token
+      - name: Validate Railway secrets
         id: validate
         run: |
+          READY=true
           if [ -z "$RAILWAY_TOKEN" ]; then
             echo "::warning::RAILWAY_TOKEN secret is not set. Skipping deployment. See DEPLOYMENT.md for setup instructions."
-            echo "has_token=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_token=true" >> "$GITHUB_OUTPUT"
+            READY=false
           fi
+          if [ -z "$RAILWAY_SERVICE" ]; then
+            echo "::warning::RAILWAY_SERVICE secret is not set. Skipping deployment. See DEPLOYMENT.md for setup instructions."
+            READY=false
+          fi
+          echo "deployment_ready=$READY" >> "$GITHUB_OUTPUT"
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
 
       - name: Install pnpm
-        if: steps.validate.outputs.has_token == 'true'
+        if: steps.validate.outputs.deployment_ready == 'true'
         uses: pnpm/action-setup@v4
         with:
           version: "8.10.0"
 
       - name: Set up Node.js 20
-        if: steps.validate.outputs.has_token == 'true'
+        if: steps.validate.outputs.deployment_ready == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -100,27 +105,27 @@ jobs:
           cache-dependency-path: frontend/pnpm-lock.yaml
 
       - name: Install frontend dependencies
-        if: steps.validate.outputs.has_token == 'true'
+        if: steps.validate.outputs.deployment_ready == 'true'
         working-directory: frontend
         run: pnpm install --frozen-lockfile
 
       - name: Build frontend
-        if: steps.validate.outputs.has_token == 'true'
+        if: steps.validate.outputs.deployment_ready == 'true'
         working-directory: frontend
         run: pnpm run build
 
       - name: Copy frontend build to backend/static
-        if: steps.validate.outputs.has_token == 'true'
+        if: steps.validate.outputs.deployment_ready == 'true'
         run: |
           rm -rf backend/static
           cp -r frontend/dist backend/static
 
       - name: Install Railway CLI
-        if: steps.validate.outputs.has_token == 'true'
+        if: steps.validate.outputs.deployment_ready == 'true'
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
-        if: steps.validate.outputs.has_token == 'true'
+        if: steps.validate.outputs.deployment_ready == 'true'
         run: |
           set -euo pipefail
           ARGS=(up --ci --detach)

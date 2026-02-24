@@ -135,9 +135,9 @@ The workflow uses the `production` environment in GitHub Actions. You can add th
 4. Value: paste the Railway project token
 5. Click **"Add secret"**
 
-> **Note:** If the `RAILWAY_TOKEN` secret is missing or empty, the deployment workflow will fail immediately with a clear error message pointing to this guide.
+> **Note:** If the `RAILWAY_TOKEN` or `RAILWAY_SERVICE` secret is missing or empty, the deployment workflow will skip deployment and emit a warning pointing to this guide.
 
-> **Optional:** If your Railway service is not auto-detected by CLI in CI, add a `RAILWAY_SERVICE` GitHub secret with the exact Railway service name.
+> **Required:** Add a `RAILWAY_SERVICE` GitHub secret with the exact Railway service name (e.g. `backend`). This is required because Railway projects typically contain multiple services (e.g. backend + PostgreSQL), and the CLI cannot determine which one to deploy without this value.
 
 ---
 
@@ -316,6 +316,15 @@ railway logs
 2. Add it as a GitHub secret named `RAILWAY_TOKEN` (see [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup) for detailed instructions)
 3. Verify the secret is added to the correct scope: the deploy workflow uses the `production` environment, so the secret should be an **environment secret** under the `production` environment, or a **repository secret**
 4. If the token was previously set but is now expired or revoked, generate a new token and update the secret
+
+#### Multiple Services Found
+
+**Error**: `Multiple services found. Please specify a service via the `--service` flag.`
+
+**Solution**:
+1. Find your Railway service name: go to your Railway project dashboard and note the exact name of the backend service (e.g. `backend`)
+2. Add it as a GitHub secret named `RAILWAY_SERVICE` (see [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup) for detailed instructions)
+3. Verify the secret is added to the correct scope (environment secret under `production` or a repository secret)
 
 #### Database Connection Errors
 
