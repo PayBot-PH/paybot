@@ -155,16 +155,11 @@ export default function Login() {
           </div>
 
           {/* Role info cards */}
-          <div className="grid grid-cols-2 gap-2 mb-5">
+          <div className="mb-5">
             <div className="bg-blue-500/8 border border-blue-500/20 rounded-xl p-3 text-center">
               <ShieldCheck className="h-4 w-4 text-blue-400 mx-auto mb-1" />
               <p className="text-blue-300 text-xs font-semibold">Admin</p>
               <p className="text-slate-500 text-[10px] mt-0.5">Payments · Reports · Wallet</p>
-            </div>
-            <div className="bg-amber-500/8 border border-amber-500/20 rounded-xl p-3 text-center">
-              <ShieldCheck className="h-4 w-4 text-amber-400 mx-auto mb-1" />
-              <p className="text-amber-300 text-xs font-semibold">Super Admin</p>
-              <p className="text-slate-500 text-[10px] mt-0.5">Full access + user mgmt</p>
             </div>
           </div>
 
