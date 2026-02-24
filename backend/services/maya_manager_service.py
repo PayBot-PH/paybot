@@ -58,8 +58,8 @@ class MayaManagerService:
         Create a WeChat Pay QR checkout via Maya Business Manager.
         Returns checkout URL and reference number.
         """
-        if not self.public_key:
-            return {"success": False, "error": "MAYA_PUBLIC_KEY is not configured"}
+        if not self.secret_key:
+            return {"success": False, "error": "MAYA_SECRET_KEY is not configured"}
 
         backend_url = settings.backend_url
         reference_number = f"wechat-{uuid.uuid4().hex[:12]}"
@@ -107,7 +107,7 @@ class MayaManagerService:
                 resp = await client.post(
                     f"{self.base_url}/checkout/v1/checkouts",
                     json=payload,
-                    headers=self._public_auth_header(),
+                    headers=self._secret_auth_header(),
                 )
                 data = resp.json()
                 if resp.status_code in (200, 201):
