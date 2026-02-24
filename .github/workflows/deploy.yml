@@ -121,6 +121,13 @@ jobs:
 
       - name: Deploy to Railway
         if: steps.validate.outputs.has_token == 'true'
-        run: railway up --service backend --detach
+        run: |
+          set -euo pipefail
+          ARGS=(up --ci --detach)
+          if [ -n "${RAILWAY_SERVICE:-}" ]; then
+            ARGS+=(--service "$RAILWAY_SERVICE")
+          fi
+          railway "${ARGS[@]}"
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}

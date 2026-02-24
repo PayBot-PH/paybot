@@ -137,6 +137,8 @@ The workflow uses the `production` environment in GitHub Actions. You can add th
 
 > **Note:** If the `RAILWAY_TOKEN` secret is missing or empty, the deployment workflow will fail immediately with a clear error message pointing to this guide.
 
+> **Optional:** If your Railway service is not auto-detected by CLI in CI, add a `RAILWAY_SERVICE` GitHub secret with the exact Railway service name.
+
 ---
 
 ## 4. Database Migration
