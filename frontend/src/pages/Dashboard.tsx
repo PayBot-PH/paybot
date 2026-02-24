@@ -4,6 +4,7 @@ import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePaymentEvents } from '@/hooks/usePaymentEvents';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import Layout from '@/components/Layout';
 import {
   FileText,
