@@ -93,53 +93,59 @@ class DatabaseManager:
                 logger.info("Database already initialized")
                 return
 
-        if not settings.database_url:
-            logger.error("No database URL provided. DATABASE_URL environment variable must be set.")
-            raise ValueError("DATABASE_URL environment variable is required")
+            if not settings.database_url:
+                logger.error("No database URL provided. DATABASE_URL environment variable must be set.")
+                raise ValueError("DATABASE_URL environment variable is required")
 
-        try:
-            logger.info("Normalizing database URL for async compatibility...")
-            database_url = self._normalize_async_database_url(settings.database_url)
+            try:
+                logger.info("Normalizing database URL for async compatibility...")
+                database_url = self._normalize_async_database_url(settings.database_url)
 
-            logger.info("Creating async database engine...")
-            # Configure engine based on environment (Lambda vs non-Lambda)
-            engine_kwargs = {
-                "echo": settings.debug,
-            }
+                logger.info("Creating async database engine...")
+                # Configure engine based on environment (Lambda vs non-Lambda)
+                engine_kwargs = {
+                    "echo": settings.debug,
+                }
 
-            # Check if we're in a Lambda environment
-            is_lambda = bool(
-                os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
-                or os.environ.get("IS_LAMBDA", "").lower() in ("true", "1", "yes")
-            )
+                # Check if we're in a Lambda environment
+                is_lambda = bool(
+                    os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+                    or os.environ.get("IS_LAMBDA", "").lower() in ("true", "1", "yes")
+                )
 
-            if is_lambda:
-                # Lambda: Use NullPool to avoid connection state conflicts
-                # NullPool creates a fresh connection for each request, avoiding "cannot switch to state" errors
-                engine_kwargs["poolclass"] = NullPool
-                # NullPool doesn't support pool_timeout, pool_size, max_overflow, pool_recycle, or pool_pre_ping
-                # These parameters are only valid for QueuePool
-                logger.info("Using NullPool for Lambda environment to avoid connection state conflicts")
-            else:
-                # Non-Lambda: Use QueuePool with connection pooling
-                engine_kwargs["pool_pre_ping"] = True  # Verify connections before using them
-                engine_kwargs["pool_size"] = 10  # Connection pool size
-                engine_kwargs["max_overflow"] = 20  # Maximum overflow connections
-                engine_kwargs["pool_recycle"] = 3600  # Connection recycle time (1 hour)
-                engine_kwargs["pool_timeout"] = 30  # Connection acquisition timeout (30 seconds)
-                logger.info("Using QueuePool with connection pooling for non-Lambda environment")
+                # SQLite does not support pool sizing parameters
+                is_sqlite = "sqlite" in database_url.lower()
 
-            self.engine = create_async_engine(database_url, **engine_kwargs)
-            logger.info("Database engine created successfully")
+                if is_lambda:
+                    # Lambda: Use NullPool to avoid connection state conflicts
+                    # NullPool creates a fresh connection for each request, avoiding "cannot switch to state" errors
+                    engine_kwargs["poolclass"] = NullPool
+                    # NullPool doesn't support pool_timeout, pool_size, max_overflow, pool_recycle, or pool_pre_ping
+                    # These parameters are only valid for QueuePool
+                    logger.info("Using NullPool for Lambda environment to avoid connection state conflicts")
+                elif is_sqlite:
+                    # SQLite: pool_size/max_overflow/pool_recycle/pool_timeout are not applicable for an embedded DB
+                    logger.info("Using default pool for SQLite (pool sizing parameters are not applicable)")
+                else:
+                    # Non-Lambda, non-SQLite: Use QueuePool with connection pooling
+                    engine_kwargs["pool_pre_ping"] = True  # Verify connections before using them
+                    engine_kwargs["pool_size"] = 10  # Connection pool size
+                    engine_kwargs["max_overflow"] = 20  # Maximum overflow connections
+                    engine_kwargs["pool_recycle"] = 3600  # Connection recycle time (1 hour)
+                    engine_kwargs["pool_timeout"] = 30  # Connection acquisition timeout (30 seconds)
+                    logger.info("Using QueuePool with connection pooling for non-Lambda environment")
 
-            logger.info("Creating async session maker...")
-            self.async_session_maker = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
-            logger.info("Async session maker created successfully")
+                self.engine = create_async_engine(database_url, **engine_kwargs)
+                logger.info("Database engine created successfully")
 
-            logger.info("Database connection initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize database: {e}", exc_info=True)
-            raise
+                logger.info("Creating async session maker...")
+                self.async_session_maker = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
+                logger.info("Async session maker created successfully")
+
+                logger.info("Database connection initialized successfully")
+            except Exception as e:
+                logger.error(f"Failed to initialize database: {e}", exc_info=True)
+                raise
 
     async def close_db(self):
         """Close database connection and dispose engine
