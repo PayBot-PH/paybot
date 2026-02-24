@@ -194,6 +194,17 @@ export default function Layout({ children, connected }: LayoutProps) {
                 )}
               </div>
             )}
+            {/* Role badge */}
+            {user && (
+              <span className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                isSuperAdmin
+                  ? 'bg-amber-500/15 text-amber-400 border-amber-500/25'
+                  : 'bg-blue-500/15 text-blue-400 border-blue-500/25'
+              }`}>
+                <ShieldCheck className="h-3 w-3" />
+                {isSuperAdmin ? 'Super Admin' : 'Admin'}
+              </span>
+            )}
             {/* Username */}
             {user && (
               <span className="text-xs text-slate-400 hidden sm:inline truncate max-w-32">
