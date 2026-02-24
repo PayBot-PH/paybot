@@ -20,7 +20,7 @@ from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-MAYA_BASE_URL = "https://pgw.paymaya.com"
+MAYA_BASE_URL = "https://pg.paymaya.com"
 MAYA_SANDBOX_URL = "https://pg-sandbox.paymaya.com"
 MAYA_TIMEOUT = 30.0
 
