@@ -147,13 +147,13 @@ The workflow uses the `production` environment in GitHub Actions. You can add se
 
 ### Automatic Migrations
 
-Database migrations run **automatically** on each deployment via the start command in `railway.toml`:
+Database migrations run **automatically** on each deployment via the pre-deploy command in `railway.toml`:
 
 ```bash
-alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT
+alembic upgrade head
 ```
 
-This ensures your database schema is always up-to-date.
+This runs as a `preDeployCommand` — Railway executes the migration in a one-off container *before* promoting the new deployment live. If the migration fails, the deployment is rolled back and the previous version keeps serving traffic. This prevents broken schema from reaching the running app.
 
 ### Manual Migration (if needed)
 
