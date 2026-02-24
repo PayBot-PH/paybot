@@ -347,11 +347,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /alipay (Xendit QRIS) ====================
+        # ==================== /alipay (Maya Business Manager → Alipay QR in USD) ====================
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]\nExample: /alipay 500 Coffee order\n\n💡 <i>Generates an Alipay-compatible QR via Xendit QRIS</i>")
+                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]\nExample: /alipay 10 Coffee order\n\n💡 <i>Generates an Alipay QR via Maya Business Manager (USD)</i>")
             else:
                 try:
                     amount = float(parts[1])
@@ -360,30 +360,30 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
-                    xendit = XenditService()
-                    result = await xendit.create_alipay_qr(amount=amount, description=description)
+                    maya = MayaManagerService()
+                    result = await maya.create_alipay_qr(amount=amount, description=description, currency="USD")
                     if result.get("success"):
-                        qr_url = result.get("qr_string", result.get("qr_code_url", ""))
-                        ext_id = result.get("external_id", "")
+                        checkout_url = result.get("checkout_url", "")
+                        ref_num = result.get("reference_number", "")
                         reply = (
                             f"✅ <b>Alipay QR Created!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"💰 Amount: <b>${amount:,.2f} USD</b>\n"
                             f"📝 {description}\n"
-                            f"🆔 <code>{ext_id}</code>\n\n"
-                            f"📱 Scan with Alipay or any QRIS-compatible app to pay"
+                            f"🆔 <code>{ref_num}</code>\n\n"
+                            f"📱 Tap the button below to scan Alipay QR"
                         )
                         keyboard = {
-                            "inline_keyboard": [[{"text": "🔴 View Alipay QR", "url": qr_url}]]
-                        } if qr_url else None
+                            "inline_keyboard": [[{"text": "🔴 Pay via Alipay (Maya)", "url": checkout_url}]]
+                        } if checkout_url else None
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
                         try:
                             now = datetime.now()
                             txn = Transactions(
                                 user_id="telegram", transaction_type="alipay_qr",
-                                external_id=ext_id, xendit_id=result.get("qr_id", ""),
-                                amount=amount, currency="PHP", status="pending", description=description,
-                                qr_code_url=qr_url, telegram_chat_id=chat_id,
+                                external_id=ref_num, xendit_id=result.get("checkout_id", ""),
+                                amount=amount, currency="USD", status="pending", description=description,
+                                qr_code_url=checkout_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
                             db.add(txn)

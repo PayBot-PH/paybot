@@ -47,61 +47,40 @@ class MayaManagerService:
         encoded = base64.b64encode(f"{self.secret_key}:".encode()).decode()
         return {"Authorization": f"Basic {encoded}", "Content-Type": "application/json"}
 
-    async def create_wechat_qr(
+    def _build_checkout_payload(
         self,
         amount: float,
-        description: str = "WeChat Pay",
+        currency: str,
+        description: str,
+        reference_number: str,
+        payment_type: str,
+        backend_url: str,
         success_url: Optional[str] = None,
         cancel_url: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Create a WeChat Pay QR checkout via Maya Business Manager.
-        Returns checkout URL and reference number.
-        """
-        if not self.secret_key:
-            return {"success": False, "error": "MAYA_SECRET_KEY is not configured"}
-
-        backend_url = settings.backend_url
-        reference_number = f"wechat-{uuid.uuid4().hex[:12]}"
-
-        payload = {
-            "totalAmount": {
-                "value": round(amount, 2),
-                "currency": "PHP",
-                "details": {
-                    "discount": 0,
-                    "serviceCharge": 0,
-                    "shippingFee": 0,
-                    "tax": 0,
-                    "subtotal": round(amount, 2),
-                },
-            },
+        amt = round(amount, 2)
+        details = {"discount": 0, "serviceCharge": 0, "shippingFee": 0, "tax": 0, "subtotal": amt}
+        return {
+            "totalAmount": {"value": amt, "currency": currency, "details": details},
             "buyer": {},
-            "items": [
-                {
-                    "name": description or "WeChat Pay",
-                    "quantity": 1,
-                    "code": reference_number,
-                    "description": description or "WeChat Pay",
-                    "amount": {
-                        "value": round(amount, 2),
-                        "details": {"discount": 0, "serviceCharge": 0, "shippingFee": 0, "tax": 0, "subtotal": round(amount, 2)},
-                    },
-                    "totalAmount": {
-                        "value": round(amount, 2),
-                        "details": {"discount": 0, "serviceCharge": 0, "shippingFee": 0, "tax": 0, "subtotal": round(amount, 2)},
-                    },
-                }
-            ],
+            "items": [{
+                "name": description or payment_type,
+                "quantity": 1,
+                "code": reference_number,
+                "description": description or payment_type,
+                "amount": {"value": amt, "details": details},
+                "totalAmount": {"value": amt, "details": details},
+            }],
             "redirectUrl": {
                 "success": success_url or f"{backend_url}/api/v1/maya/redirect/success",
                 "failure": cancel_url or f"{backend_url}/api/v1/maya/redirect/failed",
                 "cancel": cancel_url or f"{backend_url}/api/v1/maya/redirect/failed",
             },
             "requestReferenceNumber": reference_number,
-            "metadata": {"paymentType": "WECHAT_PAY"},
+            "metadata": {"paymentType": payment_type},
         }
 
+    async def _post_checkout(self, payload: Dict[str, Any], reference_number: str, amount: float) -> Dict[str, Any]:
         try:
             async with httpx.AsyncClient(timeout=MAYA_TIMEOUT) as client:
                 resp = await client.post(
@@ -127,6 +106,47 @@ class MayaManagerService:
         except Exception as e:
             logger.error("Maya API exception: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
+
+    async def create_wechat_qr(
+        self,
+        amount: float,
+        description: str = "WeChat Pay",
+        currency: str = "PHP",
+        success_url: Optional[str] = None,
+        cancel_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create a WeChat Pay QR checkout via Maya Business Manager."""
+        if not self.secret_key:
+            return {"success": False, "error": "MAYA_SECRET_KEY is not configured"}
+        reference_number = f"wechat-{uuid.uuid4().hex[:12]}"
+        payload = self._build_checkout_payload(
+            amount=amount, currency=currency.upper(), description=description,
+            reference_number=reference_number, payment_type="WECHAT_PAY",
+            backend_url=settings.backend_url, success_url=success_url, cancel_url=cancel_url,
+        )
+        return await self._post_checkout(payload, reference_number, amount)
+
+    async def create_alipay_qr(
+        self,
+        amount: float,
+        description: str = "Alipay",
+        currency: str = "USD",
+        success_url: Optional[str] = None,
+        cancel_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create an Alipay QR checkout via Maya Business Manager in USD (or any currency)."""
+        if not self.secret_key:
+            return {"success": False, "error": "MAYA_SECRET_KEY is not configured"}
+        reference_number = f"alipay-{uuid.uuid4().hex[:12]}"
+        payload = self._build_checkout_payload(
+            amount=amount, currency=currency.upper(), description=description,
+            reference_number=reference_number, payment_type="ALIPAY",
+            backend_url=settings.backend_url, success_url=success_url, cancel_url=cancel_url,
+        )
+        result = await self._post_checkout(payload, reference_number, amount)
+        if result.get("success"):
+            result["currency"] = currency.upper()
+        return result
 
     async def get_checkout(self, checkout_id: str) -> Dict[str, Any]:
         """Retrieve a checkout session status."""

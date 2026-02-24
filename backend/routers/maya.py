@@ -24,6 +24,15 @@ router = APIRouter(prefix="/api/v1/maya", tags=["maya"])
 class WeChatQRRequest(BaseModel):
     amount: float
     description: str = "WeChat Pay"
+    currency: str = "PHP"
+    success_url: Optional[str] = None
+    cancel_url: Optional[str] = None
+
+
+class AlipayQRRequest(BaseModel):
+    amount: float
+    description: str = "Alipay"
+    currency: str = "USD"
     success_url: Optional[str] = None
     cancel_url: Optional[str] = None
 
@@ -42,6 +51,7 @@ async def create_wechat_qr(
     result = await maya.create_wechat_qr(
         amount=req.amount,
         description=req.description,
+        currency=req.currency,
         success_url=req.success_url,
         cancel_url=req.cancel_url,
     )
@@ -77,6 +87,57 @@ async def create_wechat_qr(
             pass
 
     return {"success": True, "message": "WeChat QR created successfully", "data": result}
+
+
+@router.post("/alipay-qr")
+async def create_alipay_qr(
+    req: AlipayQRRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate an Alipay QR checkout via Maya Business Manager (default: USD)."""
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than zero")
+
+    maya = MayaManagerService()
+    result = await maya.create_alipay_qr(
+        amount=req.amount,
+        description=req.description,
+        currency=req.currency,
+        success_url=req.success_url,
+        cancel_url=req.cancel_url,
+    )
+
+    if not result.get("success"):
+        raise HTTPException(status_code=502, detail=result.get("error", "Maya API error"))
+
+    try:
+        now = datetime.now()
+        txn = Transactions(
+            user_id=str(current_user.id),
+            transaction_type="alipay_qr",
+            external_id=result.get("reference_number", ""),
+            xendit_id=result.get("checkout_id", ""),
+            amount=req.amount,
+            currency=req.currency.upper(),
+            status="pending",
+            description=req.description,
+            qr_code_url=result.get("checkout_url", ""),
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(txn)
+        await db.commit()
+        await db.refresh(txn)
+        result["transaction_id"] = txn.id
+    except Exception as e:
+        logger.error("DB save failed for alipay-qr: %s", e, exc_info=True)
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
+    return {"success": True, "message": "Alipay QR created successfully", "data": result}
 
 
 @router.get("/checkouts/{checkout_id}")

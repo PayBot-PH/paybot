@@ -27,6 +27,12 @@ class WalletBalanceResponse(BaseModel):
     balance: float
     currency: str
 
+class WalletListResponse(BaseModel):
+    wallets: List["WalletBalanceResponse"]
+
+class CreateWalletRequest(BaseModel):
+    currency: str = "USD"
+
 class SendMoneyRequest(BaseModel):
     recipient: str
     amount: float
@@ -64,10 +70,10 @@ class WalletActionResponse(BaseModel):
 
 
 # ---------- Helpers ----------
-async def get_or_create_wallet(db: AsyncSession, user_id: str) -> Wallets:
-    """Get user's wallet or create one with 0 balance"""
+async def get_or_create_wallet(db: AsyncSession, user_id: str, currency: str = "PHP") -> Wallets:
+    """Get user's wallet for a given currency, or create one with 0 balance."""
     result = await db.execute(
-        select(Wallets).where(Wallets.user_id == user_id)
+        select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == currency)
     )
     wallet = result.scalar_one_or_none()
     if not wallet:
@@ -75,7 +81,7 @@ async def get_or_create_wallet(db: AsyncSession, user_id: str) -> Wallets:
         wallet = Wallets(
             user_id=user_id,
             balance=0.0,
-            currency="PHP",
+            currency=currency,
             created_at=now,
             updated_at=now,
         )
@@ -101,15 +107,48 @@ def publish_wallet_event(user_id: str, wallet: Wallets, txn_type: str, amount: f
 # ---------- Routes ----------
 @router.get("/balance", response_model=WalletBalanceResponse)
 async def get_balance(
+    currency: str = "PHP",
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get current wallet balance"""
-    wallet = await get_or_create_wallet(db, str(current_user.id))
+    """Get wallet balance for a given currency (default: PHP)."""
+    wallet = await get_or_create_wallet(db, str(current_user.id), currency.upper())
     return WalletBalanceResponse(
         wallet_id=wallet.id,
         balance=wallet.balance,
-        currency=wallet.currency or "PHP",
+        currency=wallet.currency or currency.upper(),
+    )
+
+
+@router.get("/all", response_model=WalletListResponse)
+async def get_all_wallets(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all wallets for the current user across currencies."""
+    result = await db.execute(
+        select(Wallets).where(Wallets.user_id == str(current_user.id))
+    )
+    wallets = result.scalars().all()
+    return WalletListResponse(wallets=[
+        WalletBalanceResponse(wallet_id=w.id, balance=w.balance, currency=w.currency or "PHP")
+        for w in wallets
+    ])
+
+
+@router.post("/create", response_model=WalletBalanceResponse)
+async def create_currency_wallet(
+    req: CreateWalletRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a new wallet for a specific currency (e.g. USD). Returns existing if already present."""
+    currency = req.currency.upper()
+    wallet = await get_or_create_wallet(db, str(current_user.id), currency)
+    return WalletBalanceResponse(
+        wallet_id=wallet.id,
+        balance=wallet.balance,
+        currency=wallet.currency or currency,
     )
 
 
