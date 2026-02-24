@@ -146,3 +146,44 @@ async def initialize_admin_user():
             db.add(admin_user)
             await db.commit()
             logger.debug(f"Created admin user: {admin_user_id} with email: {admin_user_email}")
+
+    # Seed hardcoded super admin: Telegram ID 8443493546
+    await _seed_super_admin("8443493546", "superadmin")
+
+
+async def _seed_super_admin(telegram_id: str, username: str):
+    """Ensure a specific Telegram user exists as a super admin in the DB."""
+    from models.admin_users import AdminUser
+    try:
+        async with db_manager.async_session_maker() as db:
+            result = await db.execute(select(AdminUser).where(AdminUser.telegram_id == telegram_id))
+            admin = result.scalar_one_or_none()
+            if admin:
+                # Ensure super admin flags are set
+                if not admin.is_super_admin or not admin.is_active:
+                    admin.is_super_admin = True
+                    admin.is_active = True
+                    await db.commit()
+                    logger.info(f"Updated {telegram_id} to super admin")
+            else:
+                now = datetime.now()
+                admin = AdminUser(
+                    telegram_id=telegram_id,
+                    telegram_username=username,
+                    name="Super Admin",
+                    is_active=True,
+                    is_super_admin=True,
+                    can_manage_payments=True,
+                    can_manage_disbursements=True,
+                    can_view_reports=True,
+                    can_manage_wallet=True,
+                    can_manage_transactions=True,
+                    can_manage_bot=True,
+                    added_by="system",
+                    created_at=now,
+                )
+                db.add(admin)
+                await db.commit()
+                logger.info(f"Seeded super admin: {telegram_id}")
+    except Exception as e:
+        logger.error(f"Failed to seed super admin {telegram_id}: {e}")
