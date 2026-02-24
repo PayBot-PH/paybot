@@ -41,12 +41,15 @@ class SecurityBankCollectService:
                     auth=self._auth(),
                     headers={"Content-Type": "application/json"},
                 )
-                data = resp.json()
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {}
                 if resp.status_code in (200, 201):
                     return {"success": True, "data": data}
                 # Extract error message
                 err = data.get("error", {})
-                msg = err.get("message", data.get("message", str(data)))
+                msg = err.get("message", data.get("message")) or f"HTTP {resp.status_code}"
                 logger.error("SBC API error %s: %s", resp.status_code, msg)
                 return {"success": False, "error": msg, "status_code": resp.status_code}
         except httpx.TimeoutException:
@@ -63,11 +66,14 @@ class SecurityBankCollectService:
                     f"{SBC_API_BASE}{path}",
                     auth=self._auth(),
                 )
-                data = resp.json()
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {}
                 if resp.status_code == 200:
                     return {"success": True, "data": data}
                 err = data.get("error", {})
-                msg = err.get("message", data.get("message", str(data)))
+                msg = err.get("message", data.get("message")) or f"HTTP {resp.status_code}"
                 return {"success": False, "error": msg}
         except Exception as e:
             logger.error("SBC API GET exception: %s", e, exc_info=True)

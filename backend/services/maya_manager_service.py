@@ -162,10 +162,13 @@ class MayaManagerService:
                     f"{self.base_url}/checkout/v1/checkouts/{checkout_id}",
                     headers=self._secret_auth_header(),
                 )
-                data = resp.json()
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {}
                 if resp.status_code == 200:
                     return {"success": True, "data": data}
-                return {"success": False, "error": data.get("message", str(data))}
+                return {"success": False, "error": data.get("message", str(resp.status_code))}
         except Exception as e:
             logger.error("Maya get checkout exception: %s", e, exc_info=True)
             return {"success": False, "error": str(e)}
