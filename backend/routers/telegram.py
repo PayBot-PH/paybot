@@ -22,6 +22,7 @@ from schemas.auth import UserResponse
 from services.telegram_service import TelegramService, _resolve_bot_token
 from services.xendit_service import XenditService
 from services.sbc_collect_service import SecurityBankCollectService
+from services.maya_manager_service import MayaManagerService
 from services.event_bus import payment_event_bus
 
 logger = logging.getLogger(__name__)
@@ -229,7 +230,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /va [amt] [bank] — Virtual Account\n"
                 "  /ewallet [amt] [provider] — E-Wallet\n"
                 "  /alipay [amt] [desc] — Alipay QR (via Xendit) 🔴\n"
-                "  /wechat [amt] [desc] — Maya checkout (via SBC) 💙\n\n"
+                "  /wechat [amt] [desc] — WeChat QR (via Maya) 💚\n\n"
                 "💸 <b>Send Money:</b>\n"
                 "  /disburse [amt] [bank] [acct] [name] — Disburse\n"
                 "  /refund [id] [amt] — Refund\n\n"
@@ -398,11 +399,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /wechat (SBC → Maya checkout) ====================
+        # ==================== /wechat (Maya Business Manager → WeChat QR) ====================
         elif text.startswith("/wechat"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, "❌ Usage: /wechat [amount] [description]\nExample: /wechat 500 Coffee order\n\n💡 <i>Creates a Maya checkout via Security Bank Collect</i>")
+                await tg.send_message(chat_id, "❌ Usage: /wechat [amount] [description]\nExample: /wechat 500 Coffee order\n\n💡 <i>Generates a WeChat Pay QR via Maya Business Manager</i>")
             else:
                 try:
                     amount = float(parts[1])
@@ -410,29 +411,29 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
-                    description = parts[2] if len(parts) > 2 else "Maya payment"
-                    sbc = SecurityBankCollectService()
-                    result = await sbc.create_maya_session(amount=amount, description=description)
+                    description = parts[2] if len(parts) > 2 else "WeChat Pay"
+                    maya = MayaManagerService()
+                    result = await maya.create_wechat_qr(amount=amount, description=description)
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
-                        ext_id = result.get("external_id", "")
+                        ref_num = result.get("reference_number", "")
                         reply = (
-                            f"✅ <b>Maya Checkout Created!</b>\n"
+                            f"✅ <b>WeChat QR Created!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
                             f"📝 {description}\n"
-                            f"🆔 <code>{ext_id}</code>\n\n"
-                            f"📱 Tap the button below to pay via Maya (Security Bank Collect)"
+                            f"🆔 <code>{ref_num}</code>\n\n"
+                            f"📱 Tap the button below to scan WeChat QR"
                         )
                         keyboard = {
-                            "inline_keyboard": [[{"text": "💙 Pay via Maya (SBC)", "url": checkout_url}]]
+                            "inline_keyboard": [[{"text": "💚 Pay via WeChat (Maya)", "url": checkout_url}]]
                         } if checkout_url else None
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
                         try:
                             now = datetime.now()
                             txn = Transactions(
-                                user_id="telegram", transaction_type="maya_sbc",
-                                external_id=ext_id, xendit_id=result.get("session_id", ""),
+                                user_id="telegram", transaction_type="wechat_qr",
+                                external_id=ref_num, xendit_id=result.get("checkout_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=checkout_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
@@ -440,13 +441,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             db.add(txn)
                             await db.commit()
                         except Exception as e:
-                            logger.error(f"DB save failed for /wechat(maya): {e}", exc_info=True)
+                            logger.error(f"DB save failed for /wechat: {e}", exc_info=True)
                             try:
                                 await db.rollback()
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Maya checkout failed: {result.get('error', 'Unknown error')}")
+                        await tg.send_message(chat_id, f"❌ WeChat QR failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
@@ -1168,7 +1169,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "🏦 /va [amt] [bank] — Virtual Account\n"
                 "📲 /ewallet [amt] [provider] — E-Wallet\n"
                 "🔴 /alipay [amt] [desc] — Alipay QR (via Xendit) 🔴\n"
-                "🟢 /wechat [amt] [desc] — Maya checkout (via SBC) 💙\n\n"
+                "🟢 /wechat [amt] [desc] — WeChat QR (via Maya) 💚\n\n"
                 "💡 Example: /invoice 500 Coffee order"
             )
             await tg.send_message(chat_id, menu)
@@ -1183,7 +1184,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /invoice [amt] [desc]\n"
                 "  /qr [amt] [desc]\n"
                 "  /alipay [amt] [desc] — Alipay QR (Xendit) 🔴\n"
-                "  /wechat [amt] [desc] — Maya via SBC 💙\n"
+                "  /wechat [amt] [desc] — WeChat QR via Maya 💚\n"
                 "  /link [amt] [desc]\n"
                 "  /va [amt] [bank]\n"
                 "  /ewallet [amt] [provider]\n\n"
