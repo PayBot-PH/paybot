@@ -56,9 +56,10 @@ if database_url:
     except Exception as _e:
         # Emit a clear message so Railway logs show the problem immediately.
         _alembic_logger.error(
-            "Cannot parse DATABASE_URL (scheme=%s, length=%d): %s",
+            "Cannot parse DATABASE_URL (scheme=%s, length=%d, prefix=%r): %s",
             _scheme,
             len(database_url),
+            database_url[:6],
             _e,
         )
         raise
