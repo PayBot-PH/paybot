@@ -229,78 +229,6 @@ export default function Dashboard() {
 
         {/* Main content grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Quick Actions */}
-          <Card className="bg-[#1E293B] border-slate-700/50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-white text-base flex items-center gap-2">
-                Quick Actions
-                {isSuperAdmin && (
-                  <span className="text-[10px] font-normal bg-amber-500/15 border border-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded-full">Super Admin</span>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Link to="/payments" className="block">
-                <Button className="w-full justify-start bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 h-9 text-sm">
-                  <CreditCard className="h-4 w-4 mr-3" />
-                  Payments Hub
-                </Button>
-              </Link>
-              <Link to="/disbursements" className="block">
-                <Button className="w-full justify-start bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-400 border border-emerald-500/30 h-9 text-sm">
-                  <Send className="h-4 w-4 mr-3" />
-                  Disbursements
-                </Button>
-              </Link>
-              <Link to="/disbursements" className="block">
-                <Button className="w-full justify-start bg-orange-600/20 hover:bg-orange-600/30 text-orange-400 border border-orange-500/30 h-9 text-sm">
-                  <RotateCcw className="h-4 w-4 mr-3" />
-                  Refunds
-                </Button>
-              </Link>
-              <Link to="/disbursements" className="block">
-                <Button className="w-full justify-start bg-purple-600/20 hover:bg-purple-600/30 text-purple-400 border border-purple-500/30 h-9 text-sm">
-                  <CalendarDays className="h-4 w-4 mr-3" />
-                  Subscriptions
-                </Button>
-              </Link>
-              <Link to="/disbursements" className="block">
-                <Button className="w-full justify-start bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-400 border border-cyan-500/30 h-9 text-sm">
-                  <Users className="h-4 w-4 mr-3" />
-                  Customers
-                </Button>
-              </Link>
-              <Link to="/reports" className="block">
-                <Button className="w-full justify-start bg-yellow-600/20 hover:bg-yellow-600/30 text-yellow-400 border border-yellow-500/30 h-9 text-sm">
-                  <PieChart className="h-4 w-4 mr-3" />
-                  Reports & Analytics
-                </Button>
-              </Link>
-              <Link to="/wallet" className="block">
-                <Button className="w-full justify-start bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 border border-indigo-500/30 h-9 text-sm">
-                  <Wallet className="h-4 w-4 mr-3" />
-                  Wallet
-                </Button>
-              </Link>
-              {permissions?.can_manage_bot && (
-                <Link to="/bot-settings" className="block">
-                  <Button className="w-full justify-start bg-slate-600/20 hover:bg-slate-600/30 text-slate-300 border border-slate-500/30 h-9 text-sm">
-                    <Bot className="h-4 w-4 mr-3" />
-                    Bot Settings
-                  </Button>
-                </Link>
-              )}
-              {isSuperAdmin && (
-                <Link to="/admin-management" className="block">
-                  <Button className="w-full justify-start bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 h-9 text-sm">
-                    <Users className="h-4 w-4 mr-3" />
-                    Admin Management
-                  </Button>
-                </Link>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Recent Transactions */}
           <div className="lg:col-span-2 bg-[#0F172A] border border-slate-700/40 rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-700/40">
@@ -435,7 +363,7 @@ export default function Dashboard() {
             </div>
           </div>
         )}
-      </div>
+      </>
     </Layout>
   );
 }
