@@ -1,4 +1,5 @@
 import logging
+import io
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional
@@ -28,6 +29,18 @@ from services.event_bus import payment_event_bus
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
+
+
+def _make_qr_bytes(url: str) -> bytes:
+    """Generate a PNG QR code image from a URL and return raw bytes."""
+    import qrcode
+    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=4)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
 
 
 # ---------- Schemas ----------
@@ -364,18 +377,22 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
                         ref_num = result.get("reference_number", "")
-                        reply = (
-                            f"✅ <b>Alipay QR Created!</b>\n"
+                        caption = (
+                            f"✅ <b>Alipay QR Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
                             f"🆔 <code>{ref_num}</code>\n\n"
-                            f"📱 Tap the button below to scan Alipay QR"
+                            f"📱 Scan this QR with Alipay to pay"
                         )
-                        keyboard = {
-                            "inline_keyboard": [[{"text": "🔴 Pay via Alipay (Maya)", "url": checkout_url}]]
-                        } if checkout_url else None
-                        await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                        try:
+                            qr_bytes = _make_qr_bytes(checkout_url)
+                            await tg.send_photo(chat_id, qr_bytes, caption=caption)
+                        except Exception as qr_err:
+                            logger.error(f"QR image send failed: {qr_err}", exc_info=True)
+                            # Fallback to link button
+                            keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay (Maya)", "url": checkout_url}]]} if checkout_url else None
+                            await tg.send_message(chat_id, caption, reply_markup=keyboard)
                         try:
                             now = datetime.now()
                             txn = Transactions(

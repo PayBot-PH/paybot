@@ -161,3 +161,37 @@ class TelegramService:
         except Exception as e:
             logger.error(f"Error sending message: {str(e)}")
             return {"success": False, "error": str(e)}
+
+    async def send_photo(
+        self,
+        chat_id: str,
+        photo: bytes,
+        caption: str = "",
+        parse_mode: str = "HTML",
+        reply_markup: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        """Send a photo (bytes) to a Telegram chat via multipart upload."""
+        try:
+            payload: Dict[str, Any] = {"chat_id": chat_id}
+            if caption:
+                payload["caption"] = caption
+                payload["parse_mode"] = parse_mode
+            if reply_markup:
+                import json as _json
+                payload["reply_markup"] = _json.dumps(reply_markup)
+
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.post(
+                    f"{self.api_url}/sendPhoto",
+                    data=payload,
+                    files={"photo": ("qr.png", photo, "image/png")},
+                )
+            data = response.json()
+            if response.status_code >= 400:
+                return {"success": False, "error": data.get("description", f"HTTP {response.status_code}")}
+            if data.get("ok"):
+                return {"success": True, "message_id": data["result"]["message_id"]}
+            return {"success": False, "error": data.get("description", "Unknown error")}
+        except Exception as e:
+            logger.error(f"Error sending photo: {str(e)}")
+            return {"success": False, "error": str(e)}
