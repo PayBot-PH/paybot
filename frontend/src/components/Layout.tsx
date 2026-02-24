@@ -13,19 +13,22 @@ import {
   ShieldCheck,
   MessageCircle,
   ScrollText,
+  Crown,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 
-const NAV_ITEMS = [
+const BASE_NAV_ITEMS = [
   { to: '/', icon: BarChart3, label: 'Dashboard' },
   { to: '/wallet', icon: Wallet, label: 'Wallet' },
   { to: '/payments', icon: CreditCard, label: 'Payments' },
   { to: '/transactions', icon: FileText, label: 'Txns' },
   { to: '/disbursements', icon: Building2, label: 'Manage' },
   { to: '/reports', icon: PieChart, label: 'Reports' },
-  { to: '/bot-settings', icon: Bot, label: 'Bot' },
 ];
+
+const BOT_NAV_ITEM = { to: '/bot-settings', icon: Bot, label: 'Bot' };
 
 const BOTTOM_NAV = [
   { to: '/', icon: BarChart3, label: 'Dashboard' },
@@ -43,7 +46,11 @@ interface LayoutProps {
 export default function Layout({ children, connected }: LayoutProps) {
   const location = useLocation();
   const path = location.pathname;
-  const { user, logout, isSuperAdmin } = useAuth();
+  const { user, logout, isSuperAdmin, permissions } = useAuth();
+
+  const NAV_ITEMS = permissions?.can_manage_bot
+    ? [...BASE_NAV_ITEMS, BOT_NAV_ITEM]
+    : BASE_NAV_ITEMS;
 
   return (
     <div className="min-h-screen bg-[#0F172A] text-slate-100">
@@ -57,6 +64,17 @@ export default function Layout({ children, connected }: LayoutProps) {
                 <Bot className="h-5 w-5 text-white" />
               </div>
               <span className="text-lg font-bold text-white">PayBot</span>
+              {user && (
+                isSuperAdmin ? (
+                  <span className="hidden sm:flex items-center gap-1 bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+                    <Crown className="h-2.5 w-2.5" />Super Admin
+                  </span>
+                ) : (
+                  <span className="hidden sm:flex items-center gap-1 bg-blue-500/15 border border-blue-500/30 text-blue-300 text-[10px] font-semibold px-1.5 py-0.5 rounded-full">
+                    <User className="h-2.5 w-2.5" />Admin
+                  </span>
+                )
+              )}
             </Link>
 
             <div className="flex items-center gap-3">

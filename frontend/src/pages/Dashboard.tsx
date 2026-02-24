@@ -74,7 +74,7 @@ const typeIcons: Record<string, React.ReactNode> = {
 };
 
 export default function Dashboard() {
-  const { user, loading: authLoading, login } = useAuth();
+  const { user, loading: authLoading, login, isSuperAdmin, permissions } = useAuth();
   const [stats, setStats] = useState<Stats>(defaultStats);
   const [recentTxns, setRecentTxns] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -193,6 +193,28 @@ export default function Dashboard() {
   return (
     <Layout connected={connected}>
       <>
+        {/* Role-specific welcome banner */}
+        {isSuperAdmin ? (
+          <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 mb-4">
+            <div className="h-8 w-8 bg-amber-500/20 rounded-lg flex items-center justify-center shrink-0">
+              <Users className="h-4 w-4 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-amber-300 text-sm font-semibold">Super Admin Dashboard</p>
+              <p className="text-slate-400 text-xs">Full access — manage admins, bot settings, and all financial data.</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 mb-4">
+            <div className="h-8 w-8 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
+              <CreditCard className="h-4 w-4 text-blue-400" />
+            </div>
+            <div>
+              <p className="text-blue-300 text-sm font-semibold">Admin Dashboard</p>
+              <p className="text-slate-400 text-xs">Manage payments, wallet, disbursements, and reports.</p>
+            </div>
+          </div>
+        )}
       {/* Wallet Balance + Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-6">
           <Link to="/wallet" className="block col-span-2 lg:col-span-1">
@@ -292,7 +314,12 @@ export default function Dashboard() {
           {/* Quick Actions */}
           <Card className="bg-[#1E293B] border-slate-700/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-white text-base">Quick Actions</CardTitle>
+              <CardTitle className="text-white text-base flex items-center gap-2">
+                Quick Actions
+                {isSuperAdmin && (
+                  <span className="text-[10px] font-normal bg-amber-500/15 border border-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded-full">Super Admin</span>
+                )}
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <Link to="/payments" className="block">
@@ -337,12 +364,22 @@ export default function Dashboard() {
                   Wallet
                 </Button>
               </Link>
-              <Link to="/bot-settings" className="block">
-                <Button className="w-full justify-start bg-slate-600/20 hover:bg-slate-600/30 text-slate-300 border border-slate-500/30 h-9 text-sm">
-                  <Bot className="h-4 w-4 mr-3" />
-                  Bot Settings
-                </Button>
-              </Link>
+              {permissions?.can_manage_bot && (
+                <Link to="/bot-settings" className="block">
+                  <Button className="w-full justify-start bg-slate-600/20 hover:bg-slate-600/30 text-slate-300 border border-slate-500/30 h-9 text-sm">
+                    <Bot className="h-4 w-4 mr-3" />
+                    Bot Settings
+                  </Button>
+                </Link>
+              )}
+              {isSuperAdmin && (
+                <Link to="/admin-management" className="block">
+                  <Button className="w-full justify-start bg-amber-600/20 hover:bg-amber-600/30 text-amber-400 border border-amber-500/30 h-9 text-sm">
+                    <Users className="h-4 w-4 mr-3" />
+                    Admin Management
+                  </Button>
+                </Link>
+              )}
             </CardContent>
           </Card>
 

@@ -31,6 +31,7 @@ interface AuthContextType {
   error: string | null;
   login: (userId?: string, password?: string) => Promise<void>;
   loginWithTelegram: (user: TelegramWidgetUser) => Promise<void>;
+  loginAsDemo: (userType: 'super_admin' | 'admin') => Promise<void>;
   logout: () => Promise<void>;
   refetch: () => Promise<void>;
   isAdmin: boolean;
@@ -97,6 +98,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
+  const loginAsDemo = async (userType: 'super_admin' | 'admin') => {
+    try {
+      setError(null);
+      await authApi.loginAsDemo(userType);
+      await checkAuthStatus();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Demo login failed');
+    }
+  };
+
   const logout = async () => {
     try {
       setError(null);
@@ -117,6 +128,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     error,
     login,
     loginWithTelegram,
+    loginAsDemo,
     logout,
     refetch: checkAuthStatus,
     isAdmin: user?.role === 'admin',

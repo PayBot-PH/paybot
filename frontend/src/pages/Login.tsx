@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bot, Zap, ArrowRight } from 'lucide-react';
+import { Bot, Zap, ArrowRight, ShieldCheck, User } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
 
 declare global {
@@ -12,9 +12,10 @@ declare global {
 }
 
 export default function Login() {
-  const { user, loginWithTelegram, loading, error } = useAuth();
+  const { user, loginWithTelegram, loginAsDemo, loading, error } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [demoLoading, setDemoLoading] = useState<'super_admin' | 'admin' | null>(null);
   const widgetContainerRef = useRef<HTMLDivElement | null>(null);
   const [botUsername, setBotUsername] = useState<string>((import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim());
 
@@ -82,6 +83,13 @@ export default function Login() {
     return <Navigate to="/" replace />;
   }
 
+  const handleDemoLogin = async (type: 'super_admin' | 'admin') => {
+    setDemoLoading(type);
+    setLocalError(null);
+    await loginAsDemo(type);
+    setDemoLoading(null);
+  };
+
   return (
     <div className="min-h-screen bg-[#0F172A] flex flex-col items-center justify-center px-4">
       {/* Branding */}
@@ -107,7 +115,41 @@ export default function Login() {
             {(localError || error) && <p className="text-red-400 text-sm">{localError || error}</p>}
             {loading && <p className="text-slate-400 text-sm text-center">Checking session...</p>}
           </div>
-          <div className="mt-6 pt-4 border-t border-slate-700/50 space-y-3">
+
+          {/* Demo login section */}
+          <div className="mt-5 pt-4 border-t border-slate-700/50">
+            <p className="text-slate-500 text-xs text-center mb-3">— or demo login —</p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => handleDemoLogin('super_admin')}
+                disabled={demoLoading !== null}
+                className="flex flex-col items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl p-3 transition-colors disabled:opacity-60"
+              >
+                {demoLoading === 'super_admin' ? (
+                  <span className="h-4 w-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <ShieldCheck className="h-4 w-4 text-amber-400" />
+                )}
+                <span className="text-amber-300 text-xs font-semibold">Super Admin</span>
+                <span className="text-slate-500 text-[10px]">Full access</span>
+              </button>
+              <button
+                onClick={() => handleDemoLogin('admin')}
+                disabled={demoLoading !== null}
+                className="flex flex-col items-center gap-1.5 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 rounded-xl p-3 transition-colors disabled:opacity-60"
+              >
+                {demoLoading === 'admin' ? (
+                  <span className="h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <User className="h-4 w-4 text-blue-400" />
+                )}
+                <span className="text-blue-300 text-xs font-semibold">Admin User</span>
+                <span className="text-slate-500 text-[10px]">Limited access</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-slate-700/50 space-y-3">
             <Link
               to="/features"
               className="flex items-center justify-center gap-2 w-full bg-slate-700/50 hover:bg-slate-700 text-slate-300 hover:text-white text-sm font-medium py-2.5 rounded-lg transition-colors border border-slate-600/40"

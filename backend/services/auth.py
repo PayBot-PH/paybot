@@ -146,3 +146,79 @@ async def initialize_admin_user():
             db.add(admin_user)
             await db.commit()
             logger.debug(f"Created admin user: {admin_user_id} with email: {admin_user_email}")
+
+
+# Demo user definitions (fixed IDs, used for dev/demo login)
+DEMO_SUPER_ADMIN_ID = "demo_super_admin"
+DEMO_ADMIN_ID = "demo_admin"
+
+DEMO_USERS = [
+    {
+        "id": DEMO_SUPER_ADMIN_ID,
+        "email": "superadmin@paybot.local",
+        "name": "Super Admin",
+        "is_super_admin": True,
+        "can_manage_payments": True,
+        "can_manage_disbursements": True,
+        "can_view_reports": True,
+        "can_manage_wallet": True,
+        "can_manage_transactions": True,
+        "can_manage_bot": True,
+    },
+    {
+        "id": DEMO_ADMIN_ID,
+        "email": "admin@paybot.local",
+        "name": "Admin User",
+        "is_super_admin": False,
+        "can_manage_payments": True,
+        "can_manage_disbursements": True,
+        "can_view_reports": True,
+        "can_manage_wallet": True,
+        "can_manage_transactions": True,
+        "can_manage_bot": False,
+    },
+]
+
+
+async def initialize_demo_users():
+    """Seed demo super admin and admin user records for dev/demo purposes."""
+    from services.database import initialize_database
+    await initialize_database()
+
+    async with db_manager.async_session_maker() as db:
+        for demo in DEMO_USERS:
+            uid = demo["id"]
+            try:
+                # Upsert User record
+                result = await db.execute(select(User).where(User.id == uid))
+                user = result.scalar_one_or_none()
+                if not user:
+                    db.add(User(id=uid, email=demo["email"], name=demo["name"], role="admin"))
+                    await db.flush()
+
+                # Upsert AdminUser record
+                from models.admin_users import AdminUser
+                res = await db.execute(
+                    select(AdminUser).where(AdminUser.telegram_id == uid)
+                )
+                admin = res.scalar_one_or_none()
+                if not admin:
+                    db.add(AdminUser(
+                        telegram_id=uid,
+                        telegram_username=uid,
+                        name=demo["name"],
+                        is_active=True,
+                        is_super_admin=demo["is_super_admin"],
+                        can_manage_payments=demo["can_manage_payments"],
+                        can_manage_disbursements=demo["can_manage_disbursements"],
+                        can_view_reports=demo["can_view_reports"],
+                        can_manage_wallet=demo["can_manage_wallet"],
+                        can_manage_transactions=demo["can_manage_transactions"],
+                        can_manage_bot=demo["can_manage_bot"],
+                        added_by="seed",
+                    ))
+                await db.commit()
+                logger.info(f"Demo user seeded: {uid}")
+            except Exception as e:
+                logger.warning(f"Failed to seed demo user {uid}: {e}")
+                await db.rollback()
