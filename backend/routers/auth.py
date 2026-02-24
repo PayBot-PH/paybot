@@ -208,6 +208,7 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
             can_manage_wallet=db_admin.can_manage_wallet,
             can_manage_transactions=db_admin.can_manage_transactions,
             can_manage_bot=db_admin.can_manage_bot,
+            can_approve_topups=db_admin.can_approve_topups,
         )
         # Auto-update name/username in DB
         try:
@@ -226,6 +227,7 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
             can_manage_wallet=True,
             can_manage_transactions=True,
             can_manage_bot=True,
+            can_approve_topups=True,
         )
         # Auto-register in DB as super admin
         try:
@@ -241,6 +243,7 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
                 can_manage_wallet=True,
                 can_manage_transactions=True,
                 can_manage_bot=True,
+                can_approve_topups=True,
                 added_by="env_config",
             )
             db.add(new_admin)
@@ -290,6 +293,7 @@ async def dev_login(
         can_manage_wallet=db_admin.can_manage_wallet,
         can_manage_transactions=db_admin.can_manage_transactions,
         can_manage_bot=db_admin.can_manage_bot,
+        can_approve_topups=db_admin.can_approve_topups,
     )
 
     user = User(id=uid, email=db_admin.name.lower().replace(" ", "") + "@paybot.local", name=db_admin.name, role="admin")

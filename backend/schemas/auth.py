@@ -12,6 +12,7 @@ class UserPermissions(BaseModel):
     can_manage_wallet: bool = True
     can_manage_transactions: bool = True
     can_manage_bot: bool = False
+    can_approve_topups: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

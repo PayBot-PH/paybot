@@ -21,6 +21,7 @@ class AdminUser(Base):
     can_manage_wallet = Column(Boolean, default=True, nullable=False)
     can_manage_transactions = Column(Boolean, default=True, nullable=False)
     can_manage_bot = Column(Boolean, default=False, nullable=False)
+    can_approve_topups = Column(Boolean, default=False, nullable=False)
 
     added_by = Column(String(64), nullable=True)   # telegram_id of who added
     created_at = Column(DateTime(timezone=True), server_default=func.now())

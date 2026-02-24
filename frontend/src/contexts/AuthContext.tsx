@@ -15,6 +15,7 @@ interface UserPermissions {
   can_manage_wallet: boolean;
   can_manage_transactions: boolean;
   can_manage_bot: boolean;
+  can_approve_topups: boolean;
 }
 
 interface User {

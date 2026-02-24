@@ -42,6 +42,7 @@ interface AdminUser {
   can_manage_wallet: boolean;
   can_manage_transactions: boolean;
   can_manage_bot: boolean;
+  can_approve_topups: boolean;
   added_by: string | null;
 }
 
@@ -76,6 +77,7 @@ const PERMISSION_KEYS: { key: keyof AdminUser; label: string; color: string }[] 
   { key: 'can_manage_wallet', label: 'Wallet', color: 'indigo' },
   { key: 'can_manage_transactions', label: 'Transactions', color: 'cyan' },
   { key: 'can_manage_bot', label: 'Bot Settings', color: 'slate' },
+  { key: 'can_approve_topups', label: 'Approve Topups', color: 'teal' },
 ];
 
 const defaultForm = {
@@ -89,6 +91,7 @@ const defaultForm = {
   can_manage_wallet: true,
   can_manage_transactions: true,
   can_manage_bot: false,
+  can_approve_topups: false,
 };
 
 interface RolePreset {
@@ -104,6 +107,7 @@ interface RolePreset {
     can_manage_wallet: boolean;
     can_manage_transactions: boolean;
     can_manage_bot: boolean;
+    can_approve_topups: boolean;
   };
 }
 
@@ -121,6 +125,7 @@ const ROLE_PRESETS: RolePreset[] = [
       can_manage_wallet: true,
       can_manage_transactions: true,
       can_manage_bot: true,
+      can_approve_topups: true,
     },
   },
   {
@@ -136,6 +141,7 @@ const ROLE_PRESETS: RolePreset[] = [
       can_manage_wallet: true,
       can_manage_transactions: true,
       can_manage_bot: false,
+      can_approve_topups: true,
     },
   },
   {
@@ -151,6 +157,7 @@ const ROLE_PRESETS: RolePreset[] = [
       can_manage_wallet: false,
       can_manage_transactions: true,
       can_manage_bot: false,
+      can_approve_topups: false,
     },
   },
   {
@@ -166,6 +173,7 @@ const ROLE_PRESETS: RolePreset[] = [
       can_manage_wallet: false,
       can_manage_transactions: true,
       can_manage_bot: false,
+      can_approve_topups: false,
     },
   },
 ];
@@ -192,6 +200,7 @@ function PermissionBadge({
     indigo: 'bg-indigo-500/15 border-indigo-500/30 text-indigo-400',
     cyan: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400',
     slate: 'bg-slate-500/15 border-slate-500/30 text-slate-300',
+    teal: 'bg-teal-500/15 border-teal-500/30 text-teal-400',
   };
 
   return (
@@ -687,10 +696,10 @@ function RoleManagementTab({
 // ── Crypto Requests Tab ───────────────────────────────────────────────────────
 
 function CryptoRequestsTab({
-  canManageWallet,
+  canApproveTopups,
   onError,
 }: {
-  canManageWallet: boolean;
+  canApproveTopups: boolean;
   onError: (msg: string) => void;
 }) {
   const [requests, setRequests] = useState<CryptoTopupRequest[]>([]);
@@ -714,7 +723,7 @@ function CryptoRequestsTab({
   useEffect(() => { fetchRequests(); }, []);
 
   const handleAction = async (id: number, action: 'approve' | 'reject') => {
-    if (!canManageWallet) return;
+    if (!canApproveTopups) return;
     setActionId(id);
     try {
       const res = await fetch(`/api/v1/wallet/crypto-topup-requests/${id}/${action}`, {
@@ -814,7 +823,7 @@ function CryptoRequestsTab({
               </div>
             </div>
 
-            {isPending && canManageWallet && (
+            {isPending && canApproveTopups && (
               <div className="flex items-center gap-1.5 shrink-0">
                 <Button
                   size="sm"
@@ -851,7 +860,7 @@ function CryptoRequestsTab({
 
   return (
     <div className="space-y-4">
-      {!canManageWallet && (
+      {!canApproveTopups && (
         <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3">
           <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
           <p className="text-xs text-amber-300/80">You have view-only access. Wallet management permission is required to approve or reject requests.</p>
@@ -888,7 +897,7 @@ function CryptoRequestsTab({
 
 export default function AdminManagement() {
   const { isSuperAdmin, permissions } = useAuth();
-  const canManageWallet = isSuperAdmin || !!permissions?.can_manage_wallet;
+  const canApproveTopups = isSuperAdmin || !!permissions?.can_approve_topups;
   const [activeTab, setActiveTab] = useState<'admins' | 'users' | 'roles' | 'crypto'>('admins');
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -997,11 +1006,11 @@ export default function AdminManagement() {
       icon: <Shield className="h-3.5 w-3.5" />,
       count: ROLE_PRESETS.length,
     },
-    {
+    ...(canApproveTopups ? [{
       id: 'crypto',
       label: 'Crypto Requests',
       icon: <Bitcoin className="h-3.5 w-3.5" />,
-    },
+    }] : []),
   ];
 
   return (
@@ -1218,8 +1227,8 @@ export default function AdminManagement() {
         )}
 
         {/* ── Crypto Requests Tab ── */}
-        {activeTab === 'crypto' && (
-          <CryptoRequestsTab canManageWallet={canManageWallet} onError={setError} />
+        {activeTab === 'crypto' && canApproveTopups && (
+          <CryptoRequestsTab canApproveTopups={canApproveTopups} onError={setError} />
         )}
       </div>
     </Layout>

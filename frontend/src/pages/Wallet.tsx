@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePaymentEvents } from '@/hooks/usePaymentEvents';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -110,11 +109,6 @@ interface BankOption {
   code: string;
 }
 
-function getAuthHeaders(): Record<string, string> {
-  const token = localStorage.getItem('token');
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export default function Wallet() {
   const { user, loading: authLoading, login } = useAuth();
   const [phpBalance, setPhpBalance] = useState<WalletBalance | null>(null);
@@ -161,13 +155,13 @@ export default function Wallet() {
     if (!user) return;
     try {
       const [phpRes, usdRes, txnRes] = await Promise.all([
-        client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=PHP', method: 'GET', data: {} }),
-        client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=USD', method: 'GET', data: {} }),
-        client.apiCall.invoke({ url: '/api/v1/wallet/transactions', method: 'GET', data: {} }),
+        fetch('/api/v1/wallet/balance?currency=PHP').then(r => r.json()),
+        fetch('/api/v1/wallet/balance?currency=USD').then(r => r.json()),
+        fetch('/api/v1/wallet/transactions').then(r => r.json()),
       ]);
-      setPhpBalance(phpRes.data);
-      setUsdBalance(usdRes.data);
-      setTransactions(txnRes.data?.items || []);
+      setPhpBalance(phpRes);
+      setUsdBalance(usdRes);
+      setTransactions(txnRes?.items || []);
     } catch (err) {
       console.error('Failed to fetch wallet data:', err);
     }
@@ -176,9 +170,7 @@ export default function Wallet() {
   const fetchCryptoRequests = useCallback(async () => {
     if (!user) return;
     try {
-      const res = await fetch('/api/v1/wallet/crypto-topup-requests', {
-        headers: getAuthHeaders(),
-      });
+      const res = await fetch('/api/v1/wallet/crypto-topup-requests');
       if (res.ok) {
         const data = await res.json();
         setCryptoRequests(data.items || []);
@@ -188,10 +180,13 @@ export default function Wallet() {
     }
   }, [user]);
 
+  const onWalletUpdate = useCallback(() => { fetchWalletData(); }, [fetchWalletData]);
+  const onStatusChange = useCallback(() => { fetchWalletData(); }, [fetchWalletData]);
+
   const { connected } = usePaymentEvents({
     enabled: !!user,
-    onWalletUpdate: useCallback(() => { fetchWalletData(); }, [fetchWalletData]),
-    onStatusChange: useCallback(() => { fetchWalletData(); }, [fetchWalletData]),
+    onWalletUpdate,
+    onStatusChange,
     pollInterval: 5000,
   });
 
@@ -206,9 +201,10 @@ export default function Wallet() {
     load();
 
     // Fetch available banks
-    client.apiCall.invoke({ url: '/api/v1/gateway/available-banks', method: 'GET', data: {} })
-      .then((res) => {
-        const banks: BankOption[] = (res.data || []).map((b: { name: string; code: string }) => ({
+    fetch('/api/v1/gateway/available-banks')
+      .then(r => r.json())
+      .then((data) => {
+        const banks: BankOption[] = (data || []).map((b: { name: string; code: string }) => ({
           name: b.name,
           code: b.code,
         }));
@@ -225,7 +221,7 @@ export default function Wallet() {
       });
 
     // Fetch crypto deposit info
-    fetch('/api/v1/wallet/crypto-deposit-info', { headers: getAuthHeaders() })
+    fetch('/api/v1/wallet/crypto-deposit-info')
       .then(r => r.json())
       .then(data => setCryptoDepositInfo(data))
       .catch(() => {});
@@ -236,19 +232,21 @@ export default function Wallet() {
     if (!amount || amount <= 0) { toast.error('Enter a valid amount'); return; }
     setWithdrawLoading(true);
     try {
-      const res = await client.apiCall.invoke({
-        url: '/api/v1/wallet/withdraw', method: 'POST',
-        data: { amount, bank_name: withdrawBank, account_number: withdrawAccount, note: withdrawNote },
+      const res = await fetch('/api/v1/wallet/withdraw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, bank_name: withdrawBank, account_number: withdrawAccount, note: withdrawNote }),
       });
-      if (res.data?.success) {
-        toast.success(res.data.message || 'Withdrawal submitted');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Withdrawal submitted');
         setWithdrawAmount(''); setWithdrawBank(''); setWithdrawAccount(''); setWithdrawNote('');
         await fetchWalletData();
       } else {
-        toast.error(res.data?.message || 'Failed to withdraw');
+        toast.error(data.detail || data.message || 'Failed to withdraw');
       }
-    } catch (err: unknown) {
-      toast.error((err as { data?: { detail?: string } })?.data?.detail || 'Failed to withdraw');
+    } catch {
+      toast.error('Failed to withdraw');
     } finally { setWithdrawLoading(false); }
   };
 
@@ -258,19 +256,21 @@ export default function Wallet() {
     if (!dAccount || !dName) { toast.error('Enter account number and name'); return; }
     setDLoading(true);
     try {
-      const res = await client.apiCall.invoke({
-        url: '/api/v1/gateway/disbursement', method: 'POST',
-        data: { amount, bank_code: dBank, account_number: dAccount, account_name: dName, description: dDesc },
+      const res = await fetch('/api/v1/gateway/disbursement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, bank_code: dBank, account_number: dAccount, account_name: dName, description: dDesc }),
       });
-      if (res.data?.success) {
-        toast.success(res.data.message || 'Disbursement sent');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || 'Disbursement sent');
         setDAmount(''); setDAccount(''); setDName(''); setDDesc('');
         await fetchWalletData();
       } else {
-        toast.error(res.data?.message || 'Disbursement failed');
+        toast.error(data.detail || data.message || 'Disbursement failed');
       }
-    } catch (err: unknown) {
-      toast.error((err as { data?: { detail?: string } })?.data?.detail || 'Disbursement failed');
+    } catch {
+      toast.error('Disbursement failed');
     } finally { setDLoading(false); }
   };
 
@@ -280,18 +280,20 @@ export default function Wallet() {
     setTopupLoading(true);
     setTopupResult(null);
     try {
-      const res = await client.apiCall.invoke({
-        url: '/api/v1/wallet/topup', method: 'POST',
-        data: { amount, description: topupDesc || 'Wallet Top Up', customer_email: topupEmail },
+      const res = await fetch('/api/v1/wallet/topup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, description: topupDesc || 'Wallet Top Up', customer_email: topupEmail }),
       });
-      if (res.data?.success) {
-        setTopupResult({ invoice_url: res.data.invoice_url, amount });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTopupResult({ invoice_url: data.invoice_url, amount });
         toast.success('Invoice created! Complete payment to credit your wallet.');
       } else {
-        toast.error(res.data?.message || 'Failed to create top-up invoice');
+        toast.error(data.detail || data.message || 'Failed to create top-up invoice');
       }
-    } catch (err: unknown) {
-      toast.error((err as { data?: { detail?: string } })?.data?.detail || 'Top-up failed');
+    } catch {
+      toast.error('Top-up failed');
     } finally { setTopupLoading(false); }
   };
 
@@ -303,7 +305,7 @@ export default function Wallet() {
     try {
       const res = await fetch('/api/v1/wallet/crypto-topup', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount_usdt: amount, tx_hash: cryptoTxHash.trim(), network: 'TRC20' }),
       });
       const data = await res.json();

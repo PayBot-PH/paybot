@@ -488,10 +488,10 @@ async def approve_crypto_topup(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Approve a crypto top-up request and credit the user's USD wallet. Requires wallet management permission."""
+    """Approve a crypto top-up request and credit the user's USD wallet. Requires approve topups permission."""
     perms = current_user.permissions
-    if not perms or not (perms.is_super_admin or perms.can_manage_wallet):
-        raise HTTPException(status_code=403, detail="Wallet management permission required.")
+    if not perms or not (perms.is_super_admin or perms.can_approve_topups):
+        raise HTTPException(status_code=403, detail="Approve topups permission required.")
 
     result = await db.execute(select(CryptoTopupRequest).where(CryptoTopupRequest.id == request_id))
     req = result.scalar_one_or_none()
@@ -543,10 +543,10 @@ async def reject_crypto_topup(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Reject a crypto top-up request. Requires wallet management permission."""
+    """Reject a crypto top-up request. Requires approve topups permission."""
     perms = current_user.permissions
-    if not perms or not (perms.is_super_admin or perms.can_manage_wallet):
-        raise HTTPException(status_code=403, detail="Wallet management permission required.")
+    if not perms or not (perms.is_super_admin or perms.can_approve_topups):
+        raise HTTPException(status_code=403, detail="Approve topups permission required.")
 
     result = await db.execute(select(CryptoTopupRequest).where(CryptoTopupRequest.id == request_id))
     req = result.scalar_one_or_none()
