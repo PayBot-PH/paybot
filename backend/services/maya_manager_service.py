@@ -86,7 +86,7 @@ class MayaManagerService:
                 resp = await client.post(
                     f"{self.base_url}/checkout/v1/checkouts",
                     json=payload,
-                    headers=self._secret_auth_header(),
+                    headers=self._public_auth_header(),
                 )
                 try:
                     data = resp.json()
@@ -120,8 +120,8 @@ class MayaManagerService:
         cancel_url: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create a WeChat Pay QR checkout via Maya Business Manager."""
-        if not self.secret_key:
-            return {"success": False, "error": "MAYA_SECRET_KEY is not configured"}
+        if not self.public_key:
+            return {"success": False, "error": "MAYA_PUBLIC_KEY is not configured"}
         reference_number = f"wechat-{uuid.uuid4().hex[:12]}"
         payload = self._build_checkout_payload(
             amount=amount, currency=currency.upper(), description=description,
@@ -139,8 +139,8 @@ class MayaManagerService:
         cancel_url: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Create an Alipay QR checkout via Maya Business Manager in USD (or any currency)."""
-        if not self.secret_key:
-            return {"success": False, "error": "MAYA_SECRET_KEY is not configured"}
+        if not self.public_key:
+            return {"success": False, "error": "MAYA_PUBLIC_KEY is not configured"}
         reference_number = f"alipay-{uuid.uuid4().hex[:12]}"
         payload = self._build_checkout_payload(
             amount=amount, currency=currency.upper(), description=description,

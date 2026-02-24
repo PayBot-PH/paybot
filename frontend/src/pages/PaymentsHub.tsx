@@ -115,7 +115,7 @@ export default function PaymentsHub() {
           break;
         case 'wechat':
           endpoint = '/api/v1/maya/wechat-qr';
-          payload = { amount: amt, description: description || 'WeChat Pay' };
+          payload = { amount: amt, description: description || 'WeChat Pay', currency: 'USD' };
           break;
       }
 
