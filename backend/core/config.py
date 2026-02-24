@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -23,6 +24,17 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "sqlite+aiosqlite:///./paybot.db"
+
+    @model_validator(mode="after")
+    def prefer_public_db_url(self) -> "Settings":
+        """Use DATABASE_PUBLIC_URL when DATABASE_URL points to Railway's internal hostname,
+        which is unreachable from outside the private network or misconfigured."""
+        if "railway.internal" in self.database_url:
+            public = os.environ.get("DATABASE_PUBLIC_URL", "")
+            if public:
+                logger.debug("Switching DATABASE_URL to DATABASE_PUBLIC_URL (internal hostname detected)")
+                self.database_url = public
+        return self
 
     # AWS Lambda Configuration
     is_lambda: bool = False
