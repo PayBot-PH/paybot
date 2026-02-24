@@ -1,20 +1,4 @@
-# ── Stage 1: Build the React frontend ──────────────────────────────────────
-FROM node:20-slim AS frontend-builder
-
-WORKDIR /app/frontend
-
-# Install pnpm (matches packageManager field in package.json)
-RUN npm install -g pnpm@8.10.0
-
-# Install dependencies (cached layer)
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
-
-# Copy source and build
-COPY frontend/ .
-RUN pnpm run build
-
-# ── Stage 2: Python / FastAPI backend ──────────────────────────────────────
+# ── Single stage: Python / FastAPI backend with pre-built frontend ──────────
 FROM python:3.11-slim
 
 WORKDIR /app/backend
@@ -29,11 +13,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all backend source files
+# Copy all backend source files (includes pre-built frontend in backend/static/)
 COPY backend/ .
-
-# Copy built frontend dist into backend/static so FastAPI can serve it
-COPY --from=frontend-builder /app/frontend/dist ./static
 
 # Expose port 8000 (Railway will use $PORT environment variable)
 EXPOSE 8000
