@@ -165,33 +165,52 @@ class TelegramService:
     async def send_photo(
         self,
         chat_id: str,
-        photo: bytes,
+        photo: "bytes | str",
         caption: str = "",
         parse_mode: str = "HTML",
         reply_markup: Dict[str, Any] | None = None,
     ) -> Dict[str, Any]:
-        """Send a photo (bytes) to a Telegram chat via multipart upload."""
+        """Send a photo to a Telegram chat.
+
+        ``photo`` can be raw PNG bytes (multipart upload) or a URL string
+        (Telegram fetches the image from that URL via JSON).
+        """
         try:
-            payload: Dict[str, Any] = {"chat_id": chat_id}
-            if caption:
-                payload["caption"] = caption
-                payload["parse_mode"] = parse_mode
+            import json as _json
             if reply_markup:
-                import json as _json
-                payload["reply_markup"] = _json.dumps(reply_markup)
+                rm_str = _json.dumps(reply_markup)
+            else:
+                rm_str = None
 
             async with httpx.AsyncClient(timeout=self._timeout) as client:
-                response = await client.post(
-                    f"{self.api_url}/sendPhoto",
-                    data=payload,
-                    files={"photo": ("qr.png", photo, "image/png")},
-                )
-            data = response.json()
+                if isinstance(photo, str):
+                    # URL — use JSON payload so Telegram fetches the image
+                    payload: Dict[str, Any] = {"chat_id": chat_id, "photo": photo}
+                    if caption:
+                        payload["caption"] = caption
+                        payload["parse_mode"] = parse_mode
+                    if rm_str:
+                        payload["reply_markup"] = rm_str
+                    response = await client.post(f"{self.api_url}/sendPhoto", json=payload)
+                else:
+                    # Raw bytes — multipart upload
+                    data: Dict[str, Any] = {"chat_id": chat_id}
+                    if caption:
+                        data["caption"] = caption
+                        data["parse_mode"] = parse_mode
+                    if rm_str:
+                        data["reply_markup"] = rm_str
+                    response = await client.post(
+                        f"{self.api_url}/sendPhoto",
+                        data=data,
+                        files={"photo": ("qr.png", photo, "image/png")},
+                    )
+            resp_data = response.json()
             if response.status_code >= 400:
-                return {"success": False, "error": data.get("description", f"HTTP {response.status_code}")}
-            if data.get("ok"):
-                return {"success": True, "message_id": data["result"]["message_id"]}
-            return {"success": False, "error": data.get("description", "Unknown error")}
+                return {"success": False, "error": resp_data.get("description", f"HTTP {response.status_code}")}
+            if resp_data.get("ok"):
+                return {"success": True, "message_id": resp_data["result"]["message_id"]}
+            return {"success": False, "error": resp_data.get("description", "Unknown error")}
         except Exception as e:
             logger.error(f"Error sending photo: {str(e)}")
             return {"success": False, "error": str(e)}

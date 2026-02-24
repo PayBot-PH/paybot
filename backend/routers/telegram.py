@@ -31,16 +31,11 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
 
 
-def _make_qr_bytes(url: str) -> bytes:
-    """Generate a PNG QR code image from a URL and return raw bytes."""
-    import qrcode
-    qr = qrcode.QRCode(error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=4)
-    qr.add_data(url)
-    qr.make(fit=True)
-    img = qr.make_image(fill_color="black", back_color="white")
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
+def _make_qr_url(url: str, size: int = 400) -> str:
+    """Return a QR code image URL using the free api.qrserver.com service.
+    Telegram can fetch this URL directly — no local image generation needed."""
+    from urllib.parse import quote
+    return f"https://api.qrserver.com/v1/create-qr-code/?size={size}x{size}&data={quote(url, safe='')}"
 
 
 # ---------- Schemas ----------
@@ -386,8 +381,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"📱 Scan this QR with Alipay to pay"
                         )
                         try:
-                            qr_bytes = _make_qr_bytes(checkout_url)
-                            await tg.send_photo(chat_id, qr_bytes, caption=caption)
+                            qr_image_url = _make_qr_url(checkout_url)
+                            result_photo = await tg.send_photo(chat_id, qr_image_url, caption=caption)
+                            if not result_photo.get("success"):
+                                raise RuntimeError(result_photo.get("error", "send_photo failed"))
                         except Exception as qr_err:
                             logger.error(f"QR image send failed: {qr_err}", exc_info=True)
                             # Fallback to link button
@@ -433,18 +430,23 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
                         ref_num = result.get("reference_number", "")
-                        reply = (
-                            f"✅ <b>WeChat QR Created!</b>\n"
+                        wechat_caption = (
+                            f"✅ <b>WeChat Pay QR Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
                             f"🆔 <code>{ref_num}</code>\n\n"
-                            f"📱 Tap the button below to scan WeChat QR"
+                            f"📱 Scan this QR with WeChat to pay"
                         )
-                        keyboard = {
-                            "inline_keyboard": [[{"text": "💚 Pay via WeChat (Maya)", "url": checkout_url}]]
-                        } if checkout_url else None
-                        await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                        try:
+                            qr_image_url = _make_qr_url(checkout_url)
+                            result_photo = await tg.send_photo(chat_id, qr_image_url, caption=wechat_caption)
+                            if not result_photo.get("success"):
+                                raise RuntimeError(result_photo.get("error", "send_photo failed"))
+                        except Exception as qr_err:
+                            logger.error(f"WeChat QR image send failed: {qr_err}", exc_info=True)
+                            keyboard = {"inline_keyboard": [[{"text": "💚 Pay via WeChat (Maya)", "url": checkout_url}]]} if checkout_url else None
+                            await tg.send_message(chat_id, wechat_caption, reply_markup=keyboard)
                         try:
                             now = datetime.now()
                             txn = Transactions(
