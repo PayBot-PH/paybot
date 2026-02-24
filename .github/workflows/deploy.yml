@@ -79,11 +79,15 @@ jobs:
           if [ -z "$RAILWAY_TOKEN" ]; then
             echo "::warning::RAILWAY_TOKEN secret is not set. Skipping deployment. See DEPLOYMENT.md for setup instructions."
             echo "has_token=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$RAILWAY_SERVICE" ]; then
+            echo "::warning::RAILWAY_SERVICE secret is not set. Skipping deployment. Set RAILWAY_SERVICE to the exact Railway service name. See DEPLOYMENT.md for setup instructions."
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_token=true" >> "$GITHUB_OUTPUT"
           fi
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
 
       - name: Install pnpm
         if: steps.validate.outputs.has_token == 'true'
