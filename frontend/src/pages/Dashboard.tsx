@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePaymentEvents } from '@/hooks/usePaymentEvents';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Layout from '@/components/Layout';
 import {
   FileText,
@@ -15,12 +15,10 @@ import {
   DollarSign,
   Clock,
   CheckCircle,
-  XCircle,
   Bot,
   LogIn,
   Wallet,
   CreditCard,
-  Building2,
   PieChart,
   Send,
   RotateCcw,
@@ -33,6 +31,7 @@ import {
   Zap,
   ShieldCheck,
   RefreshCw,
+  Banknote,
 } from 'lucide-react';
 
 interface Stats {
@@ -59,26 +58,26 @@ interface Transaction {
 }
 
 const defaultStats: Stats = {
-  total_count: 0,
-  paid_count: 0,
-  pending_count: 0,
-  expired_count: 0,
-  total_amount: 0,
-  paid_amount: 0,
-  pending_amount: 0,
+  total_count: 0, paid_count: 0, pending_count: 0, expired_count: 0,
+  total_amount: 0, paid_amount: 0, pending_amount: 0,
 };
 
-const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
-  paid: { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: <CheckCircle className="h-3 w-3" /> },
-  pending: { color: 'bg-amber-500/20 text-amber-400 border-amber-500/30', icon: <Clock className="h-3 w-3" /> },
-  expired: { color: 'bg-red-500/20 text-red-400 border-red-500/30', icon: <XCircle className="h-3 w-3" /> },
+const statusConfig: Record<string, { color: string; dot: string }> = {
+  paid:    { color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', dot: 'bg-emerald-400' },
+  pending: { color: 'bg-amber-500/15 text-amber-400 border-amber-500/25',    dot: 'bg-amber-400' },
+  expired: { color: 'bg-red-500/15 text-red-400 border-red-500/25',          dot: 'bg-red-400' },
 };
 
-const typeIcons: Record<string, React.ReactNode> = {
-  invoice: <FileText className="h-4 w-4 text-blue-400" />,
-  qr_code: <QrCode className="h-4 w-4 text-purple-400" />,
-  payment_link: <LinkIcon className="h-4 w-4 text-cyan-400" />,
+const typeConfig: Record<string, { icon: React.ReactNode; bg: string }> = {
+  invoice:      { icon: <FileText className="h-3.5 w-3.5 text-blue-400" />,   bg: 'bg-blue-500/10' },
+  qr_code:      { icon: <QrCode className="h-3.5 w-3.5 text-purple-400" />,   bg: 'bg-purple-500/10' },
+  payment_link: { icon: <LinkIcon className="h-3.5 w-3.5 text-cyan-400" />,   bg: 'bg-cyan-500/10' },
+  alipay_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-red-400" />,      bg: 'bg-red-500/10' },
+  wechat_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-green-400" />,    bg: 'bg-green-500/10' },
 };
+
+// Conflict 2 resolution: keep HEAD's StatCard component AND origin/main's fmt helper
+const fmt = (n: number) => n.toLocaleString('en-PH', { minimumFractionDigits: 2 });
 
 function StatCard({
   label,
@@ -136,10 +135,11 @@ export default function Dashboard() {
     try {
       const results = await Promise.allSettled([
         client.apiCall.invoke({ url: '/api/v1/xendit/transaction-stats', method: 'GET', data: {} }),
-        client.entities.transactions.query({ query: {}, sort: '-created_at', limit: 5 }),
+        client.entities.transactions.query({ query: {}, sort: '-created_at', limit: 8 }),
         client.apiCall.invoke({ url: '/api/v1/wallet/balance', method: 'GET', data: {} }),
       ]);
 
+      // Conflict 3 resolution: keep HEAD's verbose error handling for better debuggability
       if (results[0].status === 'fulfilled') {
         const statsData = results[0].value?.data;
         if (statsData) setStats(statsData);
@@ -171,31 +171,20 @@ export default function Dashboard() {
       fetchData();
       if (event.transaction_id) {
         setUpdatedTxnIds((prev) => new Set(prev).add(event.transaction_id!));
-        setTimeout(() => {
-          setUpdatedTxnIds((prev) => {
-            const next = new Set(prev);
-            next.delete(event.transaction_id!);
-            return next;
-          });
-        }, 3000);
+        setTimeout(() => setUpdatedTxnIds((prev) => { const n = new Set(prev); n.delete(event.transaction_id!); return n; }), 3000);
       }
     }, [fetchData]),
-    onWalletUpdate: useCallback(() => {
-      fetchData();
-    }, [fetchData]),
+    onWalletUpdate: useCallback(() => fetchData(), [fetchData]),
     pollInterval: 10000,
   });
 
   useEffect(() => {
     if (!user) return;
-    const load = async () => {
-      setLoading(true);
-      await fetchData();
-      setLoading(false);
-    };
+    const load = async () => { setLoading(true); await fetchData(); setLoading(false); };
     load();
   }, [user, fetchData]);
 
+  // Conflict 4 resolution: keep HEAD's clean authLoading spinner style
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#0B1120] flex items-center justify-center">
@@ -204,32 +193,28 @@ export default function Dashboard() {
     );
   }
 
+  // Conflict 4 resolution: use origin/main's !user block (self-contained, no Button import needed,
+  // includes the "Learn about features" link, uses Bot icon instead of external image URL)
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#0B1120] flex items-center justify-center">
-        <div className="text-center space-y-6 max-w-sm px-6">
-          <div className="relative">
-            <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full pointer-events-none"></div>
-            <img
-              src="https://mgx-backend-cdn.metadl.com/generate/images/368645/2026-02-18/b7a3226a-8029-4dad-a8fe-3bfcd3bda329.png"
-              alt="Payment Dashboard"
-              className="relative rounded-2xl shadow-2xl border border-slate-700/50 w-full"
-            />
+      <div className="min-h-screen bg-[#0B1120] flex items-center justify-center px-4">
+        <div className="text-center space-y-6 max-w-sm">
+          <div className="h-16 w-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/30">
+            <Bot className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white">
-            PayBot <span className="text-blue-400">Admin</span>
-          </h1>
-          <p className="text-slate-400">
-            Telegram Bot & Xendit Payment Management Dashboard
-          </p>
-          <Button
+          <div>
+            <h1 className="text-3xl font-bold text-white">PayBot <span className="text-blue-400">Admin</span></h1>
+            <p className="text-slate-400 mt-2 text-sm">Telegram Bot & Payment Management Dashboard</p>
+          </div>
+          <button
             onClick={() => login()}
-            size="lg"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-500/20"
           >
-            <LogIn className="h-5 w-5 mr-2" />
-            Sign In to Continue
-          </Button>
+            <LogIn className="h-5 w-5" /> Sign In with Telegram
+          </button>
+          <Link to="/features" className="block text-slate-500 hover:text-blue-400 text-sm transition-colors">
+            Learn about features →
+          </Link>
         </div>
       </div>
     );
@@ -241,7 +226,7 @@ export default function Dashboard() {
 
   return (
     <Layout connected={connected}>
-      {/* Page Header */}
+      {/* Page Header — role banner + success rate chip (HEAD) */}
       <div className="mb-6">
         <div className={`relative overflow-hidden rounded-xl border px-5 py-4 ${
           isSuperAdmin
@@ -285,9 +270,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid — Wallet card + StatCard components (HEAD) */}
       <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-6">
-        {/* Wallet Balance - spans 2 cols on small, 1 on xl */}
+        {/* Wallet Balance — spans 2 cols on small, 1 on xl */}
         <Link to="/wallet" className="col-span-2 xl:col-span-1 block group">
           <Card className="h-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 border-0 shadow-lg shadow-blue-900/30 hover:shadow-blue-700/40 hover:scale-[1.02] transition-all duration-200 cursor-pointer">
             <CardContent className="p-4 sm:p-5">
@@ -300,7 +285,7 @@ export default function Dashboard() {
               <p className="text-2xl sm:text-3xl font-bold text-white transition-all duration-300">
                 {loading
                   ? <span className="inline-block w-28 h-8 bg-blue-500/40 rounded animate-pulse" />
-                  : `₱${(walletBalance || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+                  : `₱${fmt(walletBalance || 0)}`
                 }
               </p>
               <div className="flex items-center gap-1 mt-2 text-blue-200 text-xs group-hover:text-white transition-colors">
@@ -314,7 +299,7 @@ export default function Dashboard() {
         <StatCard
           label="Total Transactions"
           value={stats.total_count}
-          sub={`₱${(stats.total_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
+          sub={`₱${fmt(stats.total_amount || 0)}`}
           icon={<TrendingUp className="h-5 w-5 text-blue-400" />}
           color="text-white"
           loading={loading}
@@ -322,7 +307,7 @@ export default function Dashboard() {
         <StatCard
           label="Paid"
           value={stats.paid_count}
-          sub={`₱${(stats.paid_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
+          sub={`₱${fmt(stats.paid_amount || 0)}`}
           icon={<CheckCircle className="h-5 w-5 text-emerald-400" />}
           color="text-emerald-400"
           loading={loading}
@@ -330,7 +315,7 @@ export default function Dashboard() {
         <StatCard
           label="Pending"
           value={stats.pending_count}
-          sub={`₱${(stats.pending_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
+          sub={`₱${fmt(stats.pending_amount || 0)}`}
           icon={<Clock className="h-5 w-5 text-amber-400" />}
           color="text-amber-400"
           loading={loading}
@@ -338,7 +323,8 @@ export default function Dashboard() {
         <StatCard
           label="Expired"
           value={stats.expired_count}
-          icon={<XCircle className="h-5 w-5 text-red-400" />}
+          sub={`${stats.total_count} total txns`}
+          icon={<Banknote className="h-5 w-5 text-red-400" />}
           color="text-red-400"
           loading={loading}
         />
@@ -346,7 +332,7 @@ export default function Dashboard() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Quick Actions */}
+        {/* Quick Actions — HEAD's 2-column grid */}
         <Card className="bg-[#1E293B] border-slate-700/50">
           <CardHeader className="pb-3 pt-4 px-4">
             <div className="flex items-center justify-between">
@@ -364,25 +350,25 @@ export default function Dashboard() {
           <CardContent className="px-3 pb-4">
             <div className="grid grid-cols-2 gap-1.5">
               {[
-                { to: '/payments', icon: CreditCard, label: 'Payments Hub', color: 'blue' },
-                { to: '/disbursements', icon: Send, label: 'Disbursements', color: 'emerald' },
-                { to: '/transactions', icon: RefreshCw, label: 'Transactions', color: 'cyan' },
-                { to: '/reports', icon: PieChart, label: 'Analytics', color: 'yellow' },
-                { to: '/wallet', icon: Wallet, label: 'Wallet', color: 'indigo' },
-                { to: '/disbursements', icon: RotateCcw, label: 'Refunds', color: 'orange' },
-                { to: '/disbursements', icon: CalendarDays, label: 'Schedules', color: 'purple' },
-                { to: '/disbursements', icon: Users, label: 'Customers', color: 'teal' },
+                { to: '/payments',      icon: CreditCard,   label: 'Payments Hub',  color: 'blue' },
+                { to: '/disbursements', icon: Send,          label: 'Disbursements', color: 'emerald' },
+                { to: '/transactions',  icon: RefreshCw,     label: 'Transactions',  color: 'cyan' },
+                { to: '/reports',       icon: PieChart,      label: 'Analytics',     color: 'yellow' },
+                { to: '/wallet',        icon: Wallet,        label: 'Wallet',        color: 'indigo' },
+                { to: '/disbursements', icon: RotateCcw,     label: 'Refunds',       color: 'orange' },
+                { to: '/disbursements', icon: CalendarDays,  label: 'Schedules',     color: 'purple' },
+                { to: '/disbursements', icon: Users,         label: 'Customers',     color: 'teal' },
               ].map(({ to, icon: Icon, label, color }) => (
                 <Link key={`${to}-${label}`} to={to} className="block">
                   <button className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all duration-150 text-left group
-                    ${color === 'blue' ? 'bg-blue-600/10 border-blue-500/20 text-blue-400 hover:bg-blue-600/20 hover:border-blue-500/40' : ''}
+                    ${color === 'blue'    ? 'bg-blue-600/10 border-blue-500/20 text-blue-400 hover:bg-blue-600/20 hover:border-blue-500/40' : ''}
                     ${color === 'emerald' ? 'bg-emerald-600/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-600/20 hover:border-emerald-500/40' : ''}
-                    ${color === 'cyan' ? 'bg-cyan-600/10 border-cyan-500/20 text-cyan-400 hover:bg-cyan-600/20 hover:border-cyan-500/40' : ''}
-                    ${color === 'yellow' ? 'bg-yellow-600/10 border-yellow-500/20 text-yellow-400 hover:bg-yellow-600/20 hover:border-yellow-500/40' : ''}
-                    ${color === 'indigo' ? 'bg-indigo-600/10 border-indigo-500/20 text-indigo-400 hover:bg-indigo-600/20 hover:border-indigo-500/40' : ''}
-                    ${color === 'orange' ? 'bg-orange-600/10 border-orange-500/20 text-orange-400 hover:bg-orange-600/20 hover:border-orange-500/40' : ''}
-                    ${color === 'purple' ? 'bg-purple-600/10 border-purple-500/20 text-purple-400 hover:bg-purple-600/20 hover:border-purple-500/40' : ''}
-                    ${color === 'teal' ? 'bg-teal-600/10 border-teal-500/20 text-teal-400 hover:bg-teal-600/20 hover:border-teal-500/40' : ''}
+                    ${color === 'cyan'    ? 'bg-cyan-600/10 border-cyan-500/20 text-cyan-400 hover:bg-cyan-600/20 hover:border-cyan-500/40' : ''}
+                    ${color === 'yellow'  ? 'bg-yellow-600/10 border-yellow-500/20 text-yellow-400 hover:bg-yellow-600/20 hover:border-yellow-500/40' : ''}
+                    ${color === 'indigo'  ? 'bg-indigo-600/10 border-indigo-500/20 text-indigo-400 hover:bg-indigo-600/20 hover:border-indigo-500/40' : ''}
+                    ${color === 'orange'  ? 'bg-orange-600/10 border-orange-500/20 text-orange-400 hover:bg-orange-600/20 hover:border-orange-500/40' : ''}
+                    ${color === 'purple'  ? 'bg-purple-600/10 border-purple-500/20 text-purple-400 hover:bg-purple-600/20 hover:border-purple-500/40' : ''}
+                    ${color === 'teal'    ? 'bg-teal-600/10 border-teal-500/20 text-teal-400 hover:bg-teal-600/20 hover:border-teal-500/40' : ''}
                   `}>
                     <Icon className="h-3.5 w-3.5 shrink-0" />
                     <span className="text-xs font-medium truncate">{label}</span>
@@ -411,7 +397,8 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Transactions */}
+        {/* Recent Transactions — HEAD's enhanced design with skeleton loaders,
+            using typeConfig icons + dot-based status badges from origin/main */}
         <Card className="bg-[#1E293B] border-slate-700/50 lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
             <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
@@ -428,7 +415,7 @@ export default function Dashboard() {
           <CardContent className="px-3 pb-4">
             {loading ? (
               <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
+                {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-800/40 animate-pulse">
                     <div className="h-8 w-8 rounded-lg bg-slate-700/60 shrink-0" />
                     <div className="flex-1 space-y-1.5">
@@ -457,6 +444,7 @@ export default function Dashboard() {
               <div className="space-y-1.5">
                 {recentTxns.map((txn) => {
                   const sc = statusConfig[txn.status] || statusConfig.pending;
+                  const tc = typeConfig[txn.transaction_type] || { icon: <FileText className="h-3.5 w-3.5 text-slate-400" />, bg: 'bg-slate-500/10' };
                   const isUpdated = updatedTxnIds.has(txn.id);
                   return (
                     <div
@@ -468,12 +456,12 @@ export default function Dashboard() {
                       }`}
                     >
                       <div className="flex items-center space-x-2.5 min-w-0">
-                        <div className="h-8 w-8 rounded-lg bg-slate-700/60 flex items-center justify-center shrink-0 border border-slate-600/30">
-                          {typeIcons[txn.transaction_type] || <FileText className="h-4 w-4 text-slate-400" />}
+                        <div className={`h-8 w-8 rounded-lg ${tc.bg} flex items-center justify-center shrink-0 border border-slate-600/30`}>
+                          {tc.icon}
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-white truncate leading-tight">
-                            {txn.description || txn.transaction_type.replace('_', ' ')}
+                            {txn.description || txn.transaction_type.replace(/_/g, ' ')}
                           </p>
                           <p className="text-xs text-slate-500 truncate mt-0.5">
                             {txn.external_id || `#${txn.id}`}
@@ -482,14 +470,14 @@ export default function Dashboard() {
                       </div>
                       <div className="flex items-center gap-2 ml-2 shrink-0">
                         <span className="text-sm font-mono font-semibold text-white">
-                          ₱{txn.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                          ₱{fmt(txn.amount)}
                         </span>
                         <Badge
-                          className={`${sc.color} border text-[10px] transition-all duration-500 hidden sm:flex items-center gap-1 px-1.5 py-0.5 ${
+                          className={`${sc.color} border text-[10px] transition-all duration-500 hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 ${
                             isUpdated ? 'animate-pulse ring-2 ring-current' : ''
                           }`}
                         >
-                          {sc.icon}
+                          <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
                           <span>{txn.status}</span>
                         </Badge>
                       </div>
@@ -501,6 +489,51 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Revenue Breakdown — new feature from origin/main */}
+      {!loading && stats.total_amount > 0 && (
+        <div className="mt-4 bg-[#1E293B] border border-slate-700/50 rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-white font-semibold text-sm">Revenue Breakdown</h2>
+              <p className="text-slate-500 text-xs mt-0.5">Paid vs Pending vs Expired</p>
+            </div>
+            <Link
+              to="/reports"
+              className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors"
+            >
+              Full report <ArrowRight className="h-3 w-3" />
+            </Link>
+          </div>
+          <div className="flex rounded-full overflow-hidden h-2.5 mb-4 bg-slate-800">
+            <div
+              className="bg-emerald-400 transition-all duration-700"
+              style={{ width: `${(stats.paid_amount / stats.total_amount) * 100}%` }}
+            />
+            <div
+              className="bg-amber-400 transition-all duration-700"
+              style={{ width: `${(stats.pending_amount / stats.total_amount) * 100}%` }}
+            />
+            <div className="bg-slate-600 flex-1" />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            {[
+              { label: 'Paid',    amount: stats.paid_amount,    count: stats.paid_count,    color: 'text-emerald-400', dot: 'bg-emerald-400' },
+              { label: 'Pending', amount: stats.pending_amount, count: stats.pending_count, color: 'text-amber-400',   dot: 'bg-amber-400' },
+              { label: 'Expired', amount: 0,                    count: stats.expired_count, color: 'text-slate-500',   dot: 'bg-slate-600' },
+            ].map((r) => (
+              <div key={r.label} className="flex items-start gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${r.dot} mt-1 shrink-0`} />
+                <div>
+                  <p className="text-xs text-slate-500">{r.label}</p>
+                  <p className={`text-sm font-semibold ${r.color}`}>{r.count} txns</p>
+                  {r.amount > 0 && <p className="text-xs text-slate-600">₱{fmt(r.amount)}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }

@@ -35,8 +35,46 @@ if not database_url:
         import logging as _logging
         _logging.getLogger(__name__).warning("Could not load settings for database URL: %s", _e)
 if database_url:
-    # Normalize database URL to use async driver
-    url = make_url(database_url)
+    import logging as _log
+    _alembic_logger = _log.getLogger(__name__)
+
+    # Strip stray whitespace / newlines that can appear in Railway env vars.
+    database_url = database_url.strip()
+
+    # Normalize postgres:// → postgresql:// (Railway uses the legacy scheme;
+    # SQLAlchemy 2.0 no longer accepts it and raises a parse error).
+    if database_url.startswith("postgres://"):
+        database_url = "postgresql://" + database_url[len("postgres://"):]
+
+    # Log the URL scheme for diagnostics without exposing credentials.
+    _scheme = database_url.split("://")[0] if "://" in database_url else "<no-scheme>"
+    _alembic_logger.info("Alembic database URL scheme: %s", _scheme)
+
+    # Normalize to async driver.
+    try:
+        url = make_url(database_url)
+    except Exception as _e:
+        _alembic_logger.error(
+            "Cannot parse DATABASE_URL (scheme=%s, length=%d, prefix=%r): %s",
+            _scheme,
+            len(database_url),
+            database_url[:6],
+            _e,
+        )
+        # DATABASE_URL is malformed – try DATABASE_PUBLIC_URL before giving up.
+        _fallback = os.environ.get("DATABASE_PUBLIC_URL", "").strip()
+        if _fallback:
+            if _fallback.startswith("postgres://"):
+                _fallback = "postgresql://" + _fallback[len("postgres://"):]
+            try:
+                url = make_url(_fallback)
+                database_url = _fallback
+                _alembic_logger.warning("Fell back to DATABASE_PUBLIC_URL for Alembic migrations")
+            except Exception as _fe:
+                _alembic_logger.error("DATABASE_PUBLIC_URL is also unparseable: %s", _fe)
+                raise _e
+        else:
+            raise
     if url.drivername in ("postgresql", "postgres"):
         url = url.set(drivername="postgresql+asyncpg")
         database_url = str(url)

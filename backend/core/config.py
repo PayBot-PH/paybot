@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -23,6 +24,36 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "sqlite+aiosqlite:///./paybot.db"
+
+    @model_validator(mode="after")
+    def prefer_public_db_url(self) -> "Settings":
+        """Use DATABASE_PUBLIC_URL when DATABASE_URL points to Railway's internal hostname,
+        which is unreachable from outside the private network or misconfigured.
+        Also normalises the legacy postgres:// scheme to postgresql:// so that
+        SQLAlchemy 2.0 can parse it without errors."""
+        if "railway.internal" in self.database_url:
+            public = os.environ.get("DATABASE_PUBLIC_URL", "")
+            if public:
+                logger.debug("Switching DATABASE_URL to DATABASE_PUBLIC_URL (internal hostname detected)")
+                self.database_url = public
+        # Strip stray whitespace / newlines that can appear in Railway env vars.
+        self.database_url = self.database_url.strip()
+        # SQLAlchemy 2.0 removed the bare 'postgres' dialect name; Railway still
+        # emits URLs with the legacy postgres:// scheme.
+        if self.database_url.startswith("postgres://"):
+            self.database_url = "postgresql://" + self.database_url[len("postgres://"):]
+        # If the URL still has no scheme separator it is not a valid connection string
+        # (e.g. a Railway variable that didn't resolve).  Fall back to DATABASE_PUBLIC_URL.
+        if "://" not in self.database_url:
+            public = os.environ.get("DATABASE_PUBLIC_URL", "").strip()
+            if public:
+                if public.startswith("postgres://"):
+                    public = "postgresql://" + public[len("postgres://"):]
+                logger.warning(
+                    "DATABASE_URL appears invalid (no '://'). Falling back to DATABASE_PUBLIC_URL."
+                )
+                self.database_url = public
+        return self
 
     # AWS Lambda Configuration
     is_lambda: bool = False

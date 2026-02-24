@@ -111,11 +111,11 @@ export default function PaymentsHub() {
           break;
         case 'alipay_maya':
           endpoint = '/api/v1/maya/alipay-qr';
-          payload = { amount: amt, description: description || 'Alipay', currency: 'USD' };
+          payload = { amount: amt, description: description || 'Alipay', currency: 'PHP' };
           break;
         case 'wechat':
           endpoint = '/api/v1/maya/wechat-qr';
-          payload = { amount: amt, description: description || 'WeChat Pay' };
+          payload = { amount: amt, description: description || 'WeChat Pay', currency: 'PHP' };
           break;
       }
 
@@ -157,7 +157,7 @@ export default function PaymentsHub() {
             {Object.entries(tabConfig).map(([key, cfg]) => (
               <TabsTrigger key={key} value={key} className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
                 <span className={cfg.color}>{cfg.icon}</span>
-                <span className="ml-2 capitalize">{key.replace(/_/g, ' ').replace('alipay maya', 'Alipay USD (Maya)').replace('alipay', 'Alipay (Xendit)').replace('maya sbc', 'Maya (SBC)').replace('wechat', 'WeChat (Maya)')}</span>
+                <span className="ml-2 capitalize">{key.replace(/_/g, ' ').replace('alipay maya', 'Alipay PHP (Maya)').replace('alipay', 'Alipay (Xendit)').replace('maya sbc', 'Maya (SBC)').replace('wechat', 'WeChat (Maya)')}</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -166,12 +166,12 @@ export default function PaymentsHub() {
             <Card className="bg-[#1E293B] border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
-                  Create {tab.replace(/_/g, ' ').replace('alipay maya', 'Alipay USD').replace('alipay', 'Alipay').replace('maya sbc', 'Maya').replace('wechat', 'WeChat')}
+                  Create {tab.replace(/_/g, ' ').replace('alipay maya', 'Alipay PHP').replace('alipay', 'Alipay').replace('maya sbc', 'Maya').replace('wechat', 'WeChat')}
                   {(tab === 'alipay' || tab === 'maya_sbc') && (
                     <span className="text-xs font-normal bg-blue-900/40 text-blue-300 border border-blue-800/50 px-2 py-0.5 rounded-full">via Security Bank Collect</span>
                   )}
                   {tab === 'alipay_maya' && (
-                    <span className="text-xs font-normal bg-red-900/40 text-red-300 border border-red-800/50 px-2 py-0.5 rounded-full">via Maya · USD</span>
+                    <span className="text-xs font-normal bg-red-900/40 text-red-300 border border-red-800/50 px-2 py-0.5 rounded-full">via Maya · PHP</span>
                   )}
                   {tab === 'wechat' && (
                     <span className="text-xs font-normal bg-green-900/40 text-green-300 border border-green-800/50 px-2 py-0.5 rounded-full">via Maya Business Manager</span>

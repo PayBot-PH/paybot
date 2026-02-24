@@ -114,28 +114,32 @@ A **project token** is a scoped token that grants access only to a specific Rail
 5. Give it a name (e.g., `github-actions`) and select the **production** environment
 6. Copy the generated token
 
-### 3.2 Add the Token as a GitHub Secret
+### 3.2 Add the Secrets as GitHub Secrets
 
-The workflow uses the `production` environment in GitHub Actions. You can add the secret either at the repository level or the environment level:
+The workflow uses the `production` environment in GitHub Actions. You can add secrets either at the repository level or the environment level:
 
-**Option A – Repository environment secret (recommended):**
+**Option A – Repository environment secrets (recommended):**
 
 1. Go to your GitHub repository → **Settings** → **Environments**
 2. Click on **"production"** (create it if it doesn't exist)
 3. Under **"Environment secrets"**, click **"Add secret"**
-4. Name: `RAILWAY_TOKEN`
-5. Value: paste the Railway project token
-6. Click **"Add secret"**
+4. Add each required secret (see table below)
+5. Click **"Add secret"**
 
-**Option B – Repository-level secret:**
+**Option B – Repository-level secrets:**
 
 1. Go to your GitHub repository → **Settings** → **Secrets and variables** → **Actions**
 2. Click **"New repository secret"**
-3. Name: `RAILWAY_TOKEN`
-4. Value: paste the Railway project token
-5. Click **"Add secret"**
+3. Add each required secret (see table below)
 
-> **Note:** If the `RAILWAY_TOKEN` secret is missing or empty, the deployment workflow will fail immediately with a clear error message pointing to this guide.
+**Required secrets:**
+
+| Secret Name | Description |
+|-------------|-------------|
+| `RAILWAY_TOKEN` | Railway project token (see [step 3.1](#31-generate-a-railway-project-token)) |
+| `RAILWAY_SERVICE` | Exact name of the Railway service to deploy (e.g. `backend`) |
+
+> **Note:** If either `RAILWAY_TOKEN` or `RAILWAY_SERVICE` is missing or empty, the deployment step will be skipped with a warning message pointing to this guide. To find your service name, open your Railway project dashboard and note the name shown on the service card.
 
 ---
 
@@ -143,13 +147,13 @@ The workflow uses the `production` environment in GitHub Actions. You can add th
 
 ### Automatic Migrations
 
-Database migrations run **automatically** on each deployment via the start command in `railway.toml`:
+Database migrations run **automatically** on each deployment via the pre-deploy command in `railway.toml`:
 
 ```bash
-alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port $PORT
+alembic upgrade head
 ```
 
-This ensures your database schema is always up-to-date.
+This runs as a `preDeployCommand` — Railway executes the migration in a one-off container *before* promoting the new deployment live. If the migration fails, the deployment is rolled back and the previous version keeps serving traffic. This prevents broken schema from reaching the running app.
 
 ### Manual Migration (if needed)
 
@@ -314,6 +318,15 @@ railway logs
 2. Add it as a GitHub secret named `RAILWAY_TOKEN` (see [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup) for detailed instructions)
 3. Verify the secret is added to the correct scope: the deploy workflow uses the `production` environment, so the secret should be an **environment secret** under the `production` environment, or a **repository secret**
 4. If the token was previously set but is now expired or revoked, generate a new token and update the secret
+
+#### Multiple Services Found / Missing RAILWAY_SERVICE
+
+**Error**: `Multiple services found. Please specify a service via the --service flag.`
+
+**Solution**:
+1. Find your Railway service name by opening your Railway project dashboard and noting the name on the service card (e.g. `backend`)
+2. Add it as a GitHub secret named `RAILWAY_SERVICE` (see [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup))
+3. If `RAILWAY_SERVICE` is missing or empty, the deploy step will be skipped with a warning rather than failing the workflow
 
 #### Database Connection Errors
 

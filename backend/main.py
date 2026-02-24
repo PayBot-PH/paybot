@@ -41,6 +41,7 @@ BOT_COMMANDS = [
     {"command": "fees", "description": "Calculate payment fees"},
     {"command": "subscribe", "description": "Create subscription"},
     {"command": "remind", "description": "Send payment reminder"},
+    {"command": "topup", "description": "Top up wallet via USDT TRC20"},
 ]
 
 
