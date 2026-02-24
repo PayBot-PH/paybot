@@ -22,6 +22,9 @@ import {
   Clock,
   Mail,
   Tag,
+  Bitcoin,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -49,6 +52,19 @@ interface RegisteredUser {
   role: string;
   created_at: string | null;
   last_login: string | null;
+}
+
+interface CryptoTopupRequest {
+  id: number;
+  user_id: string;
+  amount_usdt: number;
+  tx_hash: string;
+  network: string;
+  status: string;
+  notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string | null;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -668,11 +684,212 @@ function RoleManagementTab({
   );
 }
 
+// ── Crypto Requests Tab ───────────────────────────────────────────────────────
+
+function CryptoRequestsTab({
+  canManageWallet,
+  onError,
+}: {
+  canManageWallet: boolean;
+  onError: (msg: string) => void;
+}) {
+  const [requests, setRequests] = useState<CryptoTopupRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState<number | null>(null);
+
+  const fetchRequests = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/v1/wallet/crypto-topup-requests');
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setRequests(data.items || []);
+    } catch (e: unknown) {
+      onError(e instanceof Error ? e.message : 'Failed to load crypto requests');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchRequests(); }, []);
+
+  const handleAction = async (id: number, action: 'approve' | 'reject') => {
+    if (!canManageWallet) return;
+    setActionId(id);
+    try {
+      const res = await fetch(`/api/v1/wallet/crypto-topup-requests/${id}/${action}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Action failed');
+      }
+      await fetchRequests();
+    } catch (e: unknown) {
+      onError(e instanceof Error ? e.message : 'Action failed');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const pending = requests.filter(r => r.status === 'pending');
+  const reviewed = requests.filter(r => r.status !== 'pending');
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-20 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (requests.length === 0) {
+    return (
+      <Card className="bg-[#1E293B] border-slate-700/50">
+        <CardContent className="flex flex-col items-center justify-center py-14 text-center">
+          <div className="h-14 w-14 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-3">
+            <Bitcoin className="h-7 w-7 text-teal-500" />
+          </div>
+          <p className="text-white font-semibold text-sm">No crypto top-up requests</p>
+          <p className="text-slate-500 text-xs mt-1">Requests submitted by users will appear here.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  function RequestCard({ req }: { req: CryptoTopupRequest }) {
+    const isPending = req.status === 'pending';
+    const isProcessing = actionId === req.id;
+    return (
+      <Card className={`border transition-colors duration-150 ${
+        isPending
+          ? 'bg-[#1E293B] border-slate-700/50 hover:border-teal-500/30'
+          : 'bg-slate-900/40 border-slate-700/30'
+      }`}>
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3 min-w-0">
+              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                req.status === 'approved'
+                  ? 'bg-emerald-500/15 border-emerald-500/25'
+                  : req.status === 'rejected'
+                  ? 'bg-red-500/10 border-red-500/20'
+                  : 'bg-teal-500/10 border-teal-500/20'
+              }`}>
+                {req.status === 'approved'
+                  ? <CheckCircle className="h-4 w-4 text-emerald-400" />
+                  : req.status === 'rejected'
+                  ? <XCircle className="h-4 w-4 text-red-400" />
+                  : <Clock className="h-4 w-4 text-amber-400" />
+                }
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-sm text-white">${req.amount_usdt.toFixed(2)} USDT</span>
+                  <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
+                    req.status === 'approved'
+                      ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
+                      : req.status === 'rejected'
+                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                      : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                  }`}>
+                    {req.status.toUpperCase()}
+                  </Badge>
+                  <Badge className="bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[9px] px-1.5 py-0 h-4">
+                    {req.network}
+                  </Badge>
+                </div>
+                <p className="text-[10px] text-slate-500 font-mono truncate mt-0.5" title={req.tx_hash}>
+                  TX: {req.tx_hash}
+                </p>
+                <div className="flex items-center gap-3 mt-1">
+                  <span className="text-[10px] text-slate-600">User: {req.user_id}</span>
+                  {req.created_at && (
+                    <span className="text-[10px] text-slate-600">{formatDate(req.created_at)}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {isPending && canManageWallet && (
+              <div className="flex items-center gap-1.5 shrink-0">
+                <Button
+                  size="sm"
+                  disabled={!!actionId}
+                  onClick={() => handleAction(req.id, 'approve')}
+                  className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {isProcessing
+                    ? <div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                    : <><CheckCircle className="h-3.5 w-3.5 mr-1" />Approve</>}
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={!!actionId}
+                  onClick={() => handleAction(req.id, 'reject')}
+                  className="h-7 px-2.5 text-xs bg-slate-700 hover:bg-red-600/80 text-slate-300 hover:text-white"
+                >
+                  <XCircle className="h-3.5 w-3.5 mr-1" />Reject
+                </Button>
+              </div>
+            )}
+
+            {!isPending && req.reviewed_by && (
+              <div className="text-right shrink-0 text-[10px] text-slate-600">
+                <p>By: {req.reviewed_by}</p>
+                {req.reviewed_at && <p>{formatDate(req.reviewed_at)}</p>}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {!canManageWallet && (
+        <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3">
+          <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-300/80">You have view-only access. Wallet management permission is required to approve or reject requests.</p>
+        </div>
+      )}
+
+      {pending.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-amber-400 mb-2 flex items-center gap-1.5">
+            <Clock className="h-3 w-3" />
+            Pending ({pending.length})
+          </p>
+          <div className="space-y-2">
+            {pending.map(req => <RequestCard key={req.id} req={req} />)}
+          </div>
+        </div>
+      )}
+
+      {reviewed.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+            Reviewed ({reviewed.length})
+          </p>
+          <div className="space-y-2">
+            {reviewed.slice(0, 20).map(req => <RequestCard key={req.id} req={req} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminManagement() {
-  const { isSuperAdmin } = useAuth();
-  const [activeTab, setActiveTab] = useState<'admins' | 'users' | 'roles'>('admins');
+  const { isSuperAdmin, permissions } = useAuth();
+  const canManageWallet = isSuperAdmin || !!permissions?.can_manage_wallet;
+  const [activeTab, setActiveTab] = useState<'admins' | 'users' | 'roles' | 'crypto'>('admins');
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -779,6 +996,11 @@ export default function AdminManagement() {
       label: 'Role Management',
       icon: <Shield className="h-3.5 w-3.5" />,
       count: ROLE_PRESETS.length,
+    },
+    {
+      id: 'crypto',
+      label: 'Crypto Requests',
+      icon: <Bitcoin className="h-3.5 w-3.5" />,
     },
   ];
 
@@ -993,6 +1215,11 @@ export default function AdminManagement() {
             onError={setError}
             onRefreshAdmins={fetchAdmins}
           />
+        )}
+
+        {/* ── Crypto Requests Tab ── */}
+        {activeTab === 'crypto' && (
+          <CryptoRequestsTab canManageWallet={canManageWallet} onError={setError} />
         )}
       </div>
     </Layout>
