@@ -12,6 +12,8 @@ import DisbursementsPage from './pages/DisbursementsPage';
 import ReportsPage from './pages/ReportsPage';
 import BotSettings from './pages/BotSettings';
 import AdminManagement from './pages/AdminManagement';
+import BotMessagesPage from './pages/BotMessagesPage';
+import TopupRequestsPage from './pages/TopupRequestsPage';
 import Policies from './pages/Policies';
 import Features from './pages/Features';
 import Login from './pages/Login';
@@ -43,6 +45,8 @@ const App = () => (
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/bot-settings" element={<BotSettings />} />
             <Route path="/admin-management" element={<AdminManagement />} />
+            <Route path="/bot-messages" element={<BotMessagesPage />} />
+            <Route path="/topup-requests" element={<TopupRequestsPage />} />
             <Route path="/policies" element={<Policies />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

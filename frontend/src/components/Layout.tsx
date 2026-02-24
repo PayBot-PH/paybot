@@ -18,6 +18,9 @@ import {
   ChevronRight,
   Menu,
   X,
+  MessageSquare,
+  DollarSign,
+  UserPlus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -81,7 +84,14 @@ export default function Layout({ children, connected }: LayoutProps) {
           <NavLink key={to} to={to} icon={icon} label={label} onClick={onNav} />
         ))}
         {isSuperAdmin && (
-          <NavLink to="/admin-management" icon={ShieldCheck} label="Admin Management" onClick={onNav} />
+          <>
+            <div className={`px-3 pt-3 pb-1 ${collapsed ? 'hidden' : ''}`}>
+              <p className="text-[10px] font-semibold text-slate-600 uppercase tracking-wider">Super Admin</p>
+            </div>
+            <NavLink to="/bot-messages" icon={MessageSquare} label="Bot Messages" onClick={onNav} />
+            <NavLink to="/topup-requests" icon={DollarSign} label="Topup Requests" onClick={onNav} />
+            <NavLink to="/admin-management" icon={UserPlus} label="Manage Admins" onClick={onNav} />
+          </>
         )}
         <NavLink to="/policies" icon={ScrollText} label="Policies" onClick={onNav} />
       </nav>
