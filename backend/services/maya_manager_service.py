@@ -101,8 +101,9 @@ class MayaManagerService:
                         "amount": amount,
                         "qr_url": data.get("redirectUrl", ""),
                     }
-                msg = data.get("message") or resp.text or str(resp.status_code)
-                logger.error("Maya API error %s: %s", resp.status_code, msg)
+                detail = data.get("message") or (resp.text or "").strip()[:300]
+                msg = f"HTTP {resp.status_code}" + (f": {detail}" if detail else "")
+                logger.error("Maya API error %s body=%r: %s", resp.status_code, (resp.text or "")[:200], msg)
                 return {"success": False, "error": msg}
         except httpx.TimeoutException:
             return {"success": False, "error": "Request timed out"}
