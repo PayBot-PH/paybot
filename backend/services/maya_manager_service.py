@@ -35,7 +35,7 @@ class MayaManagerService:
         self.public_key: str = getattr(settings, "maya_public_key", "")
         self.secret_key: str = getattr(settings, "maya_secret_key", "")
         env = getattr(settings, "environment", "dev").lower()
-        self.base_url = MAYA_BASE_URL if env == "prod" else MAYA_SANDBOX_URL
+        self.base_url = MAYA_BASE_URL if env in ("prod", "production") else MAYA_SANDBOX_URL
 
     def _public_auth_header(self) -> Dict[str, str]:
         """Basic auth header using public key (for checkout creation)."""
