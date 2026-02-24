@@ -28,12 +28,18 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def prefer_public_db_url(self) -> "Settings":
         """Use DATABASE_PUBLIC_URL when DATABASE_URL points to Railway's internal hostname,
-        which is unreachable from outside the private network or misconfigured."""
+        which is unreachable from outside the private network or misconfigured.
+        Also normalises the legacy postgres:// scheme to postgresql:// so that
+        SQLAlchemy 2.0 can parse it without errors."""
         if "railway.internal" in self.database_url:
             public = os.environ.get("DATABASE_PUBLIC_URL", "")
             if public:
                 logger.debug("Switching DATABASE_URL to DATABASE_PUBLIC_URL (internal hostname detected)")
                 self.database_url = public
+        # SQLAlchemy 2.0 removed the bare 'postgres' dialect name; Railway still
+        # emits URLs with the legacy postgres:// scheme.
+        if self.database_url.startswith("postgres://"):
+            self.database_url = "postgresql://" + self.database_url[len("postgres://"):]
         return self
 
     # AWS Lambda Configuration

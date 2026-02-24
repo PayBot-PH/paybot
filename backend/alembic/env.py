@@ -35,6 +35,10 @@ if not database_url:
         import logging as _logging
         _logging.getLogger(__name__).warning("Could not load settings for database URL: %s", _e)
 if database_url:
+    # Normalize postgres:// → postgresql:// (Railway uses the legacy scheme;
+    # SQLAlchemy 2.0 no longer accepts it and raises a parse error).
+    if database_url.startswith("postgres://"):
+        database_url = "postgresql://" + database_url[len("postgres://"):]
     # Normalize database URL to use async driver
     url = make_url(database_url)
     if url.drivername in ("postgresql", "postgres"):
