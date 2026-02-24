@@ -23,5 +23,5 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
 
-# Run migrations and start the server
-CMD ["bash", "-c", "alembic upgrade head 2>&1 && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start the server (migrations are run via preDeployCommand in railway.toml)
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
