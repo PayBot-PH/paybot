@@ -115,7 +115,7 @@ class MayaManagerService:
         self,
         amount: float,
         description: str = "WeChat Pay",
-        currency: str = "PHP",
+        currency: str = "USD",
         success_url: Optional[str] = None,
         cancel_url: Optional[str] = None,
     ) -> Dict[str, Any]:
