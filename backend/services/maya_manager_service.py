@@ -88,7 +88,10 @@ class MayaManagerService:
                     json=payload,
                     headers=self._secret_auth_header(),
                 )
-                data = resp.json()
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {}
                 if resp.status_code in (200, 201):
                     return {
                         "success": True,
@@ -98,7 +101,7 @@ class MayaManagerService:
                         "amount": amount,
                         "qr_url": data.get("redirectUrl", ""),
                     }
-                msg = data.get("message", str(data))
+                msg = data.get("message") or resp.text or str(resp.status_code)
                 logger.error("Maya API error %s: %s", resp.status_code, msg)
                 return {"success": False, "error": msg}
         except httpx.TimeoutException:
