@@ -42,6 +42,17 @@ class Settings(BaseSettings):
         # emits URLs with the legacy postgres:// scheme.
         if self.database_url.startswith("postgres://"):
             self.database_url = "postgresql://" + self.database_url[len("postgres://"):]
+        # If the URL still has no scheme separator it is not a valid connection string
+        # (e.g. a Railway variable that didn't resolve).  Fall back to DATABASE_PUBLIC_URL.
+        if "://" not in self.database_url:
+            public = os.environ.get("DATABASE_PUBLIC_URL", "").strip()
+            if public:
+                if public.startswith("postgres://"):
+                    public = "postgresql://" + public[len("postgres://"):]
+                logger.warning(
+                    "DATABASE_URL appears invalid (no '://'). Falling back to DATABASE_PUBLIC_URL."
+                )
+                self.database_url = public
         return self
 
     # AWS Lambda Configuration

@@ -54,7 +54,6 @@ if database_url:
     try:
         url = make_url(database_url)
     except Exception as _e:
-        # Emit a clear message so Railway logs show the problem immediately.
         _alembic_logger.error(
             "Cannot parse DATABASE_URL (scheme=%s, length=%d, prefix=%r): %s",
             _scheme,
@@ -62,7 +61,20 @@ if database_url:
             database_url[:6],
             _e,
         )
-        raise
+        # DATABASE_URL is malformed – try DATABASE_PUBLIC_URL before giving up.
+        _fallback = os.environ.get("DATABASE_PUBLIC_URL", "").strip()
+        if _fallback:
+            if _fallback.startswith("postgres://"):
+                _fallback = "postgresql://" + _fallback[len("postgres://"):]
+            try:
+                url = make_url(_fallback)
+                database_url = _fallback
+                _alembic_logger.warning("Fell back to DATABASE_PUBLIC_URL for Alembic migrations")
+            except Exception as _fe:
+                _alembic_logger.error("DATABASE_PUBLIC_URL is also unparseable: %s", _fe)
+                raise _e
+        else:
+            raise
     if url.drivername in ("postgresql", "postgres"):
         url = url.set(drivername="postgresql+asyncpg")
         database_url = str(url)

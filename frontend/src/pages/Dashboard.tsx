@@ -116,8 +116,10 @@ export default function Dashboard() {
   }, [user, fetchData]);
 
   if (authLoading) return (
-    <div className="min-h-screen bg-[#0A0F1E] flex items-center justify-center">
-      <div className="h-10 w-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen bg-[#0A0F1E] flex items-center justify-center"
+         style={{ minHeight: '100vh', background: '#0A0F1E', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="h-10 w-10 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"
+           style={{ width: 40, height: 40, border: '3px solid #3b82f6', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
     </div>
   );
 
