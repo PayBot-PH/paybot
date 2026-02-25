@@ -70,12 +70,43 @@ jobs:
         with:
           railway_token: ${{ secrets.RAILWAY_TOKEN }}
 
+      - name: Comment deployment status on PR
+        if: steps.validate.outputs.has_token == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const environment = `pr-${{ github.event.pull_request.number }}`;
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const body = `## 🚀 PR Preview Deployed\n\nThe PR preview has been deployed to Railway environment: \`${environment}\`\n\n[View workflow run](${runUrl})`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.user.type === 'Bot' && c.body.includes('PR Preview'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
   teardown-preview:
     name: Teardown PR Preview on Railway
     if: github.event.action == 'closed'
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      pull-requests: write
     environment: production
 
     steps:
@@ -105,3 +136,33 @@ jobs:
           railway environment delete "$ENVIRONMENT" --yes || echo "::warning::Could not delete Railway environment $ENVIRONMENT (may not exist)"
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Comment teardown status on PR
+        if: steps.validate.outputs.has_token == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const environment = `pr-${{ github.event.pull_request.number }}`;
+            const runUrl = `${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}`;
+            const body = `## 🗑️ PR Preview Removed\n\nThe Railway environment \`${environment}\` has been torn down.\n\n[View workflow run](${runUrl})`;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.user.type === 'Bot' && c.body.includes('PR Preview'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
