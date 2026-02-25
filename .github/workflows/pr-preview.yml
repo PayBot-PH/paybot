@@ -1,0 +1,117 @@
+name: PR Preview
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  deploy-preview:
+    name: Deploy PR Preview to Railway
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Railway token
+        id: validate
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::warning::RAILWAY_TOKEN secret is not set. Skipping PR preview deployment."
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$RAILWAY_SERVICE" ]; then
+            echo "::warning::RAILWAY_SERVICE secret is not set. Skipping PR preview deployment."
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
+
+      - name: Install pnpm
+        if: steps.validate.outputs.has_token == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: "8.10.0"
+
+      - name: Set up Node.js 20
+        if: steps.validate.outputs.has_token == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        if: steps.validate.outputs.has_token == 'true'
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        if: steps.validate.outputs.has_token == 'true'
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Copy frontend build to backend/static
+        if: steps.validate.outputs.has_token == 'true'
+        run: |
+          rm -rf backend/static
+          cp -r frontend/dist backend/static
+
+      - name: Install Railway CLI
+        if: steps.validate.outputs.has_token == 'true'
+        run: npm install -g @railway/cli
+
+      - name: Deploy PR preview to Railway
+        if: steps.validate.outputs.has_token == 'true'
+        run: |
+          set -euo pipefail
+          ENVIRONMENT="pr-${{ github.event.pull_request.number }}"
+          railway up --ci --detach \
+            --service "$RAILWAY_SERVICE" \
+            --environment "$ENVIRONMENT"
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
+
+  teardown-preview:
+    name: Teardown PR Preview on Railway
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Railway token
+        id: validate
+        run: |
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            echo "::warning::RAILWAY_TOKEN secret is not set. Skipping PR preview teardown."
+            echo "has_token=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_token=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+      - name: Install Railway CLI
+        if: steps.validate.outputs.has_token == 'true'
+        run: npm install -g @railway/cli
+
+      - name: Delete PR environment on Railway
+        if: steps.validate.outputs.has_token == 'true'
+        run: |
+          set -euo pipefail
+          ENVIRONMENT="pr-${{ github.event.pull_request.number }}"
+          railway environment delete "$ENVIRONMENT" --yes || echo "::warning::Could not delete Railway environment $ENVIRONMENT (may not exist)"
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
