@@ -64,9 +64,9 @@ jobs:
           rm -rf backend/static
           cp -r frontend/dist backend/static
 
-      - name: Install Railway CLI
+      - name: Setup Railway CLI
         if: steps.validate.outputs.has_token == 'true'
-        run: npm install -g @railway/cli
+        uses: MadeByThePinsHub/setup-railway-cli-action@v0.1.0
 
       - name: Deploy PR preview to Railway
         if: steps.validate.outputs.has_token == 'true'
@@ -103,9 +103,9 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
-      - name: Install Railway CLI
+      - name: Setup Railway CLI
         if: steps.validate.outputs.has_token == 'true'
-        run: npm install -g @railway/cli
+        uses: MadeByThePinsHub/setup-railway-cli-action@v0.1.0
 
       - name: Delete PR environment on Railway
         if: steps.validate.outputs.has_token == 'true'
