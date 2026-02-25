@@ -68,6 +68,7 @@ jobs:
     needs: [test-backend, build-frontend]
     permissions:
       contents: read
+      deployments: write
     environment: production
 
     steps:
@@ -119,8 +120,13 @@ jobs:
           rm -rf backend/static
           cp -r frontend/dist backend/static
 
+      - name: Setup Railway CLI
+        if: steps.validate.outputs.has_token == 'true'
+        uses: MadeByThePinsHub/setup-railway-cli-action@v0.1.0
+
       - name: Deploy to Railway
         if: steps.validate.outputs.has_token == 'true'
-        uses: devtomio/action-railway@v1.1.4
-        with:
-          railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        run: railway up --ci --detach --service "$RAILWAY_SERVICE"
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
