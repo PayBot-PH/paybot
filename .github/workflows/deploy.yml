@@ -119,19 +119,8 @@ jobs:
           rm -rf backend/static
           cp -r frontend/dist backend/static
 
-      - name: Setup Railway CLI
-        if: steps.validate.outputs.has_token == 'true'
-        uses: MadeByThePinsHub/setup-railway-cli-action@v0.1.0
-
       - name: Deploy to Railway
         if: steps.validate.outputs.has_token == 'true'
-        run: |
-          set -euo pipefail
-          ARGS=(up --ci --detach)
-          if [ -n "${RAILWAY_SERVICE:-}" ]; then
-            ARGS+=(--service "$RAILWAY_SERVICE")
-          fi
-          railway "${ARGS[@]}"
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
+        uses: devtomio/action-railway@v1.1.4
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}

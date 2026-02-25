@@ -64,21 +64,11 @@ jobs:
           rm -rf backend/static
           cp -r frontend/dist backend/static
 
-      - name: Setup Railway CLI
-        if: steps.validate.outputs.has_token == 'true'
-        uses: MadeByThePinsHub/setup-railway-cli-action@v0.1.0
-
       - name: Deploy PR preview to Railway
         if: steps.validate.outputs.has_token == 'true'
-        run: |
-          set -euo pipefail
-          ENVIRONMENT="pr-${{ github.event.pull_request.number }}"
-          railway up --ci --detach \
-            --service "$RAILWAY_SERVICE" \
-            --environment "$ENVIRONMENT"
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
+        uses: devtomio/action-railway@v1.1.4
+        with:
+          railway_token: ${{ secrets.RAILWAY_TOKEN }}
 
   teardown-preview:
     name: Teardown PR Preview on Railway
