@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePaymentEvents } from '@/hooks/usePaymentEvents';
@@ -31,6 +31,7 @@ import {
   ChevronRight,
   Wifi,
   WifiOff,
+  CopyPlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -74,6 +75,7 @@ const typeLabels: Record<string, string> = {
 
 export default function Transactions() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -149,6 +151,16 @@ export default function Transactions() {
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success('Copied to clipboard');
+  };
+
+  const cloneTransaction = (txn: Transaction) => {
+    const params = new URLSearchParams();
+    params.set('type', txn.transaction_type);
+    params.set('amount', String(txn.amount));
+    if (txn.description) params.set('description', txn.description);
+    if (txn.customer_name) params.set('customer_name', txn.customer_name);
+    if (txn.customer_email) params.set('customer_email', txn.customer_email);
+    navigate(`/create-payment?${params.toString()}`);
   };
 
   return (
@@ -297,6 +309,13 @@ export default function Transactions() {
                                   <Copy className="h-3.5 w-3.5" />
                                 </button>
                               )}
+                              <button
+                                onClick={() => cloneTransaction(txn)}
+                                title="Clone transaction"
+                                className="text-slate-500 hover:text-slate-300 p-1"
+                              >
+                                <CopyPlus className="h-3.5 w-3.5" />
+                              </button>
                             </div>
                           </td>
                         </tr>
