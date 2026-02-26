@@ -1,6 +1,14 @@
 # Dockerfile for frontend
 
-# other existing content
+FROM node:14
 
-# Previous CMD line
-CMD ["pnpm", "run", "preview", "--", "--host", "0.0.0.0", "--port", "3000"]
+WORKDIR /app
+
+COPY package.json .
+COPY package-lock.json .
+
+RUN npm install
+
+COPY . .
+
+CMD [ "npm", "start" ]
