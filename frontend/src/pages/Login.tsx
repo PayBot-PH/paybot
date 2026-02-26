@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bot, Zap, ArrowRight, ShieldCheck, User } from 'lucide-react';
+import { Bot, Zap, ArrowRight, ShieldCheck, User, Wallet, QrCode, Bell, ChevronRight } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
 
 declare global {
