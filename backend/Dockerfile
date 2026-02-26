@@ -1,4 +1,20 @@
-# ── Single stage: Python / FastAPI backend with pre-built frontend ──────────
+# ── Stage 1: Build the React admin dashboard ────────────────────────────────
+FROM node:20-slim AS frontend-builder
+
+WORKDIR /frontend
+
+# Install pnpm
+RUN npm install -g pnpm@8.10.0
+
+# Install dependencies (leverages Docker layer cache when lockfile unchanged)
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# Copy frontend source and build for production
+COPY frontend/ .
+RUN pnpm run build
+
+# ── Stage 2: Python / FastAPI backend with freshly built frontend ────────────
 FROM python:3.11-slim
 
 WORKDIR /app/backend
@@ -13,8 +29,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all backend source files (includes pre-built frontend in backend/static/)
+# Copy all backend source files
 COPY backend/ .
+
+# Overwrite static directory with the freshly built frontend
+COPY --from=frontend-builder /frontend/dist ./static
 
 # Expose port 8000 (Railway will use $PORT environment variable)
 EXPOSE 8000

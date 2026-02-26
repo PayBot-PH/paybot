@@ -89,36 +89,6 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
 
-      - name: Install pnpm
-        if: steps.validate.outputs.has_token == 'true'
-        uses: pnpm/action-setup@v4
-        with:
-          version: "8.10.0"
-
-      - name: Set up Node.js 20
-        if: steps.validate.outputs.has_token == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install frontend dependencies
-        if: steps.validate.outputs.has_token == 'true'
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-
-      - name: Build frontend
-        if: steps.validate.outputs.has_token == 'true'
-        working-directory: frontend
-        run: pnpm run build
-
-      - name: Copy frontend build to backend/static
-        if: steps.validate.outputs.has_token == 'true'
-        run: |
-          rm -rf backend/static
-          cp -r frontend/dist backend/static
-
       - name: Install Railway CLI
         if: steps.validate.outputs.has_token == 'true'
         run: npm install -g @railway/cli
