@@ -34,10 +34,10 @@ export default function CreatePayment() {
   const initialType = searchParams.get('type') || 'invoice';
 
   const [paymentType, setPaymentType] = useState(initialType);
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
+  const [amount, setAmount] = useState(searchParams.get('amount') || '');
+  const [description, setDescription] = useState(searchParams.get('description') || '');
+  const [customerName, setCustomerName] = useState(searchParams.get('customer_name') || '');
+  const [customerEmail, setCustomerEmail] = useState(searchParams.get('customer_email') || '');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
 
