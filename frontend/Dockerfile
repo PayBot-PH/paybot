@@ -1,14 +1,15 @@
-# Dockerfile for frontend
-
-FROM node:14
+FROM node:20-alpine
 
 WORKDIR /app
 
-COPY package.json .
-COPY package-lock.json .
+RUN corepack enable
 
-RUN npm install
+COPY package.json pnpm-lock.yaml ./
+
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-CMD [ "npm", "start" ]
+RUN pnpm build
+
+CMD ["sh", "-c", "pnpm preview --host 0.0.0.0 --port ${PORT:-4173}"]
