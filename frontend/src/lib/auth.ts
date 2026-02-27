@@ -38,6 +38,7 @@ export const authApi = {
           email: data.email || '',
           name: data.name || data.email || '',
           role: data.role || 'user',
+          permissions: data.permissions ?? undefined,
         };
       }
       return null;

@@ -198,8 +198,54 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
     if not display_name:
         display_name = payload.username or telegram_user_id
 
-    # Build permissions from DB record (or default full access for env-whitelisted users)
-    if db_admin:
+    # Build permissions: env-whitelisted users always get full super admin access;
+    # DB-only users get their stored permissions.
+    if in_env:
+        perms = UserPermissions(
+            is_super_admin=True,
+            can_manage_payments=True,
+            can_manage_disbursements=True,
+            can_view_reports=True,
+            can_manage_wallet=True,
+            can_manage_transactions=True,
+            can_manage_bot=True,
+            can_approve_topups=True,
+        )
+        if db_admin:
+            # Promote existing DB record to super admin and update name/username
+            try:
+                db_admin.is_super_admin = True
+                db_admin.can_manage_bot = True
+                db_admin.can_approve_topups = True
+                db_admin.name = display_name
+                db_admin.telegram_username = payload.username or db_admin.telegram_username
+                await db.commit()
+            except Exception:
+                await db.rollback()
+        else:
+            # Auto-register in DB as super admin
+            try:
+                new_admin = AdminUser(
+                    telegram_id=telegram_user_id,
+                    telegram_username=payload.username,
+                    name=display_name,
+                    is_active=True,
+                    is_super_admin=True,
+                    can_manage_payments=True,
+                    can_manage_disbursements=True,
+                    can_view_reports=True,
+                    can_manage_wallet=True,
+                    can_manage_transactions=True,
+                    can_manage_bot=True,
+                    can_approve_topups=True,
+                    added_by="env_config",
+                )
+                db.add(new_admin)
+                await db.commit()
+            except Exception:
+                await db.rollback()
+    else:
+        # DB-managed admin: use stored permissions
         perms = UserPermissions(
             is_super_admin=db_admin.is_super_admin,
             can_manage_payments=db_admin.can_manage_payments,
@@ -214,39 +260,6 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
         try:
             db_admin.name = display_name
             db_admin.telegram_username = payload.username or db_admin.telegram_username
-            await db.commit()
-        except Exception:
-            await db.rollback()
-    else:
-        # Env-whitelisted user gets super admin by default
-        perms = UserPermissions(
-            is_super_admin=True,
-            can_manage_payments=True,
-            can_manage_disbursements=True,
-            can_view_reports=True,
-            can_manage_wallet=True,
-            can_manage_transactions=True,
-            can_manage_bot=True,
-            can_approve_topups=True,
-        )
-        # Auto-register in DB as super admin
-        try:
-            new_admin = AdminUser(
-                telegram_id=telegram_user_id,
-                telegram_username=payload.username,
-                name=display_name,
-                is_active=True,
-                is_super_admin=True,
-                can_manage_payments=True,
-                can_manage_disbursements=True,
-                can_view_reports=True,
-                can_manage_wallet=True,
-                can_manage_transactions=True,
-                can_manage_bot=True,
-                can_approve_topups=True,
-                added_by="env_config",
-            )
-            db.add(new_admin)
             await db.commit()
         except Exception:
             await db.rollback()
