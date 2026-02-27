@@ -36,6 +36,7 @@ class AdminUserOut(BaseModel):
     can_manage_wallet: bool
     can_manage_transactions: bool
     can_manage_bot: bool
+    can_approve_topups: bool
     added_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -52,6 +53,7 @@ class AdminUserCreate(BaseModel):
     can_manage_wallet: bool = True
     can_manage_transactions: bool = True
     can_manage_bot: bool = False
+    can_approve_topups: bool = False
 
 
 class AdminUserUpdate(BaseModel):
@@ -65,6 +67,7 @@ class AdminUserUpdate(BaseModel):
     can_manage_wallet: Optional[bool] = None
     can_manage_transactions: Optional[bool] = None
     can_manage_bot: Optional[bool] = None
+    can_approve_topups: Optional[bool] = None
 
 
 def _require_super_admin(current_user: UserResponse):
@@ -113,6 +116,7 @@ async def create_admin_user(
         can_manage_wallet=data.can_manage_wallet,
         can_manage_transactions=data.can_manage_transactions,
         can_manage_bot=data.can_manage_bot,
+        can_approve_topups=data.can_approve_topups,
         added_by=current_user.id,
     )
     db.add(admin)
