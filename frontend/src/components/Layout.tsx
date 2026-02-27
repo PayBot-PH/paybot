@@ -20,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Activity,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -82,6 +83,13 @@ export default function Layout({ children, connected }: LayoutProps) {
                       to: '/admin-management',
                       icon: ShieldCheck,
                       label: 'Admin Management',
+                      badge: 'Super',
+                      badgeColor: 'amber',
+                    },
+                    {
+                      to: '/usdt-send-requests',
+                      icon: Send,
+                      label: 'USDT Send Requests',
                       badge: 'Super',
                       badgeColor: 'amber',
                     },
