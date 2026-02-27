@@ -1011,9 +1011,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             if len(parts) < 3:
                 await tg.send_message(
                     chat_id,
-                    "❌ Usage: /sendusdt [amount] [trc20_address]\n"
-                    "Example: /sendusdt 50 TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx\n\n"
-                    "⚠️ Only send to a valid TRC20 address (starts with T, 34 characters)."
+                    "Please contact support."
                 )
             else:
                 try:
@@ -1075,12 +1073,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     short_addr = f"{addr[:8]}...{addr[-6:]}"
                     await tg.send_message(
                         chat_id,
-                        f"✅ <b>Send Request Submitted!</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💵 Amount: <b>${amount:,.2f} USDT</b>\n"
-                        f"📬 To: <code>{short_addr}</code>\n"
-                        f"🆔 Request ID: <code>#{send_req.id}</code>\n\n"
-                        f"ℹ️ Use /usdbalance to check your requests."
+                        "Your request settlement is now on process."
                     )
                     logger.info("USDT send via bot: user=%s amount=%s to=%s req=%s", tg_user_id, amount, addr, send_req.id)
                 except ValueError:
