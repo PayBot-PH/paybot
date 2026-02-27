@@ -78,6 +78,9 @@ class Settings(BaseSettings):
     admin_user_email: str = "admin@paybot.local"
     admin_user_password: str = ""
     telegram_admin_ids: str = ""
+    # Bot owner: the single Telegram user ID that is the super admin of the bot.
+    # Only this user can approve/reject KYB registrations and manage bot admins.
+    telegram_bot_owner_id: str = ""
 
     # JWT configuration
     jwt_secret_key: str = ""

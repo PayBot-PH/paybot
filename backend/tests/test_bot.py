@@ -748,3 +748,185 @@ class TestDemoData:
         assert data["paid_count"] >= 5
         assert data["pending_count"] >= 1
         assert data["expired_count"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# KYB access control — non-admin users must go through KYB
+# ---------------------------------------------------------------------------
+def _admin_webhook_body(text: str, username: str = "admin_user") -> dict:
+    """Webhook body from the env-whitelisted admin (chat_id 123456789)."""
+    return {
+        "message": {
+            "chat": {"id": 123456789},
+            "text": text,
+            "from": {"username": username},
+            "message_id": 1,
+        }
+    }
+
+
+class TestKybAccessControl:
+    """Verify that unregistered users are gated behind KYB registration."""
+
+    def test_non_admin_start_shows_registration_prompt(self, client):
+        """An unregistered user sending /start should see registration instructions."""
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/start", chat_id=88001))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_non_admin_command_blocked(self, client):
+        """An unregistered user sending a bot command should be blocked."""
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/balance", chat_id=88002))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_non_admin_register_starts_kyb(self, client):
+        """/register initiates the KYB flow for an unregistered user."""
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/register", chat_id=88003))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_kyb_full_flow(self, client):
+        """Walk through the entire KYB flow and verify each step advances."""
+        chat_id = 88010
+
+        # Step 1: /register starts the flow
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/register", chat_id=chat_id))
+        assert r.status_code == 200
+
+        # Step 2: full name
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("Juan dela Cruz", chat_id=chat_id))
+        assert r.status_code == 200
+
+        # Step 3: phone
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("09171234567", chat_id=chat_id))
+        assert r.status_code == 200
+
+        # Step 4: address
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("123 Main St, Quezon City", chat_id=chat_id))
+        assert r.status_code == 200
+
+        # Step 5: bank
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("BDO", chat_id=chat_id))
+        assert r.status_code == 200
+
+        # Step 6: send ID photo
+        photo_body = {
+            "message": {
+                "chat": {"id": chat_id},
+                "text": "",
+                "from": {"username": "kyb_user"},
+                "photo": [{"file_id": "fake_file_id_123", "file_size": 1000}],
+                "message_id": 1,
+            }
+        }
+        r = client.post("/api/v1/telegram/webhook", json=photo_body)
+        assert r.status_code == 200
+
+        # After full KYB, user should be in pending_review state
+        from sqlalchemy import select
+        from core.database import db_manager
+        from models.kyb_registrations import KybRegistration
+        import asyncio
+
+        async def check_kyb():
+            async with db_manager.async_session_maker() as db:
+                res = await db.execute(select(KybRegistration).where(KybRegistration.chat_id == str(chat_id)))
+                kyb = res.scalar_one_or_none()
+                return kyb
+
+        kyb = asyncio.get_event_loop().run_until_complete(check_kyb())
+        assert kyb is not None
+        assert kyb.status == "pending_review"
+        assert kyb.full_name == "Juan dela Cruz"
+        assert kyb.phone == "09171234567"
+        assert kyb.bank_name == "BDO"
+
+    def test_kyb_list_requires_owner(self, client):
+        """/kyb_list is rejected for non-owner admins."""
+        # Regular admin (in TELEGRAM_ADMIN_IDS) but not owner
+        r = client.post("/api/v1/telegram/webhook", json=_admin_webhook_body("/kyb_list"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_kyb_approve_requires_owner(self, client):
+        """/kyb_approve is rejected for non-owner admins."""
+        r = client.post("/api/v1/telegram/webhook", json=_admin_webhook_body("/kyb_approve 88010"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_kyb_reject_requires_owner(self, client):
+        """/kyb_reject is rejected for non-owner admins."""
+        r = client.post("/api/v1/telegram/webhook", json=_admin_webhook_body("/kyb_reject 88010 fraud"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_kyb_approve_as_owner(self, client):
+        """Bot owner can approve a KYB registration, granting admin access."""
+        from unittest.mock import patch
+        import routers.telegram as tg_mod
+        from core.config import Settings
+        import asyncio
+        from sqlalchemy import select
+        from core.database import db_manager
+        from models.kyb_registrations import KybRegistration
+        from models.admin_users import AdminUser
+
+        target_chat_id = 88010  # set up in test_kyb_full_flow above
+        owner_id = "777000"  # test owner
+
+        # Seed a pending KYB record for our target user (in case prior test didn't run)
+        async def ensure_kyb():
+            async with db_manager.async_session_maker() as db:
+                res = await db.execute(select(KybRegistration).where(KybRegistration.chat_id == str(target_chat_id)))
+                kyb = res.scalar_one_or_none()
+                if not kyb:
+                    kyb = KybRegistration(
+                        chat_id=str(target_chat_id),
+                        telegram_username="kyb_user",
+                        step="done",
+                        status="pending_review",
+                        full_name="Juan dela Cruz",
+                        phone="09171234567",
+                        address="123 Main St",
+                        bank_name="BDO",
+                        id_photo_file_id="fake_file_id_123",
+                    )
+                    db.add(kyb)
+                    await db.commit()
+
+        asyncio.get_event_loop().run_until_complete(ensure_kyb())
+
+        patched = Settings()
+        patched.telegram_bot_owner_id = owner_id
+        patched.telegram_admin_ids = owner_id
+        with patch.object(tg_mod, "settings", patched):
+            r = client.post(
+                "/api/v1/telegram/webhook",
+                json={
+                    "message": {
+                        "chat": {"id": int(owner_id)},
+                        "text": f"/kyb_approve {target_chat_id}",
+                        "from": {"username": "owner"},
+                        "message_id": 1,
+                    }
+                },
+            )
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+        async def check_approved():
+            async with db_manager.async_session_maker() as db:
+                res = await db.execute(select(KybRegistration).where(KybRegistration.chat_id == str(target_chat_id)))
+                kyb = res.scalar_one_or_none()
+                res2 = await db.execute(select(AdminUser).where(AdminUser.telegram_id == str(target_chat_id)))
+                admin = res2.scalar_one_or_none()
+                return kyb, admin
+
+        kyb, admin = asyncio.get_event_loop().run_until_complete(check_approved())
+        assert kyb is not None
+        assert kyb.status == "approved"
+        assert admin is not None
+        assert admin.is_active is True
+        assert admin.is_super_admin is False  # KYB users are regular admins, not super admin
+
