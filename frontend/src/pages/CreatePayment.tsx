@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,8 +18,6 @@ import {
   FileText,
   QrCode,
   LinkIcon,
-  Bot,
-  BarChart3,
   Plus,
   Loader2,
   CheckCircle,
@@ -27,6 +25,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import Layout from '@/components/Layout';
 
 export default function CreatePayment() {
   const { user } = useAuth();
@@ -100,50 +99,8 @@ export default function CreatePayment() {
   const currentType = typeConfig[paymentType as keyof typeof typeConfig] || typeConfig.invoice;
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100">
-      {/* Header */}
-      <header className="border-b border-slate-700/50 bg-[#0F172A]/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-3">
-              <Link to="/" className="flex items-center space-x-3">
-                <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Bot className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-xl font-bold text-white">PayBot</span>
-              </Link>
-            </div>
-            <nav className="flex items-center space-x-1">
-              <Link to="/">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <BarChart3 className="h-4 w-4 mr-2" />
-                  Dashboard
-                </Button>
-              </Link>
-              <Link to="/transactions">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Transactions
-                </Button>
-              </Link>
-              <Link to="/create-payment">
-                <Button variant="ghost" size="sm" className="text-white bg-slate-700/50">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create
-                </Button>
-              </Link>
-              <Link to="/bot-settings">
-                <Button variant="ghost" size="sm" className="text-slate-300 hover:text-white hover:bg-slate-700/50">
-                  <Bot className="h-4 w-4 mr-2" />
-                  Bot
-                </Button>
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <Layout>
+      <div className="max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold text-white mb-6">Create Payment</h1>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -321,7 +278,7 @@ export default function CreatePayment() {
             </CardContent>
           </Card>
         </div>
-      </main>
-    </div>
+      </div>
+    </Layout>
   );
 }
