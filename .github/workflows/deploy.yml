@@ -79,10 +79,10 @@ jobs:
           if [ -z "$RAILWAY_TOKEN" ]; then
             echo "::warning::RAILWAY_TOKEN secret is not set. Skipping deployment. See DEPLOYMENT.md for setup instructions."
             echo "has_token=false" >> "$GITHUB_OUTPUT"
-          elif [ -z "$RAILWAY_SERVICE" ]; then
-            echo "::warning::RAILWAY_SERVICE secret is not set. Skipping deployment. Set RAILWAY_SERVICE to the exact Railway service name. See DEPLOYMENT.md for setup instructions."
-            echo "has_token=false" >> "$GITHUB_OUTPUT"
           else
+            if [ -z "$RAILWAY_SERVICE" ]; then
+              echo "::notice::RAILWAY_SERVICE secret is not set. Deploying without --service flag (works when the Railway project has a single service). See DEPLOYMENT.md for multi-service setup."
+            fi
             echo "has_token=true" >> "$GITHUB_OUTPUT"
           fi
         env:
