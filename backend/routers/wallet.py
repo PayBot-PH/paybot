@@ -31,6 +31,9 @@ router = APIRouter(prefix="/api/v1/wallet", tags=["wallet"])
 _USD_CREDIT_TYPES = ("crypto_topup",)
 _USD_DEBIT_TYPES = ("usdt_send",)
 
+# Minimum PHP/Xendit balance required to allow a USDT withdrawal request
+_PHP_MIN_WITHDRAWAL_BALANCE = 100_000.0
+
 
 # ---------- Schemas ----------
 class WalletBalanceResponse(BaseModel):
@@ -110,6 +113,33 @@ class WalletActionResponse(BaseModel):
 def _tg_user_id(user_id: str) -> str:
     """Return the Telegram-prefixed user_id used by the bot for wallet storage."""
     return f"tg-{user_id}"
+
+
+async def _get_php_balance(db: AsyncSession, tg_user_id: str) -> float:
+    """Return the live Xendit PHP balance, falling back to the stored wallet balance.
+
+    If neither is available, returns 0.0 so callers can decide how to handle it.
+    """
+    try:
+        xendit = XenditService()
+        result = await xendit.get_balance()
+        if result.get("success"):
+            return float(result.get("balance", 0))
+    except Exception as e:
+        logger.warning("Xendit balance fetch failed in PHP threshold check: %s", e)
+
+    # Fallback: stored PHP wallet row
+    try:
+        row = await db.execute(
+            select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP")
+        )
+        wallet = row.scalar_one_or_none()
+        if wallet:
+            return float(wallet.balance)
+    except Exception as e:
+        logger.warning("Stored PHP wallet fallback failed: %s", e)
+
+    return 0.0
 
 
 async def get_or_create_wallet(db: AsyncSession, user_id: str, currency: str = "PHP") -> Wallets:
@@ -387,6 +417,17 @@ async def send_usdt(
 
     if usd_wallet.balance < data.amount:
         raise HTTPException(status_code=400, detail="Insufficient USD wallet balance")
+
+    # Reject if the PHP/Xendit balance is below the minimum threshold
+    php_balance = await _get_php_balance(db, tg_user_id)
+    if php_balance < _PHP_MIN_WITHDRAWAL_BALANCE:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"USDT withdrawal rejected: Xendit PHP balance (₱{php_balance:,.2f}) is below "
+                f"the required minimum of ₱{_PHP_MIN_WITHDRAWAL_BALANCE:,.2f}."
+            ),
+        )
 
     now = datetime.now()
     req = UsdtSendRequest(
