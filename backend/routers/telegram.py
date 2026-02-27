@@ -24,6 +24,7 @@ from services.telegram_service import TelegramService, _resolve_bot_token
 from services.xendit_service import XenditService
 from services.sbc_collect_service import SecurityBankCollectService
 from services.maya_manager_service import MayaManagerService
+from services.event_bus import payment_event_bus
 from models.topup_requests import TopupRequest
 
 logger = logging.getLogger(__name__)
