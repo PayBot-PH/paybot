@@ -579,6 +579,44 @@ class TestTelegramWebhook:
         assert r.status_code == 200
         assert r.json()["status"] == "ok"
 
+    def test_topup_missing_amount(self, client):
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/topup"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_topup_valid_amount(self, client):
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/topup 50"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_topup_invalid_amount(self, client):
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/topup notanumber"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_topup_negative_amount(self, client):
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/topup -10"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# USDT TRC20 static QR image
+# ---------------------------------------------------------------------------
+class TestUsdtQrImage:
+    def test_static_qr_image_served(self, client):
+        """The USDT TRC20 QR image must be accessible at /images/usdt_trc20_qr.png."""
+        r = client.get("/images/usdt_trc20_qr.png")
+        assert r.status_code == 200
+        assert r.headers["content-type"].startswith("image/")
+
+    def test_usdt_static_qr_url_contains_backend_url(self):
+        """_usdt_static_qr_url() must return an absolute URL ending with the image path."""
+        from routers.telegram import _usdt_static_qr_url
+        url = _usdt_static_qr_url()
+        assert url.startswith("http")
+        assert url.endswith("/images/usdt_trc20_qr.png")
+
 
 # ---------------------------------------------------------------------------
 # Xendit webhook

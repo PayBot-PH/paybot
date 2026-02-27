@@ -280,6 +280,12 @@ def health_check():
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
+# Mount static images directory (e.g. USDT TRC20 QR code) unconditionally so
+# the image URL remains stable regardless of whether the frontend is built.
+_IMAGES_DIR = _STATIC_DIR / "images"
+if _IMAGES_DIR.exists():
+    app.mount("/images", StaticFiles(directory=str(_IMAGES_DIR)), name="images")
+
 if _STATIC_DIR.exists():
     # Mount the Vite-generated assets bundle directory for efficient serving
     _assets_dir = _STATIC_DIR / "assets"
