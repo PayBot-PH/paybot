@@ -288,7 +288,7 @@ export default function Layout({ children, connected }: LayoutProps) {
 
       {/* Main Content */}
       <div
-        className={`flex-1 flex flex-col min-h-screen transition-all duration-300
+        className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ml-0 w-full min-w-0
           ${sidebarCollapsed ? 'md:ml-[60px]' : 'md:ml-60'}`}
       >
         {/* Top Bar */}
@@ -367,7 +367,7 @@ export default function Layout({ children, connected }: LayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 px-4 sm:px-6 py-6 overflow-auto">
+        <main className="flex-1 px-4 sm:px-6 py-6 overflow-y-auto overflow-x-hidden">
           {children}
 
           {/* Footer */}
