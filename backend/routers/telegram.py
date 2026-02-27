@@ -36,6 +36,10 @@ router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
 
 USDT_TRC20_ADDRESS = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
 
+# Transaction types that credit / debit the USD wallet (keep in sync with wallet.py)
+_USD_CREDIT_TYPES = ("crypto_topup",)
+_USD_DEBIT_TYPES = ("usdt_send",)
+
 
 
 def _make_qr_url(url: str, size: int = 400) -> str:
@@ -53,12 +57,35 @@ def _usdt_static_qr_url() -> str:
 
 
 async def _get_usd_balance(db: AsyncSession, chat_id: str) -> float:
-    """Return USD wallet balance for a Telegram user."""
+    """Return USD wallet balance for a Telegram user, computed from transaction history."""
     result = await db.execute(
         select(Wallets).where(Wallets.user_id == f"tg-{chat_id}", Wallets.currency == "USD")
     )
     wallet = result.scalar_one_or_none()
-    return wallet.balance if wallet else 0.0
+    if not wallet:
+        return 0.0
+    return await _compute_usd_balance_for_wallet(db, wallet.id)
+
+
+async def _compute_usd_balance_for_wallet(db: AsyncSession, wallet_id: int) -> float:
+    """Compute USD balance from completed wallet_transactions (credits minus debits)."""
+    credit_res = await db.execute(
+        select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
+            Wallet_transactions.wallet_id == wallet_id,
+            Wallet_transactions.transaction_type.in_(_USD_CREDIT_TYPES),
+            Wallet_transactions.status == "completed",
+        )
+    )
+    debit_res = await db.execute(
+        select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
+            Wallet_transactions.wallet_id == wallet_id,
+            Wallet_transactions.transaction_type.in_(_USD_DEBIT_TYPES),
+            Wallet_transactions.status == "completed",
+        )
+    )
+    credits = float(credit_res.scalar() or 0.0)
+    debits = float(debit_res.scalar() or 0.0)
+    return max(0.0, credits - debits)
 
 
 # ---------- Schemas ----------
@@ -283,35 +310,36 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # ==================== /start ====================
         if text.startswith("/start"):
             welcome = (
-                "🤖 <b>Welcome to PayBot!</b>\n"
+                "👋 <b>Welcome to PayBot!</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
-                "Your complete Xendit payment gateway.\n\n"
-                "💳 <b>Accept Payments:</b>\n"
-                "  /invoice [amt] [desc] — Invoice\n"
-                "  /qr [amt] [desc] — QR Code\n"
-                "  /link [amt] [desc] — Payment Link\n"
-                "  /va [amt] [bank] — Virtual Account\n"
-                "  /ewallet [amt] [provider] — E-Wallet\n"
-                "  /alipay [amt] [desc] — Alipay QR USD (via Maya) 🔴\n"
-                "💸 <b>Send Money:</b>\n"
-                "  /disburse [amt] [bank] [acct] [name] — Disburse\n"
-                "  /refund [id] [amt] — Refund\n\n"
-                "💰 <b>PHP Wallet:</b>\n"
-                "  /balance — Balance + history\n"
-                "  /withdraw [amt] — Withdraw\n"
-                "  /send [amt] [to] — Send\n\n"
-                "💵 <b>USD Wallet (USDT TRC20):</b>\n"
-                "  /usdbalance — USD wallet balance\n"
-                "  /topup [amt] — Top up USD wallet\n"
+                "Your all-in-one Xendit payment gateway bot.\n\n"
+                "💳 <b>Accept Payments</b>\n"
+                "  /invoice [amt] [desc] — Create an invoice\n"
+                "  /qr [amt] [desc] — Generate QR code\n"
+                "  /link [amt] [desc] — Payment link\n"
+                "  /va [amt] [bank] — Virtual account\n"
+                "  /ewallet [amt] [provider] — E-wallet\n"
+                "  /alipay [amt] [desc] — Alipay QR (via Maya)\n"
+                "  /wechat [amt] [desc] — WeChat QR (via Maya)\n\n"
+                "💸 <b>Send Money</b>\n"
+                "  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
+                "  /refund [id] [amt] — Refund a payment\n\n"
+                "💰 <b>PHP Wallet</b>\n"
+                "  /balance — View balances &amp; history\n"
+                "  /send [amt] [to] — Send funds\n"
+                "  /withdraw [amt] — Withdraw\n\n"
+                "💵 <b>USD Wallet (USDT TRC20)</b>\n"
+                "  /usdbalance — USD balance &amp; history\n"
+                "  /topup [amt] — Top up via USDT\n"
                 "  /sendusdt [amt] [address] — Send USDT\n\n"
-                "📊 <b>Tools:</b>\n"
+                "📊 <b>Reports &amp; Tools</b>\n"
                 "  /status [id] — Payment status\n"
                 "  /list — Recent transactions\n"
                 "  /report [daily|weekly|monthly]\n"
-                "  /fees [amt] [method]\n"
-                "  /cancel [id] — Cancel pending\n"
-                "  /remind [id] — Send reminder\n\n"
-                "Type /help for full command reference."
+                "  /fees [amt] [method] — Fee calculator\n"
+                "  /cancel [id] — Cancel pending payment\n"
+                "  /remind [id] — Send payment reminder\n\n"
+                "ℹ️ Type /help for the full command reference."
             )
             await tg.send_message(chat_id, welcome)
 
@@ -895,7 +923,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # ==================== /balance ====================
         elif text.startswith("/balance"):
             try:
-                res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id))
+                # PHP wallet — get or create, then sync balance from Xendit live balance
+                res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP"))
                 wallet = res.scalar_one_or_none()
                 if not wallet:
                     now_w = datetime.now()
@@ -903,14 +932,32 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     db.add(wallet)
                     await db.commit()
                     await db.refresh(wallet)
+                # Sync PHP balance from Xendit live account balance
+                try:
+                    xendit_svc = XenditService()
+                    xendit_bal = await xendit_svc.get_balance()
+                    if xendit_bal.get("success"):
+                        wallet.balance = float(xendit_bal.get("balance", wallet.balance))
+                        wallet.updated_at = datetime.now()
+                        await db.commit()
+                        await db.refresh(wallet)
+                except Exception as xe:
+                    logger.warning(f"Xendit balance fetch failed for /balance: {xe}")
                 php_balance = wallet.balance
-                # Also fetch USD wallet balance
+                # USD wallet — compute balance from transaction history
                 usd_res = await db.execute(
                     select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "USD")
                 )
                 usd_wallet = usd_res.scalar_one_or_none()
-                usd_balance = usd_wallet.balance if usd_wallet else 0.0
-                # Fetch last 3 wallet transactions
+                if usd_wallet:
+                    usd_balance = await _compute_usd_balance_for_wallet(db, usd_wallet.id)
+                    if usd_balance != usd_wallet.balance:
+                        usd_wallet.balance = usd_balance
+                        usd_wallet.updated_at = datetime.now()
+                        await db.commit()
+                else:
+                    usd_balance = 0.0
+                # Fetch last 3 PHP wallet transactions
                 wt_res = await db.execute(
                     select(Wallet_transactions)
                     .where(Wallet_transactions.wallet_id == wallet.id)
@@ -956,8 +1003,16 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "USD")
                 )
                 usd_wallet = usd_res.scalar_one_or_none()
-                usd_balance = usd_wallet.balance if usd_wallet else 0.0
-                # Fetch last 5 USD wallet transactions
+                # Always compute USD balance from transaction history (not stored balance)
+                if usd_wallet:
+                    usd_balance = await _compute_usd_balance_for_wallet(db, usd_wallet.id)
+                    if usd_balance != usd_wallet.balance:
+                        usd_wallet.balance = usd_balance
+                        usd_wallet.updated_at = datetime.now()
+                        await db.commit()
+                else:
+                    usd_balance = 0.0
+                # Fetch last 5 USD wallet transactions for this user
                 usd_txn_res = await db.execute(
                     select(Wallet_transactions)
                     .where(

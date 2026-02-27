@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/wallet", tags=["wallet"])
 
+# Transaction types that credit / debit the USD wallet
+_USD_CREDIT_TYPES = ("crypto_topup",)
+_USD_DEBIT_TYPES = ("usdt_send",)
+
 
 # ---------- Schemas ----------
 class WalletBalanceResponse(BaseModel):
@@ -124,6 +128,31 @@ async def get_or_create_wallet(db: AsyncSession, user_id: str, currency: str = "
     return wallet
 
 
+async def _compute_usd_balance(db: AsyncSession, wallet_id: int) -> float:
+    """Compute USD wallet balance from completed wallet_transactions (credits minus debits).
+
+    This ensures the stored balance never diverges from the actual transaction
+    history — even if a previous update left the row at 0.
+    """
+    credit_res = await db.execute(
+        select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
+            Wallet_transactions.wallet_id == wallet_id,
+            Wallet_transactions.transaction_type.in_(_USD_CREDIT_TYPES),
+            Wallet_transactions.status == "completed",
+        )
+    )
+    debit_res = await db.execute(
+        select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
+            Wallet_transactions.wallet_id == wallet_id,
+            Wallet_transactions.transaction_type.in_(_USD_DEBIT_TYPES),
+            Wallet_transactions.status == "completed",
+        )
+    )
+    credits = float(credit_res.scalar() or 0.0)
+    debits = float(debit_res.scalar() or 0.0)
+    return max(0.0, credits - debits)
+
+
 def publish_wallet_event(user_id: str, wallet: Wallets, txn_type: str, amount: float, txn_id: int):
     """Publish a wallet event to the event bus for real-time updates"""
     payment_event_bus.publish({
@@ -144,12 +173,56 @@ async def get_balance(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get wallet balance for a given currency (default: PHP)."""
-    wallet = await get_or_create_wallet(db, str(current_user.id), currency.upper())
+    """Get wallet balance.
+
+    - PHP: always synced from the live Xendit account balance so the value
+      never diverges from what Xendit holds.
+    - USD: always computed from wallet transaction history (credits minus
+      debits) so the balance can never be stuck at 0 due to a stale row.
+    """
+    user_id = str(current_user.id)
+    currency_upper = currency.upper()
+
+    if currency_upper == "PHP":
+        wallet = await get_or_create_wallet(db, user_id, "PHP")
+        # Sync with Xendit live balance; fall back to stored balance on error
+        try:
+            xendit = XenditService()
+            result = await xendit.get_balance()
+            if result.get("success"):
+                wallet.balance = float(result.get("balance", wallet.balance))
+                wallet.updated_at = datetime.now()
+                await db.commit()
+                await db.refresh(wallet)
+        except Exception as e:
+            logger.warning("Xendit balance sync failed for user %s: %s", user_id, e)
+        return WalletBalanceResponse(
+            wallet_id=wallet.id,
+            balance=wallet.balance,
+            currency=wallet.currency or "PHP",
+        )
+
+    if currency_upper == "USD":
+        wallet = await get_or_create_wallet(db, user_id, "USD")
+        # Recompute from transaction history to prevent stale-zero issues
+        computed = await _compute_usd_balance(db, wallet.id)
+        if computed != wallet.balance:
+            wallet.balance = computed
+            wallet.updated_at = datetime.now()
+            await db.commit()
+            await db.refresh(wallet)
+        return WalletBalanceResponse(
+            wallet_id=wallet.id,
+            balance=wallet.balance,
+            currency=wallet.currency or "USD",
+        )
+
+    # Any other currency — return stored balance as-is
+    wallet = await get_or_create_wallet(db, user_id, currency_upper)
     return WalletBalanceResponse(
         wallet_id=wallet.id,
         balance=wallet.balance,
-        currency=wallet.currency or currency.upper(),
+        currency=wallet.currency or currency_upper,
     )
 
 
