@@ -127,7 +127,7 @@ jobs:
         if: steps.validate.outputs.has_token == 'true'
         run: |
           set -euo pipefail
-          ARGS=(up --ci --detach)
+          ARGS=(up --ci)
           if [ -n "${RAILWAY_SERVICE:-}" ]; then
             ARGS+=(--service "$RAILWAY_SERVICE")
           fi
