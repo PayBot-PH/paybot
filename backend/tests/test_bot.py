@@ -169,6 +169,8 @@ class TestAuth:
         data = r.json()
         assert data["id"] == "123456789"
         assert data["role"] == "admin"
+        assert "permissions" in data, "/me response must include permissions"
+        assert data["permissions"]["is_super_admin"] is True, "Env-whitelisted user must have is_super_admin=True"
 
     def test_me_unauthenticated(self, client):
         r = client.get("/api/v1/auth/me")
