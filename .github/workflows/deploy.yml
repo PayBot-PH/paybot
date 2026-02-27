@@ -89,36 +89,6 @@ jobs:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
 
-      - name: Install pnpm
-        if: steps.validate.outputs.has_token == 'true'
-        uses: pnpm/action-setup@v4
-        with:
-          version: "8.10.0"
-
-      - name: Set up Node.js 20
-        if: steps.validate.outputs.has_token == 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-          cache: "pnpm"
-          cache-dependency-path: frontend/pnpm-lock.yaml
-
-      - name: Install frontend dependencies
-        if: steps.validate.outputs.has_token == 'true'
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile
-
-      - name: Build frontend
-        if: steps.validate.outputs.has_token == 'true'
-        working-directory: frontend
-        run: pnpm run build
-
-      - name: Copy frontend build to backend/static
-        if: steps.validate.outputs.has_token == 'true'
-        run: |
-          rm -rf backend/static
-          cp -r frontend/dist backend/static
-
       - name: Install Railway CLI
         if: steps.validate.outputs.has_token == 'true'
         run: npm install -g @railway/cli
@@ -135,3 +105,30 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
+
+  deploy-render:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs: [test-backend, build-frontend]
+    permissions:
+      contents: read
+    environment: production
+
+    steps:
+      - name: Validate Render deploy hook
+        id: validate
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::warning::RENDER_DEPLOY_HOOK_URL secret is not set. Skipping Render deployment. See DEPLOYMENT.md for setup instructions."
+            echo "has_hook=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_hook=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+
+      - name: Trigger Render deploy
+        if: steps.validate.outputs.has_hook == 'true'
+        run: curl -s --fail-with-body -X POST "$RENDER_DEPLOY_HOOK_URL"
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}

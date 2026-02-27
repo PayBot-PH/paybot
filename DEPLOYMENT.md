@@ -141,8 +141,30 @@ The workflow uses the `production` environment in GitHub Actions. You can add se
 |-------------|-------------|
 | `RAILWAY_TOKEN` | Railway project token (see [step 3.1](#31-generate-a-railway-project-token)) |
 | `RAILWAY_SERVICE` | Exact name of the Railway service to deploy (e.g. `backend`) |
+| `RENDER_DEPLOY_HOOK_URL` | Render deploy hook URL (see [step 3.3](#33-render-deploy-hook-optional)) |
 
 > **Note:** If either `RAILWAY_TOKEN` or `RAILWAY_SERVICE` is missing or empty, the deployment step will be skipped with a warning message pointing to this guide. To find your service name, open your Railway project dashboard and note the name shown on the service card.
+
+---
+
+### 3.3 Render Deploy Hook (optional)
+
+If you also want GitHub Actions to automatically redeploy your Render service on every push to `main`, add a Render deploy hook URL as a GitHub secret named `RENDER_DEPLOY_HOOK_URL`.
+
+**How to get the deploy hook URL:**
+
+1. Log in to [Render](https://render.com)
+2. Open your **paybot-backend** service
+3. Go to **Settings** → **Deploy Hook**
+4. Copy the hook URL (it looks like `https://api.render.com/deploy/srv-<id>?key=<key>`)
+
+**Add it as a GitHub secret:**
+
+1. Go to your GitHub repository → **Settings** → **Environments** → **production**
+2. Under **"Environment secrets"**, click **"Add secret"**
+3. Name: `RENDER_DEPLOY_HOOK_URL`, Value: the URL you copied above
+
+> **Note:** If `RENDER_DEPLOY_HOOK_URL` is not set, the Render deploy step is silently skipped — no errors, just a warning. This lets you use Railway-only or Render-only without changing the workflow.
 
 ---
 
@@ -427,23 +449,30 @@ After the initial deploy, go to the **paybot-backend** service → **Environment
 |----------|-------------|
 | `PYTHON_BACKEND_URL` | Your Render public URL, e.g. `https://paybot-backend.onrender.com` |
 | `TELEGRAM_BOT_TOKEN` | Token from [@BotFather](https://t.me/botfather) |
+| `TELEGRAM_BOT_USERNAME` | Your bot's username without `@`, e.g. `mypaybot` (used by Telegram Login Widget) |
 | `XENDIT_SECRET_KEY` | Xendit API secret key |
 | `JWT_SECRET_KEY` | Random secret – run `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `ADMIN_USER_PASSWORD` | Password for the admin dashboard |
-| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric user IDs allowed as admin |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric user IDs or `@usernames` allowed as admin |
 | `ALLOWED_ORIGINS` | Comma-separated allowed CORS origins (optional) |
+
+The following variables are pre-configured with sensible defaults in `render.yaml` and do not need to be set manually unless you want to override them:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_ALGORITHM` | `HS256` | JWT signing algorithm |
+| `JWT_EXPIRE_MINUTES` | `60` | JWT token expiry in minutes |
+| `ENVIRONMENT` | `production` | Application environment |
 
 ### 8.3 Run Database Migrations
 
-Render does not have a built-in pre-deploy hook equivalent to Railway's `preDeployCommand`, so you run the initial migration manually using the **Shell** tab of the `paybot-backend` service, or via the Render CLI:
+Database migrations run **automatically** on each Render deployment via the `preDeployCommand` in `render.yaml`:
 
 ```bash
-# In the Render web shell for paybot-backend
-cd /app/backend
 alembic upgrade head
 ```
 
-Subsequent migrations can be run the same way, or automated by adding a [Render pre-deploy job](https://docs.render.com/deploy-lifecycle) to `render.yaml` once your plan supports it.
+This runs in the deployed container (at `/app/backend`) before the new version goes live. If the migration fails, Render aborts the deploy and keeps the previous version running.
 
 ### 8.4 Configure Webhooks
 
