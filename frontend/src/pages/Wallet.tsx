@@ -100,6 +100,12 @@ const txnTypeConfig: Record<string, { label: string; color: string; icon: React.
     icon: <Bitcoin className="h-4 w-4 text-teal-400" />,
     sign: '+',
   },
+  usdt_send: {
+    label: 'Sent USDT',
+    color: 'text-red-400',
+    icon: <Send className="h-4 w-4 text-red-400" />,
+    sign: '-',
+  },
 };
 
 const BANKS = ['BDO', 'BPI', 'UNIONBANK', 'RCBC', 'CHINABANK', 'PNB', 'METROBANK'];

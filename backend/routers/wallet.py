@@ -49,6 +49,11 @@ class WithdrawRequest(BaseModel):
     account_number: str = ""
     note: str = ""
 
+class SendUsdtRequest(BaseModel):
+    to_address: str
+    amount: float
+    note: str = ""
+
 class WalletTxnResponse(BaseModel):
     id: int
     transaction_type: str
@@ -250,6 +255,62 @@ async def withdraw_money(
         success=True,
         message=f"Successfully withdrew ₱{data.amount:,.2f}",
         balance=wallet.balance,
+        transaction_id=txn.id,
+    )
+
+
+@router.post("/send-usdt", response_model=WalletActionResponse)
+async def send_usdt(
+    data: SendUsdtRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send USDT (TRC20) from the user's USD wallet to a TRC-20 address."""
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    addr = data.to_address.strip()
+    if not addr.startswith("T") or len(addr) != 34 or not addr.isalnum():
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid TRC-20 address. Must start with 'T' and be exactly 34 alphanumeric characters.",
+        )
+
+    user_id = str(current_user.id)
+    usd_wallet = await get_or_create_wallet(db, user_id, "USD")
+
+    if usd_wallet.balance < data.amount:
+        raise HTTPException(status_code=400, detail="Insufficient USD wallet balance")
+
+    now = datetime.now()
+    balance_before = usd_wallet.balance
+    usd_wallet.balance -= data.amount
+    usd_wallet.updated_at = now
+
+    txn = Wallet_transactions(
+        user_id=user_id,
+        wallet_id=usd_wallet.id,
+        transaction_type="usdt_send",
+        amount=data.amount,
+        balance_before=balance_before,
+        balance_after=usd_wallet.balance,
+        recipient=addr,
+        note=data.note or f"USDT sent to {addr[:8]}...{addr[-4:]}",
+        status="completed",
+        reference_id=f"usdt-send-{usd_wallet.id}-{int(now.timestamp())}",
+        created_at=now,
+    )
+    db.add(txn)
+    await db.commit()
+    await db.refresh(txn)
+
+    publish_wallet_event(user_id, usd_wallet, "usdt_send", data.amount, txn.id)
+    logger.info("USDT send: user=%s amount=%s to=%s", user_id, data.amount, addr)
+
+    return WalletActionResponse(
+        success=True,
+        message=f"Successfully sent ${data.amount:,.2f} USDT to {addr[:8]}...{addr[-4:]}",
+        balance=usd_wallet.balance,
         transaction_id=txn.id,
     )
 
