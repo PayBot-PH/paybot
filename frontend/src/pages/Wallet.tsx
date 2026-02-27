@@ -26,6 +26,7 @@ import {
   Check,
   Bitcoin,
   AlertCircle,
+  ShieldAlert,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -69,6 +70,19 @@ interface CryptoTopupRequest {
   created_at: string | null;
 }
 
+interface UsdtSendRequest {
+  id: number;
+  user_id: string;
+  to_address: string;
+  amount: number;
+  note: string | null;
+  status: string;
+  denial_reason: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string | null;
+}
+
 const txnTypeConfig: Record<string, { label: string; color: string; icon: React.ReactNode; sign: string }> = {
   top_up: {
     label: 'Top Up',
@@ -99,6 +113,12 @@ const txnTypeConfig: Record<string, { label: string; color: string; icon: React.
     color: 'text-teal-400',
     icon: <Bitcoin className="h-4 w-4 text-teal-400" />,
     sign: '+',
+  },
+  usdt_send: {
+    label: 'Sent USDT',
+    color: 'text-red-400',
+    icon: <Send className="h-4 w-4 text-red-400" />,
+    sign: '-',
   },
 };
 
@@ -151,6 +171,13 @@ export default function Wallet() {
   const [cryptoRequests, setCryptoRequests] = useState<CryptoTopupRequest[]>([]);
   const [addressCopied, setAddressCopied] = useState(false);
 
+  // Send USDT state
+  const [sendUsdtAddress, setSendUsdtAddress] = useState('');
+  const [sendUsdtAmount, setSendUsdtAmount] = useState('');
+  const [sendUsdtNote, setSendUsdtNote] = useState('');
+  const [sendUsdtLoading, setSendUsdtLoading] = useState(false);
+  const [sendUsdtRequests, setSendUsdtRequests] = useState<UsdtSendRequest[]>([]);
+
   const fetchWalletData = useCallback(async () => {
     if (!user) return;
     try {
@@ -180,6 +207,19 @@ export default function Wallet() {
     }
   }, [user]);
 
+  const fetchSendUsdtRequests = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await fetch('/api/v1/wallet/usdt-send-requests', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setSendUsdtRequests(data.items || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch USDT send requests:', err);
+    }
+  }, [user]);
+
   const onWalletUpdate = useCallback(() => { fetchWalletData(); }, [fetchWalletData]);
   const onStatusChange = useCallback(() => { fetchWalletData(); }, [fetchWalletData]);
 
@@ -196,6 +236,7 @@ export default function Wallet() {
       setLoading(true);
       await fetchWalletData();
       await fetchCryptoRequests();
+      await fetchSendUsdtRequests();
       setLoading(false);
     };
     load();
@@ -225,7 +266,7 @@ export default function Wallet() {
       .then(r => r.json())
       .then(data => setCryptoDepositInfo(data))
       .catch(() => {});
-  }, [user, fetchWalletData, fetchCryptoRequests]);
+  }, [user, fetchWalletData, fetchCryptoRequests, fetchSendUsdtRequests]);
 
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount);
@@ -322,6 +363,38 @@ export default function Wallet() {
     } finally { setCryptoLoading(false); }
   };
 
+  const handleSendUsdt = async () => {
+    const amount = parseFloat(sendUsdtAmount);
+    if (!amount || amount <= 0) { toast.error('Enter a valid USDT amount'); return; }
+    const addr = sendUsdtAddress.trim();
+    if (!addr) { toast.error('Enter the recipient TRC-20 address'); return; }
+    if (!addr.startsWith('T') || addr.length !== 34) {
+      toast.error('Invalid TRC-20 address — must start with T and be 34 characters');
+      return;
+    }
+    setSendUsdtLoading(true);
+    try {
+      const res = await fetch('/api/v1/wallet/send-usdt', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to_address: addr, amount, note: sendUsdtNote }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Send request submitted! Awaiting super admin approval.');
+        setSendUsdtAddress('');
+        setSendUsdtAmount('');
+        setSendUsdtNote('');
+        await fetchSendUsdtRequests();
+      } else {
+        toast.error(data.detail || data.message || 'Failed to submit send request');
+      }
+    } catch {
+      toast.error('Network error. Please try again.');
+    } finally { setSendUsdtLoading(false); }
+  };
+
   const handleCopyAddress = () => {
     if (cryptoDepositInfo?.address) {
       navigator.clipboard.writeText(cryptoDepositInfo.address).then(() => {
@@ -358,6 +431,7 @@ export default function Wallet() {
   const phpBal = phpBalance?.balance ?? 0;
   const usdBal = usdBalance?.balance ?? 0;
   const pendingCryptoCount = cryptoRequests.filter(r => r.status === 'pending').length;
+  const pendingSendCount = sendUsdtRequests.filter(r => r.status === 'pending').length;
 
   return (
     <Layout connected={connected}>
@@ -406,6 +480,12 @@ export default function Wallet() {
                   <span className="text-teal-200 text-[10px]">{pendingCryptoCount} pending crypto request{pendingCryptoCount > 1 ? 's' : ''}</span>
                 </div>
               )}
+              {pendingSendCount > 0 && (
+                <div className="mt-1 flex items-center gap-1.5">
+                  <Clock className="h-3 w-3 text-amber-200" />
+                  <span className="text-amber-200 text-[10px]">{pendingSendCount} pending send request{pendingSendCount > 1 ? 's' : ''}</span>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -431,10 +511,17 @@ export default function Wallet() {
                 </TabsTrigger>
                 <TabsTrigger
                   value="topup"
-                  className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-blue-400 text-slate-400 gap-2"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-blue-400 text-slate-400 gap-2"
                 >
                   <PlusCircle className="h-4 w-4" />
                   Top Up
+                </TabsTrigger>
+                <TabsTrigger
+                  value="send-usdt"
+                  className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-teal-400 text-slate-400 gap-2"
+                >
+                  <Send className="h-4 w-4" />
+                  Send USDT
                 </TabsTrigger>
               </TabsList>
 
@@ -753,11 +840,134 @@ export default function Wallet() {
                   </div>
                 )}
               </TabsContent>
+
+              {/* Send USDT Tab */}
+              <TabsContent value="send-usdt" className="p-4 sm:p-6 mt-0 space-y-5">
+                {/* USD balance reminder */}
+                <div className="flex items-center justify-between bg-teal-500/10 border border-teal-500/20 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Bitcoin className="h-4 w-4 text-teal-400 shrink-0" />
+                    <span className="text-teal-300 text-sm font-medium">USD Wallet Balance</span>
+                  </div>
+                  <span className="text-white font-bold text-sm">${usdBal.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT</span>
+                </div>
+
+                {/* Warning */}
+                <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+                  <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div className="text-amber-300/90 text-xs leading-relaxed space-y-1">
+                    <p className="font-semibold">Requires Super Admin Approval</p>
+                    <p>Your send request will be reviewed before funds are transferred. Ensure the TRC-20 address is correct — crypto transfers are irreversible.</p>
+                  </div>
+                </div>
+
+                {/* Form */}
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-slate-300 text-sm">Recipient TRC-20 Address</Label>
+                    <Input
+                      placeholder="e.g. TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
+                      value={sendUsdtAddress}
+                      onChange={e => setSendUsdtAddress(e.target.value)}
+                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 font-mono text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-slate-300 text-sm">Amount (USDT)</Label>
+                      <Input
+                        type="number"
+                        placeholder="0.00"
+                        value={sendUsdtAmount}
+                        onChange={e => setSendUsdtAmount(e.target.value)}
+                        min="0.01"
+                        step="0.01"
+                        className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-slate-300 text-sm">Network</Label>
+                      <Input
+                        value="TRC20 (TRON)"
+                        readOnly
+                        className="mt-1 bg-slate-800/40 border-slate-600/40 text-slate-400 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-slate-300 text-sm">Note (optional)</Label>
+                    <Input
+                      placeholder="Purpose of transfer"
+                      value={sendUsdtNote}
+                      onChange={e => setSendUsdtNote(e.target.value)}
+                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleSendUsdt}
+                  disabled={sendUsdtLoading}
+                  className="w-full bg-teal-600 hover:bg-teal-700 text-white"
+                >
+                  {sendUsdtLoading
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>
+                    : <><Send className="h-4 w-4 mr-2" />Submit Send Request</>}
+                </Button>
+
+                {/* Send Request History */}
+                {sendUsdtRequests.length > 0 && (
+                  <div>
+                    <p className="text-slate-400 text-xs font-medium mb-2 uppercase tracking-wider">Your Send Requests</p>
+                    <div className="space-y-2">
+                      {sendUsdtRequests.slice(0, 5).map(req => (
+                        <div key={req.id} className={`rounded-xl border overflow-hidden ${
+                          req.status === 'denied' ? 'border-red-500/25' : 'border-slate-700/30'
+                        }`}>
+                          <div className="flex items-center justify-between bg-slate-800/40 px-3 py-2.5">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-white text-sm font-medium">${req.amount.toFixed(2)} USDT</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
+                                  req.status === 'approved'
+                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                    : req.status === 'denied'
+                                    ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                }`}>
+                                  {req.status}
+                                </span>
+                              </div>
+                              <p className="text-slate-500 text-[10px] font-mono truncate mt-0.5 max-w-[200px]">
+                                → {req.to_address}
+                              </p>
+                            </div>
+                            <div className="shrink-0 ml-2">
+                              {req.status === 'pending'
+                                ? <Clock className="h-4 w-4 text-amber-400" />
+                                : req.status === 'approved'
+                                ? <CheckCircle className="h-4 w-4 text-emerald-400" />
+                                : <XCircle className="h-4 w-4 text-red-400" />}
+                            </div>
+                          </div>
+                          {req.status === 'denied' && req.denial_reason && (
+                            <div className="flex items-start gap-2 bg-red-500/10 px-3 py-2 border-t border-red-500/20">
+                              <ShieldAlert className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-red-400 text-[10px] font-semibold uppercase tracking-wide mb-0.5">Denial Reason</p>
+                                <p className="text-red-300/80 text-xs">{req.denial_reason}</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </TabsContent>
             </Tabs>
           </CardContent>
         </Card>
-
-        {/* Wallet Transaction History */}
         <Card className="bg-[#1E293B] border-slate-700/50">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-white flex items-center space-x-2 text-base">
@@ -786,7 +996,7 @@ export default function Wallet() {
                     icon: <WalletIcon className="h-4 w-4 text-slate-400" />, sign: '',
                   };
                   const isCredit = txn.transaction_type === 'top_up' || txn.transaction_type === 'receive' || txn.transaction_type === 'crypto_topup';
-                  const isCrypto = txn.transaction_type === 'crypto_topup';
+                  const isCrypto = txn.transaction_type === 'crypto_topup' || txn.transaction_type === 'usdt_send';
                   const statusIcon = txn.status === 'completed'
                     ? <CheckCircle className="h-3 w-3 text-emerald-400" />
                     : txn.status === 'pending'

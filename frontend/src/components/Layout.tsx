@@ -12,6 +12,7 @@ import {
   LogOut,
   ShieldCheck,
   MessageCircle,
+  MessageSquare,
   ScrollText,
   Crown,
   User,
@@ -19,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Activity,
+  Send,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -43,7 +45,7 @@ interface LayoutProps {
 export default function Layout({ children, connected }: LayoutProps) {
   const location = useLocation();
   const path = location.pathname;
-  const { user, logout, isSuperAdmin, permissions } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin, permissions } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -64,11 +66,14 @@ export default function Layout({ children, connected }: LayoutProps) {
         { to: '/reports', icon: PieChart, label: 'Reports' },
       ],
     },
-    ...(permissions?.can_manage_bot || isSuperAdmin
+    ...(isAdmin || permissions?.can_manage_bot || isSuperAdmin
       ? [
           {
             label: 'System',
             items: [
+              ...(isAdmin || isSuperAdmin
+                ? [{ to: '/bot-messages', icon: MessageSquare, label: 'Bot Messages' }]
+                : []),
               ...(permissions?.can_manage_bot
                 ? [{ to: '/bot-settings', icon: Bot, label: 'Bot Settings' }]
                 : []),
@@ -78,6 +83,13 @@ export default function Layout({ children, connected }: LayoutProps) {
                       to: '/admin-management',
                       icon: ShieldCheck,
                       label: 'Admin Management',
+                      badge: 'Super',
+                      badgeColor: 'amber',
+                    },
+                    {
+                      to: '/usdt-send-requests',
+                      icon: Send,
+                      label: 'USDT Send Requests',
                       badge: 'Super',
                       badgeColor: 'amber',
                     },

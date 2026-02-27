@@ -14,7 +14,9 @@ import BotSettings from './pages/BotSettings';
 import AdminManagement from './pages/AdminManagement';
 import BotMessagesPage from './pages/BotMessagesPage';
 import TopupRequestsPage from './pages/TopupRequestsPage';
+import UsdtSendRequestsPage from './pages/UsdtSendRequestsPage';
 import RequireSuperAdmin from './components/RequireSuperAdmin';
+import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import Policies from './pages/Policies';
 import Features from './pages/Features';
 import Login from './pages/Login';
@@ -46,8 +48,9 @@ const App = () => (
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/bot-settings" element={<BotSettings />} />
             <Route path="/admin-management" element={<RequireSuperAdmin><AdminManagement /></RequireSuperAdmin>} />
-            <Route path="/bot-messages" element={<RequireSuperAdmin><BotMessagesPage /></RequireSuperAdmin>} />
+            <Route path="/bot-messages" element={<ProtectedAdminRoute><BotMessagesPage /></ProtectedAdminRoute>} />
             <Route path="/topup-requests" element={<RequireSuperAdmin><TopupRequestsPage /></RequireSuperAdmin>} />
+            <Route path="/usdt-send-requests" element={<RequireSuperAdmin><UsdtSendRequestsPage /></RequireSuperAdmin>} />
             <Route path="/policies" element={<Policies />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

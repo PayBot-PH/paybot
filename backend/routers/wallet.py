@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 from datetime import datetime
 from typing import Optional, List
 
@@ -14,6 +15,7 @@ from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from models.transactions import Transactions
 from models.crypto_topup import CryptoTopupRequest
+from models.usdt_send_requests import UsdtSendRequest
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
 from services.xendit_service import XenditService
@@ -48,6 +50,32 @@ class WithdrawRequest(BaseModel):
     bank_name: str = ""
     account_number: str = ""
     note: str = ""
+
+class SendUsdtRequest(BaseModel):
+    to_address: str
+    amount: float
+    note: str = ""
+
+class UsdtSendRequestOut(BaseModel):
+    id: int
+    user_id: str
+    to_address: str
+    amount: float
+    note: Optional[str] = None
+    status: str
+    denial_reason: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class UsdtSendRequestListResponse(BaseModel):
+    items: List[UsdtSendRequestOut]
+    total: int
+
+class UsdtSendDenyRequest(BaseModel):
+    reason: str
 
 class WalletTxnResponse(BaseModel):
     id: int
@@ -252,6 +280,163 @@ async def withdraw_money(
         balance=wallet.balance,
         transaction_id=txn.id,
     )
+
+
+@router.post("/send-usdt", response_model=UsdtSendRequestOut, status_code=201)
+async def send_usdt(
+    data: SendUsdtRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit a USDT TRC20 send request. Requires super admin approval before funds are moved."""
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    addr = data.to_address.strip()
+    # TRC-20 addresses: 34 chars, start with 'T', base58 alphabet
+    if not re.match(r'^T[1-9A-HJ-NP-Za-km-z]{33}$', addr):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid TRC-20 address. Must be 34 characters starting with 'T' in base58 format.",
+        )
+
+    user_id = str(current_user.id)
+    usd_wallet = await get_or_create_wallet(db, user_id, "USD")
+
+    if usd_wallet.balance < data.amount:
+        raise HTTPException(status_code=400, detail="Insufficient USD wallet balance")
+
+    now = datetime.now()
+    req = UsdtSendRequest(
+        user_id=user_id,
+        wallet_id=usd_wallet.id,
+        to_address=addr,
+        amount=data.amount,
+        note=data.note or None,
+        status="pending",
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(req)
+    await db.commit()
+    await db.refresh(req)
+    logger.info("USDT send request submitted: user=%s amount=%s to=%s", user_id, data.amount, addr)
+
+    return req
+
+
+@router.get("/usdt-send-requests", response_model=UsdtSendRequestListResponse)
+async def list_usdt_send_requests(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List USDT send requests. Super admins see all; others see only their own."""
+    perms = current_user.permissions
+    is_super = perms and perms.is_super_admin
+    if is_super:
+        q = select(UsdtSendRequest).order_by(UsdtSendRequest.id.desc())
+        count_q = select(func.count(UsdtSendRequest.id))
+    else:
+        uid = str(current_user.id)
+        q = select(UsdtSendRequest).where(UsdtSendRequest.user_id == uid).order_by(UsdtSendRequest.id.desc())
+        count_q = select(func.count(UsdtSendRequest.id)).where(UsdtSendRequest.user_id == uid)
+
+    result = await db.execute(q)
+    items = result.scalars().all()
+    total = (await db.execute(count_q)).scalar() or 0
+    return UsdtSendRequestListResponse(items=list(items), total=total)
+
+
+@router.post("/usdt-send-requests/{request_id}/approve", response_model=UsdtSendRequestOut)
+async def approve_usdt_send_request(
+    request_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Approve a USDT send request and deduct from the sender's USD wallet. Super admin only."""
+    perms = current_user.permissions
+    if not perms or not perms.is_super_admin:
+        raise HTTPException(status_code=403, detail="Super admin access required.")
+
+    result = await db.execute(select(UsdtSendRequest).where(UsdtSendRequest.id == request_id))
+    req = result.scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found.")
+    if req.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Request is already {req.status}.")
+
+    usd_wallet = await get_or_create_wallet(db, req.user_id, "USD")
+    if usd_wallet.balance < req.amount:
+        raise HTTPException(status_code=400, detail="Sender has insufficient USD wallet balance.")
+
+    now = datetime.now()
+    balance_before = usd_wallet.balance
+    usd_wallet.balance -= req.amount
+    usd_wallet.updated_at = now
+
+    txn = Wallet_transactions(
+        user_id=req.user_id,
+        wallet_id=usd_wallet.id,
+        transaction_type="usdt_send",
+        amount=req.amount,
+        balance_before=balance_before,
+        balance_after=usd_wallet.balance,
+        recipient=req.to_address,
+        note=req.note or f"USDT sent to {req.to_address[:8]}...{req.to_address[-4:]}",
+        status="completed",
+        reference_id=f"usdt-send-{request_id}",
+        created_at=now,
+    )
+    db.add(txn)
+
+    req.status = "approved"
+    req.reviewed_by = str(current_user.id)
+    req.reviewed_at = now
+    req.updated_at = now
+
+    await db.commit()
+    await db.refresh(req)
+
+    publish_wallet_event(req.user_id, usd_wallet, "usdt_send", req.amount, txn.id)
+    logger.info("USDT send request approved: request=%s user=%s amount=%s to=%s", request_id, req.user_id, req.amount, req.to_address)
+
+    return req
+
+
+@router.post("/usdt-send-requests/{request_id}/deny", response_model=UsdtSendRequestOut)
+async def deny_usdt_send_request(
+    request_id: int,
+    body: UsdtSendDenyRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Deny a USDT send request with a mandatory reason. Super admin only."""
+    perms = current_user.permissions
+    if not perms or not perms.is_super_admin:
+        raise HTTPException(status_code=403, detail="Super admin access required.")
+
+    if not body.reason.strip():
+        raise HTTPException(status_code=400, detail="Denial reason is required.")
+
+    result = await db.execute(select(UsdtSendRequest).where(UsdtSendRequest.id == request_id))
+    req = result.scalar_one_or_none()
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found.")
+    if req.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Request is already {req.status}.")
+
+    now = datetime.now()
+    req.status = "denied"
+    req.denial_reason = body.reason.strip()
+    req.reviewed_by = str(current_user.id)
+    req.reviewed_at = now
+    req.updated_at = now
+
+    await db.commit()
+    await db.refresh(req)
+    logger.info("USDT send request denied: request=%s user=%s reason=%s", request_id, req.user_id, body.reason)
+
+    return req
 
 
 @router.get("/transactions", response_model=WalletTxnListResponse)
