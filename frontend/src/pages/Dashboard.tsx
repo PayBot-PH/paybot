@@ -130,6 +130,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [updatedTxnIds, setUpdatedTxnIds] = useState<Set<number>>(new Set());
   const [walletBalance, setWalletBalance] = useState<number>(0);
+  const [usdWalletBalance, setUsdWalletBalance] = useState<number>(0);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -137,7 +138,8 @@ export default function Dashboard() {
       const results = await Promise.allSettled([
         client.apiCall.invoke({ url: '/api/v1/xendit/transaction-stats', method: 'GET', data: {} }),
         client.entities.transactions.query({ query: {}, sort: '-created_at', limit: 8 }),
-        client.apiCall.invoke({ url: '/api/v1/wallet/balance', method: 'GET', data: {} }),
+        client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=PHP', method: 'GET', data: {} }),
+        client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=USD', method: 'GET', data: {} }),
       ]);
 
       // Conflict 3 resolution: keep HEAD's verbose error handling for better debuggability
@@ -160,6 +162,13 @@ export default function Dashboard() {
         if (walletData?.balance != null) setWalletBalance(walletData.balance);
       } else {
         console.warn('Failed to fetch wallet balance:', results[2].reason);
+      }
+
+      if (results[3].status === 'fulfilled') {
+        const usdData = results[3].value?.data;
+        if (usdData?.balance != null) setUsdWalletBalance(usdData.balance);
+      } else {
+        console.warn('Failed to fetch USD wallet balance:', results[3].reason);
       }
     } catch (err) {
       console.error('Unexpected error in fetchData:', err);
@@ -271,26 +280,50 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Grid — Wallet card + StatCard components (HEAD) */}
-      <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-6">
-        {/* Wallet Balance — spans 2 cols on small, 1 on xl */}
-        <Link to="/wallet" className="col-span-2 xl:col-span-1 block group">
+      {/* Stats Grid — Wallet cards + StatCard components */}
+      <div className="grid grid-cols-2 xl:grid-cols-6 gap-3 mb-6">
+        {/* PHP Wallet Balance */}
+        <Link to="/wallet" className="col-span-1 block group">
           <Card className="h-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 border-0 shadow-lg shadow-blue-900/30 hover:shadow-blue-700/40 hover:scale-[1.02] transition-all duration-200 cursor-pointer">
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-blue-200">Wallet Balance</p>
+                <p className="text-sm font-medium text-blue-200">PHP Wallet</p>
                 <div className="h-9 w-9 bg-white/15 rounded-xl flex items-center justify-center">
                   <Wallet className="h-4.5 w-4.5 text-white" />
                 </div>
               </div>
               <p className="text-2xl sm:text-3xl font-bold text-white transition-all duration-300">
                 {loading
-                  ? <span className="inline-block w-28 h-8 bg-blue-500/40 rounded animate-pulse" />
+                  ? <span className="inline-block w-24 h-8 bg-blue-500/40 rounded animate-pulse" />
                   : `₱${fmt(walletBalance || 0)}`
                 }
               </p>
               <div className="flex items-center gap-1 mt-2 text-blue-200 text-xs group-hover:text-white transition-colors">
-                <span>Manage wallet</span>
+                <span>Xendit balance</span>
+                <ArrowUpRight className="h-3 w-3" />
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* USD Wallet Balance */}
+        <Link to="/wallet" className="col-span-1 block group">
+          <Card className="h-full bg-gradient-to-br from-teal-600 via-teal-700 to-emerald-800 border-0 shadow-lg shadow-teal-900/30 hover:shadow-teal-700/40 hover:scale-[1.02] transition-all duration-200 cursor-pointer">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium text-teal-200">USD Wallet</p>
+                <div className="h-9 w-9 bg-white/15 rounded-xl flex items-center justify-center">
+                  <DollarSign className="h-4.5 w-4.5 text-white" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold text-white transition-all duration-300">
+                {loading
+                  ? <span className="inline-block w-24 h-8 bg-teal-500/40 rounded animate-pulse" />
+                  : `$${usdWalletBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                }
+              </p>
+              <div className="flex items-center gap-1 mt-2 text-teal-200 text-xs group-hover:text-white transition-colors">
+                <span>Crypto balance</span>
                 <ArrowUpRight className="h-3 w-3" />
               </div>
             </CardContent>
