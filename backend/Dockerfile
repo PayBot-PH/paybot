@@ -1,20 +1,20 @@
-# ── Stage 1: Build the React admin dashboard ────────────────────────────────
+# ── Stage 1: Build the React frontend ───────────────────────────────────────
 FROM node:20-slim AS frontend-builder
 
-WORKDIR /frontend
+WORKDIR /app/frontend
 
 # Install pnpm
 RUN npm install -g pnpm@8.10.0
 
-# Install dependencies (leverages Docker layer cache when lockfile unchanged)
+# Install dependencies (uses lockfile for reproducible builds)
 COPY frontend/package.json frontend/pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
-# Copy frontend source and build for production
+# Copy frontend source and build
 COPY frontend/ .
 RUN pnpm run build
 
-# ── Stage 2: Python / FastAPI backend with freshly built frontend ────────────
+# ── Stage 2: Python / FastAPI backend with built frontend ────────────────────
 FROM python:3.11-slim
 
 WORKDIR /app/backend
@@ -32,8 +32,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy all backend source files
 COPY backend/ .
 
-# Overwrite static directory with the freshly built frontend
-COPY --from=frontend-builder /frontend/dist ./static
+# Copy the built frontend from stage 1 into backend/static/
+COPY --from=frontend-builder /app/frontend/dist ./static
 
 # Expose port 8000 (Railway will use $PORT environment variable)
 EXPOSE 8000
