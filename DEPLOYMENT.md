@@ -449,11 +449,20 @@ After the initial deploy, go to the **paybot-backend** service → **Environment
 |----------|-------------|
 | `PYTHON_BACKEND_URL` | Your Render public URL, e.g. `https://paybot-backend.onrender.com` |
 | `TELEGRAM_BOT_TOKEN` | Token from [@BotFather](https://t.me/botfather) |
+| `TELEGRAM_BOT_USERNAME` | Your bot's username without `@`, e.g. `mypaybot` (used by Telegram Login Widget) |
 | `XENDIT_SECRET_KEY` | Xendit API secret key |
 | `JWT_SECRET_KEY` | Random secret – run `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `ADMIN_USER_PASSWORD` | Password for the admin dashboard |
-| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric user IDs allowed as admin |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric user IDs or `@usernames` allowed as admin |
 | `ALLOWED_ORIGINS` | Comma-separated allowed CORS origins (optional) |
+
+The following variables are pre-configured with sensible defaults in `render.yaml` and do not need to be set manually unless you want to override them:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_ALGORITHM` | `HS256` | JWT signing algorithm |
+| `JWT_EXPIRE_MINUTES` | `60` | JWT token expiry in minutes |
+| `ENVIRONMENT` | `production` | Application environment |
 
 ### 8.3 Run Database Migrations
 
@@ -464,11 +473,6 @@ alembic upgrade head
 ```
 
 This runs in the deployed container (at `/app/backend`) before the new version goes live. If the migration fails, Render aborts the deploy and keeps the previous version running.
-
-> **Note:** `preDeployCommand` requires a paid Render plan. On the free plan, run the initial migration once manually using the **Shell** tab of the `paybot-backend` service:
-> ```bash
-> alembic upgrade head
-> ```
 
 ### 8.4 Configure Webhooks
 

@@ -4,7 +4,7 @@ services:
     runtime: docker
     dockerfilePath: backend/Dockerfile
     dockerContext: .
-    plan: free
+    plan: starter
     healthCheckPath: /health
     preDeployCommand: "alembic upgrade head"
     envVars:
@@ -12,10 +12,16 @@ services:
         sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        sync: false
       - key: XENDIT_SECRET_KEY
         sync: false
       - key: JWT_SECRET_KEY
         sync: false
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_MINUTES
+        value: "60"
       - key: ADMIN_USER_PASSWORD
         sync: false
       - key: TELEGRAM_ADMIN_IDS
