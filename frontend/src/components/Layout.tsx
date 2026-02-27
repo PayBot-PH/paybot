@@ -12,6 +12,7 @@ import {
   LogOut,
   ShieldCheck,
   MessageCircle,
+  MessageSquare,
   ScrollText,
   Crown,
   User,
@@ -43,7 +44,7 @@ interface LayoutProps {
 export default function Layout({ children, connected }: LayoutProps) {
   const location = useLocation();
   const path = location.pathname;
-  const { user, logout, isSuperAdmin, permissions } = useAuth();
+  const { user, logout, isAdmin, isSuperAdmin, permissions } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -64,11 +65,14 @@ export default function Layout({ children, connected }: LayoutProps) {
         { to: '/reports', icon: PieChart, label: 'Reports' },
       ],
     },
-    ...(permissions?.can_manage_bot || isSuperAdmin
+    ...(isAdmin || permissions?.can_manage_bot || isSuperAdmin
       ? [
           {
             label: 'System',
             items: [
+              ...(isAdmin || isSuperAdmin
+                ? [{ to: '/bot-messages', icon: MessageSquare, label: 'Bot Messages' }]
+                : []),
               ...(permissions?.can_manage_bot
                 ? [{ to: '/bot-settings', icon: Bot, label: 'Bot Settings' }]
                 : []),

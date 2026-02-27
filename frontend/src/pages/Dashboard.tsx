@@ -32,6 +32,7 @@ import {
   ShieldCheck,
   RefreshCw,
   Banknote,
+  MessageSquare,
 } from 'lucide-react';
 
 interface Stats {
@@ -350,14 +351,15 @@ export default function Dashboard() {
           <CardContent className="px-3 pb-4">
             <div className="grid grid-cols-2 gap-1.5">
               {[
-                { to: '/payments',      icon: CreditCard,   label: 'Payments Hub',  color: 'blue' },
-                { to: '/disbursements', icon: Send,          label: 'Disbursements', color: 'emerald' },
-                { to: '/transactions',  icon: RefreshCw,     label: 'Transactions',  color: 'cyan' },
-                { to: '/reports',       icon: PieChart,      label: 'Analytics',     color: 'yellow' },
-                { to: '/wallet',        icon: Wallet,        label: 'Wallet',        color: 'indigo' },
-                { to: '/disbursements', icon: RotateCcw,     label: 'Refunds',       color: 'orange' },
-                { to: '/disbursements', icon: CalendarDays,  label: 'Schedules',     color: 'purple' },
-                { to: '/disbursements', icon: Users,         label: 'Customers',     color: 'teal' },
+                { to: '/payments',      icon: CreditCard,      label: 'Payments Hub',  color: 'blue' },
+                { to: '/disbursements', icon: Send,             label: 'Disbursements', color: 'emerald' },
+                { to: '/transactions',  icon: RefreshCw,        label: 'Transactions',  color: 'cyan' },
+                { to: '/reports',       icon: PieChart,         label: 'Analytics',     color: 'yellow' },
+                { to: '/wallet',        icon: Wallet,           label: 'Wallet',        color: 'indigo' },
+                { to: '/disbursements', icon: RotateCcw,        label: 'Refunds',       color: 'orange' },
+                { to: '/disbursements', icon: CalendarDays,     label: 'Schedules',     color: 'purple' },
+                { to: '/disbursements', icon: Users,            label: 'Customers',     color: 'teal' },
+                { to: '/bot-messages',  icon: MessageSquare,    label: 'Bot Messages',  color: 'violet' },
               ].map(({ to, icon: Icon, label, color }) => (
                 <Link key={`${to}-${label}`} to={to} className="block">
                   <button className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border transition-all duration-150 text-left group
@@ -369,6 +371,7 @@ export default function Dashboard() {
                     ${color === 'orange'  ? 'bg-orange-600/10 border-orange-500/20 text-orange-400 hover:bg-orange-600/20 hover:border-orange-500/40' : ''}
                     ${color === 'purple'  ? 'bg-purple-600/10 border-purple-500/20 text-purple-400 hover:bg-purple-600/20 hover:border-purple-500/40' : ''}
                     ${color === 'teal'    ? 'bg-teal-600/10 border-teal-500/20 text-teal-400 hover:bg-teal-600/20 hover:border-teal-500/40' : ''}
+                    ${color === 'violet'  ? 'bg-violet-600/10 border-violet-500/20 text-violet-400 hover:bg-violet-600/20 hover:border-violet-500/40' : ''}
                   `}>
                     <Icon className="h-3.5 w-3.5 shrink-0" />
                     <span className="text-xs font-medium truncate">{label}</span>
