@@ -26,9 +26,19 @@ Open your browser to the URL that matches your environment:
 | Page | Path | Description |
 |------|------|-------------|
 | Dashboard | `/` | Stats, wallet balance, recent transactions |
-| Transactions | `/transactions` | Full history with search & filters |
+| Wallet | `/wallet` | Balance management, top up, withdraw, disburse |
+| Payments Hub | `/payments` | Create payments via all 7 methods |
 | Create Payment | `/create-payment` | Invoice / QR / payment link form |
+| Transactions | `/transactions` | Full history with search & filters |
+| Money Management | `/disbursements` | Disbursements, refunds, subscriptions, customers |
+| Reports | `/reports` | Revenue analytics and fee calculator |
 | Bot Settings | `/bot-settings` | Test bot, set webhook, send test message |
+| Admin Management | `/admin-management` | Add/remove admins, set permissions (super admin only) |
+| Bot Messages | `/bot-messages` | Bot broadcast messages (admin only) |
+| Topup Requests | `/topup-requests` | Approve wallet top-up requests (super admin only) |
+| USDT Send Requests | `/usdt-send-requests` | Manage USDT send requests (super admin only) |
+| Features | `/features` | Public landing page |
+| Policies | `/policies` | Terms of Service, Privacy Policy, Refund Policy |
 
 ---
 
@@ -312,6 +322,11 @@ curl https://your-domain.com/api/v1/telegram/debug-token-check
 | **Reports** | `/reports` | Revenue analytics, breakdowns, fee calculator |
 | **Bot Settings** | `/bot-settings` | Configure Telegram bot and webhook |
 | **Admin Management** | `/admin-management` | Add/remove admins, set permissions (super admin only) |
+| **Bot Messages** | `/bot-messages` | View and manage bot broadcast messages (admin only) |
+| **Topup Requests** | `/topup-requests` | Review and approve wallet top-up requests (super admin only) |
+| **USDT Send Requests** | `/usdt-send-requests` | Manage USDT withdrawal/send requests (super admin only) |
+| **Features** | `/features` | Public landing page showcasing platform features |
+| **Policies** | `/policies` | Terms of Service, Privacy Policy, and Refund Policy |
 
 ---
 
