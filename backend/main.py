@@ -280,6 +280,12 @@ def health_check():
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
+# Ensure the images directory exists and mount it unconditionally so the
+# static QR image URL ({base_url}/images/usdt_trc20_qr.png) is always reachable.
+_IMAGES_DIR = _STATIC_DIR / "images"
+_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/images", StaticFiles(directory=str(_IMAGES_DIR)), name="images")
+
 if _STATIC_DIR.exists():
     # Mount the Vite-generated assets bundle directory for efficient serving
     _assets_dir = _STATIC_DIR / "assets"

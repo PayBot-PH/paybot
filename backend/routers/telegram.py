@@ -9,6 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from core.database import get_db
 from dependencies.auth import get_current_user
 from models.bot_logs import Bot_logs
@@ -40,6 +41,13 @@ def _make_qr_url(url: str, size: int = 400) -> str:
     Telegram can fetch this URL directly — no local image generation needed."""
     from urllib.parse import quote
     return f"https://api.qrserver.com/v1/create-qr-code/?size={size}x{size}&data={quote(url, safe='')}"
+
+
+def _usdt_static_qr_url() -> str:
+    """Return the absolute URL for the hosted USDT TRC20 QR code image.
+    Uses settings.backend_url (driven by PYTHON_BACKEND_URL env var) so
+    Telegram can always fetch the image."""
+    return f"{settings.backend_url.rstrip('/')}/images/usdt_trc20_qr.png"
 
 
 async def _get_usd_balance(db: AsyncSession, chat_id: str) -> float:
@@ -1330,7 +1338,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         db.add(req)
                         await db.commit()
                         await db.refresh(req)
-                        qr_url = _make_qr_url(USDT_TRC20_ADDRESS)
+                        qr_url = _usdt_static_qr_url()
                         caption = (
                             f"💵 <b>Top Up via USDT TRC20</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
