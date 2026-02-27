@@ -866,7 +866,7 @@ export default function Wallet() {
                   <div>
                     <Label className="text-slate-300 text-sm">Recipient TRC-20 Address</Label>
                     <Input
-                      placeholder="T... (34 characters)"
+                      placeholder="e.g. TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
                       value={sendUsdtAddress}
                       onChange={e => setSendUsdtAddress(e.target.value)}
                       className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 font-mono text-sm"

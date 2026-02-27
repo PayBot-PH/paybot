@@ -1013,8 +1013,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     chat_id,
                     "❌ Usage: /sendusdt [amount] [trc20_address]\n"
                     "Example: /sendusdt 50 TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx\n\n"
-                    "⚠️ Only send to a valid TRC20 address (starts with T, 34 characters).\n"
-                    "✋ Your request will be reviewed and approved by an admin before funds are sent."
+                    "⚠️ Only send to a valid TRC20 address (starts with T, 34 characters)."
                 )
             else:
                 try:
@@ -1064,7 +1063,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         wallet_id=wallet_id,
                         to_address=addr,
                         amount=amount,
-                        note=f"Submitted via Telegram by @{username}",
+                        note=f"Submitted via Telegram by @{username}" if username and username != "unknown" else f"Submitted via Telegram (chat {chat_id})",
                         status="pending",
                         created_at=now,
                         updated_at=now,
@@ -1081,9 +1080,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"💵 Amount: <b>${amount:,.2f} USDT</b>\n"
                         f"📬 To: <code>{short_addr}</code>\n"
                         f"🆔 Request ID: <code>#{send_req.id}</code>\n\n"
-                        f"⏳ Your request is pending admin approval.\n"
-                        f"You will be notified once it is reviewed.\n\n"
-                        f"ℹ️ Use /usdbalance to check your pending requests."
+                        f"ℹ️ Use /usdbalance to check your requests."
                     )
                     logger.info("USDT send via bot: user=%s amount=%s to=%s req=%s", tg_user_id, amount, addr, send_req.id)
                 except ValueError:
@@ -1460,10 +1457,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "💸 <b>Send Money:</b>\n"
                 "  /disburse [amt] [bank] [acct] [name]\n"
                 "  /refund [id] [amt]\n\n"
-                "💰 <b>Wallet:</b>\n"
-                "  /balance — Balance + history\n"
+                "💰 <b>PHP Wallet:</b>\n"
+                "  /balance — PHP & USD balances\n"
                 "  /send [amt] [to]\n"
                 "  /withdraw [amt]\n\n"
+                "💵 <b>USD Wallet (USDT TRC20):</b>\n"
+                "  /usdbalance — USD balance & history\n"
+                "  /topup [amt] — Top up USD wallet via USDT\n"
+                "  /sendusdt [amt] [address] — Send USDT\n\n"
                 "📊 <b>Tools:</b>\n"
                 "  /status [id] — Details (or list recent)\n"
                 "  /list — Last 5 transactions\n"
@@ -1480,11 +1481,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/topup"):
             parts = text.split(maxsplit=1)
             if len(parts) < 2:
-                await tg.send_message(
-                    chat_id,
-                    f"❌ Usage: /topup [amount]\nExample: /topup 50\n\n"
-                    f"💡 Send USDT (TRC20) to the address below, then upload your receipt here."
+                qr_url = _usdt_static_qr_url()
+                caption = (
+                    f"💵 <b>Top Up USD Wallet via USDT TRC20</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"Send USDT (TRC20) to:\n\n"
+                    f"<code>{USDT_TRC20_ADDRESS}</code>\n\n"
+                    f"⚠️ <b>Network:</b> TRC20 (TRON) only — do NOT use ERC20 or BEP20\n\n"
+                    f"Then run:\n"
+                    f"  <b>/topup [amount]</b>  — to submit your request\n\n"
+                    f"Example: /topup 50\n\n"
+                    f"After submitting, send a screenshot of your transaction as a photo in this chat."
                 )
+                await tg.send_photo(chat_id, qr_url, caption=caption)
             else:
                 try:
                     amount = float(parts[1])
