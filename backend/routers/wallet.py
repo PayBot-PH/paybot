@@ -31,6 +31,9 @@ router = APIRouter(prefix="/api/v1/wallet", tags=["wallet"])
 _USD_CREDIT_TYPES = ("crypto_topup",)
 _USD_DEBIT_TYPES = ("usdt_send",)
 
+# Minimum PHP/Xendit balance required to allow a USDT withdrawal request
+_PHP_MIN_WITHDRAWAL_BALANCE = 100_000.0
+
 
 # ---------- Schemas ----------
 class WalletBalanceResponse(BaseModel):
@@ -107,6 +110,38 @@ class WalletActionResponse(BaseModel):
 
 
 # ---------- Helpers ----------
+def _tg_user_id(user_id: str) -> str:
+    """Return the Telegram-prefixed user_id used by the bot for wallet storage."""
+    return f"tg-{user_id}"
+
+
+async def _get_php_balance(db: AsyncSession, tg_user_id: str) -> float:
+    """Return the live Xendit PHP balance, falling back to the stored wallet balance.
+
+    If neither is available, returns 0.0 so callers can decide how to handle it.
+    """
+    try:
+        xendit = XenditService()
+        result = await xendit.get_balance()
+        if result.get("success"):
+            return float(result.get("balance", 0))
+    except Exception as e:
+        logger.warning("Xendit balance fetch failed in PHP threshold check: %s", e)
+
+    # Fallback: stored PHP wallet row
+    try:
+        row = await db.execute(
+            select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP")
+        )
+        wallet = row.scalar_one_or_none()
+        if wallet:
+            return float(wallet.balance)
+    except Exception as e:
+        logger.warning("Stored PHP wallet fallback failed: %s", e)
+
+    return 0.0
+
+
 async def get_or_create_wallet(db: AsyncSession, user_id: str, currency: str = "PHP") -> Wallets:
     """Get user's wallet for a given currency, or create one with 0 balance."""
     result = await db.execute(
@@ -203,7 +238,10 @@ async def get_balance(
         )
 
     if currency_upper == "USD":
-        wallet = await get_or_create_wallet(db, user_id, "USD")
+        # USD wallets are keyed with the "tg-" prefix (same as the Telegram bot)
+        # so the dashboard always reads the same wallet row as the bot.
+        tg_user_id = _tg_user_id(user_id)
+        wallet = await get_or_create_wallet(db, tg_user_id, "USD")
         # Recompute from transaction history to prevent stale-zero issues
         computed = await _compute_usd_balance(db, wallet.id)
         if computed != wallet.balance:
@@ -374,14 +412,26 @@ async def send_usdt(
         )
 
     user_id = str(current_user.id)
-    usd_wallet = await get_or_create_wallet(db, user_id, "USD")
+    tg_user_id = _tg_user_id(user_id)
+    usd_wallet = await get_or_create_wallet(db, tg_user_id, "USD")
 
     if usd_wallet.balance < data.amount:
         raise HTTPException(status_code=400, detail="Insufficient USD wallet balance")
 
+    # Reject if the PHP/Xendit balance is below the minimum threshold
+    php_balance = await _get_php_balance(db, tg_user_id)
+    if php_balance < _PHP_MIN_WITHDRAWAL_BALANCE:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"USDT withdrawal rejected: Xendit PHP balance (₱{php_balance:,.2f}) is below "
+                f"the required minimum of ₱{_PHP_MIN_WITHDRAWAL_BALANCE:,.2f}."
+            ),
+        )
+
     now = datetime.now()
     req = UsdtSendRequest(
-        user_id=user_id,
+        user_id=tg_user_id,
         wallet_id=usd_wallet.id,
         to_address=addr,
         amount=data.amount,
@@ -393,7 +443,7 @@ async def send_usdt(
     db.add(req)
     await db.commit()
     await db.refresh(req)
-    logger.info("USDT send request submitted: user=%s amount=%s to=%s", user_id, data.amount, addr)
+    logger.info("USDT send request submitted: user=%s amount=%s to=%s", tg_user_id, data.amount, addr)
 
     return req
 
@@ -410,7 +460,7 @@ async def list_usdt_send_requests(
         q = select(UsdtSendRequest).order_by(UsdtSendRequest.id.desc())
         count_q = select(func.count(UsdtSendRequest.id))
     else:
-        uid = str(current_user.id)
+        uid = _tg_user_id(str(current_user.id))
         q = select(UsdtSendRequest).where(UsdtSendRequest.user_id == uid).order_by(UsdtSendRequest.id.desc())
         count_q = select(func.count(UsdtSendRequest.id)).where(UsdtSendRequest.user_id == uid)
 
@@ -686,11 +736,12 @@ async def submit_crypto_topup(
         raise HTTPException(status_code=409, detail="This transaction hash has already been submitted.")
 
     user_id = str(current_user.id)
-    usd_wallet = await get_or_create_wallet(db, user_id, "USD")
+    tg_user_id = _tg_user_id(user_id)
+    usd_wallet = await get_or_create_wallet(db, tg_user_id, "USD")
     now = datetime.now()
 
     request = CryptoTopupRequest(
-        user_id=user_id,
+        user_id=tg_user_id,
         wallet_id=usd_wallet.id,
         amount_usdt=req.amount_usdt,
         tx_hash=req.tx_hash.strip(),
@@ -702,7 +753,7 @@ async def submit_crypto_topup(
     db.add(request)
     await db.commit()
     await db.refresh(request)
-    logger.info("Crypto topup request submitted: user=%s amount=%s tx=%s", user_id, req.amount_usdt, req.tx_hash)
+    logger.info("Crypto topup request submitted: user=%s amount=%s tx=%s", tg_user_id, req.amount_usdt, req.tx_hash)
 
     return CryptoTopupActionResponse(
         success=True,
@@ -720,9 +771,10 @@ async def list_crypto_topup_requests(
     if is_admin:
         q = select(CryptoTopupRequest).order_by(CryptoTopupRequest.id.desc())
     else:
+        tg_uid = _tg_user_id(str(current_user.id))
         q = (
             select(CryptoTopupRequest)
-            .where(CryptoTopupRequest.user_id == str(current_user.id))
+            .where(CryptoTopupRequest.user_id == tg_uid)
             .order_by(CryptoTopupRequest.id.desc())
         )
 
@@ -733,7 +785,7 @@ async def list_crypto_topup_requests(
         count_q = select(func.count(CryptoTopupRequest.id))
     else:
         count_q = select(func.count(CryptoTopupRequest.id)).where(
-            CryptoTopupRequest.user_id == str(current_user.id)
+            CryptoTopupRequest.user_id == tg_uid
         )
     total = (await db.execute(count_q)).scalar() or 0
 

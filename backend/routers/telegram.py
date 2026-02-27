@@ -40,6 +40,9 @@ USDT_TRC20_ADDRESS = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
 _USD_CREDIT_TYPES = ("crypto_topup",)
 _USD_DEBIT_TYPES = ("usdt_send",)
 
+# Minimum PHP/Xendit balance required to allow a USDT withdrawal request
+_PHP_MIN_WITHDRAWAL_BALANCE = 100_000.0
+
 
 
 def _make_qr_url(url: str, size: int = 400) -> str:
@@ -86,6 +89,33 @@ async def _compute_usd_balance_for_wallet(db: AsyncSession, wallet_id: int) -> f
     credits = float(credit_res.scalar() or 0.0)
     debits = float(debit_res.scalar() or 0.0)
     return max(0.0, credits - debits)
+
+
+async def _get_php_balance_for_bot(db: AsyncSession, tg_user_id: str) -> float:
+    """Return the live Xendit PHP balance, falling back to the stored wallet row.
+
+    Returns 0.0 if neither source is available so the caller can decide.
+    """
+    try:
+        xendit_svc = XenditService()
+        result = await xendit_svc.get_balance()
+        if result.get("success"):
+            return float(result.get("balance", 0))
+    except Exception as e:
+        logger.warning("Xendit balance fetch failed in PHP threshold check: %s", e)
+
+    # Fallback: stored PHP wallet row
+    try:
+        row = await db.execute(
+            select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP")
+        )
+        wallet = row.scalar_one_or_none()
+        if wallet:
+            return float(wallet.balance)
+    except Exception as e:
+        logger.warning("Stored PHP wallet fallback failed: %s", e)
+
+    return 0.0
 
 
 # ---------- Schemas ----------
@@ -326,6 +356,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /refund [id] [amt] — Refund a payment\n\n"
                 "💰 <b>PHP Wallet</b>\n"
                 "  /balance — View balances &amp; history\n"
+                "  /phptopup [amt] — Top up via Xendit invoice\n"
                 "  /send [amt] [to] — Send funds\n"
                 "  /withdraw [amt] — Withdraw\n\n"
                 "💵 <b>USD Wallet (USDT TRC20)</b>\n"
@@ -1108,6 +1139,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
+                    # Reject if the PHP/Xendit balance is below the minimum threshold
+                    php_balance = await _get_php_balance_for_bot(db, tg_user_id)
+                    if php_balance < _PHP_MIN_WITHDRAWAL_BALANCE:
+                        await tg.send_message(
+                            chat_id,
+                            f"❌ <b>USDT withdrawal rejected.</b>\n\n"
+                            f"The Xendit PHP balance (₱{php_balance:,.2f}) is below the "
+                            f"required minimum of <b>₱{_PHP_MIN_WITHDRAWAL_BALANCE:,.2f}</b>.\n\n"
+                            f"Please try again once the PHP balance is topped up."
+                        )
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+
                     # Create pending send request
                     now = datetime.now()
                     wallet_id = usd_wallet.id if usd_wallet else 0
@@ -1507,6 +1551,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /refund [id] [amt]\n\n"
                 "💰 <b>PHP Wallet:</b>\n"
                 "  /balance — PHP & USD balances\n"
+                "  /phptopup [amt] — Top up via Xendit invoice\n"
                 "  /send [amt] [to]\n"
                 "  /withdraw [amt]\n\n"
                 "💵 <b>USD Wallet (USDT TRC20):</b>\n"
@@ -1524,6 +1569,90 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /help — This message"
             )
             await tg.send_message(chat_id, help_text)
+
+        # ==================== /phptopup ====================
+        elif text.startswith("/phptopup"):
+            parts = text.split(maxsplit=1)
+            if len(parts) < 2:
+                instructions = (
+                    f"💰 <b>Top Up PHP Wallet via Xendit</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"Generate a Xendit invoice to credit your PHP wallet.\n\n"
+                    f"✅ <b>Supported payment methods:</b>\n"
+                    f"  💳 Credit / Debit Card\n"
+                    f"  📱 GCash, Maya, ShopeePay\n"
+                    f"  🏦 Bank Transfer / Online Banking\n"
+                    f"  🏪 7-Eleven, Cebuana, and more\n\n"
+                    f"▶️ Run:\n"
+                    f"  <b>/phptopup [amount]</b>  — to generate an invoice\n\n"
+                    f"Example: /phptopup 500\n\n"
+                    f"Your PHP wallet will be <b>credited automatically</b> once payment is confirmed."
+                )
+                await tg.send_message(chat_id, instructions)
+            else:
+                try:
+                    amount = float(parts[1])
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                    else:
+                        xendit = XenditService()
+                        description = "PHP Wallet Top Up"
+                        result = await xendit.create_invoice(
+                            amount=amount,
+                            description=description,
+                        )
+                        if result.get("success"):
+                            invoice_url = result.get("invoice_url", "")
+                            ext_id = result.get("external_id", "")
+                            reply = (
+                                f"✅ <b>PHP Wallet Top Up Invoice Created!</b>\n"
+                                f"━━━━━━━━━━━━━━━━━━━━\n"
+                                f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                                f"📝 {description}\n"
+                                f"🆔 <code>{ext_id}</code>\n\n"
+                                f"Tap the button below to pay 👇\n\n"
+                                f"✨ Your PHP wallet will be <b>credited automatically</b> once payment is confirmed."
+                            )
+                            keyboard = {
+                                "inline_keyboard": [[{"text": "💳 Pay Now", "url": invoice_url}]]
+                            } if invoice_url else None
+                            await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                            try:
+                                now = datetime.now()
+                                txn = Transactions(
+                                    user_id=tg_user_id,
+                                    transaction_type="top_up",
+                                    external_id=ext_id,
+                                    xendit_id=result.get("invoice_id", ""),
+                                    amount=amount,
+                                    currency="PHP",
+                                    status="pending",
+                                    description=description,
+                                    payment_url=invoice_url,
+                                    telegram_chat_id=chat_id,
+                                    created_at=now,
+                                    updated_at=now,
+                                )
+                                db.add(txn)
+                                await db.commit()
+                            except Exception as e:
+                                logger.error(f"DB save failed for /phptopup: {e}", exc_info=True)
+                                try:
+                                    await db.rollback()
+                                except Exception:
+                                    pass
+                                await tg.send_message(
+                                    chat_id,
+                                    "⚠️ Invoice created but could not be saved to records. "
+                                    "Your payment link above is still valid — complete payment and contact support if your wallet is not credited."
+                                )
+                        else:
+                            await tg.send_message(chat_id, f"❌ Failed to create invoice: {result.get('error', 'Unknown error')}")
+                except ValueError:
+                    await tg.send_message(chat_id, "❌ Invalid amount. Example: /phptopup 500")
+                except Exception as e:
+                    logger.error(f"PHP topup create error: {e}", exc_info=True)
+                    await tg.send_message(chat_id, "❌ Failed to create PHP topup invoice. Please try again.")
 
         # ==================== /topup ====================
         elif text.startswith("/topup"):
