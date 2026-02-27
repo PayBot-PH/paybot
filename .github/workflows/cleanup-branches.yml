@@ -23,7 +23,7 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const dryRun = ${{ inputs.dry_run || false }};
-            const { data: branches } = await github.rest.repos.listBranches({
+            const branches = await github.paginate(github.rest.repos.listBranches, {
               owner: context.repo.owner,
               repo: context.repo.repo,
               per_page: 100,
