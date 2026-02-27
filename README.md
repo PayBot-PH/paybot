@@ -90,6 +90,33 @@ Open your browser to the URL that matches your environment:
 - Super admin can add/remove admins and toggle permissions
 - Contact support button linking to [@traxionpay](https://t.me/traxionpay)
 
+### ➕ How to Add a Super Admin
+
+There are two ways to set up the first super admin:
+
+**Option 1 — Environment variable (recommended for first-time setup)**
+
+Set `TELEGRAM_ADMIN_IDS` in your environment to your Telegram numeric user ID (or comma-separated IDs / `@usernames`). The first time you log in with the Telegram Login Widget, the system will automatically register your account as a super admin.
+
+```
+TELEGRAM_ADMIN_IDS=123456789
+# or with username:
+TELEGRAM_ADMIN_IDS=@yourusername
+# or multiple entries:
+TELEGRAM_ADMIN_IDS=123456789,987654321,@anotheradmin
+```
+
+> **Tip:** Find your Telegram numeric user ID by messaging [@userinfobot](https://t.me/userinfobot) on Telegram.
+
+**Option 2 — Via the Admin Management UI (requires an existing super admin)**
+
+1. Log in to the dashboard as an existing super admin
+2. Go to **Admin Management** (`/admin-management`)
+3. Click **"Add Admin"**
+4. Enter the new admin's Telegram ID, username, and display name
+5. Toggle **"Super Admin"** on and set any additional permissions
+6. Click **"Add Admin"** to save
+
 ### 🔔 Real-Time Notifications
 - Server-Sent Events (SSE) for live dashboard updates
 - Payment confirmation alerts
