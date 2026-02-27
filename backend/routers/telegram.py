@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
 
-USDT_TRC20_ADDRESS = "TBKoUfHZG2kABV5CpMnACpdWsscguYzaUe"
+USDT_TRC20_ADDRESS = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
 
 
 

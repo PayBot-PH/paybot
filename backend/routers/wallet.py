@@ -19,7 +19,7 @@ from services.event_bus import payment_event_bus
 from services.xendit_service import XenditService
 
 # Default USDT TRC20 deposit address — overridable via environment variable
-DEFAULT_USDT_TRC20_ADDRESS = os.getenv("USDT_TRC20_ADDRESS", "THGjW7gvffMMPedaCocAyr1aXz4fACD4ww")
+DEFAULT_USDT_TRC20_ADDRESS = os.getenv("USDT_TRC20_ADDRESS", "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx")
 
 logger = logging.getLogger(__name__)
 
