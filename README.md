@@ -26,9 +26,19 @@ Open your browser to the URL that matches your environment:
 | Page | Path | Description |
 |------|------|-------------|
 | Dashboard | `/` | Stats, wallet balance, recent transactions |
-| Transactions | `/transactions` | Full history with search & filters |
+| Wallet | `/wallet` | Balance management, top up, withdraw, disburse |
+| Payments Hub | `/payments` | Create payments via all 7 methods |
 | Create Payment | `/create-payment` | Invoice / QR / payment link form |
+| Transactions | `/transactions` | Full history with search & filters |
+| Money Management | `/disbursements` | Disbursements, refunds, subscriptions, customers |
+| Reports | `/reports` | Revenue analytics and fee calculator |
 | Bot Settings | `/bot-settings` | Test bot, set webhook, send test message |
+| Admin Management | `/admin-management` | Add/remove admins, set permissions |
+| Bot Messages | `/bot-messages` | Bot broadcast messages |
+| Topup Requests | `/topup-requests` | Approve wallet top-up requests |
+| USDT Send Requests | `/usdt-send-requests` | Manage USDT send requests |
+| Features | `/features` | Public landing page |
+| Policies | `/policies` | Terms of Service, Privacy Policy, Refund Policy |
 
 ---
 
@@ -87,35 +97,8 @@ Open your browser to the URL that matches your environment:
 ### 🔐 Admin Management
 - Role-based access control with per-admin permissions
 - Only Telegram bot users can access the admin UI
-- Super admin can add/remove admins and toggle permissions
+- Add/remove admins and toggle permissions
 - Contact support button linking to [@traxionpay](https://t.me/traxionpay)
-
-### ➕ How to Add a Super Admin
-
-There are two ways to set up the first super admin:
-
-**Option 1 — Environment variable (recommended for first-time setup)**
-
-Set `TELEGRAM_ADMIN_IDS` in your environment to your Telegram numeric user ID (or comma-separated IDs / `@usernames`). The first time you log in with the Telegram Login Widget, the system will automatically register your account as a super admin.
-
-```
-TELEGRAM_ADMIN_IDS=123456789
-# or with username:
-TELEGRAM_ADMIN_IDS=@yourusername
-# or multiple entries:
-TELEGRAM_ADMIN_IDS=123456789,987654321,@anotheradmin
-```
-
-> **Tip:** Find your Telegram numeric user ID by messaging [@userinfobot](https://t.me/userinfobot) on Telegram.
-
-**Option 2 — Via the Admin Management UI (requires an existing super admin)**
-
-1. Log in to the dashboard as an existing super admin
-2. Go to **Admin Management** (`/admin-management`)
-3. Click **"Add Admin"**
-4. Enter the new admin's Telegram ID, username, and display name
-5. Toggle **"Super Admin"** on and set any additional permissions
-6. Click **"Add Admin"** to save
 
 ### 🔔 Real-Time Notifications
 - Server-Sent Events (SSE) for live dashboard updates
@@ -311,7 +294,12 @@ curl https://your-domain.com/api/v1/telegram/debug-token-check
 | **Money Management** | `/disbursements` | Disbursements, refunds, subscriptions, customers |
 | **Reports** | `/reports` | Revenue analytics, breakdowns, fee calculator |
 | **Bot Settings** | `/bot-settings` | Configure Telegram bot and webhook |
-| **Admin Management** | `/admin-management` | Add/remove admins, set permissions (super admin only) |
+| **Admin Management** | `/admin-management` | Add/remove admins, set permissions |
+| **Bot Messages** | `/bot-messages` | View and manage bot broadcast messages |
+| **Topup Requests** | `/topup-requests` | Review and approve wallet top-up requests |
+| **USDT Send Requests** | `/usdt-send-requests` | Manage USDT withdrawal/send requests |
+| **Features** | `/features` | Public landing page showcasing platform features |
+| **Policies** | `/policies` | Terms of Service, Privacy Policy, and Refund Policy |
 
 ---
 

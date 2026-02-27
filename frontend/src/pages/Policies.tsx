@@ -92,9 +92,12 @@ function TermsOfService() {
       <Section title="2. Description of Service">
         <p>
           PayBot is a payment management platform that integrates Telegram bot functionality with
-          a web-based admin dashboard. It enables users to collect payments, manage disbursements,
-          monitor wallet balances, and access financial transaction history through Xendit and
-          Security Bank Collect payment gateways.
+          a web-based admin dashboard. It enables users to collect payments via 7 methods
+          (Invoice, QR Code, Alipay QR, Maya Checkout, Payment Link, Virtual Account, and
+          E-Wallet), manage disbursements, monitor wallet balances, and access financial
+          transaction history through Xendit and Security Bank Collect payment gateways. The
+          platform also offers 22 Telegram bot commands for full payment operations directly
+          from chat.
         </p>
       </Section>
 
@@ -130,7 +133,8 @@ function TermsOfService() {
         <p>
           Wallet balances represent credits within the PayBot system. DRL Solutions reserves the
           right to freeze or suspend wallet accounts suspected of fraudulent activity. Withdrawal
-          requests are subject to verification and may take 1–3 business days to process.
+          requests, top-up requests, and USDT send requests are subject to verification and
+          super-admin approval. Processing may take 1–3 business days.
         </p>
       </Section>
 
