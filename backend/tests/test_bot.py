@@ -260,6 +260,79 @@ class TestAuth:
 
         assert r.status_code == 403
 
+    def test_widget_login_env_user_with_existing_regular_admin_db_record_gets_super_admin(self, client):
+        """A user in TELEGRAM_ADMIN_IDS is always granted super admin, even if
+        they already have a DB record with is_super_admin=False."""
+        from unittest.mock import patch
+        from sqlalchemy import select
+        from core.database import db_manager
+        from models.admin_users import AdminUser
+        import asyncio
+
+        bot_token = os.environ["TELEGRAM_BOT_TOKEN"]
+        auth_date = int(time.time())
+        telegram_id = 55555555
+        payload = {
+            "id": telegram_id,
+            "auth_date": auth_date,
+            "first_name": "Regular",
+            "username": "regular_admin",
+        }
+        data_check_string = "\n".join(
+            f"{key}={value}"
+            for key, value in sorted(payload.items())
+            if value is not None and value != ""
+        )
+        secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
+        payload["hash"] = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+
+        # Pre-seed a regular (non-super) admin DB record for this telegram_id
+        async def seed_regular_admin():
+            async with db_manager.async_session_maker() as db:
+                res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == str(telegram_id)))
+                if not res.scalar_one_or_none():
+                    db.add(AdminUser(
+                        telegram_id=str(telegram_id),
+                        telegram_username="regular_admin",
+                        name="Regular Admin",
+                        is_active=True,
+                        is_super_admin=False,
+                        can_manage_payments=True,
+                        can_manage_disbursements=True,
+                        can_view_reports=True,
+                        can_manage_wallet=True,
+                        can_manage_transactions=True,
+                        can_manage_bot=False,
+                        can_approve_topups=False,
+                        added_by="test",
+                    ))
+                    await db.commit()
+
+        asyncio.get_event_loop().run_until_complete(seed_regular_admin())
+
+        import routers.auth as auth_mod
+        from core.config import Settings
+        patched = Settings()
+        patched.telegram_admin_ids = str(telegram_id)
+        with patch.object(auth_mod, "settings", patched):
+            r = client.post("/api/v1/auth/telegram-login-widget", json=payload)
+
+        assert r.status_code == 200
+        token_data = r.json()
+        assert "token" in token_data
+
+        # Decode token and verify super admin permissions
+        from core.config import settings as real_settings
+        from jose import jwt as jose_jwt
+        decoded = jose_jwt.decode(
+            token_data["token"],
+            real_settings.jwt_secret_key,
+            algorithms=[real_settings.jwt_algorithm],
+            options={"verify_exp": False},
+        )
+        perms = decoded.get("permissions", {})
+        assert perms.get("is_super_admin") is True, "Env-whitelisted user must be super admin even with existing DB record"
+
 
 # ---------------------------------------------------------------------------
 # Bot info / test endpoints
