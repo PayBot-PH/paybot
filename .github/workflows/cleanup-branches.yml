@@ -1,0 +1,62 @@
+name: Cleanup Stale Branches
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (list branches without deleting)"
+        required: false
+        default: "false"
+        type: boolean
+
+jobs:
+  delete-branches:
+    name: Delete All Non-Main Branches
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Delete all branches except main
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const dryRun = ${{ inputs.dry_run || false }};
+            const { data: branches } = await github.rest.repos.listBranches({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100,
+            });
+
+            const protectedBranches = ['main'];
+            const toDelete = branches.filter(b => !protectedBranches.includes(b.name));
+
+            console.log(`Found ${toDelete.length} branch(es) to delete:`);
+            for (const branch of toDelete) {
+              console.log(`  - ${branch.name}`);
+            }
+
+            if (dryRun) {
+              console.log('Dry run mode: no branches deleted.');
+              return;
+            }
+
+            let deleted = 0;
+            let failed = 0;
+            for (const branch of toDelete) {
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `heads/${branch.name}`,
+                });
+                console.log(`Deleted: ${branch.name}`);
+                deleted++;
+              } catch (err) {
+                console.error(`Failed to delete ${branch.name}: ${err.message}`);
+                failed++;
+              }
+            }
+
+            console.log(`\nSummary: ${deleted} deleted, ${failed} failed.`);
