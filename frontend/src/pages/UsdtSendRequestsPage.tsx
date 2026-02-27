@@ -123,15 +123,17 @@ export default function UsdtSendRequestsPage() {
         </div>
 
         {/* Filter tabs */}
-        <div className="flex gap-2">
+        <div className="overflow-x-auto [overflow-scrolling:touch]">
+          <div className="flex gap-2 min-w-max">
           {['pending', 'approved', 'denied', ''].map((s) => (
             <button key={s || 'all'} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 filter === s ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
               }`}>
               {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
             </button>
           ))}
+          </div>
         </div>
 
         {error && (
@@ -193,15 +195,15 @@ export default function UsdtSendRequestsPage() {
                       )}
                     </div>
                     {req.status === 'pending' && (
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 shrink-0">
                         {!isActive ? (
                           <>
                             <button onClick={() => openReview(req.id, false)}
-                              className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 transition-colors">
+                              className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600/20 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-600/30 transition-colors whitespace-nowrap">
                               Approve
                             </button>
                             <button onClick={() => openReview(req.id, true)}
-                              className="text-xs px-3 py-1.5 rounded-lg bg-red-600/20 border border-red-500/30 text-red-400 hover:bg-red-600/30 transition-colors">
+                              className="text-xs px-3 py-1.5 rounded-lg bg-red-600/20 border border-red-500/30 text-red-400 hover:bg-red-600/30 transition-colors whitespace-nowrap">
                               Deny
                             </button>
                           </>

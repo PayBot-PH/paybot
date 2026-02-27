@@ -85,15 +85,17 @@ export default function TopupRequestsPage() {
         </div>
 
         {/* Filter tabs */}
-        <div className="flex gap-2">
+        <div className="overflow-x-auto [overflow-scrolling:touch]">
+          <div className="flex gap-2 min-w-max">
           {['pending', 'approved', 'rejected', ''].map((s) => (
             <button key={s || 'all'} onClick={() => setFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
                 filter === s ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
               }`}>
               {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
             </button>
           ))}
+          </div>
         </div>
 
         {error && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/25 rounded-xl px-4 py-3">{error}</p>}

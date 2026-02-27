@@ -113,13 +113,13 @@ export default function Layout({ children, connected }: LayoutProps) {
   const SidebarContent = ({ collapsed }: { collapsed: boolean }) => (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className={`flex items-center ${collapsed ? 'justify-center px-3' : 'px-5'} h-16 border-b border-slate-700/50 shrink-0`}>
+      <div className={`flex items-center ${collapsed ? 'justify-center px-3' : 'px-5'} h-16 border-b border-slate-700/50 shrink-0 bg-gradient-to-r from-blue-900/30 to-slate-900/10`}>
         <Link
           to="/"
           className="flex items-center gap-2.5 min-w-0"
           onClick={() => setSidebarOpen(false)}
         >
-          <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
+          <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-lg flex items-center justify-center shrink-0 shadow-lg shadow-blue-600/30">
             <Bot className="h-5 w-5 text-white" />
           </div>
           {!collapsed && (
@@ -264,7 +264,7 @@ export default function Layout({ children, connected }: LayoutProps) {
     <div className="min-h-screen bg-[#0B1120] text-slate-100 flex">
       {/* Desktop Sidebar */}
       <aside
-        className={`hidden md:flex flex-col fixed inset-y-0 left-0 z-40 bg-[#0F172A] border-r border-slate-700/50 transition-all duration-300 ease-in-out
+        className={`hidden md:flex flex-col fixed inset-y-0 left-0 z-40 bg-gradient-to-b from-[#0D1829] to-[#0F172A] border-r border-slate-700/50 transition-all duration-300 ease-in-out
           ${sidebarCollapsed ? 'w-[60px]' : 'w-60'}`}
       >
         <SidebarContent collapsed={sidebarCollapsed} />
@@ -292,7 +292,7 @@ export default function Layout({ children, connected }: LayoutProps) {
             onClick={() => setSidebarOpen(false)}
           />
           {/* Drawer */}
-          <aside className="relative z-10 w-64 h-full bg-[#0F172A] border-r border-slate-700/50 flex flex-col">
+          <aside className="relative z-10 w-64 h-full bg-gradient-to-b from-[#0D1829] to-[#0F172A] border-r border-slate-700/50 flex flex-col">
             <SidebarContent collapsed={false} />
           </aside>
         </div>
