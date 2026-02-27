@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Bot,
@@ -24,7 +25,206 @@ import {
   Lock,
   ChevronRight,
   Star,
+  Play,
+  ChevronLeft,
+  X,
 } from 'lucide-react';
+
+/* ─── Screenshot gallery ─────────────────────────────────────── */
+function PaymentsHubMockup() {
+  const methods = [
+    { label: 'Invoice', color: 'text-blue-400', dot: 'bg-blue-500' },
+    { label: 'QR Code', color: 'text-purple-400', dot: 'bg-purple-500' },
+    { label: 'Alipay QR', color: 'text-red-400', dot: 'bg-red-500' },
+    { label: 'Payment Link', color: 'text-cyan-400', dot: 'bg-cyan-500' },
+    { label: 'Virtual Account', color: 'text-amber-400', dot: 'bg-amber-500' },
+    { label: 'Maya', color: 'text-emerald-400', dot: 'bg-emerald-500' },
+    { label: 'E-Wallet', color: 'text-rose-400', dot: 'bg-rose-500' },
+  ];
+  return (
+    <div className="rounded-2xl overflow-hidden border border-slate-600/30 shadow-2xl bg-[#0F172A] w-full text-[10px]">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#0F172A] border-b border-slate-700/50">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-5 bg-blue-600 rounded flex items-center justify-center">
+            <CreditCard className="h-3 w-3 text-white" />
+          </div>
+          <span className="text-white font-bold text-xs">Payments Hub</span>
+        </div>
+        <span className="text-blue-400 text-[9px] bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">7 Methods</span>
+      </div>
+      <div className="p-3 space-y-2">
+        <p className="text-slate-400 text-[9px] font-medium uppercase tracking-wider mb-2">Select Payment Method</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {methods.map((m) => (
+            <div key={m.label} className="flex items-center gap-2 bg-slate-800/60 border border-slate-700/30 rounded-lg p-2">
+              <span className={`h-2 w-2 rounded-full ${m.dot} shrink-0`}></span>
+              <span className={`${m.color} font-medium`}>{m.label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 bg-slate-800/40 rounded-lg p-2 border border-slate-700/30">
+          <p className="text-slate-400 mb-1.5">Amount (PHP)</p>
+          <div className="bg-[#0F172A] rounded px-2 py-1 text-emerald-400 font-mono font-bold">₱ 1,500.00</div>
+        </div>
+        <div className="bg-blue-600 rounded-lg py-1.5 text-center text-white font-semibold text-[10px]">Create Payment</div>
+      </div>
+    </div>
+  );
+}
+
+function TransactionsMockup() {
+  const txns = [
+    { type: 'Invoice', id: '#INV-042', amt: '+₱1,500', status: 'paid', statusColor: 'text-emerald-400 bg-emerald-500/10' },
+    { type: 'QR Code', id: '#QR-019', amt: '+₱250', status: 'paid', statusColor: 'text-emerald-400 bg-emerald-500/10' },
+    { type: 'Disburse', id: '#DIS-007', amt: '-₱500', status: 'sent', statusColor: 'text-blue-400 bg-blue-500/10' },
+    { type: 'VA BPI', id: '#VA-031', amt: '+₱3,000', status: 'pending', statusColor: 'text-amber-400 bg-amber-500/10' },
+    { type: 'Maya', id: '#MY-055', amt: '+₱800', status: 'paid', statusColor: 'text-emerald-400 bg-emerald-500/10' },
+  ];
+  return (
+    <div className="rounded-2xl overflow-hidden border border-slate-600/30 shadow-2xl bg-[#0F172A] w-full text-[10px]">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-[#0F172A] border-b border-slate-700/50">
+        <div className="flex items-center gap-2">
+          <div className="h-5 w-5 bg-purple-600 rounded flex items-center justify-center">
+            <Receipt className="h-3 w-3 text-white" />
+          </div>
+          <span className="text-white font-bold text-xs">Transactions</span>
+        </div>
+        <span className="text-slate-400 text-[9px]">124 total</span>
+      </div>
+      <div className="p-3">
+        <div className="bg-slate-800/40 rounded-lg px-2 py-1 mb-2 flex items-center gap-1.5 border border-slate-700/30">
+          <span className="text-slate-500">🔍</span>
+          <span className="text-slate-500">Search transactions...</span>
+        </div>
+        <div className="space-y-1">
+          {txns.map((t) => (
+            <div key={t.id} className="flex items-center justify-between py-1 border-b border-slate-700/20 last:border-0">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-300">{t.type}</span>
+                <span className="text-slate-600">{t.id}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`font-mono ${t.amt.startsWith('+') ? 'text-emerald-400' : 'text-red-400'}`}>{t.amt}</span>
+                <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium ${t.statusColor}`}>{t.status}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const screenshots = [
+  { id: 'telegram', label: 'Telegram Bot', badge: 'bg-blue-500/10 text-blue-300 border-blue-500/20', component: 'telegram', caption: '22 bot commands · instant payment notifications' },
+  { id: 'dashboard', label: 'Admin Dashboard', badge: 'bg-purple-500/10 text-purple-300 border-purple-500/20', component: 'dashboard', caption: '9 pages · real-time updates · mobile-friendly' },
+  { id: 'payments', label: 'Payments Hub', badge: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20', component: 'payments', caption: '7 payment methods · invoice, QR, VA, e-wallet & more' },
+  { id: 'transactions', label: 'Transactions', badge: 'bg-rose-500/10 text-rose-300 border-rose-500/20', component: 'transactions', caption: 'Full searchable & filterable transaction history' },
+];
+
+function ScreenshotViewer() {
+  const [active, setActive] = useState(0);
+  const [lightbox, setLightbox] = useState<number | null>(null);
+
+  const prev = () => setActive((a) => (a - 1 + screenshots.length) % screenshots.length);
+  const next = () => setActive((a) => (a + 1) % screenshots.length);
+
+  const renderMockup = (id: string) => {
+    if (id === 'telegram') return <TelegramMockup />;
+    if (id === 'dashboard') return <DashboardMockup />;
+    if (id === 'payments') return <PaymentsHubMockup />;
+    return <TransactionsMockup />;
+  };
+
+  const current = screenshots[active];
+
+  return (
+    <div>
+      {/* Tab row */}
+      <div className="flex flex-wrap justify-center gap-2 mb-8">
+        {screenshots.map((s, i) => (
+          <button
+            key={s.id}
+            onClick={() => setActive(i)}
+            className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              i === active ? s.badge : 'bg-slate-800/40 text-slate-500 border-slate-700/40 hover:border-slate-600/60'
+            }`}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Active screenshot */}
+      <div className="relative max-w-sm mx-auto">
+        {/* Previous / Next arrows */}
+        <button
+          onClick={prev}
+          className="absolute -left-10 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 border border-slate-700/40 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/80 transition-all z-10"
+          aria-label="Previous screenshot"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <button
+          onClick={next}
+          className="absolute -right-10 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-slate-800/80 border border-slate-700/40 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700/80 transition-all z-10"
+          aria-label="Next screenshot"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+
+        {/* Screenshot frame */}
+        <div
+          className="cursor-zoom-in group relative"
+          onClick={() => setLightbox(active)}
+        >
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-center justify-center">
+            <span className="text-white text-xs font-medium bg-black/50 px-3 py-1 rounded-full">Click to enlarge</span>
+          </div>
+          {renderMockup(current.id)}
+        </div>
+
+        <p className="text-slate-500 text-xs text-center mt-3">{current.caption}</p>
+
+        {/* Dots */}
+        <div className="flex justify-center gap-1.5 mt-3">
+          {screenshots.map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setActive(i)}
+              className={`h-1.5 rounded-full transition-all ${i === active ? 'w-5 bg-blue-500' : 'w-1.5 bg-slate-600'}`}
+              aria-label={`Go to screenshot ${i + 1}`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Lightbox */}
+      {lightbox !== null && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            className="absolute top-4 right-4 h-9 w-9 rounded-full bg-slate-800/90 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+            onClick={() => setLightbox(null)}
+            aria-label="Close lightbox"
+          >
+            <X className="h-4 w-4" />
+          </button>
+          <div
+            className="w-full max-w-xs"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {renderMockup(screenshots[lightbox].id)}
+            <p className="text-slate-400 text-xs text-center mt-3">{screenshots[lightbox].caption}</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+/* ─────────────────────────────────────────────────────────────── */
 
 function TelegramMockup() {
   const messages = [
@@ -205,23 +405,70 @@ export default function Features() {
         </div>
       </section>
 
-      {/* Mockups */}
+      {/* Screenshots Gallery */}
       <section className="max-w-6xl mx-auto px-4 pb-20">
-        <div className="grid md:grid-cols-2 gap-8 items-start">
-          <div className="flex flex-col items-center gap-3">
-            <span className="bg-blue-500/10 text-blue-300 text-xs font-semibold px-3 py-1 rounded-full border border-blue-500/20 uppercase tracking-wider">
-              Telegram Bot
-            </span>
-            <TelegramMockup />
-            <p className="text-slate-500 text-xs">22 bot commands · instant payment notifications</p>
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center gap-2 bg-slate-500/10 border border-slate-500/20 rounded-full px-4 py-1.5 text-slate-300 text-xs font-semibold mb-4 uppercase tracking-wider">
+            <Monitor className="h-3.5 w-3.5" /> Screenshots
           </div>
-          <div className="flex flex-col items-center gap-3">
-            <span className="bg-purple-500/10 text-purple-300 text-xs font-semibold px-3 py-1 rounded-full border border-purple-500/20 uppercase tracking-wider">
-              Admin Dashboard
-            </span>
-            <DashboardMockup />
-            <p className="text-slate-500 text-xs">9 pages · real-time updates · mobile-friendly</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-white">See it in Action</h2>
+          <p className="text-slate-400 mt-3 max-w-xl mx-auto">
+            Browse the bot interface and admin dashboard screenshots below.
+          </p>
+        </div>
+        <ScreenshotViewer />
+      </section>
+
+      {/* Demo Video */}
+      <section className="max-w-6xl mx-auto px-4 pb-20">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 bg-rose-500/10 border border-rose-500/20 rounded-full px-4 py-1.5 text-rose-300 text-xs font-semibold mb-4 uppercase tracking-wider">
+            <Play className="h-3.5 w-3.5 fill-rose-300" /> Demo Video
           </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-white">Watch a Demo</h2>
+          <p className="text-slate-400 mt-3 max-w-xl mx-auto">
+            See how PayBot handles real payments end-to-end in under 3 minutes.
+          </p>
+        </div>
+        <div className="max-w-3xl mx-auto">
+          <div className="relative rounded-2xl overflow-hidden border border-slate-600/30 shadow-2xl bg-[#0F172A] aspect-video flex items-center justify-center group">
+            {/* Faux video thumbnail */}
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-[#0F172A] to-slate-900" />
+            {/* Grid lines for depth */}
+            <div className="absolute inset-0 opacity-10"
+              style={{
+                backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+                backgroundSize: '40px 40px',
+              }}
+            />
+            {/* Bot icon + text */}
+            <div className="relative flex flex-col items-center gap-4 text-center px-4">
+              <div className="h-16 w-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/40">
+                <Bot className="h-8 w-8 text-white" />
+              </div>
+              <div>
+                <p className="text-white font-bold text-lg">PayBot Demo</p>
+                <p className="text-slate-400 text-sm mt-1">Full walkthrough · Payments · Dashboard · Commands</p>
+              </div>
+              <a
+                href="https://t.me/traxionpay"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm"
+              >
+                <MessageCircle className="h-4 w-4 text-sky-400" /> Request a Live Demo
+              </a>
+            </div>
+            {/* Play button overlay */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+              <div className="h-20 w-20 rounded-full bg-blue-600/30 backdrop-blur-sm border border-blue-400/30 flex items-center justify-center">
+                <Play className="h-8 w-8 text-white fill-white ml-1" />
+              </div>
+            </div>
+          </div>
+          <p className="text-slate-500 text-xs text-center mt-3">
+            Video demo coming soon · Contact <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" aria-label="Contact traxionpay on Telegram" className="text-sky-400 hover:text-sky-300 transition-colors">@traxionpay</a> for a live walkthrough
+          </p>
         </div>
       </section>
 
