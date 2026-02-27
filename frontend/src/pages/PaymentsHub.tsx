@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePaymentEvents } from '@/hooks/usePaymentEvents';
@@ -12,47 +11,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  FileText, QrCode, LinkIcon, Bot, BarChart3, Plus, Loader2, CheckCircle,
+  FileText, QrCode, LinkIcon, Plus, Loader2, CheckCircle,
   Copy, ExternalLink, Wallet, CreditCard, Building2, Smartphone, Store,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
-
-const NAV = [
-  { to: '/', icon: BarChart3, label: 'Dashboard' },
-  { to: '/wallet', icon: Wallet, label: 'Wallet' },
-  { to: '/payments', icon: CreditCard, label: 'Payments', active: true },
-  { to: '/transactions', icon: FileText, label: 'Transactions' },
-  { to: '/disbursements', icon: Building2, label: 'Disbursements' },
-  { to: '/bot-settings', icon: Bot, label: 'Bot' },
-];
-
-function NavHeader() {
-  return (
-    <header className="border-b border-slate-700/50 bg-[#0F172A]/80 backdrop-blur-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/" className="flex items-center space-x-3">
-            <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <Bot className="h-5 w-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-white">PayBot</span>
-          </Link>
-          <nav className="flex items-center space-x-1">
-            {NAV.map((n) => (
-              <Link key={n.to} to={n.to}>
-                <Button variant="ghost" size="sm" className={n.active ? 'text-white bg-slate-700/50' : 'text-slate-300 hover:text-white hover:bg-slate-700/50'}>
-                  <n.icon className="h-4 w-4 mr-2" />
-                  {n.label}
-                </Button>
-              </Link>
-            ))}
-          </nav>
-        </div>
-      </div>
-    </header>
-  );
-}
 
 export default function PaymentsHub() {
   const { user } = useAuth();
