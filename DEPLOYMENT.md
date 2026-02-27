@@ -1,24 +1,27 @@
-# PayBot Railway Deployment Guide
+# PayBot Deployment Guide
 
-This guide will walk you through deploying the PayBot application to Railway with PostgreSQL database and Supabase authentication integration.
+This guide covers deploying PayBot on **Railway** or **Render** with a PostgreSQL database.
 
 ## Prerequisites
 
 - A GitHub account with access to the PayBot repository
-- A Railway account (sign up at https://railway.app)
-- A Supabase account (sign up at https://supabase.com)
+- A [Railway](https://railway.app) **or** [Render](https://render.com) account
 - A Xendit account for payment processing
 - A Telegram Bot Token (create via [@BotFather](https://t.me/botfather))
 
 ## Table of Contents
 
+### Railway
 1. [Railway Setup](#1-railway-setup)
 2. [Environment Variables Setup](#2-environment-variables-setup)
 3. [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup)
 4. [Database Migration](#4-database-migration)
 5. [Webhook Configuration](#5-webhook-configuration)
 6. [Post-Deployment Steps](#6-post-deployment-steps)
+
+### Render
 7. [Troubleshooting](#7-troubleshooting)
+8. [Render Setup](#8-render-setup)
 
 ---
 
@@ -400,9 +403,71 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 ---
 
+## 8. Render Setup
+
+[Render](https://render.com) is an alternative cloud platform that can host the PayBot backend and a managed PostgreSQL database. The `render.yaml` file at the root of the repository defines everything Render needs to provision your services automatically.
+
+### 8.1 One-click Deploy
+
+1. Log in to [Render](https://render.com)
+2. Click **"New"** → **"Blueprint"**
+3. Connect your GitHub account and select the `csphi/paybot` repository
+4. Render detects `render.yaml` and shows a preview of the services it will create:
+   - **paybot-backend** – Web service (Docker, FastAPI)
+   - **paybot-db** – Managed PostgreSQL database
+5. Click **"Apply"**
+
+Render will build the Docker image defined in `backend/Dockerfile`, provision a free-tier PostgreSQL database, and wire `DATABASE_URL` automatically.
+
+### 8.2 Set Required Environment Variables
+
+After the initial deploy, go to the **paybot-backend** service → **Environment** tab and add the following secrets (marked `sync: false` in `render.yaml`, so they are never auto-populated):
+
+| Variable | Description |
+|----------|-------------|
+| `PYTHON_BACKEND_URL` | Your Render public URL, e.g. `https://paybot-backend.onrender.com` |
+| `TELEGRAM_BOT_TOKEN` | Token from [@BotFather](https://t.me/botfather) |
+| `XENDIT_SECRET_KEY` | Xendit API secret key |
+| `JWT_SECRET_KEY` | Random secret – run `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ADMIN_USER_PASSWORD` | Password for the admin dashboard |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric user IDs allowed as admin |
+| `ALLOWED_ORIGINS` | Comma-separated allowed CORS origins (optional) |
+
+### 8.3 Run Database Migrations
+
+Render does not have a built-in pre-deploy hook equivalent to Railway's `preDeployCommand`, so you run the initial migration manually using the **Shell** tab of the `paybot-backend` service, or via the Render CLI:
+
+```bash
+# In the Render web shell for paybot-backend
+cd /app/backend
+alembic upgrade head
+```
+
+Subsequent migrations can be run the same way, or automated by adding a [Render pre-deploy job](https://docs.render.com/deploy-lifecycle) to `render.yaml` once your plan supports it.
+
+### 8.4 Configure Webhooks
+
+Follow the same steps as [Section 5](#5-webhook-configuration) in the Railway guide, substituting your Render URL (e.g. `https://paybot-backend.onrender.com`) for `https://your-backend.railway.app`.
+
+### 8.5 Verify the Deployment
+
+```bash
+curl https://paybot-backend.onrender.com/health
+```
+
+Expected response:
+```json
+{"status": "healthy"}
+```
+
+> **Note on free-tier cold starts:** Render's free plan spins down idle services after 15 minutes of inactivity. The first request after a cold start may take up to 30 seconds. Upgrade to a paid plan to keep the service always-on.
+
+---
+
 ## Additional Resources
 
 - [Railway Documentation](https://docs.railway.app)
+- [Render Documentation](https://docs.render.com)
 - [Alembic Documentation](https://alembic.sqlalchemy.org)
 - [FastAPI Documentation](https://fastapi.tiangolo.com)
 - [Xendit API Documentation](https://developers.xendit.co)
@@ -414,7 +479,7 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 If you encounter any issues:
 
-1. Check the [Railway logs](#66-monitor-logs) for detailed error messages
+1. Check the service logs (Railway: **Deployments** tab; Render: **Logs** tab) for detailed error messages
 2. Review the [Troubleshooting](#7-troubleshooting) section
 3. Consult the official documentation links above
 4. Open an issue on the GitHub repository
@@ -423,15 +488,15 @@ If you encounter any issues:
 
 ## Summary
 
-You should now have:
+You should now have PayBot running on either Railway or Render:
 
-✅ Backend service running on Railway  
+✅ Backend service running on Railway or Render  
 ✅ PostgreSQL database provisioned and connected  
-✅ Database migrations running automatically  
+✅ Database migrations applied  
 ✅ Environment variables configured  
 ✅ JWT authentication configured for admin dashboard  
 ✅ Webhooks configured for Xendit and Telegram  
 ✅ Health checks passing  
 ✅ Logs accessible for monitoring  
 
-Your PayBot application is now successfully deployed on Railway! 🚀
+Your PayBot application is now successfully deployed! 🚀
