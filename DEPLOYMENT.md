@@ -137,9 +137,14 @@ The workflow uses the `production` environment in GitHub Actions. You can add se
 | Secret Name | Description |
 |-------------|-------------|
 | `RAILWAY_TOKEN` | Railway project token (see [step 3.1](#31-generate-a-railway-project-token)) |
-| `RAILWAY_SERVICE` | Exact name of the Railway service to deploy (e.g. `backend`) |
 
-> **Note:** If either `RAILWAY_TOKEN` or `RAILWAY_SERVICE` is missing or empty, the deployment step will be skipped with a warning message pointing to this guide. To find your service name, open your Railway project dashboard and note the name shown on the service card.
+**Optional secrets:**
+
+| Secret Name | Description |
+|-------------|-------------|
+| `RAILWAY_SERVICE` | Exact name of the Railway service to deploy (e.g. `backend`). Only needed for multi-service projects. |
+
+> **Note:** If `RAILWAY_TOKEN` is missing or empty, the deployment step will be skipped with a warning message pointing to this guide. `RAILWAY_SERVICE` is optional — omitting it works for single-service Railway projects. For multi-service projects, set it to the exact service name shown on the service card in your Railway project dashboard.
 
 ---
 
@@ -326,7 +331,7 @@ railway logs
 **Solution**:
 1. Find your Railway service name by opening your Railway project dashboard and noting the name on the service card (e.g. `backend`)
 2. Add it as a GitHub secret named `RAILWAY_SERVICE` (see [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup))
-3. If `RAILWAY_SERVICE` is missing or empty, the deploy step will be skipped with a warning rather than failing the workflow
+3. `RAILWAY_SERVICE` is optional for single-service projects; only set it if you have multiple services or if you see this error
 
 #### Database Connection Errors
 
