@@ -230,12 +230,13 @@ function TabBar({
   onChange: (id: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1 mb-6">
+    <div className="overflow-x-auto mb-6 [overflow-scrolling:touch]">
+      <div className="flex items-center gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1 min-w-max">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onChange(tab.id)}
-          className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150
+          className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap
             ${active === tab.id
               ? 'bg-slate-700 text-white shadow-sm'
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
@@ -252,6 +253,7 @@ function TabBar({
           )}
         </button>
       ))}
+      </div>
     </div>
   );
 }
@@ -1017,8 +1019,8 @@ export default function AdminManagement() {
     <Layout>
       <div className="max-w-5xl mx-auto">
         {/* Page Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="h-10 w-10 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
               <ShieldCheck className="h-5 w-5 text-purple-400" />
             </div>
@@ -1234,3 +1236,4 @@ export default function AdminManagement() {
     </Layout>
   );
 }
+___BEGIN___COMMAND_DONE_MARKER___0

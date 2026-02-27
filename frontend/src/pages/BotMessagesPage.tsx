@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
-import { MessageSquare, Send, Clock, User, ChevronRight, Search, RefreshCw } from 'lucide-react';
+import { MessageSquare, Send, ChevronRight, ChevronLeft, Search, RefreshCw } from 'lucide-react';
 
 interface Conversation {
   chat_id: string;
@@ -36,6 +36,7 @@ export default function BotMessagesPage() {
   const [search, setSearch] = useState('');
   const [sendError, setSendError] = useState('');
   const [sendSuccess, setSendSuccess] = useState(false);
+  const [mobilePane, setMobilePane] = useState<'list' | 'thread'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const fetchConversations = async () => {
@@ -67,6 +68,7 @@ export default function BotMessagesPage() {
     setReply('');
     setSendError('');
     setSendSuccess(false);
+    setMobilePane('thread');
     fetchMessages(c.chat_id);
   };
 
@@ -112,7 +114,7 @@ export default function BotMessagesPage() {
 
         <div className="flex gap-4 h-[calc(100vh-180px)] min-h-[500px]">
           {/* Conversation list */}
-          <div className="w-72 bg-[#0F172A] border border-slate-700/40 rounded-2xl flex flex-col overflow-hidden shrink-0">
+          <div className={`${mobilePane === 'list' ? 'flex' : 'hidden'} md:flex w-full md:w-72 bg-[#0F172A] border border-slate-700/40 rounded-2xl flex-col overflow-hidden md:shrink-0`}>
             <div className="p-3 border-b border-slate-700/40">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500" />
@@ -166,7 +168,7 @@ export default function BotMessagesPage() {
           </div>
 
           {/* Message thread */}
-          <div className="flex-1 bg-[#0F172A] border border-slate-700/40 rounded-2xl flex flex-col overflow-hidden">
+          <div className={`${mobilePane === 'thread' ? 'flex' : 'hidden'} md:flex flex-1 bg-[#0F172A] border border-slate-700/40 rounded-2xl flex-col overflow-hidden`}>
             {!selectedChat ? (
               <div className="flex-1 flex items-center justify-center flex-col gap-4 text-center px-8">
                 <div className="h-14 w-14 bg-slate-800 rounded-2xl flex items-center justify-center">
@@ -179,7 +181,14 @@ export default function BotMessagesPage() {
               <>
                 {/* Header */}
                 <div className="px-4 py-3 border-b border-slate-700/40 flex items-center gap-3">
-                  <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <button
+                    className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+                    onClick={() => setMobilePane('list')}
+                    aria-label="Back to conversations"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
                     <span className="text-white text-xs font-bold">
                       {(selectedChat.username || selectedChat.chat_id).charAt(0).toUpperCase()}
                     </span>
