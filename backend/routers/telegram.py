@@ -29,6 +29,8 @@ from services.maya_manager_service import MayaManagerService
 from services.event_bus import payment_event_bus
 from models.topup_requests import TopupRequest
 from models.usdt_send_requests import UsdtSendRequest
+from models.kyb_registrations import KybRegistration
+from models.admin_users import AdminUser
 
 logger = logging.getLogger(__name__)
 
@@ -130,6 +132,299 @@ class TelegramResponse(BaseModel):
     success: bool
     message: str = ""
     data: dict = {}
+
+
+# ---------- KYB constants ----------
+_PH_BANKS = [
+    "BDO", "BPI", "Metrobank", "UnionBank", "Land Bank", "PNB",
+    "Security Bank", "RCBC", "EastWest Bank", "Chinabank",
+    "PSBank", "Maybank", "Other",
+]
+
+# Ordered list of KYB steps
+_KYB_STEPS = ["full_name", "phone", "address", "bank", "id_photo"]
+
+_KYB_PROMPTS = {
+    "full_name": "📝 <b>Step 1/5 — Full Name</b>\n\nPlease enter your full legal name:",
+    "phone": "📱 <b>Step 2/5 — Phone Number</b>\n\nPlease enter your Philippine mobile number (e.g. 09171234567):",
+    "address": "🏠 <b>Step 3/5 — Home Address</b>\n\nPlease enter your complete home address:",
+    "bank": (
+        "🏦 <b>Step 4/5 — Philippine Bank</b>\n\n"
+        "Which Philippine bank do you primarily use?\n\n"
+        + "\n".join(f"  • {b}" for b in _PH_BANKS)
+        + "\n\nType the bank name:"
+    ),
+    "id_photo": (
+        "🪪 <b>Step 5/5 — Government ID</b>\n\n"
+        "Please upload a clear photo of a valid Philippine government-issued ID\n"
+        "(e.g. PhilSys, Driver's License, Passport, UMID, Voter's ID, SSS, PRC)."
+    ),
+}
+
+
+# ---------- KYB / access-control helpers ----------
+
+def _get_bot_owner_id() -> str:
+    """Return the Telegram user ID of the bot owner (super admin), or empty string."""
+    owner = str(getattr(settings, "telegram_bot_owner_id", "") or "").strip()
+    if owner:
+        return owner
+    # Fall back to the first entry in TELEGRAM_ADMIN_IDS
+    raw = str(getattr(settings, "telegram_admin_ids", "") or "").strip()
+    if raw:
+        first = raw.split(",")[0].strip().lstrip("@")
+        if first.isdigit():
+            return first
+    return ""
+
+
+async def _is_authorized_admin(db: AsyncSession, chat_id: str) -> bool:
+    """Return True if this chat_id is an authorized bot user.
+
+    A user is authorized if they:
+    1. Are the bot owner (TELEGRAM_BOT_OWNER_ID), OR
+    2. Are in TELEGRAM_ADMIN_IDS, OR
+    3. Have an active AdminUser record in the database.
+    """
+    # Check env-based lists
+    owner_id = _get_bot_owner_id()
+    if owner_id and chat_id == owner_id:
+        return True
+
+    raw = str(getattr(settings, "telegram_admin_ids", "") or "")
+    for entry in raw.split(","):
+        cleaned = entry.strip().lstrip("@")
+        if cleaned and cleaned.isdigit() and cleaned == chat_id:
+            return True
+
+    # Check DB
+    try:
+        res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id, AdminUser.is_active.is_(True)))
+        return res.scalar_one_or_none() is not None
+    except Exception as e:
+        logger.warning("DB admin check failed: %s", e)
+        return False
+
+
+async def _get_or_create_kyb(db: AsyncSession, chat_id: str, username: str) -> "KybRegistration":
+    """Return the KYB record for this user, creating one if absent."""
+    res = await db.execute(select(KybRegistration).where(KybRegistration.chat_id == chat_id))
+    kyb = res.scalar_one_or_none()
+    if not kyb:
+        kyb = KybRegistration(chat_id=chat_id, telegram_username=username, step="full_name", status="in_progress")
+        db.add(kyb)
+        await db.commit()
+        await db.refresh(kyb)
+    return kyb
+
+
+async def _handle_kyb_flow(
+    db: AsyncSession,
+    tg: "TelegramService",
+    chat_id: str,
+    username: str,
+    text: str,
+    photos: list,
+) -> bool:
+    """Handle KYB registration flow for an unregistered user.
+
+    Returns True if the message was consumed by the KYB flow, False otherwise.
+    """
+    # Allow /start command to show registration info even without KYB record
+    if text and text.startswith("/start"):
+        await tg.send_message(
+            chat_id,
+            "👋 <b>Welcome to PayBot!</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "This bot is restricted to registered admins only.\n\n"
+            "To request access, please complete the KYB (Know Your Business) registration.\n\n"
+            "Type /register to begin your registration.",
+        )
+        return True
+
+    # Check existing KYB record
+    try:
+        res = await db.execute(select(KybRegistration).where(KybRegistration.chat_id == chat_id))
+        kyb = res.scalar_one_or_none()
+    except Exception as e:
+        logger.error("KYB lookup failed: %s", e)
+        await tg.send_message(chat_id, "⚠️ A database error occurred. Please try again later.")
+        return True
+
+    # No KYB record yet
+    if not kyb:
+        if text and text.startswith("/register"):
+            try:
+                kyb = KybRegistration(chat_id=chat_id, telegram_username=username, step="full_name", status="in_progress")
+                db.add(kyb)
+                await db.commit()
+                await db.refresh(kyb)
+            except Exception as e:
+                logger.error("KYB create failed: %s", e)
+                await tg.send_message(chat_id, "⚠️ Could not start registration. Please try again.")
+                return True
+            await tg.send_message(
+                chat_id,
+                "📋 <b>KYB Registration Started</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "Please answer the following questions to complete your registration.\n"
+                "Your information will be reviewed by the bot administrator.\n\n"
+                + _KYB_PROMPTS["full_name"],
+            )
+        else:
+            await tg.send_message(
+                chat_id,
+                "🔒 <b>Access Restricted</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "You are not registered to use this bot.\n\n"
+                "Type /register to begin your KYB registration, or /start for more information.",
+            )
+        return True
+
+    # KYB already approved — this shouldn't happen (authorized users bypass this flow)
+    if kyb.status == "approved":
+        await tg.send_message(chat_id, "✅ Your KYB is approved. You can now use all bot commands. Type /start to begin.")
+        return True
+
+    # KYB rejected
+    if kyb.status == "rejected":
+        reason = kyb.rejection_reason or "No reason provided."
+        await tg.send_message(
+            chat_id,
+            f"❌ <b>KYB Registration Rejected</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"Reason: {reason}\n\n"
+            f"Please contact the bot administrator for more information.",
+        )
+        return True
+
+    # KYB pending review
+    if kyb.status == "pending_review":
+        await tg.send_message(
+            chat_id,
+            "⏳ <b>Registration Under Review</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "Your KYB registration has been submitted and is awaiting approval.\n"
+            "You will be notified once a decision is made.",
+        )
+        return True
+
+    # KYB in progress — handle each step
+    step = kyb.step
+
+    if step == "full_name":
+        if not text or text.startswith("/"):
+            await tg.send_message(chat_id, _KYB_PROMPTS["full_name"])
+            return True
+        try:
+            kyb.full_name = text.strip()
+            kyb.step = "phone"
+            await db.commit()
+        except Exception as e:
+            logger.error("KYB update failed (full_name): %s", e)
+            await db.rollback()
+        await tg.send_message(chat_id, _KYB_PROMPTS["phone"])
+        return True
+
+    if step == "phone":
+        if not text or text.startswith("/"):
+            await tg.send_message(chat_id, _KYB_PROMPTS["phone"])
+            return True
+        try:
+            kyb.phone = text.strip()
+            kyb.step = "address"
+            await db.commit()
+        except Exception as e:
+            logger.error("KYB update failed (phone): %s", e)
+            await db.rollback()
+        await tg.send_message(chat_id, _KYB_PROMPTS["address"])
+        return True
+
+    if step == "address":
+        if not text or text.startswith("/"):
+            await tg.send_message(chat_id, _KYB_PROMPTS["address"])
+            return True
+        try:
+            kyb.address = text.strip()
+            kyb.step = "bank"
+            await db.commit()
+        except Exception as e:
+            logger.error("KYB update failed (address): %s", e)
+            await db.rollback()
+        await tg.send_message(chat_id, _KYB_PROMPTS["bank"])
+        return True
+
+    if step == "bank":
+        if not text or text.startswith("/"):
+            await tg.send_message(chat_id, _KYB_PROMPTS["bank"])
+            return True
+        try:
+            kyb.bank_name = text.strip()
+            kyb.step = "id_photo"
+            await db.commit()
+        except Exception as e:
+            logger.error("KYB update failed (bank): %s", e)
+            await db.rollback()
+        await tg.send_message(chat_id, _KYB_PROMPTS["id_photo"])
+        return True
+
+    if step == "id_photo":
+        if not photos:
+            await tg.send_message(chat_id, _KYB_PROMPTS["id_photo"])
+            return True
+        best_photo = max(photos, key=lambda p: p.get("file_size", 0))
+        try:
+            kyb.id_photo_file_id = best_photo["file_id"]
+            kyb.step = "done"
+            kyb.status = "pending_review"
+            await db.commit()
+        except Exception as e:
+            logger.error("KYB update failed (id_photo): %s", e)
+            await db.rollback()
+            await tg.send_message(chat_id, "⚠️ Could not save your ID photo. Please try again.")
+            return True
+
+        await tg.send_message(
+            chat_id,
+            "✅ <b>KYB Registration Submitted!</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "Thank you for completing your registration.\n\n"
+            "📋 <b>Summary:</b>\n"
+            f"  👤 Name: {kyb.full_name}\n"
+            f"  📱 Phone: {kyb.phone}\n"
+            f"  🏠 Address: {kyb.address}\n"
+            f"  🏦 Bank: {kyb.bank_name}\n"
+            f"  🪪 ID: Uploaded\n\n"
+            "⏳ Your registration is now under review. You will be notified once approved.",
+        )
+
+        # Notify bot owner
+        owner_id = _get_bot_owner_id()
+        if owner_id:
+            uname_display = f"@{username}" if username and username != "unknown" else f"chat_id:{chat_id}"
+            await tg.send_message(
+                owner_id,
+                f"🔔 <b>New KYB Registration</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"  👤 Name: {kyb.full_name}\n"
+                f"  📱 Phone: {kyb.phone}\n"
+                f"  🏠 Address: {kyb.address}\n"
+                f"  🏦 Bank: {kyb.bank_name}\n"
+                f"  🪪 ID: Uploaded\n"
+                f"  🆔 Telegram: {uname_display}\n\n"
+                f"Use <code>/kyb_approve {chat_id}</code> to approve or\n"
+                f"<code>/kyb_reject {chat_id} [reason]</code> to reject.",
+            )
+        return True
+
+    # Unknown step — reset to full_name
+    try:
+        kyb.step = "full_name"
+        await db.commit()
+    except Exception:
+        await db.rollback()
+    await tg.send_message(chat_id, "⚠️ Registration state reset. Let's start again.\n\n" + _KYB_PROMPTS["full_name"])
+    return True
 
 
 # ---------- DB helper: safe log ----------
@@ -306,6 +601,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         tg = TelegramService()
         tg_user_id = f"tg-{chat_id}"
 
+        # ==================== Access control: KYB gate ====================
+        # Check if this user is an authorized admin.  Non-admins are routed
+        # through the KYB registration flow (photos or text).
+        is_admin = await _is_authorized_admin(db, chat_id)
+        if not is_admin:
+            await _handle_kyb_flow(db, tg, chat_id, username, text, photos)
+            return {"status": "ok"}
+
         # ==================== Photo message → receipt upload ====================
         if photos and not text:
             # Check if this user has a pending topup request awaiting receipt
@@ -373,6 +676,127 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "ℹ️ Type /help for the full command reference."
             )
             await tg.send_message(chat_id, welcome)
+
+        # ==================== /kyb_list (bot owner only) ====================
+        elif text.startswith("/kyb_list"):
+            if chat_id != _get_bot_owner_id():
+                await tg.send_message(chat_id, "❌ This command is only available to the bot owner.")
+            else:
+                try:
+                    res = await db.execute(
+                        select(KybRegistration).where(KybRegistration.status == "pending_review").order_by(KybRegistration.created_at.asc())
+                    )
+                    pending_kybs = res.scalars().all()
+                    if not pending_kybs:
+                        await tg.send_message(chat_id, "✅ No pending KYB registrations.")
+                    else:
+                        lines = [f"📋 <b>Pending KYB Registrations ({len(pending_kybs)})</b>\n━━━━━━━━━━━━━━━━━━━━"]
+                        for k in pending_kybs:
+                            uname = f"@{k.telegram_username}" if k.telegram_username else f"id:{k.chat_id}"
+                            lines.append(
+                                f"\n👤 <b>{k.full_name}</b> ({uname})\n"
+                                f"  📱 {k.phone} | 🏦 {k.bank_name}\n"
+                                f"  🏠 {k.address}\n"
+                                f"  ▶ <code>/kyb_approve {k.chat_id}</code>\n"
+                                f"  ✖ <code>/kyb_reject {k.chat_id} reason</code>"
+                            )
+                        await tg.send_message(chat_id, "\n".join(lines))
+                except Exception as e:
+                    logger.error("kyb_list error: %s", e)
+                    await tg.send_message(chat_id, "⚠️ Failed to fetch KYB list.")
+
+        # ==================== /kyb_approve (bot owner only) ====================
+        elif text.startswith("/kyb_approve"):
+            if chat_id != _get_bot_owner_id():
+                await tg.send_message(chat_id, "❌ This command is only available to the bot owner.")
+            else:
+                parts = text.split(maxsplit=1)
+                if len(parts) < 2:
+                    await tg.send_message(chat_id, "❌ Usage: /kyb_approve [chat_id]")
+                else:
+                    target_chat_id = parts[1].strip()
+                    try:
+                        res = await db.execute(select(KybRegistration).where(KybRegistration.chat_id == target_chat_id))
+                        kyb = res.scalar_one_or_none()
+                        if not kyb:
+                            await tg.send_message(chat_id, f"❌ No KYB record found for chat_id: {target_chat_id}")
+                        elif kyb.status == "approved":
+                            await tg.send_message(chat_id, f"ℹ️ KYB for {target_chat_id} is already approved.")
+                        else:
+                            kyb.status = "approved"
+                            # Create AdminUser record for the approved user
+                            existing_admin = await db.execute(select(AdminUser).where(AdminUser.telegram_id == target_chat_id))
+                            if not existing_admin.scalar_one_or_none():
+                                new_admin = AdminUser(
+                                    telegram_id=target_chat_id,
+                                    telegram_username=kyb.telegram_username,
+                                    name=kyb.full_name or kyb.telegram_username or target_chat_id,
+                                    is_active=True,
+                                    is_super_admin=False,
+                                    can_manage_payments=True,
+                                    can_manage_disbursements=True,
+                                    can_view_reports=True,
+                                    can_manage_wallet=True,
+                                    can_manage_transactions=True,
+                                    can_manage_bot=False,
+                                    can_approve_topups=False,
+                                    added_by=chat_id,
+                                )
+                                db.add(new_admin)
+                            await db.commit()
+                            await tg.send_message(chat_id, f"✅ KYB approved for {target_chat_id} ({kyb.full_name}). Admin access granted.")
+                            # Notify the approved user
+                            await tg.send_message(
+                                target_chat_id,
+                                "🎉 <b>KYB Registration Approved!</b>\n"
+                                "━━━━━━━━━━━━━━━━━━━━\n"
+                                "Your registration has been approved. You can now use all bot commands.\n\n"
+                                "Type /start to begin.",
+                            )
+                    except Exception as e:
+                        logger.error("kyb_approve error: %s", e)
+                        try:
+                            await db.rollback()
+                        except Exception:
+                            pass
+                        await tg.send_message(chat_id, f"⚠️ Failed to approve KYB: {e}")
+
+        # ==================== /kyb_reject (bot owner only) ====================
+        elif text.startswith("/kyb_reject"):
+            if chat_id != _get_bot_owner_id():
+                await tg.send_message(chat_id, "❌ This command is only available to the bot owner.")
+            else:
+                parts = text.split(maxsplit=2)
+                if len(parts) < 2:
+                    await tg.send_message(chat_id, "❌ Usage: /kyb_reject [chat_id] [reason]")
+                else:
+                    target_chat_id = parts[1].strip()
+                    reason = parts[2].strip() if len(parts) > 2 else "No reason provided."
+                    try:
+                        res = await db.execute(select(KybRegistration).where(KybRegistration.chat_id == target_chat_id))
+                        kyb = res.scalar_one_or_none()
+                        if not kyb:
+                            await tg.send_message(chat_id, f"❌ No KYB record found for chat_id: {target_chat_id}")
+                        else:
+                            kyb.status = "rejected"
+                            kyb.rejection_reason = reason
+                            await db.commit()
+                            await tg.send_message(chat_id, f"✅ KYB rejected for {target_chat_id} ({kyb.full_name}).")
+                            # Notify the rejected user
+                            await tg.send_message(
+                                target_chat_id,
+                                f"❌ <b>KYB Registration Rejected</b>\n"
+                                f"━━━━━━━━━━━━━━━━━━━━\n"
+                                f"Reason: {reason}\n\n"
+                                f"Please contact the bot administrator for more information.",
+                            )
+                    except Exception as e:
+                        logger.error("kyb_reject error: %s", e)
+                        try:
+                            await db.rollback()
+                        except Exception:
+                            pass
+                        await tg.send_message(chat_id, f"⚠️ Failed to reject KYB: {e}")
 
         # ==================== /invoice ====================
         elif text.startswith("/invoice"):
