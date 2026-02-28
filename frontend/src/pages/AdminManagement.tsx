@@ -1117,7 +1117,7 @@ export default function AdminManagement() {
                       <label className="flex items-center gap-2 cursor-pointer select-none">
                         <div
                           onClick={() => setForm(f => ({ ...f, is_super_admin: !f.is_super_admin }))}
-                          className={`w-8 h-4.5 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 ${form.is_super_admin ? 'bg-amber-500' : 'bg-slate-700'}`}
+                          className={`w-8 h-5 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 ${form.is_super_admin ? 'bg-amber-500' : 'bg-slate-700'}`}
                         >
                           <div className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${form.is_super_admin ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
                         </div>
