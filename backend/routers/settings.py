@@ -73,9 +73,6 @@ async def get_settings(current_user: UserResponse = Depends(get_admin_user)):
         # Define descriptions for configuration items
         backend_descriptions = {
             "DATABASE_URL": "Database connection string",
-            "STRIPE_SECRET_KEY": "Stripe secret key",
-            "STRIPE_SUCCESS_URL": "Payment success callback URL",
-            "STRIPE_CANCEL_URL": "Payment cancellation callback URL",
             "ALLOWED_DOMAINS": "Allowed domains",
             "OIDC_ISSUER_URL": "OIDC issuer URL",
             "OIDC_CLIENT_ID": "OIDC client ID",
