@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+#### KYB Management Dashboard
+- **`GET /api/v1/kyb`** — super admin: list all KYB registrations with optional `?status=` filter
+- **`POST /api/v1/kyb/{chat_id}/approve`** — super admin: approve a KYB application, automatically creating an `AdminUser` record and sending a Telegram notification to the applicant
+- **`POST /api/v1/kyb/{chat_id}/reject`** — super admin: reject a KYB application with an optional reason and Telegram notification
+- **Admin Management → KYB tab** — new super-admin-only tab showing all KYB applications with status filter, expandable detail view, and inline Approve/Reject controls
+
+---
+
 ## [1.0.0] - 2026-02-22
 
 ### Added

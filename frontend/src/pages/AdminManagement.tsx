@@ -28,6 +28,8 @@ import {
   WrenchIcon,
   Wallet as WalletIcon,
   DollarSign,
+  ClipboardList,
+  RefreshCw,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -70,6 +72,24 @@ interface CryptoTopupRequest {
   reviewed_at: string | null;
   created_at: string | null;
 }
+
+interface KybRegistrationItem {
+  id: number;
+  chat_id: string;
+  telegram_username: string | null;
+  step: string;
+  full_name: string | null;
+  phone: string | null;
+  address: string | null;
+  bank_name: string | null;
+  id_photo_file_id: string | null;
+  status: string;
+  rejection_reason: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+type AdminTab = 'admins' | 'users' | 'roles' | 'crypto' | 'usd-wallets' | 'kyb';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1046,12 +1066,250 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
   );
 }
 
+// ── KYB Tab (Super Admin Only) ────────────────────────────────────────────────
+
+const KYB_STATUS_CONFIG: Record<string, { color: string; label: string }> = {
+  in_progress:    { color: 'bg-blue-500/15 text-blue-400 border-blue-500/25',       label: 'In Progress' },
+  pending_review: { color: 'bg-amber-500/15 text-amber-400 border-amber-500/25',    label: 'Pending Review' },
+  approved:       { color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', label: 'Approved' },
+  rejected:       { color: 'bg-red-500/15 text-red-400 border-red-500/25',          label: 'Rejected' },
+};
+
+function KybTab({ onError }: { onError: (msg: string) => void }) {
+  const [items, setItems] = useState<KybRegistrationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<string>('pending_review');
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [actionError, setActionError] = useState('');
+
+  const fetchItems = React.useCallback(async () => {
+    setLoading(true);
+    try {
+      const url = filter ? `/api/v1/kyb?status=${encodeURIComponent(filter)}` : '/api/v1/kyb';
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setItems(data.items ?? []);
+    } catch (e: unknown) {
+      onError(e instanceof Error ? e.message : 'Failed to load KYB registrations');
+    } finally {
+      setLoading(false);
+    }
+  }, [filter, onError]);
+
+  useEffect(() => { fetchItems(); }, [fetchItems]);
+
+  const handleApprove = async (chatId: string) => {
+    setActionLoading(chatId); setActionError('');
+    try {
+      const res = await fetch(`/api/v1/kyb/${encodeURIComponent(chatId)}/approve`, {
+        method: 'POST', credentials: 'include',
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setActionError(d.detail ?? 'Failed to approve');
+      } else {
+        fetchItems();
+      }
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Network error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async () => {
+    if (!rejectTarget) return;
+    setActionLoading(rejectTarget); setActionError('');
+    try {
+      const res = await fetch(`/api/v1/kyb/${encodeURIComponent(rejectTarget)}/reject`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: rejectReason || 'No reason provided.' }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setActionError(d.detail ?? 'Failed to reject');
+      } else {
+        setRejectTarget(null);
+        setRejectReason('');
+        fetchItems();
+      }
+    } catch (e: unknown) {
+      setActionError(e instanceof Error ? e.message : 'Network error');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const fmt = (s: string | null) => s ? new Date(s).toLocaleString() : '—';
+
+  return (
+    <div className="space-y-4">
+      {/* Filter bar */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {['pending_review', 'approved', 'rejected', 'in_progress', ''].map((s) => (
+          <button
+            key={s || 'all'}
+            onClick={() => setFilter(s)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+              filter === s
+                ? 'bg-blue-600 border-blue-500 text-white'
+                : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+            }`}
+          >
+            {s === '' ? 'All' : (KYB_STATUS_CONFIG[s]?.label ?? s)}
+          </button>
+        ))}
+        <button
+          onClick={fetchItems}
+          className="ml-auto p-1.5 rounded-lg bg-slate-800 border border-slate-700 text-slate-400 hover:text-white"
+          title="Refresh"
+        >
+          <RefreshCw className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Action error */}
+      {actionError && (
+        <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/25 rounded-lg px-3 py-2">
+          {actionError}
+        </div>
+      )}
+
+      {/* Reject reason modal */}
+      {rejectTarget && (
+        <div className="bg-slate-800 border border-slate-700 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-semibold text-white">Reject KYB for <code className="text-amber-400">{rejectTarget}</code></p>
+          <textarea
+            className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-white placeholder-slate-500 resize-none"
+            rows={3}
+            placeholder="Reason for rejection (optional)"
+            value={rejectReason}
+            onChange={e => setRejectReason(e.target.value)}
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={handleReject}
+              disabled={!!actionLoading}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
+            >
+              Confirm Reject
+            </button>
+            <button
+              onClick={() => { setRejectTarget(null); setRejectReason(''); setActionError(''); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-700 hover:bg-slate-600 text-white"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div className="text-slate-500 text-sm py-8 text-center">Loading KYB registrations…</div>
+      ) : items.length === 0 ? (
+        <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-8 text-center">
+          <ClipboardList className="h-8 w-8 text-slate-600 mx-auto mb-2" />
+          <p className="text-white font-semibold text-sm">No KYB registrations found</p>
+          <p className="text-slate-500 text-xs mt-1">
+            {filter ? `No registrations with status "${KYB_STATUS_CONFIG[filter]?.label ?? filter}"` : 'No registrations yet'}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-slate-500 text-xs">{items.length} registration{items.length !== 1 ? 's' : ''}</p>
+          {items.map((item) => {
+            const cfg = KYB_STATUS_CONFIG[item.status] ?? { color: 'bg-slate-700 text-slate-300 border-slate-600', label: item.status };
+            const isExpanded = expanded === item.chat_id;
+            const isPending = item.status === 'pending_review';
+            return (
+              <div key={item.id} className="bg-slate-800 border border-slate-700 rounded-xl overflow-hidden">
+                {/* Header row */}
+                <div
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-700/40"
+                  onClick={() => setExpanded(isExpanded ? null : item.chat_id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-sm font-semibold text-white truncate">
+                        {item.full_name ?? item.telegram_username ?? item.chat_id}
+                      </span>
+                      {item.telegram_username && (
+                        <span className="text-xs text-slate-400">@{item.telegram_username}</span>
+                      )}
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${cfg.color}`}>
+                        {cfg.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">Chat ID: {item.chat_id} · {fmt(item.created_at)}</p>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-500 shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                </div>
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="border-t border-slate-700 px-4 py-3 space-y-3">
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                      {[
+                        ['Phone', item.phone],
+                        ['Address', item.address],
+                        ['Bank', item.bank_name],
+                        ['ID Photo', item.id_photo_file_id ? `file:${item.id_photo_file_id}` : null],
+                        ['Step', item.step],
+                        ['Updated', fmt(item.updated_at)],
+                      ].map(([label, value]) => (
+                        <div key={label as string}>
+                          <span className="text-slate-500">{label}: </span>
+                          <span className="text-slate-300">{value ?? '—'}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {item.rejection_reason && (
+                      <div className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                        Rejection reason: {item.rejection_reason}
+                      </div>
+                    )}
+                    {isPending && (
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={() => handleApprove(item.chat_id)}
+                          disabled={actionLoading === item.chat_id}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 hover:bg-emerald-700 text-white disabled:opacity-50"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5" />
+                          {actionLoading === item.chat_id ? 'Approving…' : 'Approve'}
+                        </button>
+                        <button
+                          onClick={() => { setRejectTarget(item.chat_id); setActionError(''); }}
+                          disabled={!!actionLoading}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-700/80 hover:bg-red-700 text-white disabled:opacity-50"
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminManagement() {
   const { isSuperAdmin, permissions } = useAuth();
   const canApproveTopups = isSuperAdmin || !!permissions?.can_approve_topups;
-  const [activeTab, setActiveTab] = useState<'admins' | 'users' | 'roles' | 'crypto' | 'usd-wallets'>('admins');
+  const [activeTab, setActiveTab] = useState<AdminTab>('admins');
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -1206,6 +1464,11 @@ export default function AdminManagement() {
       label: 'USD Wallets',
       icon: <WalletIcon className="h-3.5 w-3.5" />,
     }] : []),
+    ...(isSuperAdmin ? [{
+      id: 'kyb',
+      label: 'KYB',
+      icon: <ClipboardList className="h-3.5 w-3.5" />,
+    }] : []),
   ];
 
   return (
@@ -1308,7 +1571,7 @@ export default function AdminManagement() {
           tabs={tabs}
           active={activeTab}
           onChange={(id) => {
-            setActiveTab(id as typeof activeTab);
+            setActiveTab(id as AdminTab);
             setShowAdd(false);
             setError('');
           }}
@@ -1485,6 +1748,11 @@ export default function AdminManagement() {
         {/* ── USD Wallets Tab ── */}
         {activeTab === 'usd-wallets' && isSuperAdmin && (
           <UsdWalletsTab onError={setError} />
+        )}
+
+        {/* ── KYB Tab ── */}
+        {activeTab === 'kyb' && isSuperAdmin && (
+          <KybTab onError={setError} />
         )}
       </div>
     </Layout>
