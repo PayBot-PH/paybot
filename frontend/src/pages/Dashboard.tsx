@@ -334,7 +334,7 @@ export default function Dashboard() {
                 }
               </p>
               <div className="flex items-center gap-1 mt-2 text-blue-200 text-xs group-hover:text-white transition-colors">
-                <span>Xendit balance</span>
+                <span>PHP Balance</span>
                 <ArrowUpRight className="h-3 w-3" />
               </div>
             </CardContent>

@@ -199,7 +199,7 @@ export default function ReportsPage() {
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-slate-400">Xendit Balance</p>
+                      <p className="text-sm text-slate-400">PHP Balance</p>
                       <p className="text-3xl font-bold text-white mt-1">
                         {xenditBalance !== null ? fmt(xenditBalance) : 'N/A'}
                       </p>

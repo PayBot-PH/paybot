@@ -95,7 +95,7 @@ function TermsOfService() {
           a web-based admin dashboard. It enables users to collect payments via 7 methods
           (Invoice, QR Code, Alipay QR, Maya Checkout, Payment Link, Virtual Account, and
           E-Wallet), manage disbursements, monitor wallet balances, and access financial
-          transaction history through Xendit and Security Bank Collect payment gateways. The
+          transaction history through our trusted payment gateways. The
           platform also offers 22 Telegram bot commands for full payment operations directly
           from chat.
         </p>
@@ -122,7 +122,7 @@ function TermsOfService() {
 
       <Section title="5. Payment Processing">
         <p>
-          All payments are processed through Xendit and Security Bank Collect. DRL Solutions acts
+          All payments are processed through our trusted payment gateways. DRL Solutions acts
           as a platform facilitator only. Transaction fees are determined by the respective payment
           gateways. DRL Solutions is not liable for payment gateway downtimes, failed transactions,
           or third-party processing errors.
@@ -206,8 +206,7 @@ function PrivacyPolicy() {
 
       <Section title="3. Data Sharing">
         <p>
-          We share your data only with trusted third-party payment processors (Xendit, Security
-          Bank Collect) as necessary to complete transactions. We do not sell, rent, or trade your
+          We share your data only with trusted third-party payment processors as necessary to complete transactions. We do not sell, rent, or trade your
           personal information to any third party for marketing purposes.
         </p>
       </Section>
@@ -280,7 +279,7 @@ function RefundPolicy() {
       <Section title="2. Non-Refundable Items">
         <p>The following are generally non-refundable:</p>
         <ul className="list-disc pl-5 space-y-1 mt-1">
-          <li>Payment gateway processing fees charged by Xendit or Security Bank Collect</li>
+          <li>Payment gateway processing fees charged by our payment processors</li>
           <li>Completed disbursements already credited to the recipient's bank account</li>
           <li>Transactions where the service or goods have been delivered</li>
           <li>Wallet top-up fees</li>

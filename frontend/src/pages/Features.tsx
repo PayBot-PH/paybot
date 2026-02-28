@@ -231,7 +231,7 @@ function TelegramMockup() {
     { from: 'user', text: '/balance' },
     { from: 'bot', text: '💰 Wallet Balance\n\nAvailable: ₱ 12,500.00\nPending: ₱ 1,200.00\n\nUse /withdraw to cash out.' },
     { from: 'user', text: '/invoice 1500 Web design deposit' },
-    { from: 'bot', text: '✅ Invoice Created!\n\nAmount: ₱ 1,500.00\nDesc: Web design deposit\n\n🔗 Pay Now: invoice.xendit.co/...' },
+    { from: 'bot', text: '✅ Invoice Created!\n\nAmount: ₱ 1,500.00\nDesc: Web design deposit\n\n🔗 Pay Now: pay.paybotph.com/...' },
     { from: 'user', text: '/alipay 500 Product sale' },
     { from: 'bot', text: '✅ Alipay QR Ready!\n\n💰 ₱500.00\n📱 Scan QR with Alipay' },
   ];
@@ -335,7 +335,7 @@ export default function Features() {
 
   const adminFeatures = [
     { icon: <BarChart3 className="h-4 w-4 text-blue-400" />, title: 'Live Dashboard', description: 'Real-time overview of wallet balance, revenue, and transaction stats with live SSE updates.', color: 'bg-blue-500/10' },
-    { icon: <Wallet className="h-4 w-4 text-emerald-400" />, title: 'Wallet Management', description: 'Top up via Xendit invoice, withdraw to bank, or disburse funds — all from one screen.', color: 'bg-emerald-500/10' },
+    { icon: <Wallet className="h-4 w-4 text-emerald-400" />, title: 'Wallet Management', description: 'Top up via payment invoice, withdraw to bank, or disburse funds — all from one screen.', color: 'bg-emerald-500/10' },
     { icon: <CreditCard className="h-4 w-4 text-purple-400" />, title: 'Payments Hub', description: 'Create payments via 7 methods: Invoice, QR, Alipay, Maya, Payment Link, VA, E-Wallet.', color: 'bg-purple-500/10' },
     { icon: <FileText className="h-4 w-4 text-sky-400" />, title: 'Transaction History', description: 'Full searchable and filterable transaction log with status tracking.', color: 'bg-sky-500/10' },
     { icon: <Building2 className="h-4 w-4 text-amber-400" />, title: 'Money Management', description: 'Manage disbursements, refunds, subscriptions, and customer profiles in one place.', color: 'bg-amber-500/10' },
@@ -383,7 +383,7 @@ export default function Features() {
       <section className="relative max-w-6xl mx-auto px-4 pt-20 pb-16 text-center">
         <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-1.5 text-blue-300 text-xs font-medium mb-8">
           <Star className="h-3 w-3 fill-blue-400 text-blue-400" />
-          Telegram-native payment operations · Powered by Xendit &amp; Maya
+          Telegram-native payment operations · Powered by PayBot Philippines
         </div>
         <h1 className="text-5xl md:text-6xl font-extrabold text-white leading-[1.1] tracking-tight mb-5">
           Collect Payments<br />
@@ -392,7 +392,7 @@ export default function Features() {
           </span>
         </h1>
         <p className="text-slate-400 text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
-          PayBot by <strong className="text-white font-semibold">DRL Solutions</strong> lets you accept payments,
+          PayBot Philippines lets you accept payments,
           manage your wallet, send disbursements, and generate QR codes — all through simple bot commands or a sleek admin dashboard.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -496,7 +496,7 @@ export default function Features() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
             {[
               { icon: <Lock className="h-5 w-5 text-emerald-400 mx-auto mb-2" />, label: 'Telegram Auth Only', sub: 'Secure by design' },
-              { icon: <Zap className="h-5 w-5 text-amber-400 mx-auto mb-2" />, label: 'Xendit + Maya', sub: 'PH payment gateways' },
+              { icon: <Zap className="h-5 w-5 text-amber-400 mx-auto mb-2" />, label: 'PH Payment Gateways', sub: 'Multiple payment options' },
               { icon: <Monitor className="h-5 w-5 text-blue-400 mx-auto mb-2" />, label: 'Mobile Friendly', sub: 'Works on any device' },
               { icon: <CheckCircle2 className="h-5 w-5 text-sky-400 mx-auto mb-2" />, label: '7 Payment Methods', sub: 'VA, QR, eWallet & more' },
             ].map((b) => (
