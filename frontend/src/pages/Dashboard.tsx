@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePaymentEvents } from '@/hooks/usePaymentEvents';
@@ -16,7 +16,6 @@ import {
   Clock,
   CheckCircle,
   Bot,
-  LogIn,
   Wallet,
   CreditCard,
   PieChart,
@@ -145,7 +144,7 @@ function StatCard({
 }
 
 export default function Dashboard() {
-  const { user, loading: authLoading, login, isSuperAdmin, permissions } = useAuth();
+  const { user, loading: authLoading, isSuperAdmin, permissions } = useAuth();
   const [stats, setStats] = useState<Stats>(defaultStats);
   const [recentTxns, setRecentTxns] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -223,28 +222,7 @@ export default function Dashboard() {
   }
 
   if (!user) {
-    return (
-      <div className="min-h-screen bg-[#0B1120] flex items-center justify-center px-4">
-        <div className="text-center space-y-6 max-w-sm">
-          <div className="h-16 w-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/30">
-            <Bot className="h-8 w-8 text-white" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold text-white">PayBot <span className="text-blue-400">Admin</span></h1>
-            <p className="text-slate-400 mt-2 text-sm">Telegram Bot & Payment Management Dashboard</p>
-          </div>
-          <button
-            onClick={() => login()}
-            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-blue-500/20"
-          >
-            <LogIn className="h-5 w-5" /> Sign In with Telegram
-          </button>
-          <Link to="/features" className="block text-slate-500 hover:text-blue-400 text-sm transition-colors">
-            Learn about features →
-          </Link>
-        </div>
-      </div>
-    );
+    return <Navigate to="/intro" replace />;
   }
 
   const successRate = stats.total_count > 0
