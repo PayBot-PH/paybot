@@ -33,6 +33,9 @@ import {
   RefreshCw,
   Banknote,
   MessageSquare,
+  Sun,
+  Sunset,
+  Moon,
 } from 'lucide-react';
 
 interface Stats {
@@ -77,8 +80,26 @@ const typeConfig: Record<string, { icon: React.ReactNode; bg: string }> = {
   wechat_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-green-400" />,    bg: 'bg-green-500/10' },
 };
 
-// Conflict 2 resolution: keep HEAD's StatCard component AND origin/main's fmt helper
 const fmt = (n: number) => n.toLocaleString('en-PH', { minimumFractionDigits: 2 });
+
+function getGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return { text: 'Good morning', icon: <Sun className="h-4 w-4 text-amber-400" /> };
+  if (hour < 18) return { text: 'Good afternoon', icon: <Sunset className="h-4 w-4 text-orange-400" /> };
+  return { text: 'Good evening', icon: <Moon className="h-4 w-4 text-indigo-400" /> };
+}
+
+function formatTxnDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+}
 
 function StatCard({
   label,
@@ -142,7 +163,6 @@ export default function Dashboard() {
         client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=USD', method: 'GET', data: {} }),
       ]);
 
-      // Conflict 3 resolution: keep HEAD's verbose error handling for better debuggability
       if (results[0].status === 'fulfilled') {
         const statsData = results[0].value?.data;
         if (statsData) setStats(statsData);
@@ -194,7 +214,6 @@ export default function Dashboard() {
     load();
   }, [user, fetchData]);
 
-  // Conflict 4 resolution: keep HEAD's clean authLoading spinner style
   if (authLoading) {
     return (
       <div className="min-h-screen bg-[#0B1120] flex items-center justify-center">
@@ -203,8 +222,6 @@ export default function Dashboard() {
     );
   }
 
-  // Conflict 4 resolution: use origin/main's !user block (self-contained, no Button import needed,
-  // includes the "Learn about features" link, uses Bot icon instead of external image URL)
   if (!user) {
     return (
       <div className="min-h-screen bg-[#0B1120] flex items-center justify-center px-4">
@@ -234,9 +251,13 @@ export default function Dashboard() {
     ? Math.round((stats.paid_count / stats.total_count) * 100)
     : 0;
 
+  const greeting = getGreeting();
+  const userName = (user as { name?: string; telegram_username?: string } | null)?.name ||
+    (user as { telegram_username?: string } | null)?.telegram_username || '';
+
   return (
     <Layout connected={connected}>
-      {/* Page Header — role banner + success rate chip (HEAD) */}
+      {/* Page Header — greeting + role banner + success rate chip */}
       <div className="mb-6">
         <div className={`relative overflow-hidden rounded-xl border px-5 py-4 ${
           isSuperAdmin
@@ -257,9 +278,12 @@ export default function Dashboard() {
                 }
               </div>
               <div className="min-w-0">
-                <h1 className={`text-base font-bold ${isSuperAdmin ? 'text-amber-300' : 'text-blue-300'}`}>
-                  {isSuperAdmin ? 'Super Admin Dashboard' : 'Admin Dashboard'}
-                </h1>
+                <div className="flex items-center gap-2">
+                  {greeting.icon}
+                  <h1 className={`text-base font-bold ${isSuperAdmin ? 'text-amber-300' : 'text-blue-300'}`}>
+                    {greeting.text}{userName ? `, ${userName}` : ''}
+                  </h1>
+                </div>
                 <p className="text-slate-400 text-xs mt-0.5">
                   {isSuperAdmin
                     ? 'Full access — manage admins, bot settings, and all financial data.'
@@ -268,14 +292,25 @@ export default function Dashboard() {
               </div>
             </div>
 
-            {/* Success rate chip */}
-            {!loading && stats.total_count > 0 && (
-              <div className="hidden sm:flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg shrink-0">
-                <TrendingUp className="h-3.5 w-3.5" />
-                <span className="text-sm font-semibold">{successRate}%</span>
-                <span className="text-xs text-emerald-500">success</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2 shrink-0">
+              {/* Success rate chip */}
+              {!loading && stats.total_count > 0 && (
+                <div className="hidden sm:flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  <span className="text-sm font-semibold">{successRate}%</span>
+                  <span className="text-xs text-emerald-500">success</span>
+                </div>
+              )}
+              {/* Refresh button */}
+              <button
+                onClick={() => { setLoading(true); fetchData().finally(() => setLoading(false)); }}
+                disabled={loading}
+                className="h-8 w-8 flex items-center justify-center rounded-lg bg-slate-700/50 border border-slate-600/50 text-slate-400 hover:text-white hover:bg-slate-700 transition-all duration-150 disabled:opacity-50"
+                title="Refresh data"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -357,7 +392,7 @@ export default function Dashboard() {
         <StatCard
           label="Expired"
           value={stats.expired_count}
-          sub={`${stats.total_count} total txns`}
+          sub={stats.expired_count > 0 ? `of ${stats.total_count} total` : undefined}
           icon={<Banknote className="h-5 w-5 text-red-400" />}
           color="text-red-400"
           loading={loading}
@@ -366,7 +401,7 @@ export default function Dashboard() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Quick Actions — HEAD's 2-column grid */}
+        {/* Quick Actions */}
         <Card className="bg-[#1E293B] border-slate-700/50">
           <CardHeader className="pb-3 pt-4 px-4">
             <div className="flex items-center justify-between">
@@ -433,8 +468,7 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Recent Transactions — HEAD's enhanced design with skeleton loaders,
-            using typeConfig icons + dot-based status badges from origin/main */}
+        {/* Recent Transactions */}
         <Card className="bg-[#1E293B] border-slate-700/50 lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
             <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
@@ -501,6 +535,9 @@ export default function Dashboard() {
                           </p>
                           <p className="text-xs text-slate-500 truncate mt-0.5">
                             {txn.external_id || `#${txn.id}`}
+                            {txn.created_at && (
+                              <span className="ml-1.5 text-slate-600">· {formatTxnDate(txn.created_at)}</span>
+                            )}
                           </p>
                         </div>
                       </div>
@@ -526,7 +563,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Revenue Breakdown — new feature from origin/main */}
+      {/* Revenue Breakdown */}
       {!loading && stats.total_amount > 0 && (
         <div className="mt-4 bg-[#1E293B] border border-slate-700/50 rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">

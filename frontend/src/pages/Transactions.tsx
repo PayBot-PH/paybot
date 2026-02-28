@@ -237,6 +237,7 @@ export default function Transactions() {
                       <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3">Customer</th>
                       <th className="text-right text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3">Amount</th>
                       <th className="text-center text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3">Status</th>
+                      <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">Date</th>
                       <th className="text-right text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3">Actions</th>
                     </tr>
                   </thead>
@@ -294,6 +295,14 @@ export default function Transactions() {
                               {sc.icon}
                               <span className="ml-1">{txn.status}</span>
                             </Badge>
+                          </td>
+                          <td className="px-4 py-4 hidden lg:table-cell">
+                            <div className="text-xs text-slate-400">
+                              {new Date(txn.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </div>
+                            <div className="text-[11px] text-slate-600 mt-0.5">
+                              {new Date(txn.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
+                            </div>
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end space-x-1">

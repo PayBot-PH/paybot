@@ -59,3 +59,4 @@ coverage/
 # Atoms Cloud config (keep but ignore sensitive data)
 # .mgx/backend/paybot.db
 *.db
+frontend/package-lock.json
