@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-02-28
+
+### Added
+
+#### Frontend
+- **Bot Introduction Page** (`/intro`) — Animated landing page showcasing bot capabilities before sign-in
+  - Pulsing bot icon with ambient animated blobs
+  - Animated feature ticker cycling through 8 capabilities every 2 seconds
+  - Six staggered feature cards with fade/slide-in animations (Multi-Method Payments, Wallet & Disbursements, Real-time Alerts, USDT Send Requests, Reports & Analytics, Secure Telegram Auth)
+  - Call-to-action buttons for **Get Started → `/login`** and **See all features → `/features`**
+  - Authenticated users are automatically redirected to the dashboard
+- `/intro` added to maintenance-mode exempt paths so the intro page is always accessible
+
+#### Routing
+- `Dashboard` unauthenticated state now redirects visitors to `/intro` instead of showing an inline sign-in prompt
+
+[1.0.1]: https://github.com/csphi/paybot/compare/v1.0.0...v1.0.1
+
+---
+
 ## [1.0.0] - 2026-02-22
 
 ### Added

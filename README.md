@@ -25,6 +25,7 @@ Open your browser to the URL that matches your environment:
 
 | Page | Path | Description |
 |------|------|-------------|
+| Bot Intro | `/intro` | Animated introduction page showcasing bot capabilities |
 | Dashboard | `/` | Stats, wallet balance, recent transactions |
 | Wallet | `/wallet` | Balance management, top up, withdraw, disburse |
 | Payments Hub | `/payments` | Create payments via all 7 methods |
@@ -286,6 +287,7 @@ curl https://your-domain.com/api/v1/telegram/debug-token-check
 
 | Page | Route | Description |
 |------|-------|-------------|
+| **Bot Intro** | `/intro` | Animated landing page showcasing bot capabilities before sign-in |
 | **Dashboard** | `/` | Overview with wallet balance, transaction stats, quick actions |
 | **Wallet** | `/wallet` | Balance management, top up via Xendit, withdraw, disburse |
 | **Payments Hub** | `/payments` | Create payments via Invoice, QR, Payment Link, VA, E-Wallet, Alipay, Maya |
