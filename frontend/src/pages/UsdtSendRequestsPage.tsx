@@ -46,7 +46,11 @@ export default function UsdtSendRequestsPage() {
     setLoading(false);
   }, [filter]);
 
-  useEffect(() => { fetchRequests(); }, [fetchRequests]);
+  useEffect(() => {
+    fetchRequests();
+    const id = setInterval(fetchRequests, 30000);
+    return () => clearInterval(id);
+  }, [fetchRequests]);
 
   const openReview = (id: number, deny: boolean) => {
     setActiveId(id);

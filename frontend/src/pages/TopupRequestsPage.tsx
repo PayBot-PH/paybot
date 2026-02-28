@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import { CheckCircle, XCircle, Clock, Eye, RefreshCw, DollarSign } from 'lucide-react';
 
@@ -32,7 +32,7 @@ export default function TopupRequestsPage() {
   const [activeId, setActiveId] = useState<number | null>(null);
   const [error, setError] = useState('');
 
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
       const url = filter ? `/api/v1/topup?status=${filter}` : '/api/v1/topup';
@@ -40,9 +40,13 @@ export default function TopupRequestsPage() {
       if (res.ok) { const d = await res.json(); setRequests(d.items || []); }
     } catch (e) { console.error(e); }
     setLoading(false);
-  };
+  }, [filter]);
 
-  useEffect(() => { fetchRequests(); }, [filter]);
+  useEffect(() => {
+    fetchRequests();
+    const id = setInterval(fetchRequests, 30000);
+    return () => clearInterval(id);
+  }, [fetchRequests]);
 
   const doAction = async (id: number, action: 'approve' | 'reject') => {
     setActionLoading(id); setError('');

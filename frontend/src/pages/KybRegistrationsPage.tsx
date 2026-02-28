@@ -57,7 +57,11 @@ export default function KybRegistrationsPage() {
     setLoading(false);
   }, [filter]);
 
-  useEffect(() => { fetchRegistrations(); }, [fetchRegistrations]);
+  useEffect(() => {
+    fetchRegistrations();
+    const id = setInterval(fetchRegistrations, 30000);
+    return () => clearInterval(id);
+  }, [fetchRegistrations]);
 
   const doAction = async (id: number, action: 'approve' | 'reject') => {
     setActionLoading(id);

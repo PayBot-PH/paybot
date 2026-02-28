@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import Layout from '@/components/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { MessageSquare, Send, ChevronRight, ChevronLeft, Search, RefreshCw } from 'lucide-react';
@@ -39,7 +39,7 @@ export default function BotMessagesPage() {
   const [mobilePane, setMobilePane] = useState<'list' | 'thread'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       const res = await fetch('/api/v1/bot-messages/conversations', { credentials: 'include' });
       if (res.ok) {
@@ -48,9 +48,9 @@ export default function BotMessagesPage() {
       }
     } catch (e) { console.error(e); }
     setLoading(false);
-  };
+  }, []);
 
-  const fetchMessages = async (chatId: string) => {
+  const fetchMessages = useCallback(async (chatId: string) => {
     try {
       const res = await fetch(`/api/v1/bot-messages?chat_id=${chatId}&limit=100`, { credentials: 'include' });
       if (res.ok) {
@@ -59,9 +59,20 @@ export default function BotMessagesPage() {
         setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
       }
     } catch (e) { console.error(e); }
-  };
+  }, []);
 
-  useEffect(() => { fetchConversations(); }, []);
+  useEffect(() => {
+    fetchConversations();
+    const id = setInterval(fetchConversations, 15000);
+    return () => clearInterval(id);
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    if (!selectedChat) return;
+    fetchMessages(selectedChat.chat_id);
+    const id = setInterval(() => fetchMessages(selectedChat.chat_id), 15000);
+    return () => clearInterval(id);
+  }, [selectedChat, fetchMessages]);
 
   const selectConversation = (c: Conversation) => {
     setSelectedChat(c);
