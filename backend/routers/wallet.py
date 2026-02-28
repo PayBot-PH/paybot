@@ -142,19 +142,7 @@ def _tg_user_id(user_id: str) -> str:
 
 
 async def _get_php_balance(db: AsyncSession, tg_user_id: str) -> float:
-    """Return the live Xendit PHP balance, falling back to the stored wallet balance.
-
-    If neither is available, returns 0.0 so callers can decide how to handle it.
-    """
-    try:
-        xendit = XenditService()
-        result = await xendit.get_balance()
-        if result.get("success"):
-            return float(result.get("balance", 0))
-    except Exception as e:
-        logger.warning("Xendit balance fetch failed in PHP threshold check: %s", e)
-
-    # Fallback: stored PHP wallet row
+    """Return the user's stored PHP wallet balance from the database."""
     try:
         row = await db.execute(
             select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP")
@@ -163,8 +151,7 @@ async def _get_php_balance(db: AsyncSession, tg_user_id: str) -> float:
         if wallet:
             return float(wallet.balance)
     except Exception as e:
-        logger.warning("Stored PHP wallet fallback failed: %s", e)
-
+        logger.warning("PHP wallet balance lookup failed: %s", e)
     return 0.0
 
 
@@ -247,17 +234,6 @@ async def get_balance(
 
     if currency_upper == "PHP":
         wallet = await get_or_create_wallet(db, user_id, "PHP")
-        # Sync with Xendit live balance; fall back to stored balance on error
-        try:
-            xendit = XenditService()
-            result = await xendit.get_balance()
-            if result.get("success"):
-                wallet.balance = float(result.get("balance", wallet.balance))
-                wallet.updated_at = datetime.now()
-                await db.commit()
-                await db.refresh(wallet)
-        except Exception as e:
-            logger.warning("Xendit balance sync failed for user %s: %s", user_id, e)
         return WalletBalanceResponse(
             wallet_id=wallet.id,
             balance=wallet.balance,

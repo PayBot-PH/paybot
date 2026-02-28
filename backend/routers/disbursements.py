@@ -1,14 +1,16 @@
 import json
 import logging
+from datetime import datetime
 from typing import List, Optional
-
-from datetime import datetime, date
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import ConfigDict, BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from models.wallets import Wallets
+from models.wallet_transactions import Wallet_transactions
 from services.disbursements import DisbursementsService
 from dependencies.auth import get_current_user
 from schemas.auth import UserResponse
@@ -102,6 +104,47 @@ class DisbursementsBatchDeleteRequest(BaseModel):
 
 
 # ---------- Routes ----------
+async def _require_php_balance(db: AsyncSession, user_id: str, amount: float) -> Wallets:
+    """Check user has sufficient PHP wallet balance. Raises 402 if insufficient."""
+    result = await db.execute(
+        select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == "PHP")
+    )
+    wallet = result.scalar_one_or_none()
+    balance = float(wallet.balance) if wallet else 0.0
+    if balance <= 0:
+        raise HTTPException(
+            status_code=402,
+            detail="Insufficient balance. Your wallet balance is ₱0.00. Please top up to continue.",
+        )
+    if balance < amount:
+        raise HTTPException(
+            status_code=402,
+            detail=f"Insufficient balance. Available: ₱{balance:,.2f}, Required: ₱{amount:,.2f}. Please top up.",
+        )
+    return wallet
+
+
+async def _deduct_php_balance(db: AsyncSession, wallet: Wallets, user_id: str, amount: float, note: str):
+    """Deduct amount from PHP wallet and record a wallet transaction."""
+    balance_before = wallet.balance
+    wallet.balance = round(wallet.balance - amount, 2)
+    wallet.updated_at = datetime.now()
+    wtxn = Wallet_transactions(
+        user_id=user_id,
+        wallet_id=wallet.id,
+        transaction_type="disbursement",
+        amount=-amount,
+        balance_before=balance_before,
+        balance_after=wallet.balance,
+        note=note,
+        status="completed",
+        created_at=datetime.now(),
+    )
+    db.add(wtxn)
+    await db.commit()
+
+
+
 @router.get("", response_model=DisbursementsListResponse)
 async def query_disbursementss(
     query: str = Query(None, description="Query conditions (JSON string)"),
@@ -209,17 +252,30 @@ async def create_disbursements(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new disbursements"""
+    """Create a new disbursements. Requires sufficient PHP wallet balance."""
     logger.debug(f"Creating new disbursements with data: {data}")
-    
+
+    user_id = str(current_user.id)
+
+    # Balance gate — must have enough PHP to cover the disbursement
+    wallet = await _require_php_balance(db, user_id, data.amount)
+
     service = DisbursementsService(db)
     try:
-        result = await service.create(data.model_dump(), user_id=str(current_user.id))
+        result = await service.create(data.model_dump(), user_id=user_id)
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create disbursements")
-        
+
+        # Deduct from PHP wallet on successful creation
+        await _deduct_php_balance(
+            db, wallet, user_id, data.amount,
+            f"Disbursement to {data.account_name or data.account_number or 'recipient'}: {data.description or ''}",
+        )
+
         logger.info(f"Disbursements created successfully with id: {result.id}")
         return result
+    except HTTPException:
+        raise
     except ValueError as e:
         logger.error(f"Validation error creating disbursements: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

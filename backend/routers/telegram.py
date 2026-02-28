@@ -1427,6 +1427,31 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
+                    # Balance gate — check user has sufficient PHP wallet balance
+                    tg_uid = f"tg-{chat_id}"
+                    php_bal = await _get_php_balance(db, tg_uid)
+                    if php_bal <= 0:
+                        await tg.send_message(
+                            chat_id,
+                            "❌ <b>Insufficient balance.</b>\n\n"
+                            "Your PHP wallet balance is <b>₱0.00</b>.\n"
+                            "Please top up first using /alipay or /wechat.\n\n"
+                            "💡 Use /balance to check your balance.",
+                            reply_markup=_wallet_kb(),
+                        )
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+                    if php_bal < amount:
+                        await tg.send_message(
+                            chat_id,
+                            f"❌ <b>Insufficient balance.</b>\n\n"
+                            f"Available: <b>₱{php_bal:,.2f}</b>\n"
+                            f"Required: <b>₱{amount:,.2f}</b>\n\n"
+                            f"Please top up the difference using /alipay or /wechat.",
+                            reply_markup=_wallet_kb(),
+                        )
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     bank_code = parts[2].upper()
                     account_number = parts[3]
                     account_name = parts[4]
@@ -1458,6 +1483,27 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 created_at=now, updated_at=now,
                             )
                             db.add(disb)
+                            # Deduct from user's PHP wallet
+                            from models.wallets import Wallets as WalletModel
+                            from models.wallet_transactions import Wallet_transactions as WalletTxn
+                            wallet_row = await db.execute(
+                                select(WalletModel).where(
+                                    WalletModel.user_id == tg_uid,
+                                    WalletModel.currency == "PHP",
+                                )
+                            )
+                            w = wallet_row.scalar_one_or_none()
+                            if w:
+                                bal_before = w.balance
+                                w.balance = round(w.balance - amount, 2)
+                                w.updated_at = now
+                                db.add(WalletTxn(
+                                    user_id=tg_uid, wallet_id=w.id,
+                                    transaction_type="disbursement", amount=-amount,
+                                    balance_before=bal_before, balance_after=w.balance,
+                                    note=f"Disbursement to {account_name} ({bank_code})",
+                                    status="completed", created_at=now,
+                                ))
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /disburse: {e}", exc_info=True)
