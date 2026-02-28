@@ -742,26 +742,77 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 # Save the highest-resolution photo file_id
                 best_photo = max(photos, key=lambda p: p.get("file_size", 0))
                 pending_topup.receipt_file_id = best_photo["file_id"]
-                pending_topup.updated_at = datetime.now()
-                await db.commit()
                 currency = getattr(pending_topup, "currency", "USD") or "USD"
                 ref = getattr(pending_topup, "reference_code", None) or f"#{pending_topup.id}"
+                amount = pending_topup.amount_usdt
+                now = datetime.now()
+
                 if currency == "PHP":
-                    amount_str = f"₱{pending_topup.amount_usdt:,.2f} PHP"
-                    credit_msg = "your PHP wallet"
+                    # Auto-credit PHP wallet immediately on receipt upload
+                    try:
+                        w_res = await db.execute(
+                            select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP")
+                        )
+                        wallet = w_res.scalar_one_or_none()
+                        if not wallet:
+                            wallet = Wallets(user_id=tg_user_id, balance=0.0, currency="PHP", created_at=now, updated_at=now)
+                            db.add(wallet)
+                            await db.flush()
+                        balance_before = wallet.balance
+                        wallet.balance = round(wallet.balance + amount, 2)
+                        wallet.updated_at = now
+                        db.add(Wallet_transactions(
+                            user_id=tg_user_id, wallet_id=wallet.id,
+                            transaction_type="top_up", amount=amount,
+                            balance_before=balance_before, balance_after=wallet.balance,
+                            note=f"PHP bank transfer top-up (ref {ref})",
+                            status="completed", reference_id=ref, created_at=now,
+                        ))
+                        pending_topup.status = "approved"
+                        pending_topup.approved_by = "auto"
+                        pending_topup.updated_at = now
+                        await db.commit()
+                        payment_event_bus.publish({
+                            "event_type": "wallet_update",
+                            "user_id": tg_user_id,
+                            "wallet_id": wallet.id,
+                            "balance": wallet.balance,
+                            "transaction_type": "top_up",
+                            "amount": amount,
+                        })
+                        await tg.send_message(
+                            chat_id,
+                            f"✅ <b>PHP Wallet Credited!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"🔑 Reference: <code>{ref}</code>\n"
+                            f"💳 New Balance: <b>₱{wallet.balance:,.2f}</b>\n\n"
+                            f"Your PHP wallet has been credited instantly. Use /balance to confirm.",
+                            reply_markup=_wallet_kb(),
+                        )
+                    except Exception as e:
+                        logger.error(f"Auto-credit PHP wallet failed: {e}", exc_info=True)
+                        try:
+                            await db.rollback()
+                        except Exception:
+                            pass
+                        await tg.send_message(
+                            chat_id,
+                            "⚠️ Receipt received but wallet credit failed. Please contact support with your reference code: "
+                            f"<code>{ref}</code>",
+                        )
                 else:
-                    amount_str = f"${pending_topup.amount_usdt:.2f} USDT"
-                    credit_msg = "your USD wallet"
-                await tg.send_message(
-                    chat_id,
-                    f"✅ <b>Receipt received!</b>\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"💰 Amount: <b>{amount_str}</b>\n"
-                    f"🆔 Reference: <code>{ref}</code>\n"
-                    f"📋 Request ID: <code>#{pending_topup.id}</code>\n\n"
-                    f"⏳ Your top-up is now under review by the admin.\n"
-                    f"You will be notified once approved and {credit_msg} is credited.",
-                )
+                    # USD: still requires manual admin approval
+                    pending_topup.updated_at = now
+                    await db.commit()
+                    await tg.send_message(
+                        chat_id,
+                        f"✅ <b>Receipt received!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"💵 Amount: <b>${amount:.2f} USDT</b>\n"
+                        f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
+                        f"⏳ Under review by admin. Your USD wallet will be credited once approved.",
+                    )
             else:
                 await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /phptopup [amount] for PHP or /topup [amount] for USDT.")
             return {"status": "ok"}
