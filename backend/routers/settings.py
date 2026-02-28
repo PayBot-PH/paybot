@@ -73,6 +73,9 @@ async def get_settings(current_user: UserResponse = Depends(get_admin_user)):
         # Define descriptions for configuration items
         backend_descriptions = {
             "DATABASE_URL": "Database connection string",
+            "XENDIT_SECRET_KEY": "Xendit secret key (for invoices, QR, e-wallet, virtual accounts)",
+            "PAYMONGO_SECRET_KEY": "PayMongo secret key (for Alipay & WeChat Pay QR)",
+            "PAYMONGO_PUBLIC_KEY": "PayMongo public key",
             "ALLOWED_DOMAINS": "Allowed domains",
             "OIDC_ISSUER_URL": "OIDC issuer URL",
             "OIDC_CLIENT_ID": "OIDC client ID",
