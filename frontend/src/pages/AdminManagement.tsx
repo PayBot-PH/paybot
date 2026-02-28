@@ -728,7 +728,11 @@ function CryptoRequestsTab({
     }
   };
 
-  useEffect(() => { fetchRequests(); }, []);
+  useEffect(() => {
+    fetchRequests();
+    const id = setInterval(fetchRequests, 30000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleAction = async (id: number, action: 'approve' | 'reject') => {
     if (!canApproveTopups) return;
@@ -1114,6 +1118,8 @@ export default function AdminManagement() {
   useEffect(() => {
     fetchAdmins();
     fetchMaintenanceMode();
+    const id = setInterval(fetchAdmins, 30000);
+    return () => clearInterval(id);
   }, []);
 
   const handleAdd = async () => {
