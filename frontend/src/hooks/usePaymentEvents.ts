@@ -16,12 +16,22 @@ export interface PaymentEvent {
   // Wallet fields
   wallet_id?: number;
   balance?: number;
+  // GitHub PR fields
+  pr_number?: number;
+  pr_title?: string;
+  pr_state?: string;
+  pr_url?: string;
+  pr_draft?: boolean;
+  pr_merged?: boolean;
+  pr_user?: string;
+  action?: string;
 }
 
 interface UsePaymentEventsOptions {
   enabled?: boolean;
   onStatusChange?: (event: PaymentEvent) => void;
   onWalletUpdate?: (event: PaymentEvent) => void;
+  onPrUpdate?: (event: PaymentEvent) => void;
   pollInterval?: number;
 }
 
@@ -34,6 +44,7 @@ export function usePaymentEvents({
   enabled = true,
   onStatusChange,
   onWalletUpdate,
+  onPrUpdate,
   pollInterval = 10000,
 }: UsePaymentEventsOptions = {}) {
   const [lastEvent, setLastEvent] = useState<PaymentEvent | null>(null);
@@ -141,6 +152,9 @@ export function usePaymentEvents({
           setLastEvent(event);
           showNotification(event);
           onWalletUpdate?.(event);
+        } else if (eventType === 'pr_update') {
+          setLastEvent(event);
+          onPrUpdate?.(event);
         }
         if (event.timestamp && event.timestamp > lastTimestampRef.current) {
           lastTimestampRef.current = event.timestamp;
@@ -154,7 +168,7 @@ export function usePaymentEvents({
       }
       // Don't show any error toast - this is background polling
     }
-  }, [connected, onStatusChange, onWalletUpdate, showNotification]);
+  }, [connected, onStatusChange, onWalletUpdate, onPrUpdate, showNotification]);
 
   useEffect(() => {
     if (!enabled) return;
