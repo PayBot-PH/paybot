@@ -1,5 +1,7 @@
 import logging
 import io
+import hashlib
+import os
 import re
 import uuid
 from datetime import datetime, timedelta
@@ -134,12 +136,65 @@ class TelegramResponse(BaseModel):
 # ---------- KYB constants ----------
 _PH_BANKS = [
     "BDO", "BPI", "Metrobank", "UnionBank", "Land Bank", "PNB",
-    "Security Bank", "RCBC", "EastWest Bank", "Chinabank",
+    "RCBC", "EastWest Bank", "Chinabank",
     "PSBank", "Maybank", "Other",
 ]
 
 # Ordered list of KYB steps
 _KYB_STEPS = ["full_name", "phone", "address", "bank", "id_photo"]
+
+
+# ---------- Keyboard helpers ----------
+def _start_kb() -> dict:
+    """Full quick-action keyboard for /start and /help."""
+    return {
+        "keyboard": [
+            [{"text": "💳 /invoice"}, {"text": "📱 /qr"}, {"text": "🔗 /link"}],
+            [{"text": "🏦 /va"}, {"text": "📱 /ewallet"}, {"text": "🔴 /alipay"}],
+            [{"text": "💰 /balance"}, {"text": "💸 /disburse"}, {"text": "📊 /report"}],
+            [{"text": "📋 /list"}, {"text": "💱 /fees"}, {"text": "❓ /help"}],
+        ],
+        "resize_keyboard": True,
+        "one_time_keyboard": False,
+    }
+
+
+def _pay_kb() -> dict:
+    """Quick-action keyboard shown after payment creation commands."""
+    return {
+        "keyboard": [
+            [{"text": "💰 /balance"}, {"text": "📋 /list"}, {"text": "📊 /report"}],
+            [{"text": "💳 /invoice"}, {"text": "📱 /qr"}, {"text": "🔗 /link"}],
+            [{"text": "❓ /help"}],
+        ],
+        "resize_keyboard": True,
+        "one_time_keyboard": False,
+    }
+
+
+def _wallet_kb() -> dict:
+    """Quick-action keyboard shown after wallet commands."""
+    return {
+        "keyboard": [
+            [{"text": "💳 /invoice"}, {"text": "🔗 /link"}, {"text": "📱 /qr"}],
+            [{"text": "📋 /list"}, {"text": "📊 /report"}, {"text": "💱 /fees"}],
+            [{"text": "❓ /help"}],
+        ],
+        "resize_keyboard": True,
+        "one_time_keyboard": False,
+    }
+
+
+def _info_kb() -> dict:
+    """Quick-action keyboard shown after info/report commands."""
+    return {
+        "keyboard": [
+            [{"text": "💳 /invoice"}, {"text": "💰 /balance"}, {"text": "📋 /list"}],
+            [{"text": "📊 /report"}, {"text": "💱 /fees"}, {"text": "❓ /help"}],
+        ],
+        "resize_keyboard": True,
+        "one_time_keyboard": False,
+    }
 
 _KYB_PROMPTS = {
     "full_name": "📝 <b>Step 1/5 — Full Name</b>\n\nPlease enter your full legal name:",
@@ -157,6 +212,38 @@ _KYB_PROMPTS = {
         "(e.g. PhilSys, Driver's License, Passport, UMID, Voter's ID, SSS, PRC)."
     ),
 }
+
+
+# ---------- PIN session store ----------
+# chat_id → expiry datetime (UTC). Sessions last 2 hours.
+_PIN_SESSIONS: dict[str, datetime] = {}
+_PIN_SESSION_TTL = timedelta(hours=2)
+_PIN_LOCK_MINUTES = 5
+_PIN_MAX_ATTEMPTS = 3
+
+
+def _is_pin_session_active(chat_id: str) -> bool:
+    expiry = _PIN_SESSIONS.get(chat_id)
+    if expiry and datetime.utcnow() < expiry:
+        return True
+    _PIN_SESSIONS.pop(chat_id, None)
+    return False
+
+
+def _start_pin_session(chat_id: str) -> None:
+    _PIN_SESSIONS[chat_id] = datetime.utcnow() + _PIN_SESSION_TTL
+
+
+def _end_pin_session(chat_id: str) -> None:
+    _PIN_SESSIONS.pop(chat_id, None)
+
+
+def _hash_pin(pin: str, salt: str) -> str:
+    return hashlib.sha256(f"{salt}:{pin}".encode()).hexdigest()
+
+
+def _generate_salt() -> str:
+    return os.urandom(16).hex()
 
 
 # ---------- KYB / access-control helpers ----------
@@ -606,6 +693,42 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             await _handle_kyb_flow(db, tg, chat_id, username, text, photos)
             return {"status": "ok"}
 
+        # ==================== PIN session gate ====================
+        # Bot owner / env-listed admins bypass the PIN gate so they're never
+        # locked out of the bot even if no PIN is set.
+        owner_bypass = (chat_id == _get_bot_owner_id()) or chat_id in [
+            e.strip().lstrip("@") for e in str(getattr(settings, "telegram_admin_ids", "") or "").split(",") if e.strip()
+        ]
+        if not owner_bypass:
+            # Allow /login, /setpin, /start, /register without an active session
+            pin_exempt = text and any(
+                text.startswith(cmd) for cmd in ("/login", "/setpin", "/start", "/register", "/logout")
+            )
+            if not pin_exempt and not _is_pin_session_active(chat_id):
+                # Fetch admin to check if PIN is set
+                try:
+                    _adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
+                    _adm = _adm_res.scalar_one_or_none()
+                except Exception:
+                    _adm = None
+                if _adm and _adm.pin_hash:
+                    await tg.send_message(
+                        chat_id,
+                        "🔐 <b>Session expired</b>\n\nPlease log in with your PIN:\n\n<code>/login [your PIN]</code>",
+                        reply_markup={
+                            "keyboard": [[{"text": "🔑 /login"}]],
+                            "resize_keyboard": True, "one_time_keyboard": True,
+                        },
+                    )
+                    return {"status": "ok"}
+                elif _adm and not _adm.pin_hash:
+                    await tg.send_message(
+                        chat_id,
+                        "🔒 <b>Set your PIN to secure your account</b>\n\n"
+                        "Use <code>/setpin [4–6 digit PIN]</code> to activate bot access.\n\nExample: <code>/setpin 1234</code>",
+                    )
+                    return {"status": "ok"}
+
         # ==================== Photo message → receipt upload ====================
         if photos and not text:
             # Check if this user has a pending topup request awaiting receipt
@@ -619,22 +742,216 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 # Save the highest-resolution photo file_id
                 best_photo = max(photos, key=lambda p: p.get("file_size", 0))
                 pending_topup.receipt_file_id = best_photo["file_id"]
-                pending_topup.updated_at = datetime.now()
-                await db.commit()
-                await tg.send_message(
-                    chat_id,
-                    f"✅ <b>Receipt received!</b>\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"💵 Amount: <b>${pending_topup.amount_usdt:.2f} USDT</b>\n"
-                    f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
-                    f"⏳ Your topup is now under review by the admin.\n"
-                    f"You will be notified once approved and your USD wallet is credited.",
-                )
+                currency = getattr(pending_topup, "currency", "USD") or "USD"
+                ref = getattr(pending_topup, "reference_code", None) or f"#{pending_topup.id}"
+                amount = pending_topup.amount_usdt
+                now = datetime.now()
+
+                if currency == "PHP":
+                    # Auto-credit PHP wallet immediately on receipt upload
+                    try:
+                        w_res = await db.execute(
+                            select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP")
+                        )
+                        wallet = w_res.scalar_one_or_none()
+                        if not wallet:
+                            wallet = Wallets(user_id=tg_user_id, balance=0.0, currency="PHP", created_at=now, updated_at=now)
+                            db.add(wallet)
+                            await db.flush()
+                        balance_before = wallet.balance
+                        wallet.balance = round(wallet.balance + amount, 2)
+                        wallet.updated_at = now
+                        db.add(Wallet_transactions(
+                            user_id=tg_user_id, wallet_id=wallet.id,
+                            transaction_type="top_up", amount=amount,
+                            balance_before=balance_before, balance_after=wallet.balance,
+                            note=f"PHP bank transfer top-up (ref {ref})",
+                            status="completed", reference_id=ref, created_at=now,
+                        ))
+                        pending_topup.status = "approved"
+                        pending_topup.approved_by = "auto"
+                        pending_topup.updated_at = now
+                        await db.commit()
+                        payment_event_bus.publish({
+                            "event_type": "wallet_update",
+                            "user_id": tg_user_id,
+                            "wallet_id": wallet.id,
+                            "balance": wallet.balance,
+                            "transaction_type": "top_up",
+                            "amount": amount,
+                        })
+                        await tg.send_message(
+                            chat_id,
+                            f"✅ <b>PHP Wallet Credited!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"🔑 Reference: <code>{ref}</code>\n"
+                            f"💳 New Balance: <b>₱{wallet.balance:,.2f}</b>\n\n"
+                            f"Your PHP wallet has been credited instantly. Use /balance to confirm.",
+                            reply_markup=_wallet_kb(),
+                        )
+                    except Exception as e:
+                        logger.error(f"Auto-credit PHP wallet failed: {e}", exc_info=True)
+                        try:
+                            await db.rollback()
+                        except Exception:
+                            pass
+                        await tg.send_message(
+                            chat_id,
+                            "⚠️ Receipt received but wallet credit failed. Please contact support with your reference code: "
+                            f"<code>{ref}</code>",
+                        )
+                else:
+                    # USD: still requires manual admin approval
+                    pending_topup.updated_at = now
+                    await db.commit()
+                    await tg.send_message(
+                        chat_id,
+                        f"✅ <b>Receipt received!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"💵 Amount: <b>${amount:.2f} USDT</b>\n"
+                        f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
+                        f"⏳ Under review by admin. Your USD wallet will be credited once approved.",
+                    )
             else:
-                await tg.send_message(chat_id, "ℹ️ No pending topup request found. Use /topup [amount] first.")
+                await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /phptopup [amount] for PHP or /topup [amount] for USDT.")
             return {"status": "ok"}
 
         if not text:
+            return {"status": "ok"}
+
+        # ==================== /login ====================
+        if text.startswith("/login"):
+            parts = text.split(maxsplit=1)
+            pin_input = parts[1].strip() if len(parts) > 1 else ""
+            try:
+                _adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
+                _adm = _adm_res.scalar_one_or_none()
+            except Exception:
+                _adm = None
+
+            if not _adm:
+                await tg.send_message(chat_id, "⚠️ Account not found. Please contact your administrator.")
+                return {"status": "ok"}
+
+            if not _adm.pin_hash:
+                await tg.send_message(
+                    chat_id,
+                    "ℹ️ No PIN set yet. Use <code>/setpin [4–6 digits]</code> to create your PIN first.",
+                )
+                return {"status": "ok"}
+
+            # Check lock
+            if _adm.pin_locked_until and datetime.utcnow() < _adm.pin_locked_until.replace(tzinfo=None):
+                remaining = int((_adm.pin_locked_until.replace(tzinfo=None) - datetime.utcnow()).total_seconds() / 60) + 1
+                await tg.send_message(chat_id, f"🔒 Account temporarily locked. Try again in {remaining} minute(s).")
+                return {"status": "ok"}
+
+            if not pin_input:
+                await tg.send_message(chat_id, "❌ Usage: <code>/login [your PIN]</code>\nExample: <code>/login 1234</code>")
+                return {"status": "ok"}
+
+            if not pin_input.isdigit() or not (4 <= len(pin_input) <= 6):
+                await tg.send_message(chat_id, "❌ PIN must be 4–6 digits.")
+                return {"status": "ok"}
+
+            expected = _hash_pin(pin_input, _adm.pin_salt or "")
+            if expected == _adm.pin_hash:
+                # Correct — start session, reset failed attempts
+                _start_pin_session(chat_id)
+                try:
+                    _adm.pin_failed_attempts = 0
+                    _adm.pin_locked_until = None
+                    _adm.updated_at = datetime.now()
+                    await db.commit()
+                except Exception:
+                    await db.rollback()
+                await tg.send_message(
+                    chat_id,
+                    f"✅ <b>Logged in!</b>\n\nWelcome back, <b>{_adm.name or username}</b> 👋\n"
+                    f"Your session is active for 2 hours.\n\nType /start to see the full menu.",
+                    reply_markup=_start_kb(),
+                )
+            else:
+                # Wrong PIN
+                failed = (_adm.pin_failed_attempts or 0) + 1
+                locked_until = None
+                if failed >= _PIN_MAX_ATTEMPTS:
+                    locked_until = datetime.now() + timedelta(minutes=_PIN_LOCK_MINUTES)
+                try:
+                    _adm.pin_failed_attempts = failed
+                    _adm.pin_locked_until = locked_until
+                    _adm.updated_at = datetime.now()
+                    await db.commit()
+                except Exception:
+                    await db.rollback()
+                if locked_until:
+                    await tg.send_message(
+                        chat_id,
+                        f"🔒 Too many failed attempts. Account locked for {_PIN_LOCK_MINUTES} minutes.",
+                    )
+                else:
+                    remaining_attempts = _PIN_MAX_ATTEMPTS - failed
+                    await tg.send_message(
+                        chat_id,
+                        f"❌ Incorrect PIN. {remaining_attempts} attempt(s) remaining.",
+                    )
+            return {"status": "ok"}
+
+        # ==================== /setpin ====================
+        elif text.startswith("/setpin"):
+            parts = text.split(maxsplit=1)
+            pin_input = parts[1].strip() if len(parts) > 1 else ""
+            if not pin_input or not pin_input.isdigit() or not (4 <= len(pin_input) <= 6):
+                await tg.send_message(
+                    chat_id,
+                    "❌ Usage: <code>/setpin [4–6 digit PIN]</code>\n\nExample: <code>/setpin 1234</code>\n\n"
+                    "⚠️ <i>Choose a PIN only you know. Do not share it.</i>",
+                )
+                return {"status": "ok"}
+            try:
+                _adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
+                _adm = _adm_res.scalar_one_or_none()
+            except Exception:
+                _adm = None
+            if not _adm:
+                await tg.send_message(chat_id, "⚠️ Account not found.")
+                return {"status": "ok"}
+            salt = _generate_salt()
+            try:
+                _adm.pin_salt = salt
+                _adm.pin_hash = _hash_pin(pin_input, salt)
+                _adm.pin_failed_attempts = 0
+                _adm.pin_locked_until = None
+                _adm.updated_at = datetime.now()
+                await db.commit()
+            except Exception as e:
+                logger.error(f"setpin DB error: {e}", exc_info=True)
+                await db.rollback()
+                await tg.send_message(chat_id, "⚠️ Could not save PIN. Please try again.")
+                return {"status": "ok"}
+            _start_pin_session(chat_id)
+            await tg.send_message(
+                chat_id,
+                "✅ <b>PIN set successfully!</b>\n\n"
+                "🔐 Your account is now PIN-protected.\n"
+                "Use <code>/login [PIN]</code> to authenticate next time.\n\n"
+                "You are now logged in for this session.",
+                reply_markup=_start_kb(),
+            )
+            return {"status": "ok"}
+
+        # ==================== /logout ====================
+        elif text.startswith("/logout"):
+            _end_pin_session(chat_id)
+            await tg.send_message(
+                chat_id,
+                "👋 <b>Logged out.</b>\n\nUse <code>/login [PIN]</code> to log back in.",
+                reply_markup={
+                    "keyboard": [[{"text": "🔑 /login"}]],
+                    "resize_keyboard": True, "one_time_keyboard": True,
+                },
+            )
             return {"status": "ok"}
 
         # ==================== /start ====================
@@ -672,7 +989,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /remind [id] — Send payment reminder\n\n"
                 "ℹ️ Type /help for the full command reference."
             )
-            await tg.send_message(chat_id, welcome)
+            await tg.send_message(chat_id, welcome, reply_markup=_start_kb())
 
         # ==================== /kyb_list (bot owner only) ====================
         elif text.startswith("/kyb_list"):
@@ -742,13 +1059,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 db.add(new_admin)
                             await db.commit()
                             await tg.send_message(chat_id, f"✅ KYB approved for {target_chat_id} ({kyb.full_name}). Admin access granted.")
-                            # Notify the approved user
+                            # Notify the approved user — prompt them to set PIN
                             await tg.send_message(
                                 target_chat_id,
                                 "🎉 <b>KYB Registration Approved!</b>\n"
                                 "━━━━━━━━━━━━━━━━━━━━\n"
-                                "Your registration has been approved. You can now use all bot commands.\n\n"
-                                "Type /start to begin.",
+                                "Your registration has been approved! You now have access to the bot.\n\n"
+                                "🔐 <b>Security step required:</b>\n"
+                                "Please set a PIN to protect your account:\n\n"
+                                "<code>/setpin [4–6 digit PIN]</code>\n\nExample: <code>/setpin 1234</code>",
+                                reply_markup={
+                                    "keyboard": [[{"text": "🔑 /setpin"}]],
+                                    "resize_keyboard": True, "one_time_keyboard": True,
+                                },
                             )
                     except Exception as e:
                         logger.error("kyb_approve error: %s", e)
@@ -826,6 +1149,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         } if invoice_url else None
                         # Send reply FIRST
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         # Then try DB save
                         try:
                             now = datetime.now()
@@ -870,7 +1194,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"📱 QR: <code>{result.get('qr_string', '')}</code>\n"
                             f"🆔 <code>{result.get('external_id', '')}</code>"
                         )
-                        await tg.send_message(chat_id, reply)
+                        await tg.send_message(chat_id, reply, reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -922,6 +1246,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         )
                         keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay", "url": checkout_url}]]} if checkout_url else None
                         await tg.send_message(chat_id, caption, reply_markup=keyboard)
+                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -973,6 +1298,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         )
                         keyboard = {"inline_keyboard": [[{"text": "💚 Pay via WeChat", "url": checkout_url}]]} if checkout_url else None
                         await tg.send_message(chat_id, caption, reply_markup=keyboard)
+                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -1025,6 +1351,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             "inline_keyboard": [[{"text": "🔗 Pay Now", "url": link_url}]]
                         } if link_url else None
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -1068,7 +1395,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"🔢 Account: <code>{result.get('account_number', '')}</code>\n"
                             f"🆔 <code>{result.get('external_id', '')}</code>"
                         )
-                        await tg.send_message(chat_id, reply)
+                        await tg.send_message(chat_id, reply, reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -1095,7 +1422,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/ewallet"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, "❌ Usage: /ewallet [amount] [provider]\nProviders: GCASH, GRABPAY, PAYMAYA")
+                await tg.send_message(chat_id, "❌ Usage: /ewallet [amount] [provider]\nProviders: GCASH, GRABPAY")
             else:
                 try:
                     amount = float(parts[1])
@@ -1105,8 +1432,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     provider = parts[2].upper()
                     channel_map = {
-                        "GCASH": "PH_GCASH", "GRABPAY": "PH_GRABPAY", "PAYMAYA": "PH_PAYMAYA",
-                        "PH_GCASH": "PH_GCASH", "PH_GRABPAY": "PH_GRABPAY", "PH_PAYMAYA": "PH_PAYMAYA",
+                        "GCASH": "PH_GCASH", "GRABPAY": "PH_GRABPAY",
+                        "PH_GCASH": "PH_GCASH", "PH_GRABPAY": "PH_GRABPAY",
                     }
                     channel = channel_map.get(provider, f"PH_{provider}")
                     xendit = XenditService()
@@ -1118,7 +1445,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"{'🔗 Pay: ' + checkout if checkout else ''}\n"
                             f"🆔 <code>{result.get('external_id', '')}</code>"
                         )
-                        await tg.send_message(chat_id, reply)
+                        ewallet_keyboard = {"inline_keyboard": [[{"text": "📱 Pay Now", "url": checkout}]]} if checkout else None
+                        await tg.send_message(chat_id, reply, reply_markup=ewallet_keyboard)
+                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -1158,6 +1487,31 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
+                    # Balance gate — check user has sufficient PHP wallet balance
+                    tg_uid = f"tg-{chat_id}"
+                    php_bal = await _get_php_balance(db, tg_uid)
+                    if php_bal <= 0:
+                        await tg.send_message(
+                            chat_id,
+                            "❌ <b>Insufficient balance.</b>\n\n"
+                            "Your PHP wallet balance is <b>₱0.00</b>.\n"
+                            "Please top up first using /alipay or /wechat.\n\n"
+                            "💡 Use /balance to check your balance.",
+                            reply_markup=_wallet_kb(),
+                        )
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+                    if php_bal < amount:
+                        await tg.send_message(
+                            chat_id,
+                            f"❌ <b>Insufficient balance.</b>\n\n"
+                            f"Available: <b>₱{php_bal:,.2f}</b>\n"
+                            f"Required: <b>₱{amount:,.2f}</b>\n\n"
+                            f"Please top up the difference using /alipay or /wechat.",
+                            reply_markup=_wallet_kb(),
+                        )
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     bank_code = parts[2].upper()
                     account_number = parts[3]
                     account_name = parts[4]
@@ -1178,7 +1532,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"🆔 <code>{result.get('external_id', '')}</code>\n\n"
                             f"Use /status {result.get('external_id', '')} to track."
                         )
-                        await tg.send_message(chat_id, reply)
+                        await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
                         try:
                             now = datetime.now()
                             disb = Disbursements(
@@ -1189,6 +1543,27 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 created_at=now, updated_at=now,
                             )
                             db.add(disb)
+                            # Deduct from user's PHP wallet
+                            from models.wallets import Wallets as WalletModel
+                            from models.wallet_transactions import Wallet_transactions as WalletTxn
+                            wallet_row = await db.execute(
+                                select(WalletModel).where(
+                                    WalletModel.user_id == tg_uid,
+                                    WalletModel.currency == "PHP",
+                                )
+                            )
+                            w = wallet_row.scalar_one_or_none()
+                            if w:
+                                bal_before = w.balance
+                                w.balance = round(w.balance - amount, 2)
+                                w.updated_at = now
+                                db.add(WalletTxn(
+                                    user_id=tg_uid, wallet_id=w.id,
+                                    transaction_type="disbursement", amount=-amount,
+                                    balance_before=bal_before, balance_after=w.balance,
+                                    note=f"Disbursement to {account_name} ({bank_code})",
+                                    status="completed", created_at=now,
+                                ))
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /disburse: {e}", exc_info=True)
@@ -1246,7 +1621,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         else:
                             reply = f"❌ Refund failed: {ref_result.get('error', 'Unknown')}"
                         # Send reply FIRST
-                        await tg.send_message(chat_id, reply)
+                        await tg.send_message(chat_id, reply, reply_markup=_info_kb())
                         # Then try DB save
                         try:
                             now = datetime.now()
@@ -1292,7 +1667,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         em = s_map.get(t.status, "❓")
                         lines.append(f"{em} ₱{t.amount:,.2f} — {t.transaction_type} — <code>{t.external_id}</code>")
                     lines.append("\nUse /status [id] for details.")
-                    await tg.send_message(chat_id, "\n".join(lines))
+                    await tg.send_message(chat_id, "\n".join(lines), reply_markup=_info_kb())
             else:
                 ext_id = parts[1].strip()
                 try:
@@ -1320,8 +1695,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     if txn.payment_url and txn.status == "pending":
                         keyboard = {"inline_keyboard": [[{"text": "💳 Pay Now", "url": txn.payment_url}]]}
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                        await tg.send_message(chat_id, "💡 <b>Quick actions:</b>", reply_markup=_info_kb())
                     else:
-                        await tg.send_message(chat_id, reply)
+                        await tg.send_message(chat_id, reply, reply_markup=_info_kb())
                 else:
                     await tg.send_message(chat_id, f"❌ Not found: <code>{ext_id}</code>")
 
@@ -1397,7 +1773,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
                 "  /sendusd [amt] [@username] — Send USD to a user\n"
             )
-            await tg.send_message(chat_id, reply)
+            await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
 
         # ==================== /usdbalance ====================
         elif text.startswith("/usdbalance"):
@@ -1459,7 +1835,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "📤 /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
                 "💸 /sendusd [amt] [@username] — Send USD to a user"
             )
-            await tg.send_message(chat_id, reply)
+            await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
 
         # ==================== /sendusdt ====================
         elif text.startswith("/sendusdt"):
@@ -1763,7 +2139,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             new_balance = bb - amount
                             # Send reply FIRST
                             reply = f"✅ <b>Sent!</b>\n\n💸 ₱{amount:,.2f} → {recipient}\n💰 Balance: <b>₱{new_balance:,.2f}</b>"
-                            await tg.send_message(chat_id, reply)
+                            await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
                             # Then DB
                             try:
                                 wallet.balance = new_balance
@@ -1827,7 +2203,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             new_balance = bb - amount
                             # Send reply FIRST
                             reply = f"✅ <b>Withdrawn!</b>\n\n💸 ₱{amount:,.2f}\n💰 Balance: <b>₱{new_balance:,.2f}</b>"
-                            await tg.send_message(chat_id, reply)
+                            await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
                             # Then DB
                             try:
                                 wallet.balance = new_balance
@@ -1896,7 +2272,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.rollback()
                 except Exception:
                     pass
-            await tg.send_message(chat_id, reply)
+            await tg.send_message(chat_id, reply, reply_markup=_info_kb())
 
         # ==================== /fees ====================
         elif text.startswith("/fees"):
@@ -1913,7 +2289,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"💱 <b>Fee Calculation</b>\n\n💰 Amount: ₱{amount:,.2f}\n📋 Method: {method}\n"
                         f"💸 Fee: ₱{fees['fee']:,.2f}\n💵 Net: <b>₱{fees['net_amount']:,.2f}</b>"
                     )
-                    await tg.send_message(chat_id, reply)
+                    await tg.send_message(chat_id, reply, reply_markup=_info_kb())
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
@@ -1933,7 +2309,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"✅ <b>Subscription Created!</b>\n\n📋 {plan_name}\n"
                         f"💰 ₱{amount:,.2f}/month\n📅 Next billing: {next_billing}"
                     )
-                    await tg.send_message(chat_id, reply)
+                    await tg.send_message(chat_id, reply, reply_markup=_info_kb())
                     # Then DB
                     try:
                         sub = Subscriptions(
@@ -1987,7 +2363,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     reply = f"ℹ️ Transaction <code>{ext_id}</code> is already <b>{txn.status}</b>"
                 else:
                     reply = f"❌ Not found: <code>{ext_id}</code>"
-                await tg.send_message(chat_id, reply)
+                await tg.send_message(chat_id, reply, reply_markup=_info_kb())
 
         # ==================== /list ====================
         elif text.startswith("/list"):
@@ -2072,7 +2448,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "🟢 /wechat [amt] [desc] — WeChat QR (PayMongo)\n\n"
                 "💡 Example: /invoice 500 Coffee order"
             )
-            await tg.send_message(chat_id, menu)
+            await tg.send_message(chat_id, menu, reply_markup=_start_kb())
 
         # ==================== /help ====================
         elif text.startswith("/help"):
@@ -2111,91 +2487,86 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /remind [id] — Send reminder\n"
                 "  /help — This message"
             )
-            await tg.send_message(chat_id, help_text)
+            await tg.send_message(chat_id, help_text, reply_markup=_start_kb())
 
         # ==================== /phptopup ====================
         elif text.startswith("/phptopup"):
             parts = text.split(maxsplit=1)
+            # Bank transfer details
+            _PHP_BANK = "PayMongo Payments, Inc."
+            _PHP_ACCT_NAME = "DRL TECHS. COMPUTER SOFTWARE TRADING"
+            _PHP_ACCT_NUM = "655716460543"
+
             if len(parts) < 2:
                 instructions = (
                     f"💰 <b>Top Up PHP Wallet</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"Generate a payment invoice to credit your PHP wallet.\n\n"
-                    f"✅ <b>Supported payment methods:</b>\n"
-                    f"  💳 Credit / Debit Card\n"
-                    f"  📱 GCash, Maya, ShopeePay\n"
-                    f"  🏦 Bank Transfer / Online Banking\n"
-                    f"  🏪 7-Eleven, Cebuana, and more\n\n"
-                    f"▶️ Run:\n"
-                    f"  <b>/phptopup [amount]</b>  — to generate an invoice\n\n"
-                    f"Example: /phptopup 500\n\n"
-                    f"Your PHP wallet will be <b>credited automatically</b> once payment is confirmed."
+                    f"Transfer any amount via <b>InstaPay</b> or <b>PESONet</b> to:\n\n"
+                    f"🏦 <b>Bank:</b> {_PHP_BANK}\n"
+                    f"👤 <b>Account Name:</b> {_PHP_ACCT_NAME}\n"
+                    f"🔢 <b>Account Number:</b> <code>{_PHP_ACCT_NUM}</code>\n\n"
+                    f"▶️ To request a top-up:\n"
+                    f"  <b>/phptopup [amount]</b>\n\n"
+                    f"Example: <code>/phptopup 500</code>\n\n"
+                    f"After sending, a reference code will be shown.\n"
+                    f"Upload your <b>payment receipt</b> as a photo to this chat — admin will verify and credit your wallet."
                 )
-                await tg.send_message(chat_id, instructions)
+                await tg.send_message(chat_id, instructions, reply_markup=_wallet_kb())
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                    elif amount < 50:
+                        await tg.send_message(chat_id, "❌ Minimum top-up is ₱50.00.")
                     else:
-                        xendit = XenditService()
-                        description = "PHP Wallet Top Up"
-                        result = await xendit.create_invoice(
-                            amount=amount,
-                            description=description,
-                        )
-                        if result.get("success"):
-                            invoice_url = result.get("invoice_url", "")
-                            ext_id = result.get("external_id", "")
-                            reply = (
-                                f"✅ <b>PHP Wallet Top Up Invoice Created!</b>\n"
-                                f"━━━━━━━━━━━━━━━━━━━━\n"
-                                f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
-                                f"📝 {description}\n"
-                                f"🆔 <code>{ext_id}</code>\n\n"
-                                f"Tap the button below to pay 👇\n\n"
-                                f"✨ Your PHP wallet will be <b>credited automatically</b> once payment is confirmed."
+                        import random, string
+                        ref_code = "PHP-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+                        try:
+                            now = datetime.now()
+                            topup_req = TopupRequest(
+                                chat_id=str(chat_id),
+                                telegram_username=username or "",
+                                amount_usdt=amount,
+                                currency="PHP",
+                                reference_code=ref_code,
+                                status="pending",
+                                created_at=now,
+                                updated_at=now,
                             )
-                            keyboard = {
-                                "inline_keyboard": [[{"text": "💳 Pay Now", "url": invoice_url}]]
-                            } if invoice_url else None
-                            await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                            db.add(topup_req)
+                            await db.commit()
+                            await db.refresh(topup_req)
+                            req_id = topup_req.id
+                        except Exception as e:
+                            logger.error(f"DB save failed for /phptopup: {e}", exc_info=True)
                             try:
-                                now = datetime.now()
-                                txn = Transactions(
-                                    user_id=tg_user_id,
-                                    transaction_type="top_up",
-                                    external_id=ext_id,
-                                    xendit_id=result.get("invoice_id", ""),
-                                    amount=amount,
-                                    currency="PHP",
-                                    status="pending",
-                                    description=description,
-                                    payment_url=invoice_url,
-                                    telegram_chat_id=chat_id,
-                                    created_at=now,
-                                    updated_at=now,
-                                )
-                                db.add(txn)
-                                await db.commit()
-                            except Exception as e:
-                                logger.error(f"DB save failed for /phptopup: {e}", exc_info=True)
-                                try:
-                                    await db.rollback()
-                                except Exception:
-                                    pass
-                                await tg.send_message(
-                                    chat_id,
-                                    "⚠️ Invoice created but could not be saved to records. "
-                                    "Your payment link above is still valid — complete payment and contact support if your wallet is not credited."
-                                )
-                        else:
-                            await tg.send_message(chat_id, f"❌ Failed to create invoice: {result.get('error', 'Unknown error')}")
+                                await db.rollback()
+                            except Exception:
+                                pass
+                            await tg.send_message(chat_id, "❌ Failed to create top-up request. Please try again.")
+                            await _safe_log(db, chat_id, username, text)
+                            return {"status": "ok"}
+
+                        reply = (
+                            f"✅ <b>PHP Wallet Top-Up Request Created!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"🆔 Reference: <code>{ref_code}</code>\n"
+                            f"📋 Request ID: <b>#{req_id}</b>\n\n"
+                            f"<b>Transfer to:</b>\n"
+                            f"🏦 Bank: {_PHP_BANK}\n"
+                            f"👤 Account: {_PHP_ACCT_NAME}\n"
+                            f"🔢 Number: <code>{_PHP_ACCT_NUM}</code>\n\n"
+                            f"📸 <b>After transferring</b>, send a photo of your receipt to this chat.\n"
+                            f"⏳ Admin will verify and credit ₱{amount:,.2f} to your wallet within a few minutes."
+                        )
+                        await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount. Example: /phptopup 500")
                 except Exception as e:
-                    logger.error(f"PHP topup create error: {e}", exc_info=True)
-                    await tg.send_message(chat_id, "❌ Failed to create PHP topup invoice. Please try again.")
+                    logger.error(f"PHP topup error: {e}", exc_info=True)
+                    await tg.send_message(chat_id, "❌ Failed to create top-up request. Please try again.")
 
         # ==================== /topup ====================
         elif text.startswith("/topup"):
@@ -2250,7 +2621,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await tg.send_message(chat_id, "❌ Failed to create topup request. Please try again.")
 
         else:
-            await tg.send_message(chat_id, "🤖 Unknown command. Type /help for all commands.")
+            await tg.send_message(chat_id, "🤖 Unknown command. Type /help for all commands.", reply_markup=_start_kb())
 
         # Log the interaction (safe — won't break if DB fails)
         await _safe_log(db, chat_id, username, text)

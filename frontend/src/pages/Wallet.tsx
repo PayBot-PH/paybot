@@ -810,69 +810,46 @@ export default function Wallet() {
                       </>
                     )}
                   </div>
-                ) : topupMethod === 'paymongo' ? (
-                  /* PayMongo (Alipay / WeChat) Top Up Panel */
+                ) : topupMethod === 'paymongo' || topupMethod === 'qrpay' ? (
+                  /* Bank Transfer (PayMongo account) Top Up Panel */
                   <div className="p-4 sm:p-6 space-y-4">
-                    {pmResult ? (
-                      <div className="text-center space-y-4">
-                        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-4">
-                          <CheckCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
-                          <p className="text-white font-semibold">Payment Created!</p>
-                          <p className="text-slate-400 text-sm mt-1">₱{pmResult.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })} will be credited to your PHP wallet after payment</p>
-                        </div>
-                        <a
-                          href={pmResult.checkout_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-4 rounded-lg transition"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Open Payment Page
-                        </a>
-                        <button
-                          onClick={() => { setPmResult(null); setPmAmount(''); }}
-                          className="text-slate-400 text-sm hover:text-slate-300 transition"
-                        >
-                          Create another top-up
-                        </button>
+                    <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Building2 className="h-4 w-4 text-blue-400" />
+                        <span className="text-blue-300 text-sm font-semibold">Bank Transfer Details</span>
                       </div>
-                    ) : (
-                      <>
-                        <div>
-                          <Label className="text-slate-300 text-sm">Payment Method</Label>
-                          <Select value={pmProvider} onValueChange={(v) => setPmProvider(v as 'alipay' | 'wechat')}>
-                            <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="bg-slate-800 border-slate-600">
-                              <SelectItem value="alipay" className="text-white">Alipay</SelectItem>
-                              <SelectItem value="wechat" className="text-white">WeChat Pay</SelectItem>
-                            </SelectContent>
-                          </Select>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Bank</span>
+                          <span className="text-white font-medium">PayMongo Payments, Inc.</span>
                         </div>
-                        <div>
-                          <Label className="text-slate-300 text-sm">Amount (₱)</Label>
-                          <Input type="number" placeholder="0.00" value={pmAmount}
-                            onChange={e => setPmAmount(e.target.value)} min="1"
-                            className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Account Name</span>
+                          <span className="text-white font-medium text-right max-w-[60%]">DRL TECHS. COMPUTER SOFTWARE TRADING</span>
                         </div>
-                        <div>
-                          <Label className="text-slate-300 text-sm">Description</Label>
-                          <Input placeholder="PHP Wallet Top Up" value={pmDesc}
-                            onChange={e => setPmDesc(e.target.value)}
-                            className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                        <div className="flex justify-between items-center">
+                          <span className="text-slate-400">Account Number</span>
+                          <button
+                            onClick={() => { navigator.clipboard.writeText('655716460543'); }}
+                            className="text-blue-400 font-mono font-semibold hover:text-blue-300 transition flex items-center gap-1"
+                            title="Click to copy"
+                          >
+                            655716460543
+                            <Copy className="h-3 w-3" />
+                          </button>
                         </div>
-                        <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400">
-                          Pay via {pmProvider === 'alipay' ? 'Alipay' : 'WeChat Pay'} QR code. Your PHP wallet will be credited automatically in real-time once payment is confirmed.
-                        </div>
-                        <Button onClick={handlePaymongoTopup} disabled={pmLoading}
-                          className="w-full bg-red-600 hover:bg-red-700 text-white">
-                          {pmLoading
-                            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</>
-                            : <><QrCode className="h-4 w-4 mr-2" />Generate {pmProvider === 'alipay' ? 'Alipay' : 'WeChat'} QR</>}
-                        </Button>
-                      </>
-                    )}
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-800/60 rounded-lg p-3 text-xs text-slate-400 space-y-1">
+                      <p>1️⃣ Transfer your desired amount via <strong className="text-slate-300">InstaPay</strong> or <strong className="text-slate-300">PESONet</strong> to the account above.</p>
+                      <p>2️⃣ On the bot, run <code className="bg-slate-700 px-1 rounded">/phptopup [amount]</code> to create a request and get your reference code.</p>
+                      <p>3️⃣ Send your <strong className="text-slate-300">payment receipt photo</strong> to the bot — admin will verify and credit your wallet.</p>
+                    </div>
+
+                    <div className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-3 text-xs text-amber-400">
+                      ⚠️ Always include your reference code when transferring to avoid delays.
+                    </div>
                   </div>
                 ) : (
                   /* Crypto (USDT TRC20) Top Up Panel */
