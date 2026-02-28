@@ -25,6 +25,7 @@ import {
   Bitcoin,
   CheckCircle,
   XCircle,
+  WrenchIcon,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -907,6 +908,9 @@ export default function AdminManagement() {
   const [form, setForm] = useState(defaultForm);
   const [showAdd, setShowAdd] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(true);
+  const [maintenanceUpdating, setMaintenanceUpdating] = useState(false);
 
   const fetchAdmins = async () => {
     try {
@@ -921,8 +925,42 @@ export default function AdminManagement() {
     }
   };
 
+  const fetchMaintenanceMode = async () => {
+    try {
+      setMaintenanceLoading(true);
+      const res = await fetch('/api/v1/app-settings/maintenance');
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setMaintenanceMode(!!data.maintenance_mode);
+    } catch {
+      // silently ignore
+    } finally {
+      setMaintenanceLoading(false);
+    }
+  };
+
+  const handleToggleMaintenance = async () => {
+    if (!isSuperAdmin || maintenanceUpdating) return;
+    setMaintenanceUpdating(true);
+    try {
+      const res = await fetch('/api/v1/app-settings/maintenance', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: !maintenanceMode }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setMaintenanceMode(!!data.maintenance_mode);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to update maintenance mode');
+    } finally {
+      setMaintenanceUpdating(false);
+    }
+  };
+
   useEffect(() => {
     fetchAdmins();
+    fetchMaintenanceMode();
   }, []);
 
   const handleAdd = async () => {
@@ -1052,6 +1090,62 @@ export default function AdminManagement() {
               <X className="h-4 w-4" />
             </button>
           </div>
+        )}
+
+        {/* Maintenance Mode Toggle (super admin only) */}
+        {isSuperAdmin && (
+          <Card className={`mb-5 border ${maintenanceMode ? 'bg-amber-950/30 border-amber-500/30' : 'bg-[#1E293B] border-slate-700/50'}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                    maintenanceMode
+                      ? 'bg-amber-500/15 border-amber-500/30'
+                      : 'bg-slate-700/40 border-slate-600/40'
+                  }`}>
+                    <WrenchIcon className={`h-4 w-4 ${maintenanceMode ? 'text-amber-400' : 'text-slate-400'}`} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-white">Maintenance Mode</span>
+                      {!maintenanceLoading && (
+                        <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
+                          maintenanceMode
+                            ? 'bg-amber-500/15 border-amber-500/25 text-amber-400'
+                            : 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
+                        }`}>
+                          {maintenanceMode ? 'ON' : 'OFF'}
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {maintenanceMode
+                        ? 'All pages are currently disabled — users see the maintenance notice.'
+                        : 'System is operational. Toggle on to show a maintenance notice to all users.'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleToggleMaintenance}
+                  disabled={maintenanceLoading || maintenanceUpdating}
+                  size="sm"
+                  className={`gap-1.5 text-xs shrink-0 ${
+                    maintenanceMode
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                      : 'bg-amber-600 hover:bg-amber-700 text-white'
+                  }`}
+                >
+                  {maintenanceUpdating ? (
+                    <div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  ) : maintenanceMode ? (
+                    <><Power className="h-3.5 w-3.5" />Disable Maintenance</>
+                  ) : (
+                    <><WrenchIcon className="h-3.5 w-3.5" />Enable Maintenance</>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Tabs */}
