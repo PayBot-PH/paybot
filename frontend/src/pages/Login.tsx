@@ -95,14 +95,31 @@ export default function Login() {
         <div className="absolute inset-0 opacity-[0.03]"
           style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
-        {/* Brand */}
-        <div className="relative flex items-center gap-3">
-          <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-xl shadow-blue-500/20">
-            <Bot className="h-5 w-5 text-white" />
+        {/* Brand + content */}
+        <div className="relative">
+          {/* Brand */}
+          <div className="flex items-center gap-3 mb-10">
+            <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-xl shadow-blue-500/20">
+              <Bot className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="text-white font-bold text-lg leading-tight">PayBot</p>
+              <p className="text-slate-500 text-sm">by DRL Solutions</p>
+            </div>
+          </div>
+
+          {/* Feature pills */}
+          <div className="space-y-2.5 mb-10">
+            {HIGHLIGHTS.map(({ icon: Icon, label, color }) => (
+              <div key={label} className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3">
+                <Icon className={`h-4 w-4 ${color} shrink-0`} />
+                <span className="text-slate-300 text-sm font-medium">{label}</span>
+              </div>
+            ))}
           </div>
 
           {/* Demo login section */}
-          <div className="mt-5 pt-4 border-t border-slate-700/50">
+          <div className="pt-6 border-t border-slate-700/50">
             <p className="text-slate-500 text-xs text-center mb-3">— or demo login —</p>
             <div className="grid grid-cols-2 gap-2">
               <button
@@ -155,21 +172,6 @@ export default function Login() {
               </a>
             </p>
           </div>
-
-          {/* Feature pills */}
-          <div className="space-y-2.5">
-            {HIGHLIGHTS.map(({ icon: Icon, label, color }) => (
-              <div key={label} className="flex items-center gap-3 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3">
-                <Icon className={`h-4 w-4 ${color} shrink-0`} />
-                <span className="text-slate-300 text-sm font-medium">{label}</span>
-              </div>
-            ))}
-          </div>
-
-          <Link to="/features" className="inline-flex items-center gap-1.5 text-slate-400 hover:text-blue-400 text-sm transition-colors group">
-            See all features
-            <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-0.5 transition-transform" />
-          </Link>
         </div>
 
         {/* Footer */}
