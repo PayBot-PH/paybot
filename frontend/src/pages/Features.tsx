@@ -344,6 +344,8 @@ export default function Features() {
     { icon: <Users className="h-4 w-4 text-teal-400" />, title: 'Telegram-Only Auth', description: 'Secure login — only verified Telegram users authorized by DRL Solutions can access the UI.', color: 'bg-teal-500/10' },
   ];
 
+  const [videoLoaded, setVideoLoaded] = useState(false);
+
   return (
     <div className="min-h-screen bg-[#0A0F1E] text-white">
       {/* Ambient background blobs */}
@@ -432,33 +434,49 @@ export default function Features() {
         </div>
         <div className="max-w-3xl mx-auto">
           <div className="relative rounded-2xl overflow-hidden border border-slate-600/30 shadow-2xl bg-[#0F172A] aspect-video flex items-center justify-center group">
-            {/* Faux video thumbnail */}
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-[#0F172A] to-slate-900" />
-            {/* Grid lines for depth */}
-            <div className="absolute inset-0 opacity-10"
-              style={{
-                backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-                backgroundSize: '40px 40px',
-              }}
+            {/* Autoplay demo video */}
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              aria-label="PayBot demonstration video"
+              onCanPlay={() => setVideoLoaded(true)}
+              onError={() => setVideoLoaded(false)}
+              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
+              src="/demo.mp4"
             />
-            {/* Bot icon + text */}
-            <div className="relative flex flex-col items-center gap-4 text-center px-4">
-              <div className="h-16 w-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/40">
-                <Bot className="h-8 w-8 text-white" />
-              </div>
-              <div>
-                <p className="text-white font-bold text-lg">PayBot Demo</p>
-                <p className="text-slate-400 text-sm mt-1">Full walkthrough · Payments · Dashboard · Commands</p>
-              </div>
-              <a
-                href="https://t.me/traxionpay"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm"
-              >
-                <MessageCircle className="h-4 w-4 text-sky-400" /> Request a Live Demo
-              </a>
-            </div>
+            {/* Fallback placeholder shown while video is loading or unavailable */}
+            {!videoLoaded && (
+              <>
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-[#0F172A] to-slate-900" />
+                {/* Grid lines for depth */}
+                <div className="absolute inset-0 opacity-10"
+                  style={{
+                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+                    backgroundSize: '40px 40px',
+                  }}
+                />
+                {/* Bot icon + text */}
+                <div className="relative flex flex-col items-center gap-4 text-center px-4">
+                  <div className="h-16 w-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/40">
+                    <Bot className="h-8 w-8 text-white" />
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-lg">PayBot Demo</p>
+                    <p className="text-slate-400 text-sm mt-1">Full walkthrough · Payments · Dashboard · Commands</p>
+                  </div>
+                  <a
+                    href="https://t.me/traxionpay"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm"
+                  >
+                    <MessageCircle className="h-4 w-4 text-sky-400" /> Request a Live Demo
+                  </a>
+                </div>
+              </>
+            )}
             {/* Play button overlay */}
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
               <div className="h-20 w-20 rounded-full bg-blue-600/30 backdrop-blur-sm border border-blue-400/30 flex items-center justify-center">
