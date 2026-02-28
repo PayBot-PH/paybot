@@ -14,7 +14,7 @@ const HIGHLIGHTS = [
   { icon: Wallet, label: 'Wallet & Disbursements', color: 'text-emerald-400' },
   { icon: QrCode, label: 'QR · Alipay · WeChat Pay', color: 'text-purple-400' },
   { icon: Bell, label: 'Real-time Payment Alerts', color: 'text-amber-400' },
-  { icon: ShieldCheck, label: 'Xendit-Powered KYC Auth', color: 'text-blue-400' },
+  { icon: ShieldCheck, label: 'Telegram-Only Secure Auth', color: 'text-blue-400' },
 ];
 
 export default function Login() {
