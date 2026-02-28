@@ -134,7 +134,7 @@ class TelegramResponse(BaseModel):
 # ---------- KYB constants ----------
 _PH_BANKS = [
     "BDO", "BPI", "Metrobank", "UnionBank", "Land Bank", "PNB",
-    "Security Bank", "RCBC", "EastWest Bank", "Chinabank",
+    "RCBC", "EastWest Bank", "Chinabank",
     "PSBank", "Maybank", "Other",
 ]
 
@@ -1095,7 +1095,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/ewallet"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, "❌ Usage: /ewallet [amount] [provider]\nProviders: GCASH, GRABPAY, PAYMAYA")
+                await tg.send_message(chat_id, "❌ Usage: /ewallet [amount] [provider]\nProviders: GCASH, GRABPAY")
             else:
                 try:
                     amount = float(parts[1])
@@ -1105,8 +1105,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     provider = parts[2].upper()
                     channel_map = {
-                        "GCASH": "PH_GCASH", "GRABPAY": "PH_GRABPAY", "PAYMAYA": "PH_PAYMAYA",
-                        "PH_GCASH": "PH_GCASH", "PH_GRABPAY": "PH_GRABPAY", "PH_PAYMAYA": "PH_PAYMAYA",
+                        "GCASH": "PH_GCASH", "GRABPAY": "PH_GRABPAY",
+                        "PH_GCASH": "PH_GCASH", "PH_GRABPAY": "PH_GRABPAY",
                     }
                     channel = channel_map.get(provider, f"PH_{provider}")
                     xendit = XenditService()
@@ -2123,7 +2123,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     f"Generate a payment invoice to credit your PHP wallet.\n\n"
                     f"✅ <b>Supported payment methods:</b>\n"
                     f"  💳 Credit / Debit Card\n"
-                    f"  📱 GCash, Maya, ShopeePay\n"
+                    f"  📱 GCash, ShopeePay\n"
                     f"  🏦 Bank Transfer / Online Banking\n"
                     f"  🏪 7-Eleven, Cebuana, and more\n\n"
                     f"▶️ Run:\n"
