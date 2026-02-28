@@ -641,9 +641,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # ==================== /start ====================
         if text.startswith("/start"):
             welcome = (
-                "👋 <b>Welcome to PayBot!</b>\n"
+                "👋 <b>Welcome to PayBot Philippines!</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
-                "Your all-in-one Xendit payment gateway bot.\n\n"
+                "Your all-in-one Philippine payment gateway bot.\n\n"
                 "💳 <b>Accept Payments</b>\n"
                 "  /invoice [amt] [desc] — Create an invoice\n"
                 "  /qr [amt] [desc] — Generate QR code\n"
@@ -657,7 +657,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /refund [id] [amt] — Refund a payment\n\n"
                 "💰 <b>PHP Wallet</b>\n"
                 "  /balance — View balances &amp; history\n"
-                "  /phptopup [amt] — Top up via Xendit invoice\n"
+                "  /phptopup [amt] — Top up via payment invoice\n"
                 "  /send [amt] [to] — Send funds\n"
                 "  /withdraw [amt] — Withdraw\n\n"
                 "💵 <b>USD Wallet (USDT TRC20)</b>\n"
@@ -1564,7 +1564,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(
                             chat_id,
                             f"❌ <b>USDT withdrawal rejected.</b>\n\n"
-                            f"The Xendit PHP balance (₱{php_balance:,.2f}) is below the "
+                            f"The PHP balance (₱{php_balance:,.2f}) is below the "
                             f"required minimum of <b>₱{_PHP_MIN_WITHDRAWAL_BALANCE:,.2f}</b>.\n\n"
                             f"Please try again once the PHP balance is topped up."
                         )
@@ -2142,7 +2142,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /refund [id] [amt]\n\n"
                 "💰 <b>PHP Wallet:</b>\n"
                 "  /balance — PHP & USD balances\n"
-                "  /phptopup [amt] — Top up via Xendit invoice\n"
+                "  /phptopup [amt] — Top up via payment invoice\n"
                 "  /send [amt] [to]\n"
                 "  /withdraw [amt]\n\n"
                 "💵 <b>USD Wallet (USDT TRC20):</b>\n"
@@ -2167,9 +2167,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             parts = text.split(maxsplit=1)
             if len(parts) < 2:
                 instructions = (
-                    f"💰 <b>Top Up PHP Wallet via Xendit</b>\n"
+                    f"💰 <b>Top Up PHP Wallet</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"Generate a Xendit invoice to credit your PHP wallet.\n\n"
+                    f"Generate a payment invoice to credit your PHP wallet.\n\n"
                     f"✅ <b>Supported payment methods:</b>\n"
                     f"  💳 Credit / Debit Card\n"
                     f"  📱 GCash, Maya, ShopeePay\n"

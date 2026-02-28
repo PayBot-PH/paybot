@@ -611,7 +611,7 @@ export default function BotSettings() {
                   <Radio className="h-4 w-4 text-amber-400 mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-amber-300">
                     Send a test payment event to verify real-time notifications on the Dashboard and Transactions pages.
-                    No actual Xendit payment is required — this simulates a webhook callback.
+                    No actual payment is required — this simulates a webhook callback.
                   </p>
                 </div>
               </div>

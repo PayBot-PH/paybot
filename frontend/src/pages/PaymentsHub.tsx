@@ -120,7 +120,7 @@ export default function PaymentsHub() {
             {Object.entries(tabConfig).map(([key, cfg]) => (
               <TabsTrigger key={key} value={key} className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
                 <span className={cfg.color}>{cfg.icon}</span>
-                <span className="ml-2 capitalize">{key.replace(/_/g, ' ').replace('alipay maya', 'Alipay PHP (Maya)').replace('alipay', 'Alipay (Xendit)').replace('maya sbc', 'Maya (SBC)').replace('wechat', 'WeChat (Maya)')}</span>
+                <span className="ml-2 capitalize">{key.replace(/_/g, ' ').replace('alipay maya', 'Alipay PHP (Maya)').replace('alipay', 'Alipay').replace('maya sbc', 'Maya (SBC)').replace('wechat', 'WeChat (Maya)')}</span>
               </TabsTrigger>
             ))}
           </TabsList>

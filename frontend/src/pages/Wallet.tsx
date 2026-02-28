@@ -180,7 +180,7 @@ export default function Wallet() {
   // Top Up: method toggle
   const [topupMethod, setTopupMethod] = useState<'xendit' | 'crypto'>('xendit');
 
-  // Xendit Top Up state
+  // Invoice Top Up state
   const [topupAmount, setTopupAmount] = useState('');
   const [topupDesc, setTopupDesc] = useState('Wallet Top Up');
   const [topupEmail, setTopupEmail] = useState('');
@@ -693,7 +693,7 @@ export default function Wallet() {
                     }`}
                   >
                     <PlusCircle className="h-4 w-4" />
-                    Xendit Invoice
+                    Invoice (PHP)
                   </button>
                   <button
                     onClick={() => setTopupMethod('crypto')}
@@ -756,7 +756,7 @@ export default function Wallet() {
                           </div>
                         </div>
                         <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400">
-                          A Xendit payment invoice will be generated. Pay via credit card, GCash, Maya, bank transfer, or any supported method. Your PHP wallet is credited automatically once paid.
+                          A payment invoice will be generated. Pay via credit card, GCash, Maya, bank transfer, or any supported method. Your PHP wallet is credited automatically once paid.
                         </div>
                         <Button onClick={handleTopup} disabled={topupLoading}
                           className="w-full bg-blue-600 hover:bg-blue-700 text-white">

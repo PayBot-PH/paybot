@@ -149,7 +149,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="PayBot API",
-    description="Telegram Bot & Xendit Payment Gateway — admin dashboard and bot backend",
+    description="PayBot Philippines — Telegram Bot & Payment Gateway admin dashboard and bot backend",
     version="1.0.0",
     lifespan=lifespan,
 )
