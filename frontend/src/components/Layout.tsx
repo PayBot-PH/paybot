@@ -23,7 +23,6 @@ import {
   Send,
   ClipboardList,
   DollarSign,
-  GitPullRequest,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -67,7 +66,6 @@ export default function Layout({ children, connected }: LayoutProps) {
         { to: '/transactions', icon: FileText, label: 'Transactions' },
         { to: '/disbursements', icon: Building2, label: 'Disbursements' },
         { to: '/reports', icon: PieChart, label: 'Reports' },
-        { to: '/pull-requests', icon: GitPullRequest, label: 'Pull Requests' },
       ],
     },
     ...(isAdmin || permissions?.can_manage_bot || isSuperAdmin

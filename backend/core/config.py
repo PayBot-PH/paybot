@@ -82,9 +82,6 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
 
-    # GitHub webhook
-    github_webhook_secret: str = ""
-
     @property
     def backend_url(self) -> str:
         """Generate backend URL from host and port."""

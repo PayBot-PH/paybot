@@ -16,22 +16,12 @@ export interface PaymentEvent {
   // Wallet fields
   wallet_id?: number;
   balance?: number;
-  // GitHub PR fields
-  pr_number?: number;
-  pr_title?: string;
-  pr_state?: string;
-  pr_url?: string;
-  pr_draft?: boolean;
-  pr_merged?: boolean;
-  pr_user?: string;
-  action?: string;
 }
 
 interface UsePaymentEventsOptions {
   enabled?: boolean;
   onStatusChange?: (event: PaymentEvent) => void;
   onWalletUpdate?: (event: PaymentEvent) => void;
-  onPrUpdate?: (event: PaymentEvent) => void;
   pollInterval?: number;
 }
 
@@ -44,7 +34,6 @@ export function usePaymentEvents({
   enabled = true,
   onStatusChange,
   onWalletUpdate,
-  onPrUpdate,
   pollInterval = 10000,
 }: UsePaymentEventsOptions = {}) {
   const [lastEvent, setLastEvent] = useState<PaymentEvent | null>(null);
@@ -52,6 +41,14 @@ export function usePaymentEvents({
   const lastTimestampRef = useRef<number>(Date.now() / 1000);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const failCountRef = useRef<number>(0);
+
+  // Use refs for mutable values read inside pollEvents so the callback stays
+  // stable and does not recreate (and reset the interval) on every state change.
+  const connectedRef = useRef<boolean>(false);
+  const onStatusChangeRef = useRef(onStatusChange);
+  const onWalletUpdateRef = useRef(onWalletUpdate);
+  onStatusChangeRef.current = onStatusChange;
+  onWalletUpdateRef.current = onWalletUpdate;
 
   const showNotification = useCallback((event: PaymentEvent) => {
     const eventType = event.event_type || event.type;
@@ -124,6 +121,9 @@ export function usePaymentEvents({
     }
   }, []);
 
+  // pollEvents is intentionally stable (empty deps beyond showNotification which
+  // is also stable). Connectivity state and callbacks are accessed via refs so
+  // that changing them does NOT recreate this function and reset the interval.
   const pollEvents = useCallback(async () => {
     try {
       const res = await client.apiCall.invoke({
@@ -134,7 +134,10 @@ export function usePaymentEvents({
 
       // Reset fail count on success
       failCountRef.current = 0;
-      if (!connected) setConnected(true);
+      if (!connectedRef.current) {
+        connectedRef.current = true;
+        setConnected(true);
+      }
 
       const events: PaymentEvent[] = res.data?.events || [];
       const serverTime = res.data?.server_time;
@@ -147,14 +150,11 @@ export function usePaymentEvents({
         if (eventType === 'status_change') {
           setLastEvent(event);
           showNotification(event);
-          onStatusChange?.(event);
+          onStatusChangeRef.current?.(event);
         } else if (eventType === 'wallet_update') {
           setLastEvent(event);
           showNotification(event);
-          onWalletUpdate?.(event);
-        } else if (eventType === 'pr_update') {
-          setLastEvent(event);
-          onPrUpdate?.(event);
+          onWalletUpdateRef.current?.(event);
         }
         if (event.timestamp && event.timestamp > lastTimestampRef.current) {
           lastTimestampRef.current = event.timestamp;
@@ -163,12 +163,13 @@ export function usePaymentEvents({
     } catch {
       // Silently fail - increment fail count and back off
       failCountRef.current += 1;
-      if (connected && failCountRef.current > 2) {
+      if (connectedRef.current && failCountRef.current > 2) {
+        connectedRef.current = false;
         setConnected(false);
       }
       // Don't show any error toast - this is background polling
     }
-  }, [connected, onStatusChange, onWalletUpdate, onPrUpdate, showNotification]);
+  }, [showNotification]);
 
   useEffect(() => {
     if (!enabled) return;
