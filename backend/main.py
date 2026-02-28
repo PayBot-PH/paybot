@@ -27,7 +27,8 @@ BOT_COMMANDS = [
     {"command": "pay", "description": "Interactive payment menu"},
     {"command": "invoice", "description": "Create a payment invoice"},
     {"command": "qr", "description": "Generate QR code payment"},
-    {"command": "alipay", "description": "Alipay QR payment"},
+    {"command": "alipay", "description": "Alipay QR payment (via Maya)"},
+    {"command": "wechat", "description": "WeChat Pay QR (via Maya)"},
     {"command": "link", "description": "Create shareable payment link"},
     {"command": "va", "description": "Create virtual account"},
     {"command": "ewallet", "description": "Charge e-wallet"},
@@ -293,10 +294,19 @@ if _STATIC_DIR.exists():
     if _assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=str(_assets_dir)), name="assets")
 
+    # Headers applied to every index.html response.
+    # no-cache + must-revalidate ensures browsers revalidate on every visit so
+    # that newly deployed versions are picked up immediately without a hard reload.
+    _NO_CACHE_HEADERS = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0",
+    }
+
     @app.get("/", include_in_schema=False)
     async def serve_root():
         """Serve the admin dashboard SPA."""
-        return FileResponse(str(_STATIC_DIR / "index.html"))
+        return FileResponse(str(_STATIC_DIR / "index.html"), headers=_NO_CACHE_HEADERS)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
@@ -304,10 +314,10 @@ if _STATIC_DIR.exists():
         file_path = (_STATIC_DIR / full_path).resolve()
         # Guard against path traversal attacks
         if not str(file_path).startswith(str(_STATIC_DIR.resolve())):
-            return FileResponse(str(_STATIC_DIR / "index.html"))
+            return FileResponse(str(_STATIC_DIR / "index.html"), headers=_NO_CACHE_HEADERS)
         if file_path.is_file():
             return FileResponse(str(file_path))
-        return FileResponse(str(_STATIC_DIR / "index.html"))
+        return FileResponse(str(_STATIC_DIR / "index.html"), headers=_NO_CACHE_HEADERS)
 else:
     @app.get("/")
     def root():

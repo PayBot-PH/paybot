@@ -42,6 +42,14 @@ export function usePaymentEvents({
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const failCountRef = useRef<number>(0);
 
+  // Use refs for mutable values read inside pollEvents so the callback stays
+  // stable and does not recreate (and reset the interval) on every state change.
+  const connectedRef = useRef<boolean>(false);
+  const onStatusChangeRef = useRef(onStatusChange);
+  const onWalletUpdateRef = useRef(onWalletUpdate);
+  onStatusChangeRef.current = onStatusChange;
+  onWalletUpdateRef.current = onWalletUpdate;
+
   const showNotification = useCallback((event: PaymentEvent) => {
     const eventType = event.event_type || event.type;
 
@@ -113,6 +121,9 @@ export function usePaymentEvents({
     }
   }, []);
 
+  // pollEvents is intentionally stable (empty deps beyond showNotification which
+  // is also stable). Connectivity state and callbacks are accessed via refs so
+  // that changing them does NOT recreate this function and reset the interval.
   const pollEvents = useCallback(async () => {
     try {
       const res = await client.apiCall.invoke({
@@ -123,7 +134,10 @@ export function usePaymentEvents({
 
       // Reset fail count on success
       failCountRef.current = 0;
-      if (!connected) setConnected(true);
+      if (!connectedRef.current) {
+        connectedRef.current = true;
+        setConnected(true);
+      }
 
       const events: PaymentEvent[] = res.data?.events || [];
       const serverTime = res.data?.server_time;
@@ -136,11 +150,11 @@ export function usePaymentEvents({
         if (eventType === 'status_change') {
           setLastEvent(event);
           showNotification(event);
-          onStatusChange?.(event);
+          onStatusChangeRef.current?.(event);
         } else if (eventType === 'wallet_update') {
           setLastEvent(event);
           showNotification(event);
-          onWalletUpdate?.(event);
+          onWalletUpdateRef.current?.(event);
         }
         if (event.timestamp && event.timestamp > lastTimestampRef.current) {
           lastTimestampRef.current = event.timestamp;
@@ -149,12 +163,13 @@ export function usePaymentEvents({
     } catch {
       // Silently fail - increment fail count and back off
       failCountRef.current += 1;
-      if (connected && failCountRef.current > 2) {
+      if (connectedRef.current && failCountRef.current > 2) {
+        connectedRef.current = false;
         setConnected(false);
       }
       // Don't show any error toast - this is background polling
     }
-  }, [connected, onStatusChange, onWalletUpdate, showNotification]);
+  }, [showNotification]);
 
   useEffect(() => {
     if (!enabled) return;
