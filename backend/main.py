@@ -27,7 +27,6 @@ BOT_COMMANDS = [
     {"command": "pay", "description": "Interactive payment menu"},
     {"command": "invoice", "description": "Create a payment invoice"},
     {"command": "qr", "description": "Generate QR code payment"},
-    {"command": "alipay", "description": "Alipay QR payment"},
     {"command": "link", "description": "Create shareable payment link"},
     {"command": "va", "description": "Create virtual account"},
     {"command": "ewallet", "description": "Charge e-wallet"},

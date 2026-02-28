@@ -24,8 +24,6 @@ from models.subscriptions import Subscriptions
 from schemas.auth import UserResponse
 from services.telegram_service import TelegramService, _resolve_bot_token
 from services.xendit_service import XenditService
-from services.sbc_collect_service import SecurityBankCollectService
-from services.maya_manager_service import MayaManagerService
 from services.event_bus import payment_event_bus
 from models.topup_requests import TopupRequest
 from models.usdt_send_requests import UsdtSendRequest
@@ -649,10 +647,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /qr [amt] [desc] — Generate QR code\n"
                 "  /link [amt] [desc] — Payment link\n"
                 "  /va [amt] [bank] — Virtual account\n"
-                "  /ewallet [amt] [provider] — E-wallet\n"
-                "  /alipay [amt] [desc] — Alipay QR (via Maya)\n"
-                "  /wechat [amt] [desc] — WeChat QR (via Maya)\n\n"
-                "💸 <b>Send Money</b>\n"
+                "  /ewallet [amt] [provider] — E-wallet\n\n"                "💸 <b>Send Money</b>\n"
                 "  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
                 "  /refund [id] [amt] — Refund a payment\n\n"
                 "💰 <b>PHP Wallet</b>\n"
@@ -892,155 +887,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 pass
                     else:
                         await tg.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
-                except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
-
-        # ==================== /alipay (Maya Business Manager → Alipay QR in USD) ====================
-        elif text.startswith("/alipay"):
-            parts = text.split(maxsplit=2)
-            if len(parts) < 2:
-                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]\nExample: /alipay 10 Coffee order\n\n💡 <i>Generates an Alipay QR via Maya Business Manager (USD)</i>")
-            else:
-                try:
-                    amount = float(parts[1])
-                    if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
-                        await _safe_log(db, chat_id, username, text)
-                        return {"status": "ok"}
-                    # Security deposit check: $2000 USD minimum required
-                    usd_balance = await _get_usd_balance(db, chat_id)
-                    if usd_balance < 2000:
-                        needed = 2000 - usd_balance
-                        await tg.send_message(
-                            chat_id,
-                            f"🔒 <b>Security Deposit Required</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"To activate cross-border Alipay payments, a minimum security deposit of <b>$2,000 USD</b> is required.\n\n"
-                            f"💰 Your current USD balance: <b>${usd_balance:,.2f}</b>\n"
-                            f"📥 Still needed: <b>${needed:,.2f} USD</b>\n\n"
-                            f"ℹ️ <b>Why is this required?</b>\n"
-                            f"This is a <i>refundable security deposit</i> mandated under international cross-border payment law (SWIFT/CBPR+) and required by all cross-border payment gateway APIs operating under PCI-DSS and FATF compliance frameworks. It ensures settlement coverage for international transactions.\n\n"
-                            f"✅ Your deposit is <b>fully refundable</b> and can be withdrawn at any time after completing your first transaction.\n\n"
-                            f"👉 Use /topup [amount] to fund your USD wallet via USDT TRC20."
-                        )
-                        return {"status": "ok"}
-                    description = parts[2] if len(parts) > 2 else "Alipay payment"
-                    maya = MayaManagerService()
-                    result = await maya.create_alipay_qr(amount=amount, description=description, currency="PHP")
-                    if result.get("success"):
-                        checkout_url = result.get("checkout_url", "")
-                        ref_num = result.get("reference_number", "")
-                        caption = (
-                            f"✅ <b>Alipay QR Ready!</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
-                            f"📝 {description}\n"
-                            f"🆔 <code>{ref_num}</code>\n\n"
-                            f"📱 Scan this QR with Alipay to pay"
-                        )
-                        try:
-                            qr_image_url = _make_qr_url(checkout_url)
-                            result_photo = await tg.send_photo(chat_id, qr_image_url, caption=caption)
-                            if not result_photo.get("success"):
-                                raise RuntimeError(result_photo.get("error", "send_photo failed"))
-                        except Exception as qr_err:
-                            logger.error(f"QR image send failed: {qr_err}", exc_info=True)
-                            # Fallback to link button
-                            keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay (Maya)", "url": checkout_url}]]} if checkout_url else None
-                            await tg.send_message(chat_id, caption, reply_markup=keyboard)
-                        try:
-                            now = datetime.now()
-                            txn = Transactions(
-                                user_id="telegram", transaction_type="alipay_qr",
-                                external_id=ref_num, xendit_id=result.get("checkout_id", ""),
-                                amount=amount, currency="PHP", status="pending", description=description,
-                                qr_code_url=checkout_url, telegram_chat_id=chat_id,
-                                created_at=now, updated_at=now,
-                            )
-                            db.add(txn)
-                            await db.commit()
-                        except Exception as e:
-                            logger.error(f"DB save failed for /alipay: {e}", exc_info=True)
-                            try:
-                                await db.rollback()
-                            except Exception:
-                                pass
-                    else:
-                        await tg.send_message(chat_id, f"❌ Alipay QR failed: {result.get('error', 'Unknown error')}")
-                except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
-
-        # ==================== /wechat (Maya Business Manager → WeChat QR) ====================
-        elif text.startswith("/wechat"):
-            parts = text.split(maxsplit=2)
-            if len(parts) < 2:
-                await tg.send_message(chat_id, "❌ Usage: /wechat [amount] [description]\nExample: /wechat 500 Coffee order\n\n💡 <i>Generates a WeChat Pay QR via Maya Business Manager</i>")
-            else:
-                try:
-                    amount = float(parts[1])
-                    if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
-                        await _safe_log(db, chat_id, username, text)
-                        return {"status": "ok"}
-                    # Security deposit check: $2000 USD minimum required
-                    usd_balance = await _get_usd_balance(db, chat_id)
-                    if usd_balance < 2000:
-                        needed = 2000 - usd_balance
-                        await tg.send_message(
-                            chat_id,
-                            f"🔒 <b>Security Deposit Required</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"To activate cross-border WeChat Pay payments, a minimum security deposit of <b>$2,000 USD</b> is required.\n\n"
-                            f"💰 Your current USD balance: <b>${usd_balance:,.2f}</b>\n"
-                            f"📥 Still needed: <b>${needed:,.2f} USD</b>\n\n"
-                            f"ℹ️ <b>Why is this required?</b>\n"
-                            f"This is a <i>refundable security deposit</i> mandated under international cross-border payment law (SWIFT/CBPR+) and required by all cross-border payment gateway APIs operating under PCI-DSS and FATF compliance frameworks. It ensures settlement coverage for international transactions.\n\n"
-                            f"✅ Your deposit is <b>fully refundable</b> and can be withdrawn at any time after completing your first transaction.\n\n"
-                            f"👉 Use /topup [amount] to fund your USD wallet via USDT TRC20."
-                        )
-                        return {"status": "ok"}
-                    description = parts[2] if len(parts) > 2 else "WeChat Pay"
-                    maya = MayaManagerService()
-                    result = await maya.create_wechat_qr(amount=amount, description=description, currency="PHP")
-                    if result.get("success"):
-                        checkout_url = result.get("checkout_url", "")
-                        ref_num = result.get("reference_number", "")
-                        wechat_caption = (
-                            f"✅ <b>WeChat Pay QR Ready!</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
-                            f"📝 {description}\n"
-                            f"🆔 <code>{ref_num}</code>\n\n"
-                            f"📱 Scan this QR with WeChat to pay"
-                        )
-                        try:
-                            qr_image_url = _make_qr_url(checkout_url)
-                            result_photo = await tg.send_photo(chat_id, qr_image_url, caption=wechat_caption)
-                            if not result_photo.get("success"):
-                                raise RuntimeError(result_photo.get("error", "send_photo failed"))
-                        except Exception as qr_err:
-                            logger.error(f"WeChat QR image send failed: {qr_err}", exc_info=True)
-                            keyboard = {"inline_keyboard": [[{"text": "💚 Pay via WeChat (Maya)", "url": checkout_url}]]} if checkout_url else None
-                            await tg.send_message(chat_id, wechat_caption, reply_markup=keyboard)
-                        try:
-                            now = datetime.now()
-                            txn = Transactions(
-                                user_id="telegram", transaction_type="wechat_qr",
-                                external_id=ref_num, xendit_id=result.get("checkout_id", ""),
-                                amount=amount, currency="PHP", status="pending", description=description,
-                                qr_code_url=checkout_url, telegram_chat_id=chat_id,
-                                created_at=now, updated_at=now,
-                            )
-                            db.add(txn)
-                            await db.commit()
-                        except Exception as e:
-                            logger.error(f"DB save failed for /wechat: {e}", exc_info=True)
-                            try:
-                                await db.rollback()
-                            except Exception:
-                                pass
-                    else:
-                        await tg.send_message(chat_id, f"❌ WeChat QR failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
@@ -2116,9 +1962,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "📱 /qr [amt] [desc] — QR Code\n"
                 "🔗 /link [amt] [desc] — Payment Link\n"
                 "🏦 /va [amt] [bank] — Virtual Account\n"
-                "📲 /ewallet [amt] [provider] — E-Wallet\n"
-                "🔴 /alipay [amt] [desc] — Alipay QR USD (via Maya) 🔴\n"
-                "🟢 /wechat [amt] [desc] — WeChat QR (via Maya) 💚\n\n"
+                "📲 /ewallet [amt] [provider] — E-Wallet\n\n"
                 "💡 Example: /invoice 500 Coffee order"
             )
             await tg.send_message(chat_id, menu)
@@ -2132,8 +1976,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /pay — Payment menu\n"
                 "  /invoice [amt] [desc]\n"
                 "  /qr [amt] [desc]\n"
-                "  /alipay [amt] [desc] — Alipay QR USD (Maya) 🔴\n"
-                "  /wechat [amt] [desc] — WeChat QR via Maya 💚\n"
                 "  /link [amt] [desc]\n"
                 "  /va [amt] [bank]\n"
                 "  /ewallet [amt] [provider]\n\n"

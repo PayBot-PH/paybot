@@ -64,15 +64,6 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     xendit_secret_key: str = ""
 
-    # Maya Business Manager API
-    maya_public_key: str = ""
-    maya_secret_key: str = ""
-
-    # Security Bank Collect (Magpie) API
-    sbc_merchant_id: str = ""
-    sbc_secret_key: str = ""
-    sbc_public_key: str = ""
-
     # Simple admin authentication
     admin_user_id: str = "admin"
     admin_user_email: str = "admin@paybot.local"
