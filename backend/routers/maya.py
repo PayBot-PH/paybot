@@ -32,7 +32,7 @@ class WeChatQRRequest(BaseModel):
 class AlipayQRRequest(BaseModel):
     amount: float
     description: str = "Alipay"
-    currency: str = "USD"
+    currency: str = "PHP"
     success_url: Optional[str] = None
     cancel_url: Optional[str] = None
 
@@ -95,7 +95,7 @@ async def create_alipay_qr(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate an Alipay QR checkout via Maya Business Manager (default: USD)."""
+    """Generate an Alipay QR checkout via Maya Business Manager (default: PHP)."""
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero")
 

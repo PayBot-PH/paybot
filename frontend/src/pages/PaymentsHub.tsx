@@ -65,8 +65,8 @@ export default function PaymentsHub() {
           payload = { amount: amt, channel_code: ewalletProvider, mobile_number: mobileNumber };
           break;
         case 'alipay':
-          endpoint = '/api/v1/gateway/qr-code';
-          payload = { amount: amt, description: description || 'Alipay payment', channel_code: 'QRIS' };
+          endpoint = '/api/v1/xendit/create-qr-code';
+          payload = { amount: amt, description: description || 'Alipay payment' };
           break;
         case 'maya_sbc':
           endpoint = '/api/v1/sbc/maya';
