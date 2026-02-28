@@ -28,6 +28,7 @@ import {
   WrenchIcon,
   Wallet as WalletIcon,
   DollarSign,
+  RefreshCw,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -70,6 +71,8 @@ interface CryptoTopupRequest {
   reviewed_at: string | null;
   created_at: string | null;
 }
+
+type AdminTab = 'admins' | 'users' | 'roles' | 'crypto' | 'usd-wallets';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1051,7 +1054,7 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
 export default function AdminManagement() {
   const { isSuperAdmin, permissions } = useAuth();
   const canApproveTopups = isSuperAdmin || !!permissions?.can_approve_topups;
-  const [activeTab, setActiveTab] = useState<'admins' | 'users' | 'roles' | 'crypto' | 'usd-wallets'>('admins');
+  const [activeTab, setActiveTab] = useState<AdminTab>('admins');
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

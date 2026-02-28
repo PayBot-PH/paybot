@@ -3,10 +3,12 @@ import os
 import hashlib
 import hmac
 import time
+import uuid
 from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
+from pydantic import BaseModel, field_validator
 from core.auth import (
     IDTokenValidationError,
     build_authorization_url,
@@ -24,6 +26,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from models.auth import User
 from models.admin_users import AdminUser
+from models.kyb_registrations import KybRegistration
 from schemas.auth import (
     PlatformTokenExchangeRequest,
     TelegramWidgetLoginRequest,
@@ -33,6 +36,7 @@ from schemas.auth import (
 )
 from services.auth import AuthService
 from services.telegram_service import TelegramService
+from services.xendit_service import XenditService
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -603,3 +607,108 @@ async def logout():
     """Logout user."""
     logout_url = build_logout_url()
     return {"redirect_url": logout_url}
+
+
+# ── Registration / KYC ──────────────────────────────────────────────────────
+
+# Default country code for Philippine mobile number normalisation
+_PH_COUNTRY_CODE = "+63"
+
+
+class RegisterRequest(BaseModel):
+    full_name: str
+    email: str  # validated in field_validator below
+    phone: str
+    address: Optional[str] = None
+    business_name: Optional[str] = None
+    telegram_username: str  # required — used to link the Telegram account after approval
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def validate_email_format(cls, v: str) -> str:
+        import re
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", str(v).strip()):
+            raise ValueError("Invalid email address")
+        return str(v).strip().lower()
+
+    @field_validator("telegram_username", mode="before")
+    @classmethod
+    def strip_at(cls, v: str) -> str:
+        stripped = str(v).lstrip("@").strip()
+        if not stripped:
+            raise ValueError("Telegram username is required")
+        return stripped
+
+
+class RegisterResponse(BaseModel):
+    message: str
+    kyb_id: int
+    xendit_customer_id: Optional[str] = None
+
+
+@router.post("/register", response_model=RegisterResponse)
+async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
+    """Public registration endpoint.
+
+    Creates a KYB registration record (status ``pending_review``) and a
+    matching Xendit customer record for KYC purposes.  A super admin must
+    review and approve the application before the applicant can access the
+    dashboard.
+    """
+    # Deduplicate by telegram_username or email (use a fake chat_id based on email)
+    ref_id = f"reg-{uuid.uuid4().hex[:12]}"
+
+    # Use email as the stable chat_id for web registrations
+    chat_id = f"web-{hashlib.sha256(body.email.lower().encode()).hexdigest()[:16]}"
+
+    existing = await db.execute(
+        select(KybRegistration).where(KybRegistration.chat_id == chat_id)
+    )
+    existing_kyb = existing.scalar_one_or_none()
+    if existing_kyb:
+        if existing_kyb.status == "approved":
+            raise HTTPException(status_code=400, detail="This email is already registered and approved.")
+        # Return the existing pending registration
+        return RegisterResponse(
+            message="Your registration is already submitted and under review.",
+            kyb_id=existing_kyb.id,
+            xendit_customer_id=None,
+        )
+
+    # Create Xendit customer for KYC (best-effort)
+    xendit_customer_id: Optional[str] = None
+    try:
+        xendit = XenditService()
+        mobile = body.phone if body.phone.startswith("+") else f"{_PH_COUNTRY_CODE}{body.phone.lstrip('0')}"
+        result = await xendit.create_customer(
+            reference_id=ref_id,
+            given_names=body.full_name,
+            email=body.email,
+            mobile_number=mobile,
+            description=body.business_name or "",
+        )
+        if result.get("success"):
+            xendit_customer_id = result.get("customer_id")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Xendit create_customer failed during registration: %s", exc)
+
+    # Persist KYB record
+    kyb = KybRegistration(
+        chat_id=chat_id,
+        telegram_username=body.telegram_username,
+        step="done",
+        full_name=body.full_name,
+        phone=body.phone,
+        address=body.address,
+        bank_name=body.business_name,  # bank_name column reused to store business name for web registrations
+        status="pending_review",
+    )
+    db.add(kyb)
+    await db.commit()
+    await db.refresh(kyb)
+
+    return RegisterResponse(
+        message="Registration submitted successfully. An admin will review your application.",
+        kyb_id=kyb.id,
+        xendit_customer_id=xendit_customer_id,
+    )

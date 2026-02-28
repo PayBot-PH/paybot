@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Bot, Zap, ArrowRight, ShieldCheck, User, Wallet, QrCode, Bell, ChevronRight } from 'lucide-react';
+import { Bot, Zap, ArrowRight, ShieldCheck, User, Wallet, QrCode, Bell, ChevronRight, UserPlus } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
 
 declare global {
@@ -226,6 +226,16 @@ export default function Login() {
             )}
 
             <div className="border-t border-white/5 pt-4 space-y-3">
+              {/* Register link */}
+              <Link to="/register"
+                className="flex items-center justify-between w-full bg-emerald-500/8 hover:bg-emerald-500/14 border border-emerald-500/20 hover:border-emerald-500/35 text-emerald-300 hover:text-emerald-200 text-sm font-medium py-3 px-4 rounded-xl transition-all group">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Create an account
+                </div>
+                <ChevronRight className="h-4 w-4 text-emerald-500 group-hover:text-emerald-300 group-hover:translate-x-0.5 transition-all" />
+              </Link>
+
               {/* Features button */}
               <Link to="/features"
                 className="flex items-center justify-between w-full bg-white/[0.03] hover:bg-white/[0.07] border border-white/[0.07] hover:border-white/[0.14] text-slate-300 hover:text-white text-sm font-medium py-3 px-4 rounded-xl transition-all group">
