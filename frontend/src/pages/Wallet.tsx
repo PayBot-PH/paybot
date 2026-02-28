@@ -27,6 +27,7 @@ import {
   Bitcoin,
   AlertCircle,
   ShieldAlert,
+  QrCode,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -178,7 +179,7 @@ export default function Wallet() {
   const [dLoading, setDLoading] = useState(false);
 
   // Top Up: method toggle
-  const [topupMethod, setTopupMethod] = useState<'xendit' | 'crypto'>('xendit');
+  const [topupMethod, setTopupMethod] = useState<'xendit' | 'crypto' | 'paymongo'>('xendit');
 
   // Invoice Top Up state
   const [topupAmount, setTopupAmount] = useState('');
@@ -194,6 +195,13 @@ export default function Wallet() {
   const [cryptoLoading, setCryptoLoading] = useState(false);
   const [cryptoRequests, setCryptoRequests] = useState<CryptoTopupRequest[]>([]);
   const [addressCopied, setAddressCopied] = useState(false);
+
+  // PayMongo Top Up state
+  const [pmProvider, setPmProvider] = useState<'alipay' | 'wechat'>('alipay');
+  const [pmAmount, setPmAmount] = useState('');
+  const [pmDesc, setPmDesc] = useState('PHP Wallet Top Up');
+  const [pmLoading, setPmLoading] = useState(false);
+  const [pmResult, setPmResult] = useState<{ checkout_url: string; amount: number } | null>(null);
 
   // Send USDT state
   const [sendUsdtAddress, setSendUsdtAddress] = useState('');
@@ -453,6 +461,30 @@ export default function Wallet() {
     } finally { setSendUsdLoading(false); }
   };
 
+  const handlePaymongoTopup = async () => {
+    const amount = parseFloat(pmAmount);
+    if (!amount || amount <= 0) { toast.error('Please enter an amount greater than 0'); return; }
+    setPmLoading(true);
+    setPmResult(null);
+    try {
+      const endpoint = pmProvider === 'alipay' ? '/api/v1/paymongo/alipay-qr' : '/api/v1/paymongo/wechat-qr';
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, description: pmDesc || 'PHP Wallet Top Up' }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setPmResult({ checkout_url: data.data?.checkout_url || '', amount });
+        toast.success('Payment created! Complete payment to credit your PHP wallet.');
+      } else {
+        toast.error(data.detail || data.message || 'Failed to create payment');
+      }
+    } catch {
+      toast.error('Failed to create payment');
+    } finally { setPmLoading(false); }
+  };
+
   const handleCopyAddress = () => {
     if (cryptoDepositInfo?.address) {
       navigator.clipboard.writeText(cryptoDepositInfo.address).then(() => {
@@ -696,6 +728,17 @@ export default function Wallet() {
                     Invoice (PHP)
                   </button>
                   <button
+                    onClick={() => { setTopupMethod('paymongo'); setPmResult(null); }}
+                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                      topupMethod === 'paymongo'
+                        ? 'text-red-400 border-b-2 border-red-400 bg-red-500/5'
+                        : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    <QrCode className="h-4 w-4" />
+                    PayMongo (PHP)
+                  </button>
+                  <button
                     onClick={() => setTopupMethod('crypto')}
                     className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                       topupMethod === 'crypto'
@@ -763,6 +806,70 @@ export default function Wallet() {
                           {topupLoading
                             ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating Invoice...</>
                             : <><PlusCircle className="h-4 w-4 mr-2" />Generate Top Up Invoice</>}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                ) : topupMethod === 'paymongo' ? (
+                  /* PayMongo (Alipay / WeChat) Top Up Panel */
+                  <div className="p-4 sm:p-6 space-y-4">
+                    {pmResult ? (
+                      <div className="text-center space-y-4">
+                        <div className="bg-red-900/30 border border-red-700/50 rounded-xl p-4">
+                          <CheckCircle className="h-10 w-10 text-red-400 mx-auto mb-3" />
+                          <p className="text-white font-semibold">Payment Created!</p>
+                          <p className="text-slate-400 text-sm mt-1">₱{pmResult.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })} will be credited to your PHP wallet after payment</p>
+                        </div>
+                        <a
+                          href={pmResult.checkout_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-4 rounded-lg transition"
+                        >
+                          <ExternalLink className="h-4 w-4" />
+                          Open Payment Page
+                        </a>
+                        <button
+                          onClick={() => { setPmResult(null); setPmAmount(''); }}
+                          className="text-slate-400 text-sm hover:text-slate-300 transition"
+                        >
+                          Create another top-up
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          <Label className="text-slate-300 text-sm">Payment Method</Label>
+                          <Select value={pmProvider} onValueChange={(v) => setPmProvider(v as 'alipay' | 'wechat')}>
+                            <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-slate-800 border-slate-600">
+                              <SelectItem value="alipay" className="text-white">Alipay</SelectItem>
+                              <SelectItem value="wechat" className="text-white">WeChat Pay</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div>
+                          <Label className="text-slate-300 text-sm">Amount (₱)</Label>
+                          <Input type="number" placeholder="0.00" value={pmAmount}
+                            onChange={e => setPmAmount(e.target.value)} min="1"
+                            className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                        </div>
+                        <div>
+                          <Label className="text-slate-300 text-sm">Description</Label>
+                          <Input placeholder="PHP Wallet Top Up" value={pmDesc}
+                            onChange={e => setPmDesc(e.target.value)}
+                            className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                        </div>
+                        <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400">
+                          Pay via {pmProvider === 'alipay' ? 'Alipay' : 'WeChat Pay'} QR code. Your PHP wallet will be credited automatically in real-time once payment is confirmed.
+                        </div>
+                        <Button onClick={handlePaymongoTopup} disabled={pmLoading}
+                          className="w-full bg-red-600 hover:bg-red-700 text-white">
+                          {pmLoading
+                            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</>
+                            : <><QrCode className="h-4 w-4 mr-2" />Generate {pmProvider === 'alipay' ? 'Alipay' : 'WeChat'} QR</>}
                         </Button>
                       </>
                     )}

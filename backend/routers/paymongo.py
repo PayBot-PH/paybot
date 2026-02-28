@@ -241,7 +241,10 @@ async def paymongo_webhook(
             if old_status != "paid" and txn.user_id:
                 try:
                     wallet_res = await db.execute(
-                        select(Wallets).where(Wallets.user_id == txn.user_id)
+                        select(Wallets).where(
+                            Wallets.user_id == txn.user_id,
+                            Wallets.currency == "PHP",
+                        )
                     )
                     wallet = wallet_res.scalar_one_or_none()
                     if not wallet:
