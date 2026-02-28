@@ -1,5 +1,7 @@
 import logging
 import io
+import hashlib
+import os
 import re
 import uuid
 from datetime import datetime, timedelta
@@ -210,6 +212,38 @@ _KYB_PROMPTS = {
         "(e.g. PhilSys, Driver's License, Passport, UMID, Voter's ID, SSS, PRC)."
     ),
 }
+
+
+# ---------- PIN session store ----------
+# chat_id → expiry datetime (UTC). Sessions last 2 hours.
+_PIN_SESSIONS: dict[str, datetime] = {}
+_PIN_SESSION_TTL = timedelta(hours=2)
+_PIN_LOCK_MINUTES = 5
+_PIN_MAX_ATTEMPTS = 3
+
+
+def _is_pin_session_active(chat_id: str) -> bool:
+    expiry = _PIN_SESSIONS.get(chat_id)
+    if expiry and datetime.utcnow() < expiry:
+        return True
+    _PIN_SESSIONS.pop(chat_id, None)
+    return False
+
+
+def _start_pin_session(chat_id: str) -> None:
+    _PIN_SESSIONS[chat_id] = datetime.utcnow() + _PIN_SESSION_TTL
+
+
+def _end_pin_session(chat_id: str) -> None:
+    _PIN_SESSIONS.pop(chat_id, None)
+
+
+def _hash_pin(pin: str, salt: str) -> str:
+    return hashlib.sha256(f"{salt}:{pin}".encode()).hexdigest()
+
+
+def _generate_salt() -> str:
+    return os.urandom(16).hex()
 
 
 # ---------- KYB / access-control helpers ----------
@@ -659,6 +693,42 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             await _handle_kyb_flow(db, tg, chat_id, username, text, photos)
             return {"status": "ok"}
 
+        # ==================== PIN session gate ====================
+        # Bot owner / env-listed admins bypass the PIN gate so they're never
+        # locked out of the bot even if no PIN is set.
+        owner_bypass = (chat_id == _get_bot_owner_id()) or chat_id in [
+            e.strip().lstrip("@") for e in str(getattr(settings, "telegram_admin_ids", "") or "").split(",") if e.strip()
+        ]
+        if not owner_bypass:
+            # Allow /login, /setpin, /start, /register without an active session
+            pin_exempt = text and any(
+                text.startswith(cmd) for cmd in ("/login", "/setpin", "/start", "/register", "/logout")
+            )
+            if not pin_exempt and not _is_pin_session_active(chat_id):
+                # Fetch admin to check if PIN is set
+                try:
+                    _adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
+                    _adm = _adm_res.scalar_one_or_none()
+                except Exception:
+                    _adm = None
+                if _adm and _adm.pin_hash:
+                    await tg.send_message(
+                        chat_id,
+                        "🔐 <b>Session expired</b>\n\nPlease log in with your PIN:\n\n<code>/login [your PIN]</code>",
+                        reply_markup={
+                            "keyboard": [[{"text": "🔑 /login"}]],
+                            "resize_keyboard": True, "one_time_keyboard": True,
+                        },
+                    )
+                    return {"status": "ok"}
+                elif _adm and not _adm.pin_hash:
+                    await tg.send_message(
+                        chat_id,
+                        "🔒 <b>Set your PIN to secure your account</b>\n\n"
+                        "Use <code>/setpin [4–6 digit PIN]</code> to activate bot access.\n\nExample: <code>/setpin 1234</code>",
+                    )
+                    return {"status": "ok"}
+
         # ==================== Photo message → receipt upload ====================
         if photos and not text:
             # Check if this user has a pending topup request awaiting receipt
@@ -688,6 +758,140 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             return {"status": "ok"}
 
         if not text:
+            return {"status": "ok"}
+
+        # ==================== /login ====================
+        if text.startswith("/login"):
+            parts = text.split(maxsplit=1)
+            pin_input = parts[1].strip() if len(parts) > 1 else ""
+            try:
+                _adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
+                _adm = _adm_res.scalar_one_or_none()
+            except Exception:
+                _adm = None
+
+            if not _adm:
+                await tg.send_message(chat_id, "⚠️ Account not found. Please contact your administrator.")
+                return {"status": "ok"}
+
+            if not _adm.pin_hash:
+                await tg.send_message(
+                    chat_id,
+                    "ℹ️ No PIN set yet. Use <code>/setpin [4–6 digits]</code> to create your PIN first.",
+                )
+                return {"status": "ok"}
+
+            # Check lock
+            if _adm.pin_locked_until and datetime.utcnow() < _adm.pin_locked_until.replace(tzinfo=None):
+                remaining = int((_adm.pin_locked_until.replace(tzinfo=None) - datetime.utcnow()).total_seconds() / 60) + 1
+                await tg.send_message(chat_id, f"🔒 Account temporarily locked. Try again in {remaining} minute(s).")
+                return {"status": "ok"}
+
+            if not pin_input:
+                await tg.send_message(chat_id, "❌ Usage: <code>/login [your PIN]</code>\nExample: <code>/login 1234</code>")
+                return {"status": "ok"}
+
+            if not pin_input.isdigit() or not (4 <= len(pin_input) <= 6):
+                await tg.send_message(chat_id, "❌ PIN must be 4–6 digits.")
+                return {"status": "ok"}
+
+            expected = _hash_pin(pin_input, _adm.pin_salt or "")
+            if expected == _adm.pin_hash:
+                # Correct — start session, reset failed attempts
+                _start_pin_session(chat_id)
+                try:
+                    _adm.pin_failed_attempts = 0
+                    _adm.pin_locked_until = None
+                    _adm.updated_at = datetime.now()
+                    await db.commit()
+                except Exception:
+                    await db.rollback()
+                await tg.send_message(
+                    chat_id,
+                    f"✅ <b>Logged in!</b>\n\nWelcome back, <b>{_adm.name or username}</b> 👋\n"
+                    f"Your session is active for 2 hours.\n\nType /start to see the full menu.",
+                    reply_markup=_start_kb(),
+                )
+            else:
+                # Wrong PIN
+                failed = (_adm.pin_failed_attempts or 0) + 1
+                locked_until = None
+                if failed >= _PIN_MAX_ATTEMPTS:
+                    locked_until = datetime.now() + timedelta(minutes=_PIN_LOCK_MINUTES)
+                try:
+                    _adm.pin_failed_attempts = failed
+                    _adm.pin_locked_until = locked_until
+                    _adm.updated_at = datetime.now()
+                    await db.commit()
+                except Exception:
+                    await db.rollback()
+                if locked_until:
+                    await tg.send_message(
+                        chat_id,
+                        f"🔒 Too many failed attempts. Account locked for {_PIN_LOCK_MINUTES} minutes.",
+                    )
+                else:
+                    remaining_attempts = _PIN_MAX_ATTEMPTS - failed
+                    await tg.send_message(
+                        chat_id,
+                        f"❌ Incorrect PIN. {remaining_attempts} attempt(s) remaining.",
+                    )
+            return {"status": "ok"}
+
+        # ==================== /setpin ====================
+        elif text.startswith("/setpin"):
+            parts = text.split(maxsplit=1)
+            pin_input = parts[1].strip() if len(parts) > 1 else ""
+            if not pin_input or not pin_input.isdigit() or not (4 <= len(pin_input) <= 6):
+                await tg.send_message(
+                    chat_id,
+                    "❌ Usage: <code>/setpin [4–6 digit PIN]</code>\n\nExample: <code>/setpin 1234</code>\n\n"
+                    "⚠️ <i>Choose a PIN only you know. Do not share it.</i>",
+                )
+                return {"status": "ok"}
+            try:
+                _adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
+                _adm = _adm_res.scalar_one_or_none()
+            except Exception:
+                _adm = None
+            if not _adm:
+                await tg.send_message(chat_id, "⚠️ Account not found.")
+                return {"status": "ok"}
+            salt = _generate_salt()
+            try:
+                _adm.pin_salt = salt
+                _adm.pin_hash = _hash_pin(pin_input, salt)
+                _adm.pin_failed_attempts = 0
+                _adm.pin_locked_until = None
+                _adm.updated_at = datetime.now()
+                await db.commit()
+            except Exception as e:
+                logger.error(f"setpin DB error: {e}", exc_info=True)
+                await db.rollback()
+                await tg.send_message(chat_id, "⚠️ Could not save PIN. Please try again.")
+                return {"status": "ok"}
+            _start_pin_session(chat_id)
+            await tg.send_message(
+                chat_id,
+                "✅ <b>PIN set successfully!</b>\n\n"
+                "🔐 Your account is now PIN-protected.\n"
+                "Use <code>/login [PIN]</code> to authenticate next time.\n\n"
+                "You are now logged in for this session.",
+                reply_markup=_start_kb(),
+            )
+            return {"status": "ok"}
+
+        # ==================== /logout ====================
+        elif text.startswith("/logout"):
+            _end_pin_session(chat_id)
+            await tg.send_message(
+                chat_id,
+                "👋 <b>Logged out.</b>\n\nUse <code>/login [PIN]</code> to log back in.",
+                reply_markup={
+                    "keyboard": [[{"text": "🔑 /login"}]],
+                    "resize_keyboard": True, "one_time_keyboard": True,
+                },
+            )
             return {"status": "ok"}
 
         # ==================== /start ====================
@@ -795,13 +999,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 db.add(new_admin)
                             await db.commit()
                             await tg.send_message(chat_id, f"✅ KYB approved for {target_chat_id} ({kyb.full_name}). Admin access granted.")
-                            # Notify the approved user
+                            # Notify the approved user — prompt them to set PIN
                             await tg.send_message(
                                 target_chat_id,
                                 "🎉 <b>KYB Registration Approved!</b>\n"
                                 "━━━━━━━━━━━━━━━━━━━━\n"
-                                "Your registration has been approved. You can now use all bot commands.\n\n"
-                                "Type /start to begin.",
+                                "Your registration has been approved! You now have access to the bot.\n\n"
+                                "🔐 <b>Security step required:</b>\n"
+                                "Please set a PIN to protect your account:\n\n"
+                                "<code>/setpin [4–6 digit PIN]</code>\n\nExample: <code>/setpin 1234</code>",
+                                reply_markup={
+                                    "keyboard": [[{"text": "🔑 /setpin"}]],
+                                    "resize_keyboard": True, "one_time_keyboard": True,
+                                },
                             )
                     except Exception as e:
                         logger.error("kyb_approve error: %s", e)
