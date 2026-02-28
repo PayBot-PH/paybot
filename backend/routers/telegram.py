@@ -744,17 +744,26 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 pending_topup.receipt_file_id = best_photo["file_id"]
                 pending_topup.updated_at = datetime.now()
                 await db.commit()
+                currency = getattr(pending_topup, "currency", "USD") or "USD"
+                ref = getattr(pending_topup, "reference_code", None) or f"#{pending_topup.id}"
+                if currency == "PHP":
+                    amount_str = f"₱{pending_topup.amount_usdt:,.2f} PHP"
+                    credit_msg = "your PHP wallet"
+                else:
+                    amount_str = f"${pending_topup.amount_usdt:.2f} USDT"
+                    credit_msg = "your USD wallet"
                 await tg.send_message(
                     chat_id,
                     f"✅ <b>Receipt received!</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"💵 Amount: <b>${pending_topup.amount_usdt:.2f} USDT</b>\n"
-                    f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
-                    f"⏳ Your topup is now under review by the admin.\n"
-                    f"You will be notified once approved and your USD wallet is credited.",
+                    f"💰 Amount: <b>{amount_str}</b>\n"
+                    f"🆔 Reference: <code>{ref}</code>\n"
+                    f"📋 Request ID: <code>#{pending_topup.id}</code>\n\n"
+                    f"⏳ Your top-up is now under review by the admin.\n"
+                    f"You will be notified once approved and {credit_msg} is credited.",
                 )
             else:
-                await tg.send_message(chat_id, "ℹ️ No pending topup request found. Use /topup [amount] first.")
+                await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /phptopup [amount] for PHP or /topup [amount] for USDT.")
             return {"status": "ok"}
 
         if not text:
@@ -2432,87 +2441,81 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # ==================== /phptopup ====================
         elif text.startswith("/phptopup"):
             parts = text.split(maxsplit=1)
+            # Bank transfer details
+            _PHP_BANK = "PayMongo Payments, Inc."
+            _PHP_ACCT_NAME = "DRL TECHS. COMPUTER SOFTWARE TRADING"
+            _PHP_ACCT_NUM = "655716460543"
+
             if len(parts) < 2:
                 instructions = (
                     f"💰 <b>Top Up PHP Wallet</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"Generate a payment invoice to credit your PHP wallet.\n\n"
-                    f"✅ <b>Supported payment methods:</b>\n"
-                    f"  💳 Credit / Debit Card\n"
-                    f"  📱 GCash, ShopeePay\n"
-                    f"  🏦 Bank Transfer / Online Banking\n"
-                    f"  🏪 7-Eleven, Cebuana, and more\n\n"
-                    f"▶️ Run:\n"
-                    f"  <b>/phptopup [amount]</b>  — to generate an invoice\n\n"
-                    f"Example: /phptopup 500\n\n"
-                    f"Your PHP wallet will be <b>credited automatically</b> once payment is confirmed."
+                    f"Transfer any amount via <b>InstaPay</b> or <b>PESONet</b> to:\n\n"
+                    f"🏦 <b>Bank:</b> {_PHP_BANK}\n"
+                    f"👤 <b>Account Name:</b> {_PHP_ACCT_NAME}\n"
+                    f"🔢 <b>Account Number:</b> <code>{_PHP_ACCT_NUM}</code>\n\n"
+                    f"▶️ To request a top-up:\n"
+                    f"  <b>/phptopup [amount]</b>\n\n"
+                    f"Example: <code>/phptopup 500</code>\n\n"
+                    f"After sending, a reference code will be shown.\n"
+                    f"Upload your <b>payment receipt</b> as a photo to this chat — admin will verify and credit your wallet."
                 )
-                await tg.send_message(chat_id, instructions)
+                await tg.send_message(chat_id, instructions, reply_markup=_wallet_kb())
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                    elif amount < 50:
+                        await tg.send_message(chat_id, "❌ Minimum top-up is ₱50.00.")
                     else:
-                        xendit = XenditService()
-                        description = "PHP Wallet Top Up"
-                        result = await xendit.create_invoice(
-                            amount=amount,
-                            description=description,
-                        )
-                        if result.get("success"):
-                            invoice_url = result.get("invoice_url", "")
-                            ext_id = result.get("external_id", "")
-                            reply = (
-                                f"✅ <b>PHP Wallet Top Up Invoice Created!</b>\n"
-                                f"━━━━━━━━━━━━━━━━━━━━\n"
-                                f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
-                                f"📝 {description}\n"
-                                f"🆔 <code>{ext_id}</code>\n\n"
-                                f"Tap the button below to pay 👇\n\n"
-                                f"✨ Your PHP wallet will be <b>credited automatically</b> once payment is confirmed."
+                        import random, string
+                        ref_code = "PHP-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
+                        try:
+                            now = datetime.now()
+                            topup_req = TopupRequest(
+                                chat_id=str(chat_id),
+                                telegram_username=username or "",
+                                amount_usdt=amount,
+                                currency="PHP",
+                                reference_code=ref_code,
+                                status="pending",
+                                created_at=now,
+                                updated_at=now,
                             )
-                            keyboard = {
-                                "inline_keyboard": [[{"text": "💳 Pay Now", "url": invoice_url}]]
-                            } if invoice_url else None
-                            await tg.send_message(chat_id, reply, reply_markup=keyboard)
-                            await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
+                            db.add(topup_req)
+                            await db.commit()
+                            await db.refresh(topup_req)
+                            req_id = topup_req.id
+                        except Exception as e:
+                            logger.error(f"DB save failed for /phptopup: {e}", exc_info=True)
                             try:
-                                now = datetime.now()
-                                txn = Transactions(
-                                    user_id=tg_user_id,
-                                    transaction_type="top_up",
-                                    external_id=ext_id,
-                                    xendit_id=result.get("invoice_id", ""),
-                                    amount=amount,
-                                    currency="PHP",
-                                    status="pending",
-                                    description=description,
-                                    payment_url=invoice_url,
-                                    telegram_chat_id=chat_id,
-                                    created_at=now,
-                                    updated_at=now,
-                                )
-                                db.add(txn)
-                                await db.commit()
-                            except Exception as e:
-                                logger.error(f"DB save failed for /phptopup: {e}", exc_info=True)
-                                try:
-                                    await db.rollback()
-                                except Exception:
-                                    pass
-                                await tg.send_message(
-                                    chat_id,
-                                    "⚠️ Invoice created but could not be saved to records. "
-                                    "Your payment link above is still valid — complete payment and contact support if your wallet is not credited."
-                                )
-                        else:
-                            await tg.send_message(chat_id, f"❌ Failed to create invoice: {result.get('error', 'Unknown error')}")
+                                await db.rollback()
+                            except Exception:
+                                pass
+                            await tg.send_message(chat_id, "❌ Failed to create top-up request. Please try again.")
+                            await _safe_log(db, chat_id, username, text)
+                            return {"status": "ok"}
+
+                        reply = (
+                            f"✅ <b>PHP Wallet Top-Up Request Created!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"🆔 Reference: <code>{ref_code}</code>\n"
+                            f"📋 Request ID: <b>#{req_id}</b>\n\n"
+                            f"<b>Transfer to:</b>\n"
+                            f"🏦 Bank: {_PHP_BANK}\n"
+                            f"👤 Account: {_PHP_ACCT_NAME}\n"
+                            f"🔢 Number: <code>{_PHP_ACCT_NUM}</code>\n\n"
+                            f"📸 <b>After transferring</b>, send a photo of your receipt to this chat.\n"
+                            f"⏳ Admin will verify and credit ₱{amount:,.2f} to your wallet within a few minutes."
+                        )
+                        await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount. Example: /phptopup 500")
                 except Exception as e:
-                    logger.error(f"PHP topup create error: {e}", exc_info=True)
-                    await tg.send_message(chat_id, "❌ Failed to create PHP topup invoice. Please try again.")
+                    logger.error(f"PHP topup error: {e}", exc_info=True)
+                    await tg.send_message(chat_id, "❌ Failed to create top-up request. Please try again.")
 
         # ==================== /topup ====================
         elif text.startswith("/topup"):
