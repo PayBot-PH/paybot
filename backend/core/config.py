@@ -64,6 +64,10 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     xendit_secret_key: str = ""
 
+    # PayMongo API
+    paymongo_secret_key: str = ""
+    paymongo_public_key: str = ""
+
     # Simple admin authentication
     admin_user_id: str = "admin"
     admin_user_email: str = "admin@paybot.local"
