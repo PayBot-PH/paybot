@@ -627,8 +627,8 @@ export default function BotSettings() {
                       <SelectItem value="invoice" className="text-blue-400">Invoice</SelectItem>
                       <SelectItem value="qr_code" className="text-purple-400">QR Code</SelectItem>
                       <SelectItem value="payment_link" className="text-cyan-400">Payment Link</SelectItem>
-                      <SelectItem value="alipay_qr" className="text-red-400">Alipay QR (PayMongo)</SelectItem>
-                      <SelectItem value="wechat_qr" className="text-green-400">WeChat QR (PayMongo)</SelectItem>
+                      <SelectItem value="alipay_qr" className="text-red-400">Alipay QR</SelectItem>
+                      <SelectItem value="wechat_qr" className="text-green-400">WeChat QR</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -696,18 +696,18 @@ export default function BotSettings() {
             </CardContent>
           </Card>
 
-          {/* PayMongo Webhook Setup */}
+          {/* Payment Gateway Webhook Setup */}
           <Card className="bg-[#1E293B] border-slate-700/50 md:col-span-2">
             <CardHeader>
               <CardTitle className="text-white flex items-center space-x-2">
                 <Webhook className="h-5 w-5 text-red-400" />
-                <span>PayMongo Webhook</span>
+                <span>Payment Webhook</span>
                 <span className="ml-auto text-xs font-normal bg-red-900/30 text-red-300 border border-red-800/50 px-2 py-0.5 rounded-full">Alipay & WeChat Pay</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-sm text-slate-400">
-                Register this webhook URL in your <a href="https://dashboard.paymongo.com" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">PayMongo dashboard</a> (Developers → Webhooks) to auto-credit wallets on Alipay & WeChat Pay.
+                Register this webhook URL in your payment gateway dashboard (Developers → Webhooks) to auto-credit wallets on Alipay & WeChat Pay.
               </p>
               <div className="bg-slate-800/60 rounded-lg p-3 space-y-1">
                 <p className="text-xs text-slate-400">Webhook URL</p>
@@ -717,7 +717,7 @@ export default function BotSettings() {
                 <p className="text-xs text-slate-400">Required event</p>
                 <p className="text-xs font-mono text-emerald-400">source.chargeable</p>
               </div>
-              <p className="text-xs text-slate-500">Make sure <code className="bg-slate-800 px-1 rounded">PAYMONGO_SECRET_KEY</code> is set in your environment variables.</p>
+              <p className="text-xs text-slate-500">Make sure the payment gateway secret key is set in your environment variables.</p>
             </CardContent>
           </Card>
 

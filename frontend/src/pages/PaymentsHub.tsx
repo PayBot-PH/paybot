@@ -120,12 +120,6 @@ export default function PaymentsHub() {
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
                   Create {tab.replace(/_/g, ' ').replace('alipay', 'Alipay').replace('wechat', 'WeChat')}
-                  {tab === 'alipay' && (
-                    <span className="text-xs font-normal bg-red-900/40 text-red-300 border border-red-800/50 px-2 py-0.5 rounded-full">via PayMongo</span>
-                  )}
-                  {tab === 'wechat' && (
-                    <span className="text-xs font-normal bg-green-900/40 text-green-300 border border-green-800/50 px-2 py-0.5 rounded-full">via PayMongo</span>
-                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
