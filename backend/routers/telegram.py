@@ -39,8 +39,8 @@ router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
 USDT_TRC20_ADDRESS = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
 
 # Transaction types that credit / debit the USD wallet (keep in sync with wallet.py)
-_USD_CREDIT_TYPES = ("crypto_topup",)
-_USD_DEBIT_TYPES = ("usdt_send",)
+_USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
+_USD_DEBIT_TYPES = ("usdt_send", "usd_send", "admin_debit")
 
 # Minimum PHP/Xendit balance required to allow a USDT withdrawal request
 _PHP_MIN_WITHDRAWAL_BALANCE = 100_000.0
@@ -663,7 +663,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "💵 <b>USD Wallet (USDT TRC20)</b>\n"
                 "  /usdbalance — USD balance &amp; history\n"
                 "  /topup [amt] — Top up via USDT\n"
-                "  /sendusdt [amt] [address] — Send USDT\n\n"
+                "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
+                "  /sendusd [amt] [@username] — Send USD to another user\n\n"
                 "📊 <b>Reports &amp; Tools</b>\n"
                 "  /status [id] — Payment status\n"
                 "  /list — Recent transactions\n"
@@ -1442,7 +1443,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "\n💵 <b>USD Wallet actions:</b>\n"
                 "  /usdbalance — Full USD details\n"
                 "  /topup [amt] — Top up\n"
-                "  /sendusdt [amt] [address] — Send USDT\n"
+                "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
+                "  /sendusd [amt] [@username] — Send USD to a user\n"
             )
             await tg.send_message(chat_id, reply)
 
@@ -1503,7 +1505,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     reply += f"  {em} {wt.transaction_type} ${wt.amount:,.2f} — {dt}\n"
             reply += (
                 "\n📥 /topup [amt] — Top up\n"
-                "📤 /sendusdt [amt] [address] — Send USDT"
+                "📤 /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
+                "💸 /sendusd [amt] [@username] — Send USD to a user"
             )
             await tg.send_message(chat_id, reply)
 
@@ -1600,6 +1603,178 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     except Exception:
                         pass
                     await tg.send_message(chat_id, "❌ Failed to submit request. Please try again.")
+
+        # ==================== /sendusd (send USD to user by @username) ====================
+        elif text.startswith("/sendusd"):
+            parts = text.split(maxsplit=2)
+            if len(parts) < 3:
+                await tg.send_message(
+                    chat_id,
+                    "❌ Usage: /sendusd [amount] [@username]\n"
+                    "Example: /sendusd 50 @johndoe\n\n"
+                    "💡 Sends USD from your wallet to another user."
+                )
+            else:
+                try:
+                    amount = float(parts[1])
+                    recipient_username = parts[2].strip().lstrip("@")
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+                    if not recipient_username:
+                        await tg.send_message(chat_id, "❌ Recipient username is required.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+
+                    # Look up recipient in AdminUser table by telegram_username
+                    try:
+                        rec_res = await db.execute(
+                            select(AdminUser).where(
+                                AdminUser.telegram_username == recipient_username,
+                                AdminUser.is_active.is_(True),
+                            )
+                        )
+                        recipient_admin = rec_res.scalar_one_or_none()
+                    except Exception as e:
+                        logger.error("DB lookup failed for /sendusd: %s", e)
+                        await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
+                        return {"status": "ok"}
+
+                    if not recipient_admin:
+                        await tg.send_message(
+                            chat_id,
+                            f"❌ User @{recipient_username} not found or not active.\n"
+                            "Please check the username and try again."
+                        )
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+
+                    recipient_tg_user_id = f"tg-{recipient_admin.telegram_id}"
+                    if tg_user_id == recipient_tg_user_id:
+                        await tg.send_message(chat_id, "❌ You cannot send USD to yourself.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+
+                    # Check sender's USD wallet balance
+                    try:
+                        sender_balance = await _compute_usd_balance_for_wallet(db, tg_user_id)
+                    except Exception as e:
+                        logger.error("Balance check failed for /sendusd: %s", e)
+                        await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
+                        return {"status": "ok"}
+
+                    if sender_balance < amount:
+                        await tg.send_message(
+                            chat_id,
+                            f"❌ Insufficient USD balance.\n"
+                            f"💵 Available: <b>${sender_balance:,.2f}</b>\n"
+                            f"📥 Top up with /topup [amount]"
+                        )
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+
+                    # Get/create wallets and perform transfer
+                    try:
+                        sender_res = await db.execute(
+                            select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "USD")
+                        )
+                        sender_wallet = sender_res.scalar_one_or_none()
+                        if not sender_wallet:
+                            now_w = datetime.now()
+                            sender_wallet = Wallets(user_id=tg_user_id, balance=0.0, currency="USD", created_at=now_w, updated_at=now_w)
+                            db.add(sender_wallet)
+                            await db.commit()
+                            await db.refresh(sender_wallet)
+
+                        rec_wallet_res = await db.execute(
+                            select(Wallets).where(Wallets.user_id == recipient_tg_user_id, Wallets.currency == "USD")
+                        )
+                        recipient_wallet = rec_wallet_res.scalar_one_or_none()
+                        if not recipient_wallet:
+                            now_w = datetime.now()
+                            recipient_wallet = Wallets(user_id=recipient_tg_user_id, balance=0.0, currency="USD", created_at=now_w, updated_at=now_w)
+                            db.add(recipient_wallet)
+                            await db.commit()
+                            await db.refresh(recipient_wallet)
+
+                        now = datetime.now()
+                        sender_bal_before = sender_wallet.balance
+                        sender_wallet.balance = max(0.0, sender_wallet.balance - amount)
+                        sender_wallet.updated_at = now
+
+                        rec_bal_before = recipient_wallet.balance
+                        recipient_wallet.balance += amount
+                        recipient_wallet.updated_at = now
+
+                        sender_note = f"@{username}" if username and username != "unknown" else f"chat {chat_id}"
+                        debit_txn = Wallet_transactions(
+                            user_id=tg_user_id,
+                            wallet_id=sender_wallet.id,
+                            transaction_type="usd_send",
+                            amount=amount,
+                            balance_before=sender_bal_before,
+                            balance_after=sender_wallet.balance,
+                            recipient=f"@{recipient_username}",
+                            note=f"Sent to @{recipient_username} via Telegram by {sender_note}",
+                            status="completed",
+                            reference_id=f"tg-usd-send-{sender_wallet.id}-{int(now.timestamp())}",
+                            created_at=now,
+                        )
+                        credit_txn = Wallet_transactions(
+                            user_id=recipient_tg_user_id,
+                            wallet_id=recipient_wallet.id,
+                            transaction_type="usd_receive",
+                            amount=amount,
+                            balance_before=rec_bal_before,
+                            balance_after=recipient_wallet.balance,
+                            recipient=f"@{recipient_username}",
+                            note=f"Received from {sender_note}",
+                            status="completed",
+                            reference_id=f"tg-usd-recv-{recipient_wallet.id}-{int(now.timestamp())}",
+                            created_at=now,
+                        )
+                        db.add(debit_txn)
+                        db.add(credit_txn)
+                        await db.commit()
+
+                        payment_event_bus.publish({
+                            "event_type": "wallet_update", "user_id": tg_user_id,
+                            "wallet_id": sender_wallet.id, "balance": sender_wallet.balance,
+                            "transaction_type": "usd_send", "amount": amount,
+                            "transaction_id": debit_txn.id,
+                        })
+
+                    except Exception as e:
+                        logger.error("DB transfer failed for /sendusd: %s", e, exc_info=True)
+                        try:
+                            await db.rollback()
+                        except Exception:
+                            pass
+                        await tg.send_message(chat_id, "❌ Transfer failed. Please try again.")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+
+                    await tg.send_message(
+                        chat_id,
+                        f"✅ <b>USD Sent!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"💵 Amount: <b>${amount:,.2f} USD</b>\n"
+                        f"👤 To: <b>@{recipient_username}</b>\n"
+                        f"💰 New Balance: <b>${sender_wallet.balance:,.2f}</b>"
+                    )
+                    # Notify recipient
+                    await tg.send_message(
+                        recipient_admin.telegram_id,
+                        f"💵 <b>USD Received!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"💰 Amount: <b>${amount:,.2f} USD</b>\n"
+                        f"👤 From: <b>{sender_note}</b>\n"
+                        f"💰 New Balance: <b>${recipient_wallet.balance:,.2f}</b>"
+                    )
+                    logger.info("USD transfer via bot: sender=%s recipient=@%s amount=%s", tg_user_id, recipient_username, amount)
+                except ValueError:
+                    await tg.send_message(chat_id, "❌ Invalid amount. Example: /sendusd 50 @johndoe")
 
         # ==================== /send ====================
         elif text.startswith("/send"):
@@ -1973,7 +2148,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "💵 <b>USD Wallet (USDT TRC20):</b>\n"
                 "  /usdbalance — USD balance & history\n"
                 "  /topup [amt] — Top up USD wallet via USDT\n"
-                "  /sendusdt [amt] [address] — Send USDT\n\n"
+                "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
+                "  /sendusd [amt] [@username] — Send USD to another user\n\n"
                 "📊 <b>Tools:</b>\n"
                 "  /status [id] — Details (or list recent)\n"
                 "  /list — Last 5 transactions\n"

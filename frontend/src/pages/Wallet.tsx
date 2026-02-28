@@ -120,6 +120,30 @@ const txnTypeConfig: Record<string, { label: string; color: string; icon: React.
     icon: <Send className="h-4 w-4 text-red-400" />,
     sign: '-',
   },
+  usd_send: {
+    label: 'Sent USD',
+    color: 'text-red-400',
+    icon: <Send className="h-4 w-4 text-red-400" />,
+    sign: '-',
+  },
+  usd_receive: {
+    label: 'Received USD',
+    color: 'text-emerald-400',
+    icon: <ArrowDownToLine className="h-4 w-4 text-emerald-400" />,
+    sign: '+',
+  },
+  admin_credit: {
+    label: 'Admin Credit',
+    color: 'text-blue-400',
+    icon: <ArrowDownLeft className="h-4 w-4 text-blue-400" />,
+    sign: '+',
+  },
+  admin_debit: {
+    label: 'Admin Debit',
+    color: 'text-orange-400',
+    icon: <ArrowUpFromLine className="h-4 w-4 text-orange-400" />,
+    sign: '-',
+  },
 };
 
 const BANKS = ['BDO', 'BPI', 'UNIONBANK', 'RCBC', 'CHINABANK', 'PNB', 'METROBANK'];
@@ -177,6 +201,12 @@ export default function Wallet() {
   const [sendUsdtNote, setSendUsdtNote] = useState('');
   const [sendUsdtLoading, setSendUsdtLoading] = useState(false);
   const [sendUsdtRequests, setSendUsdtRequests] = useState<UsdtSendRequest[]>([]);
+
+  // Send USD to user state
+  const [sendUsdUsername, setSendUsdUsername] = useState('');
+  const [sendUsdAmount, setSendUsdAmount] = useState('');
+  const [sendUsdNote, setSendUsdNote] = useState('');
+  const [sendUsdLoading, setSendUsdLoading] = useState(false);
 
   const fetchWalletData = useCallback(async () => {
     if (!user) return;
@@ -395,6 +425,34 @@ export default function Wallet() {
     } finally { setSendUsdtLoading(false); }
   };
 
+  const handleSendUsd = async () => {
+    const amount = parseFloat(sendUsdAmount);
+    if (!amount || amount <= 0) { toast.error('Enter a valid USD amount'); return; }
+    const uname = sendUsdUsername.trim().replace(/^@/, '');
+    if (!uname) { toast.error('Enter the recipient Telegram username'); return; }
+    setSendUsdLoading(true);
+    try {
+      const res = await fetch('/api/v1/wallet/send-usd', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ recipient_username: uname, amount, note: sendUsdNote }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(data.message || `Sent $${amount.toFixed(2)} USD to @${uname}`);
+        setSendUsdUsername('');
+        setSendUsdAmount('');
+        setSendUsdNote('');
+        await fetchWalletData();
+      } else {
+        toast.error(data.detail || data.message || 'Failed to send USD');
+      }
+    } catch {
+      toast.error('Network error. Please try again.');
+    } finally { setSendUsdLoading(false); }
+  };
+
   const handleCopyAddress = () => {
     if (cryptoDepositInfo?.address) {
       navigator.clipboard.writeText(cryptoDepositInfo.address).then(() => {
@@ -517,10 +575,17 @@ export default function Wallet() {
                   <span>Top Up</span>
                 </TabsTrigger>
                 <TabsTrigger
+                  value="send-usd"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                >
+                  <Send className="h-4 w-4 shrink-0" />
+                  <span>Send USD</span>
+                </TabsTrigger>
+                <TabsTrigger
                   value="send-usdt"
                   className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-teal-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
-                  <Send className="h-4 w-4 shrink-0" />
+                  <Bitcoin className="h-4 w-4 shrink-0" />
                   <span>Send USDT</span>
                 </TabsTrigger>
               </TabsList>
@@ -839,6 +904,69 @@ export default function Wallet() {
                     )}
                   </div>
                 )}
+              </TabsContent>
+
+              {/* Send USD Tab */}
+              <TabsContent value="send-usd" className="p-4 sm:p-6 mt-0 space-y-5">
+                {/* USD balance reminder */}
+                <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Send className="h-4 w-4 text-emerald-400 shrink-0" />
+                    <span className="text-emerald-300 text-sm font-medium">USD Wallet Balance</span>
+                  </div>
+                  <span className="text-white font-bold text-sm">${usdBal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-slate-300 text-sm">Recipient Telegram Username</Label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">@</span>
+                      <Input
+                        placeholder="username"
+                        value={sendUsdUsername}
+                        onChange={e => setSendUsdUsername(e.target.value.replace(/^@/, ''))}
+                        className="pl-7 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                      />
+                    </div>
+                    <p className="text-slate-500 text-xs mt-1">Enter the Telegram username of the recipient (without @)</p>
+                  </div>
+                  <div>
+                    <Label className="text-slate-300 text-sm">Amount (USD)</Label>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={sendUsdAmount}
+                      onChange={e => setSendUsdAmount(e.target.value)}
+                      min="0.01"
+                      step="0.01"
+                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-slate-300 text-sm">Note (optional)</Label>
+                    <Input
+                      placeholder="Payment for..."
+                      value={sendUsdNote}
+                      onChange={e => setSendUsdNote(e.target.value)}
+                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400">
+                  Funds are transferred instantly from your USD wallet to the recipient's USD wallet. The recipient must be a registered user.
+                </div>
+
+                <Button
+                  onClick={handleSendUsd}
+                  disabled={sendUsdLoading}
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                  {sendUsdLoading
+                    ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</>
+                    : <><Send className="h-4 w-4 mr-2" />Send USD</>}
+                </Button>
               </TabsContent>
 
               {/* Send USDT Tab */}

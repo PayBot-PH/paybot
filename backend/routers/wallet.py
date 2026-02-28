@@ -16,6 +16,7 @@ from models.wallet_transactions import Wallet_transactions
 from models.transactions import Transactions
 from models.crypto_topup import CryptoTopupRequest
 from models.usdt_send_requests import UsdtSendRequest
+from models.admin_users import AdminUser
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
 from services.xendit_service import XenditService
@@ -28,8 +29,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/wallet", tags=["wallet"])
 
 # Transaction types that credit / debit the USD wallet
-_USD_CREDIT_TYPES = ("crypto_topup",)
-_USD_DEBIT_TYPES = ("usdt_send",)
+_USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
+_USD_DEBIT_TYPES = ("usdt_send", "usd_send", "admin_debit")
 
 # Minimum PHP/Xendit balance required to allow a USDT withdrawal request
 _PHP_MIN_WITHDRAWAL_BALANCE = 100_000.0
@@ -107,6 +108,31 @@ class WalletActionResponse(BaseModel):
     message: str
     balance: float = 0
     transaction_id: int = 0
+
+
+class SendUsdToUserRequest(BaseModel):
+    recipient_username: str
+    amount: float
+    note: str = ""
+
+
+class AdminUsdWalletEntry(BaseModel):
+    user_id: str
+    telegram_username: Optional[str] = None
+    balance: float
+    wallet_id: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminUsdWalletListResponse(BaseModel):
+    items: List[AdminUsdWalletEntry]
+    total: int
+
+
+class AdminWalletAdjustRequest(BaseModel):
+    amount: float
+    note: str = ""
 
 
 # ---------- Helpers ----------
@@ -877,3 +903,194 @@ async def reject_crypto_topup(
     logger.info("Crypto topup rejected: request=%s user=%s", request_id, req.user_id)
 
     return CryptoTopupActionResponse(success=True, message="Request rejected.")
+
+
+# ---------- User-to-User USD Transfer ----------
+
+@router.post("/send-usd", response_model=WalletActionResponse, status_code=201)
+async def send_usd_to_user(
+    data: SendUsdToUserRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send USD from the current user's wallet to another user by Telegram username."""
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    recipient_username = data.recipient_username.strip().lstrip("@")
+    if not recipient_username:
+        raise HTTPException(status_code=400, detail="Recipient username is required")
+
+    # Look up recipient in AdminUser table by telegram_username
+    res = await db.execute(
+        select(AdminUser).where(AdminUser.telegram_username == recipient_username, AdminUser.is_active.is_(True))
+    )
+    recipient_admin = res.scalar_one_or_none()
+    if not recipient_admin:
+        raise HTTPException(status_code=404, detail=f"User @{recipient_username} not found or not active")
+
+    sender_user_id = str(current_user.id)
+    sender_tg_user_id = _tg_user_id(sender_user_id)
+    recipient_tg_user_id = f"tg-{recipient_admin.telegram_id}"
+
+    if sender_tg_user_id == recipient_tg_user_id:
+        raise HTTPException(status_code=400, detail="Cannot send USD to yourself")
+
+    # Get sender's USD wallet balance (computed from transaction history)
+    sender_balance = await _compute_usd_balance(db, sender_tg_user_id)
+    if sender_balance < data.amount:
+        raise HTTPException(status_code=400, detail=f"Insufficient USD balance (${sender_balance:,.2f})")
+
+    sender_wallet = await get_or_create_wallet(db, sender_tg_user_id, "USD")
+    recipient_wallet = await get_or_create_wallet(db, recipient_tg_user_id, "USD")
+
+    now = datetime.now()
+    sender_display = current_user.id
+
+    # Debit sender
+    sender_balance_before = sender_wallet.balance
+    sender_wallet.balance = max(0.0, sender_wallet.balance - data.amount)
+    sender_wallet.updated_at = now
+    debit_txn = Wallet_transactions(
+        user_id=sender_tg_user_id,
+        wallet_id=sender_wallet.id,
+        transaction_type="usd_send",
+        amount=data.amount,
+        balance_before=sender_balance_before,
+        balance_after=sender_wallet.balance,
+        recipient=f"@{recipient_username}",
+        note=data.note or f"Sent to @{recipient_username}",
+        status="completed",
+        reference_id=f"usd-send-{sender_wallet.id}-{int(now.timestamp())}",
+        created_at=now,
+    )
+    db.add(debit_txn)
+
+    # Credit recipient
+    recipient_balance_before = recipient_wallet.balance
+    recipient_wallet.balance += data.amount
+    recipient_wallet.updated_at = now
+    credit_txn = Wallet_transactions(
+        user_id=recipient_tg_user_id,
+        wallet_id=recipient_wallet.id,
+        transaction_type="usd_receive",
+        amount=data.amount,
+        balance_before=recipient_balance_before,
+        balance_after=recipient_wallet.balance,
+        recipient=f"@{recipient_username}",
+        note=data.note or f"Received from {sender_display}",
+        status="completed",
+        reference_id=f"usd-recv-{recipient_wallet.id}-{int(now.timestamp())}",
+        created_at=now,
+    )
+    db.add(credit_txn)
+
+    await db.commit()
+    await db.refresh(debit_txn)
+
+    publish_wallet_event(sender_tg_user_id, sender_wallet, "usd_send", data.amount, debit_txn.id)
+    logger.info("USD transfer: sender=%s recipient=@%s amount=%s", sender_tg_user_id, recipient_username, data.amount)
+
+    return WalletActionResponse(
+        success=True,
+        message=f"Successfully sent ${data.amount:,.2f} USD to @{recipient_username}",
+        balance=sender_wallet.balance,
+        transaction_id=debit_txn.id,
+    )
+
+
+# ---------- Super Admin: USD Wallet Management ----------
+
+@router.get("/admin/usd-wallets", response_model=AdminUsdWalletListResponse)
+async def admin_list_usd_wallets(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all users' USD wallets. Super admin only."""
+    perms = current_user.permissions
+    if not perms or not perms.is_super_admin:
+        raise HTTPException(status_code=403, detail="Super admin access required.")
+
+    # Get all USD wallets
+    result = await db.execute(
+        select(Wallets).where(Wallets.currency == "USD").order_by(Wallets.id)
+    )
+    wallets = result.scalars().all()
+
+    # Build response enriched with telegram_username from AdminUser table
+    items: List[AdminUsdWalletEntry] = []
+    for w in wallets:
+        # The wallet user_id is "tg-{telegram_id}" — strip the prefix for lookup
+        tg_id = w.user_id[3:] if w.user_id.startswith("tg-") else w.user_id
+        admin_res = await db.execute(
+            select(AdminUser).where(AdminUser.telegram_id == tg_id)
+        )
+        admin = admin_res.scalar_one_or_none()
+        # Recompute live balance
+        computed = await _compute_usd_balance(db, w.user_id)
+        items.append(AdminUsdWalletEntry(
+            user_id=w.user_id,
+            telegram_username=admin.telegram_username if admin else None,
+            balance=computed,
+            wallet_id=w.id,
+        ))
+
+    return AdminUsdWalletListResponse(items=items, total=len(items))
+
+
+@router.post("/admin/usd-wallets/{wallet_user_id:path}/adjust", response_model=WalletActionResponse)
+async def admin_adjust_usd_wallet(
+    wallet_user_id: str,
+    data: AdminWalletAdjustRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Credit (positive amount) or debit (negative amount) a user's USD wallet. Super admin only."""
+    perms = current_user.permissions
+    if not perms or not perms.is_super_admin:
+        raise HTTPException(status_code=403, detail="Super admin access required.")
+
+    if data.amount == 0:
+        raise HTTPException(status_code=400, detail="Amount must be non-zero")
+
+    wallet = await get_or_create_wallet(db, wallet_user_id, "USD")
+    now = datetime.now()
+    balance_before = wallet.balance
+    txn_type = "admin_credit" if data.amount > 0 else "admin_debit"
+    adj_amount = abs(data.amount)
+
+    if data.amount < 0 and wallet.balance < adj_amount:
+        raise HTTPException(status_code=400, detail=f"Insufficient balance (${wallet.balance:,.2f})")
+
+    wallet.balance = max(0.0, wallet.balance + data.amount)
+    wallet.updated_at = now
+
+    txn = Wallet_transactions(
+        user_id=wallet_user_id,
+        wallet_id=wallet.id,
+        transaction_type=txn_type,
+        amount=adj_amount,
+        balance_before=balance_before,
+        balance_after=wallet.balance,
+        note=data.note or f"Admin {'credit' if data.amount > 0 else 'debit'} by {current_user.id}",
+        status="completed",
+        reference_id=f"admin-adj-{wallet.id}-{int(now.timestamp())}",
+        created_at=now,
+    )
+    db.add(txn)
+    await db.commit()
+    await db.refresh(txn)
+
+    publish_wallet_event(wallet_user_id, wallet, txn_type, adj_amount, txn.id)
+    logger.info(
+        "Admin wallet adjust: admin=%s target=%s amount=%s new_balance=%s",
+        current_user.id, wallet_user_id, data.amount, wallet.balance,
+    )
+
+    action = "credited" if data.amount > 0 else "debited"
+    return WalletActionResponse(
+        success=True,
+        message=f"Successfully {action} ${adj_amount:,.2f} USD for {wallet_user_id}",
+        balance=wallet.balance,
+        transaction_id=txn.id,
+    )

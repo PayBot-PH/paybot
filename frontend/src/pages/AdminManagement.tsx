@@ -26,6 +26,8 @@ import {
   CheckCircle,
   XCircle,
   WrenchIcon,
+  Wallet as WalletIcon,
+  DollarSign,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -896,12 +898,160 @@ function CryptoRequestsTab({
   );
 }
 
+// ── USD Wallets Tab (Super Admin Only) ───────────────────────────────────────
+
+interface UsdWalletEntry {
+  user_id: string;
+  telegram_username: string | null;
+  balance: number;
+  wallet_id: number;
+}
+
+function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
+  const [wallets, setWallets] = useState<UsdWalletEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adjusting, setAdjusting] = useState<string | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState<Record<string, string>>({});
+  const [adjustNote, setAdjustNote] = useState<Record<string, string>>({});
+
+  const fetchWallets = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/v1/wallet/admin/usd-wallets');
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setWallets(data.items || []);
+    } catch (e: unknown) {
+      onError(e instanceof Error ? e.message : 'Failed to load USD wallets');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchWallets(); }, []);
+
+  const handleAdjust = async (userId: string, isCredit: boolean) => {
+    const rawAmt = parseFloat(adjustAmount[userId] || '0');
+    if (!rawAmt || rawAmt <= 0) { onError('Enter a valid positive amount'); return; }
+    const amount = isCredit ? rawAmt : -rawAmt;
+    setAdjusting(userId);
+    try {
+      const encoded = encodeURIComponent(userId);
+      const res = await fetch(`/api/v1/wallet/admin/usd-wallets/${encoded}/adjust`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, note: adjustNote[userId] || '' }),
+      });
+      const data = await res.json();
+      if (!res.ok) { onError(data.detail || 'Adjustment failed'); return; }
+      setAdjustAmount(prev => ({ ...prev, [userId]: '' }));
+      setAdjustNote(prev => ({ ...prev, [userId]: '' }));
+      await fetchWallets();
+    } catch (e: unknown) {
+      onError(e instanceof Error ? e.message : 'Adjustment failed');
+    } finally {
+      setAdjusting(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (wallets.length === 0) {
+    return (
+      <Card className="bg-[#1E293B] border-slate-700/50">
+        <CardContent className="flex flex-col items-center justify-center py-14 text-center">
+          <div className="h-14 w-14 rounded-2xl bg-slate-700/40 flex items-center justify-center mb-3">
+            <WalletIcon className="h-7 w-7 text-slate-500" />
+          </div>
+          <p className="text-white font-semibold text-sm">No USD wallets yet</p>
+          <p className="text-slate-500 text-xs mt-1">USD wallets are created when users top up their balance.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-slate-400 text-xs">
+        {wallets.length} USD wallet{wallets.length !== 1 ? 's' : ''} — use Credit/Debit to adjust balances
+      </p>
+      {wallets.map(w => (
+        <Card key={w.wallet_id} className="bg-[#1E293B] border-slate-700/50">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-xl bg-teal-500/15 border border-teal-500/25 flex items-center justify-center shrink-0">
+                  <DollarSign className="h-4 w-4 text-teal-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-white font-semibold text-sm truncate">
+                    {w.telegram_username ? `@${w.telegram_username}` : w.user_id}
+                  </p>
+                  <p className="text-slate-500 text-xs">{w.user_id}</p>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-teal-400 font-bold text-lg">${w.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                <p className="text-slate-500 text-[10px]">USD</p>
+              </div>
+            </div>
+
+            {/* Adjust form */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                placeholder="Amount"
+                value={adjustAmount[w.user_id] || ''}
+                onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
+                className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+              />
+              <input
+                type="text"
+                placeholder="Note (optional)"
+                value={adjustNote[w.user_id] || ''}
+                onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
+                className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+              />
+              <Button
+                size="sm"
+                onClick={() => handleAdjust(w.user_id, true)}
+                disabled={adjusting === w.user_id}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3"
+              >
+                {adjusting === w.user_id ? '...' : '+ Credit'}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleAdjust(w.user_id, false)}
+                disabled={adjusting === w.user_id}
+                className="bg-red-700 hover:bg-red-800 text-white text-xs px-3"
+              >
+                {adjusting === w.user_id ? '...' : '− Debit'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminManagement() {
   const { isSuperAdmin, permissions } = useAuth();
   const canApproveTopups = isSuperAdmin || !!permissions?.can_approve_topups;
-  const [activeTab, setActiveTab] = useState<'admins' | 'users' | 'roles' | 'crypto'>('admins');
+  const [activeTab, setActiveTab] = useState<'admins' | 'users' | 'roles' | 'crypto' | 'usd-wallets'>('admins');
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -1050,6 +1200,11 @@ export default function AdminManagement() {
       id: 'crypto',
       label: 'Crypto Requests',
       icon: <Bitcoin className="h-3.5 w-3.5" />,
+    }] : []),
+    ...(isSuperAdmin ? [{
+      id: 'usd-wallets',
+      label: 'USD Wallets',
+      icon: <WalletIcon className="h-3.5 w-3.5" />,
     }] : []),
   ];
 
@@ -1325,6 +1480,11 @@ export default function AdminManagement() {
         {/* ── Crypto Requests Tab ── */}
         {activeTab === 'crypto' && canApproveTopups && (
           <CryptoRequestsTab canApproveTopups={canApproveTopups} onError={setError} />
+        )}
+
+        {/* ── USD Wallets Tab ── */}
+        {activeTab === 'usd-wallets' && isSuperAdmin && (
+          <UsdWalletsTab onError={setError} />
         )}
       </div>
     </Layout>

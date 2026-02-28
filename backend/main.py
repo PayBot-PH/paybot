@@ -42,6 +42,7 @@ BOT_COMMANDS = [
     {"command": "subscribe", "description": "Create subscription"},
     {"command": "remind", "description": "Send payment reminder"},
     {"command": "topup", "description": "Top up wallet via USDT TRC20"},
+    {"command": "sendusd", "description": "Send USD to another user by @username"},
 ]
 
 
