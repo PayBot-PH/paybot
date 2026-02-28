@@ -39,6 +39,10 @@ export default function Register() {
       setError('Full name, email, and phone are required.');
       return;
     }
+    if (!form.telegram_username.trim()) {
+      setError('Telegram username is required to link your account after approval.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
@@ -51,7 +55,7 @@ export default function Register() {
           phone: form.phone.trim(),
           address: form.address.trim() || null,
           business_name: form.business_name.trim() || null,
-          telegram_username: form.telegram_username.trim() || null,
+          telegram_username: form.telegram_username.trim(),
         }),
       });
       const data = await res.json();
@@ -85,7 +89,7 @@ export default function Register() {
             <h2 className="text-2xl font-bold text-white mb-2">Application Submitted!</h2>
             <p className="text-slate-400 text-sm leading-relaxed">
               Your KYC registration has been received. An admin will review your application
-              {form.telegram_username ? ' and notify you via Telegram once approved.' : '. You\'ll be contacted at your registered email once approved.'}
+              and notify you via Telegram (<span className="text-emerald-400">@{form.telegram_username}</span>) once approved.
             </p>
           </div>
           <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-4 text-left space-y-2">
@@ -281,7 +285,7 @@ export default function Register() {
 
             {/* Telegram username */}
             <div>
-              <label className="block text-slate-400 text-xs font-medium mb-1.5">Telegram Username</label>
+              <label className="block text-slate-400 text-xs font-medium mb-1.5">Telegram Username <span className="text-red-400">*</span></label>
               <div className="relative">
                 <Send className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                 <input
@@ -289,10 +293,11 @@ export default function Register() {
                   value={form.telegram_username}
                   onChange={(e) => handleChange('telegram_username', e.target.value)}
                   placeholder="@yourusername"
+                  required
                   className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl pl-10 pr-4 py-3 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-blue-500/50 focus:bg-white/[0.06] transition-colors"
                 />
               </div>
-              <p className="text-slate-600 text-[10px] mt-1.5 ml-1">Used to link your Telegram account after approval.</p>
+              <p className="text-slate-600 text-[10px] mt-1.5 ml-1">Required to link and notify your Telegram account after approval.</p>
             </div>
 
             {/* Xendit badge */}

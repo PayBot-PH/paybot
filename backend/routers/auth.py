@@ -621,7 +621,7 @@ class RegisterRequest(BaseModel):
     phone: str
     address: Optional[str] = None
     business_name: Optional[str] = None
-    telegram_username: Optional[str] = None
+    telegram_username: str  # required — used to link the Telegram account after approval
 
     @field_validator("email", mode="before")
     @classmethod
@@ -633,10 +633,11 @@ class RegisterRequest(BaseModel):
 
     @field_validator("telegram_username", mode="before")
     @classmethod
-    def strip_at(cls, v: Optional[str]) -> Optional[str]:
-        if v:
-            return v.lstrip("@").strip() or None
-        return None
+    def strip_at(cls, v: str) -> str:
+        stripped = str(v).lstrip("@").strip()
+        if not stripped:
+            raise ValueError("Telegram username is required")
+        return stripped
 
 
 class RegisterResponse(BaseModel):
