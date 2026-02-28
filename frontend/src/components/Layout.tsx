@@ -21,6 +21,8 @@ import {
   ChevronRight,
   Activity,
   Send,
+  ClipboardList,
+  DollarSign,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -90,6 +92,20 @@ export default function Layout({ children, connected }: LayoutProps) {
                       to: '/usdt-send-requests',
                       icon: Send,
                       label: 'USDT Send Requests',
+                      badge: 'Super',
+                      badgeColor: 'amber',
+                    },
+                    {
+                      to: '/topup-requests',
+                      icon: DollarSign,
+                      label: 'Topup Requests',
+                      badge: 'Super',
+                      badgeColor: 'amber',
+                    },
+                    {
+                      to: '/kyb-registrations',
+                      icon: ClipboardList,
+                      label: 'KYB Registrations',
                       badge: 'Super',
                       badgeColor: 'amber',
                     },
