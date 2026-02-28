@@ -141,13 +141,23 @@ async def _reflect_table(conn, table_name: str) -> Table:
 
 
 def _substitute_owner(raw_data: Any, owner_id: str) -> None:
-    """Replace the placeholder 'admin' user_id in demo records with the real owner_id."""
+    """Replace the placeholder 'admin' user_id in demo records with the real owner_id.
+
+    Also handles the 'tg-admin' prefix used for USD wallet records so those
+    rows are attributed to the real admin's Telegram-prefixed user_id.
+    """
     if isinstance(raw_data, list):
         for item in raw_data:
-            if isinstance(item, dict) and item.get("user_id") == "admin":
-                item["user_id"] = owner_id
-    elif isinstance(raw_data, dict) and raw_data.get("user_id") == "admin":
-        raw_data["user_id"] = owner_id
+            if isinstance(item, dict):
+                if item.get("user_id") == "admin":
+                    item["user_id"] = owner_id
+                elif item.get("user_id") == "tg-admin":
+                    item["user_id"] = f"tg-{owner_id}"
+    elif isinstance(raw_data, dict):
+        if raw_data.get("user_id") == "admin":
+            raw_data["user_id"] = owner_id
+        elif raw_data.get("user_id") == "tg-admin":
+            raw_data["user_id"] = f"tg-{owner_id}"
 
 
 async def _load_table_from_file(data_file: Path, owner_id: str = "admin"):

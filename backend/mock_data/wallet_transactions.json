@@ -110,6 +110,34 @@
     "status": "completed",
     "reference_id": "ew-demo-006",
     "created_at": "2026-02-15T16:12:00+00:00"
+  },
+  {
+    "id": 9,
+    "user_id": "tg-admin",
+    "wallet_id": 2,
+    "transaction_type": "crypto_topup",
+    "amount": 200.00,
+    "balance_before": 0.00,
+    "balance_after": 200.00,
+    "recipient": null,
+    "note": "USDT TRC20 top-up — TX: demo-tx-001",
+    "status": "completed",
+    "reference_id": "crypto-demo-1",
+    "created_at": "2026-02-18T08:00:00+00:00"
+  },
+  {
+    "id": 10,
+    "user_id": "tg-admin",
+    "wallet_id": 2,
+    "transaction_type": "usdt_send",
+    "amount": 50.00,
+    "balance_before": 200.00,
+    "balance_after": 150.00,
+    "recipient": "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx",
+    "note": "USDT sent to TGGtSorA...Bbfx",
+    "status": "completed",
+    "reference_id": "usdt-send-demo-1",
+    "created_at": "2026-02-20T10:00:00+00:00"
   }
 ]
 

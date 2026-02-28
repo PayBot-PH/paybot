@@ -163,22 +163,23 @@ async def get_or_create_wallet(db: AsyncSession, user_id: str, currency: str = "
     return wallet
 
 
-async def _compute_usd_balance(db: AsyncSession, wallet_id: int) -> float:
+async def _compute_usd_balance(db: AsyncSession, user_id: str) -> float:
     """Compute USD wallet balance from completed wallet_transactions (credits minus debits).
 
-    This ensures the stored balance never diverges from the actual transaction
-    history — even if a previous update left the row at 0.
+    Filters by user_id (not wallet_id) so the balance survives wallet row
+    recreation after redeployment — even if the wallet.id changes, the
+    transaction history is still found via the stable user_id.
     """
     credit_res = await db.execute(
         select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
-            Wallet_transactions.wallet_id == wallet_id,
+            Wallet_transactions.user_id == user_id,
             Wallet_transactions.transaction_type.in_(_USD_CREDIT_TYPES),
             Wallet_transactions.status == "completed",
         )
     )
     debit_res = await db.execute(
         select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
-            Wallet_transactions.wallet_id == wallet_id,
+            Wallet_transactions.user_id == user_id,
             Wallet_transactions.transaction_type.in_(_USD_DEBIT_TYPES),
             Wallet_transactions.status == "completed",
         )
@@ -242,8 +243,9 @@ async def get_balance(
         # so the dashboard always reads the same wallet row as the bot.
         tg_user_id = _tg_user_id(user_id)
         wallet = await get_or_create_wallet(db, tg_user_id, "USD")
-        # Recompute from transaction history to prevent stale-zero issues
-        computed = await _compute_usd_balance(db, wallet.id)
+        # Recompute from transaction history (keyed by user_id, not wallet_id)
+        # so the balance is never lost even if the wallet row is recreated.
+        computed = await _compute_usd_balance(db, tg_user_id)
         if computed != wallet.balance:
             wallet.balance = computed
             wallet.updated_at = datetime.now()

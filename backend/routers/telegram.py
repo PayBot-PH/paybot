@@ -63,27 +63,25 @@ def _usdt_static_qr_url() -> str:
 
 async def _get_usd_balance(db: AsyncSession, chat_id: str) -> float:
     """Return USD wallet balance for a Telegram user, computed from transaction history."""
-    result = await db.execute(
-        select(Wallets).where(Wallets.user_id == f"tg-{chat_id}", Wallets.currency == "USD")
-    )
-    wallet = result.scalar_one_or_none()
-    if not wallet:
-        return 0.0
-    return await _compute_usd_balance_for_wallet(db, wallet.id)
+    return await _compute_usd_balance_for_wallet(db, f"tg-{chat_id}")
 
 
-async def _compute_usd_balance_for_wallet(db: AsyncSession, wallet_id: int) -> float:
-    """Compute USD balance from completed wallet_transactions (credits minus debits)."""
+async def _compute_usd_balance_for_wallet(db: AsyncSession, user_id: str) -> float:
+    """Compute USD balance from completed wallet_transactions (credits minus debits).
+
+    Filters by user_id so the balance survives wallet row recreation after
+    redeployment — the stable user_id ensures old transactions are always found.
+    """
     credit_res = await db.execute(
         select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
-            Wallet_transactions.wallet_id == wallet_id,
+            Wallet_transactions.user_id == user_id,
             Wallet_transactions.transaction_type.in_(_USD_CREDIT_TYPES),
             Wallet_transactions.status == "completed",
         )
     )
     debit_res = await db.execute(
         select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
-            Wallet_transactions.wallet_id == wallet_id,
+            Wallet_transactions.user_id == user_id,
             Wallet_transactions.transaction_type.in_(_USD_DEBIT_TYPES),
             Wallet_transactions.status == "completed",
         )
@@ -1404,14 +1402,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "USD")
                 )
                 usd_wallet = usd_res.scalar_one_or_none()
-                if usd_wallet:
-                    usd_balance = await _compute_usd_balance_for_wallet(db, usd_wallet.id)
-                    if usd_balance != usd_wallet.balance:
-                        usd_wallet.balance = usd_balance
-                        usd_wallet.updated_at = datetime.now()
-                        await db.commit()
-                else:
-                    usd_balance = 0.0
+                usd_balance = await _compute_usd_balance_for_wallet(db, tg_user_id)
+                if usd_wallet and usd_balance != usd_wallet.balance:
+                    usd_wallet.balance = usd_balance
+                    usd_wallet.updated_at = datetime.now()
+                    await db.commit()
                 # Fetch last 3 PHP wallet transactions
                 wt_res = await db.execute(
                     select(Wallet_transactions)
@@ -1459,14 +1454,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 )
                 usd_wallet = usd_res.scalar_one_or_none()
                 # Always compute USD balance from transaction history (not stored balance)
-                if usd_wallet:
-                    usd_balance = await _compute_usd_balance_for_wallet(db, usd_wallet.id)
-                    if usd_balance != usd_wallet.balance:
-                        usd_wallet.balance = usd_balance
-                        usd_wallet.updated_at = datetime.now()
-                        await db.commit()
-                else:
-                    usd_balance = 0.0
+                usd_balance = await _compute_usd_balance_for_wallet(db, tg_user_id)
+                if usd_wallet and usd_balance != usd_wallet.balance:
+                    usd_wallet.balance = usd_balance
+                    usd_wallet.updated_at = datetime.now()
+                    await db.commit()
                 # Fetch last 5 USD wallet transactions for this user
                 usd_txn_res = await db.execute(
                     select(Wallet_transactions)
