@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+#### KYB Registration & Public Access
+- **`POST /api/v1/auth/register`** — public endpoint for new users to submit a KYC/KYB registration; creates a `KybRegistration` record in `pending_review` state and a matching Xendit customer record for identity verification
+- **`Register.tsx`** — new public registration page at `/register` with a split-screen layout: 4-step KYC process guide on the left, registration form (full name, email, phone, business name, address, Telegram username) on the right
+- `/register` added to maintenance-mode exempt paths so the registration page is always accessible
+
+#### Login Page
+- **"Create an account" button** added to the login page right panel, linking to `/register`
+
+#### Backend
+- **`XenditService.create_customer()`** — new method calling the Xendit v2 Customers API to create an individual KYC customer record for web registrations
+
+---
+
 ## [1.0.1] - 2026-02-28
 
 ### Added

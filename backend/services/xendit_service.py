@@ -277,3 +277,48 @@ class XenditService:
             "fee": round(fee, 2), "net_amount": round(amount - fee, 2),
             "fee_percentage": rates["percentage"] * 100, "fee_fixed": rates["fixed"],
         }
+
+    # ==================== KYC / CUSTOMER ====================
+    async def create_customer(
+        self,
+        reference_id: str,
+        given_names: str,
+        email: str,
+        mobile_number: Optional[str] = None,
+        description: str = "",
+        nationality: str = "PH",
+    ) -> Dict[str, Any]:
+        """Create or update a Xendit customer record for KYC purposes.
+
+        Uses the Xendit v2 Customers API.  Returns the created customer object on
+        success or a ``{"success": False, "error": ...}`` dict on failure.
+        """
+        payload: Dict[str, Any] = {
+            "reference_id": reference_id,
+            "type": "INDIVIDUAL",
+            "individual_detail": {
+                "given_names": given_names,
+                "nationality": nationality,
+            },
+            "email": email,
+            "description": description or f"KYC registration for {given_names}",
+        }
+        if mobile_number:
+            payload["mobile_number"] = mobile_number
+        try:
+            async with httpx.AsyncClient() as c:
+                r = await c.post(
+                    f"{XENDIT_BASE_URL}/customers",
+                    json=payload,
+                    auth=self._get_auth(),
+                    timeout=30.0,
+                )
+                r.raise_for_status()
+                d = r.json()
+                return {"success": True, "customer_id": d.get("id", ""), "data": d}
+        except httpx.HTTPStatusError as e:
+            logger.error("Xendit create_customer failed: %s", e.response.text)
+            return {"success": False, "error": e.response.text}
+        except Exception as e:
+            logger.error("Xendit create_customer error: %s", e)
+            return {"success": False, "error": str(e)}
