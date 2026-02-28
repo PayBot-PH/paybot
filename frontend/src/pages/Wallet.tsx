@@ -494,34 +494,34 @@ export default function Wallet() {
         <Card className="bg-[#1E293B] border-slate-700/50 mb-6">
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="w-full rounded-none rounded-t-lg bg-slate-800/60 border-b border-slate-700 h-12 p-0 gap-0">
+              <TabsList className="w-full rounded-none rounded-t-lg bg-slate-800/60 border-b border-slate-700 h-14 p-0 gap-0">
                 <TabsTrigger
                   value="withdraw"
-                  className="flex-1 h-full rounded-none rounded-tl-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-amber-400 text-slate-400 gap-2"
+                  className="flex-1 h-full rounded-none rounded-tl-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-amber-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
-                  <ArrowUpFromLine className="h-4 w-4" />
-                  Withdraw
+                  <ArrowUpFromLine className="h-4 w-4 shrink-0" />
+                  <span>Withdraw</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="disburse"
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-slate-400 gap-2"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
-                  <Building2 className="h-4 w-4" />
-                  Disburse
+                  <Building2 className="h-4 w-4 shrink-0" />
+                  <span>Disburse</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="topup"
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-blue-400 text-slate-400 gap-2"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-blue-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
-                  <PlusCircle className="h-4 w-4" />
-                  Top Up
+                  <PlusCircle className="h-4 w-4 shrink-0" />
+                  <span>Top Up</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="send-usdt"
-                  className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-teal-400 text-slate-400 gap-2"
+                  className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-teal-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
-                  <Send className="h-4 w-4" />
-                  Send USDT
+                  <Send className="h-4 w-4 shrink-0" />
+                  <span>Send USDT</span>
                 </TabsTrigger>
               </TabsList>
 
