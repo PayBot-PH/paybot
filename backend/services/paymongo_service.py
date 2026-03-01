@@ -363,3 +363,40 @@ class PayMongoService:
                 return {"success": True, "data": r.json().get("data", {})}
         except Exception as e:
             return {"success": False, "error": str(e)}
+
+    async def get_balance(self) -> Dict[str, Any]:
+        """Fetch the realtime PayMongo account balance.
+
+        Returns a dict with::
+
+            {
+                "success": True,
+                "available": [{"amount": 12345, "currency": "PHP"}],
+                "pending":   [{"amount":   500, "currency": "PHP"}],
+            }
+
+        Amounts are in centavos (smallest currency unit).  Divide by 100 to
+        get the PHP value.
+
+        Docs: https://developers.paymongo.com/reference/retrieve-balance
+        """
+        try:
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    f"{PAYMONGO_BASE_URL}/balance",
+                    auth=self._get_auth(),
+                    timeout=30.0,
+                )
+                r.raise_for_status()
+                attrs = r.json().get("data", {}).get("attributes", {})
+                return {
+                    "success": True,
+                    "available": attrs.get("available", []),
+                    "pending": attrs.get("pending", []),
+                }
+        except httpx.HTTPStatusError as e:
+            logger.error("PayMongo get_balance failed: %s", e.response.text)
+            return {"success": False, "error": e.response.text}
+        except Exception as e:
+            logger.error("PayMongo get_balance error: %s", str(e))
+            return {"success": False, "error": str(e)}
