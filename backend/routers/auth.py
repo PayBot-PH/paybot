@@ -327,7 +327,7 @@ async def dev_login(
 @router.get("/telegram-login-config")
 async def telegram_login_config():
     """Provide Telegram Login Widget config at runtime."""
-    configured_username = (os.getenv("VITE_TELEGRAM_BOT_USERNAME") or os.getenv("TELEGRAM_BOT_USERNAME") or "").strip()
+    configured_username = (os.getenv("VITE_TELEGRAM_BOT_USERNAME") or settings.telegram_bot_username or "").strip()
     if configured_username:
         return {"bot_username": configured_username.lstrip("@")}
 
