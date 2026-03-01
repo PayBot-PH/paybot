@@ -4,7 +4,7 @@ import {
   Bot, BarChart3, Wallet, CreditCard, FileText, Building2, PieChart,
   WifiOff, LogOut, ShieldCheck, MessageSquare, ScrollText, Crown, User,
   Menu, X, Activity, Send, ClipboardList, DollarSign, ChevronDown,
-  MessageCircle,
+  MessageCircle, UserCheck,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -70,6 +70,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                   { to: '/usdt-send-requests', icon: Send, label: 'USDT Requests', badge: 'Super' },
                   { to: '/topup-requests', icon: DollarSign, label: 'Topup Requests', badge: 'Super' },
                   { to: '/kyb-registrations', icon: ClipboardList, label: 'KYB Registrations', badge: 'Super' },
+                  { to: '/kyc-verifications', icon: UserCheck, label: 'KYC Verifications', badge: 'Super' },
                 ]
               : []),
           ],
