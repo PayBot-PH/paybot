@@ -30,6 +30,7 @@ class KybRegistrationOut(BaseModel):
     telegram_username: Optional[str] = None
     step: str
     full_name: Optional[str] = None
+    email: Optional[str] = None
     phone: Optional[str] = None
     address: Optional[str] = None
     bank_name: Optional[str] = None

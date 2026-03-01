@@ -698,6 +698,7 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
         telegram_username=body.telegram_username,
         step="done",
         full_name=body.full_name,
+        email=body.email,
         phone=body.phone,
         address=body.address,
         bank_name=body.business_name,  # bank_name column reused to store business name for web registrations
