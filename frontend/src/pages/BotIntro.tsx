@@ -1,136 +1,187 @@
-import { useEffect, useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   Bot,
-  Wallet,
-  Bell,
-  ShieldCheck,
-  CreditCard,
-  Send,
   BarChart3,
-  Zap,
-  ArrowRight,
-  CheckCircle2,
+  Wallet,
+  CreditCard,
+  FileText,
+  Building2,
+  PieChart,
+  ShieldCheck,
+  MessageSquare,
+  ChevronRight,
+  ChevronLeft,
+  LayoutDashboard,
+  Home,
+  Send,
+  ClipboardList,
+  DollarSign,
+  UserCheck,
+  Settings,
 } from 'lucide-react';
-import { BRAND_NAME, SUPPORT_URL, SUPPORT_HANDLE } from '@/lib/brand';
+import { APP_NAME, APP_DESCRIPTION, SUPPORT_HANDLE } from '@/lib/brand';
 
-const FEATURES = [
+interface TutorialStep {
+  title: string;
+  description: string;
+  icon: React.ElementType;
+  iconColor: string;
+  iconBg: string;
+  route?: string;
+  routeLabel?: string;
+  tips: string[];
+}
+
+const TUTORIAL_STEPS: TutorialStep[] = [
   {
-    icon: CreditCard,
-    color: 'text-blue-400',
-    bg: 'bg-blue-500/10 border-blue-500/20',
-    title: 'Multi-Method Payments',
-    desc: 'Invoice, QR Code, Alipay, WeChat Pay, Payment Links, Virtual Accounts & more.',
-    delay: 0,
+    title: `Welcome to ${APP_NAME}`,
+    description: APP_DESCRIPTION,
+    icon: Bot,
+    iconColor: 'text-blue-400',
+    iconBg: 'bg-blue-500/15 border-blue-500/25',
+    tips: [
+      'This quick tour will show you where to find everything in the dashboard.',
+      'Use the sidebar on the left to navigate between sections.',
+      'The top bar includes a theme toggle and your account menu.',
+    ],
   },
   {
+    title: 'Dashboard — Your Overview',
+    description: 'The Dashboard is your home base. Get a quick summary of wallet balance, recent transactions, and key metrics at a glance.',
+    icon: LayoutDashboard,
+    iconColor: 'text-blue-400',
+    iconBg: 'bg-blue-500/15 border-blue-500/25',
+    route: '/',
+    routeLabel: 'Go to Dashboard',
+    tips: [
+      'The dashboard updates in real-time via WebSocket.',
+      'Check the "Live" indicator in the top bar to confirm your connection status.',
+    ],
+  },
+  {
+    title: 'Wallet — Manage Your Funds',
+    description: 'View your wallet balance, top up funds, and review your wallet transaction history.',
     icon: Wallet,
-    color: 'text-emerald-400',
-    bg: 'bg-emerald-500/10 border-emerald-500/20',
-    title: 'Wallet & Disbursements',
-    desc: 'Top up your wallet and disburse funds to recipients instantly.',
-    delay: 100,
+    iconColor: 'text-emerald-400',
+    iconBg: 'bg-emerald-500/15 border-emerald-500/25',
+    route: '/wallet',
+    routeLabel: 'Go to Wallet',
+    tips: [
+      'Keep your wallet funded to process payments smoothly.',
+      'Admins can request top-ups from Super Admins.',
+    ],
   },
   {
-    icon: Bell,
-    color: 'text-amber-400',
-    bg: 'bg-amber-500/10 border-amber-500/20',
-    title: 'Real-time Alerts',
-    desc: 'Get instant Telegram notifications for every payment event.',
-    delay: 200,
+    title: 'Payments Hub — Accept Payments',
+    description: 'Create and manage payments using multiple methods: Invoice, QR Code, Alipay, WeChat Pay, Payment Links, Virtual Accounts, and E-Wallets.',
+    icon: CreditCard,
+    iconColor: 'text-purple-400',
+    iconBg: 'bg-purple-500/15 border-purple-500/25',
+    route: '/payments',
+    routeLabel: 'Go to Payments Hub',
+    tips: [
+      'Choose the right payment method for each transaction type.',
+      'Links are shareable — send them directly via Telegram.',
+    ],
   },
   {
-    icon: Send,
-    color: 'text-purple-400',
-    bg: 'bg-purple-500/10 border-purple-500/20',
-    title: 'USDT Send Requests',
-    desc: 'Manage crypto USDT send requests directly from the dashboard.',
-    delay: 300,
+    title: 'Transactions — Full History',
+    description: 'Browse every payment transaction. Filter by date, status, or type and export data for reconciliation.',
+    icon: FileText,
+    iconColor: 'text-cyan-400',
+    iconBg: 'bg-cyan-500/15 border-cyan-500/25',
+    route: '/transactions',
+    routeLabel: 'Go to Transactions',
+    tips: [
+      'Use filters to quickly find specific transactions.',
+      'Status badges show pending, completed, or failed payments.',
+    ],
   },
   {
-    icon: BarChart3,
-    color: 'text-cyan-400',
-    bg: 'bg-cyan-500/10 border-cyan-500/20',
-    title: 'Reports & Analytics',
-    desc: 'Track transactions, view success rates and export reports.',
-    delay: 400,
+    title: 'Disbursements — Send Funds',
+    description: 'Disburse funds to recipients instantly. Manage batch payouts and track disbursement status.',
+    icon: Building2,
+    iconColor: 'text-amber-400',
+    iconBg: 'bg-amber-500/15 border-amber-500/25',
+    route: '/disbursements',
+    routeLabel: 'Go to Disbursements',
+    tips: [
+      'Ensure your wallet has sufficient balance before disbursing.',
+      'Disbursements require approval based on your role permissions.',
+    ],
   },
   {
-    icon: ShieldCheck,
-    color: 'text-rose-400',
-    bg: 'bg-rose-500/10 border-rose-500/20',
-    title: 'Secure Telegram Auth',
-    desc: 'Only authorized Telegram accounts can access the admin panel.',
-    delay: 500,
+    title: 'Reports — Analytics & Insights',
+    description: 'View charts and summary reports: revenue trends, transaction success rates, and payment method breakdowns.',
+    icon: PieChart,
+    iconColor: 'text-rose-400',
+    iconBg: 'bg-rose-500/15 border-rose-500/25',
+    route: '/reports',
+    routeLabel: 'Go to Reports',
+    tips: [
+      'Reports can be filtered by date range.',
+      'Use charts to identify peak payment periods.',
+    ],
+  },
+  {
+    title: 'Settings & Admin — System Controls',
+    description: 'Manage bot settings, configure messages, and (for Super Admins) handle admin accounts, KYC/KYB verifications, and USDT requests.',
+    icon: Settings,
+    iconColor: 'text-slate-400',
+    iconBg: 'bg-slate-500/15 border-slate-500/25',
+    route: '/bot-settings',
+    routeLabel: 'Go to Bot Settings',
+    tips: [
+      'Bot Settings lets you configure Telegram bot behavior.',
+      'Super Admins see additional sections: Admin Management, USDT Requests, KYB/KYC.',
+    ],
+  },
+  {
+    title: "You're All Set!",
+    description: `You now know your way around ${APP_NAME}. Head to the main dashboard to get started, or explore any section from the sidebar at any time.`,
+    icon: Home,
+    iconColor: 'text-blue-400',
+    iconBg: 'bg-blue-500/15 border-blue-500/25',
+    route: '/',
+    routeLabel: 'Go to Dashboard',
+    tips: [
+      'You can revisit this tutorial anytime — it appears after every login.',
+      `Need help? Contact support on Telegram: ${SUPPORT_HANDLE}`,
+    ],
   },
 ];
-
-const TICKER_ITEMS = [
-  '💳 Invoice payments',
-  '📲 QR Code checkout',
-  '🏦 Virtual Accounts',
-  '💸 Instant disbursements',
-  '🔔 Real-time alerts',
-  '🔐 Telegram-only auth',
-  '📊 Analytics & Reports',
-  '🪙 USDT transfers',
-];
-
-function useVisible(delay: number) {
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const t = setTimeout(() => setVisible(true), delay);
-    return () => clearTimeout(t);
-  }, [delay]);
-  return visible;
-}
-
-function FeatureCard({
-  icon: Icon,
-  color,
-  bg,
-  title,
-  desc,
-  delay,
-}: (typeof FEATURES)[number]) {
-  const visible = useVisible(delay + 600);
-  return (
-    <div
-      className={`border rounded-2xl p-4 ${bg} transition-all duration-700 ${
-        visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'
-      }`}
-    >
-      <div className="flex items-start gap-3">
-        <div className={`mt-0.5 shrink-0 ${color}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-white font-semibold text-sm mb-1">{title}</p>
-          <p className="text-slate-400 text-xs leading-relaxed">{desc}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function BotIntro() {
   const { user, loading } = useAuth();
+  const navigate = useNavigate();
+  const [step, setStep] = useState(0);
 
-  const titleVisible = useVisible(100);
-  const subtitleVisible = useVisible(350);
-  const tickerVisible = useVisible(550);
-  const ctaVisible = useVisible(800);
+  if (!loading && !user) return <Navigate to="/login" replace />;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0A0F1E] flex items-center justify-center">
+        <span className="h-8 w-8 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
-  const [tickerIdx, setTickerIdx] = useState(0);
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTickerIdx((i) => (i + 1) % TICKER_ITEMS.length);
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+  const current = TUTORIAL_STEPS[step];
+  const Icon = current.icon;
+  const total = TUTORIAL_STEPS.length;
+  const isFirst = step === 0;
+  const isLast = step === total - 1;
 
-  if (!loading && user) return <Navigate to="/" replace />;
+  const handleNext = () => {
+    if (isLast) {
+      navigate('/');
+    } else {
+      setStep((s) => s + 1);
+    }
+  };
+
+  const handleBack = () => setStep((s) => Math.max(0, s - 1));
 
   return (
     <div className="min-h-screen bg-[#0A0F1E] flex flex-col">
@@ -138,118 +189,113 @@ export default function BotIntro() {
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-15%] left-[-5%] w-[600px] h-[600px] rounded-full bg-blue-600/10 blur-3xl animate-pulse" />
         <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-600/8 blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-[40%] left-[60%] w-[300px] h-[300px] rounded-full bg-cyan-600/5 blur-3xl animate-pulse" style={{ animationDelay: '2s' }} />
       </div>
 
-      <div className="relative flex-1 flex flex-col items-center justify-center px-6 py-16 max-w-2xl mx-auto w-full">
-        {/* Bot icon */}
-        <div
-          className={`mb-8 transition-all duration-700 ${
-            titleVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-75'
-          }`}
-        >
-          <div className="relative">
-            <div className="h-20 w-20 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/40 mx-auto">
-              <Bot className="h-10 w-10 text-white" />
-            </div>
-            {/* Ping ring */}
-            <span className="absolute -top-1 -right-1 flex h-4 w-4">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-60" />
-              <span className="relative inline-flex rounded-full h-4 w-4 bg-blue-500" />
-            </span>
+      {/* Header */}
+      <header className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+        <Link to="/" className="flex items-center gap-2.5">
+          <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
+            <Bot className="h-4 w-4 text-white" />
           </div>
-        </div>
-
-        {/* Title */}
-        <div
-          className={`text-center mb-3 transition-all duration-700 ${
-            titleVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
+          <p className="text-sm font-bold text-white hidden sm:block">{APP_NAME}</p>
+        </Link>
+        <Link
+          to="/"
+          className="text-slate-400 hover:text-white text-xs font-medium transition-colors"
         >
-          <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
-            Meet <span className="text-blue-400">{BRAND_NAME}</span>
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">Admin Dashboard</p>
-        </div>
+          Skip tutorial →
+        </Link>
+      </header>
 
-        {/* Subtitle */}
-        <p
-          className={`text-center text-slate-300 text-base sm:text-lg max-w-md mb-6 leading-relaxed transition-all duration-700 ${
-            subtitleVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
-        >
-          Your all-in-one Telegram bot for payments, disbursements, real-time alerts, and admin management.
-        </p>
-
-        {/* Animated ticker */}
+      {/* Progress bar */}
+      <div className="relative z-10 h-1 bg-slate-800">
         <div
-          className={`mb-10 transition-all duration-700 ${
-            tickerVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
-        >
-          <div className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.08] rounded-full px-5 py-2.5">
-            <Zap className="h-4 w-4 text-blue-400 shrink-0" />
-            <span
-              key={tickerIdx}
-              className="text-slate-200 text-sm font-medium animate-in fade-in slide-in-from-bottom-2 duration-500"
-            >
-              {TICKER_ITEMS[tickerIdx]}
-            </span>
-          </div>
-        </div>
-
-        {/* Feature cards grid */}
-        <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-3 mb-10">
-          {FEATURES.map((f) => (
-            <FeatureCard key={f.title} {...f} />
-          ))}
-        </div>
-
-        {/* CTA */}
-        <div
-          className={`flex flex-col sm:flex-row gap-3 w-full sm:w-auto transition-all duration-700 ${
-            ctaVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
-          }`}
-        >
-          <Link
-            to="/login"
-            className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 px-8 rounded-xl transition-colors shadow-lg shadow-blue-500/25 text-sm"
-          >
-            Get Started
-            <ArrowRight className="h-4 w-4" />
-          </Link>
-          <Link
-            to="/features"
-            className="flex items-center justify-center gap-2 bg-white/[0.05] hover:bg-white/[0.10] border border-white/[0.10] text-slate-300 hover:text-white font-medium py-3 px-6 rounded-xl transition-colors text-sm"
-          >
-            <CheckCircle2 className="h-4 w-4 text-blue-400" />
-            See all features
-          </Link>
-        </div>
-
-        {/* Footer note */}
-        <p className="mt-8 text-slate-600 text-xs text-center">
-          Need access?{' '}
-          <a
-            href={SUPPORT_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sky-400 hover:text-sky-300 transition-colors"
-          >
-            Contact {SUPPORT_HANDLE}
-          </a>
-        </p>
-
-        {/* Bottom grid lines decoration */}
-        <div
-          className="absolute inset-0 opacity-[0.02] pointer-events-none"
-          style={{
-            backgroundImage:
-              'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
-            backgroundSize: '40px 40px',
-          }}
+          className="h-full bg-blue-500 transition-all duration-500"
+          style={{ width: `${((step + 1) / total) * 100}%` }}
         />
+      </div>
+
+      {/* Main content */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-12">
+        <div className="w-full max-w-lg">
+          {/* Step indicator */}
+          <div className="flex items-center justify-center gap-1.5 mb-8">
+            {TUTORIAL_STEPS.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setStep(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  i === step ? 'w-6 bg-blue-500' : i < step ? 'w-3 bg-blue-700' : 'w-3 bg-slate-700'
+                }`}
+                aria-label={`Go to step ${i + 1}`}
+              />
+            ))}
+          </div>
+
+          {/* Step counter */}
+          <p className="text-center text-slate-500 text-xs mb-6 font-medium">
+            Step {step + 1} of {total}
+          </p>
+
+          {/* Card */}
+          <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-8 shadow-2xl">
+            {/* Icon */}
+            <div className={`h-14 w-14 rounded-2xl border ${current.iconBg} flex items-center justify-center mb-6`}>
+              <Icon className={`h-7 w-7 ${current.iconColor}`} />
+            </div>
+
+            {/* Title */}
+            <h2 className="text-2xl font-bold text-white mb-3">{current.title}</h2>
+
+            {/* Description */}
+            <p className="text-slate-300 text-sm leading-relaxed mb-6">{current.description}</p>
+
+            {/* Tips */}
+            <div className="space-y-2 mb-8">
+              {current.tips.map((tip, i) => (
+                <div key={i} className="flex items-start gap-2.5 text-slate-400 text-xs leading-relaxed">
+                  <span className="mt-0.5 h-4 w-4 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0 text-blue-400 font-bold" style={{ fontSize: '9px' }}>
+                    {i + 1}
+                  </span>
+                  {tip}
+                </div>
+              ))}
+            </div>
+
+            {/* Page link */}
+            {current.route && (
+              <Link
+                to={current.route}
+                className="flex items-center justify-between w-full bg-blue-600/15 hover:bg-blue-600/25 border border-blue-500/25 text-blue-300 hover:text-blue-200 text-sm font-medium py-3 px-4 rounded-xl transition-all group mb-4"
+              >
+                <span>{current.routeLabel}</span>
+                <ChevronRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+            )}
+          </div>
+
+          {/* Navigation */}
+          <div className="flex items-center justify-between mt-6 gap-4">
+            <button
+              onClick={handleBack}
+              disabled={isFirst}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back
+            </button>
+
+            <button
+              onClick={handleNext}
+              className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors shadow-lg shadow-blue-500/25"
+            >
+              {isLast ? 'Go to Dashboard' : 'Next'}
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
+

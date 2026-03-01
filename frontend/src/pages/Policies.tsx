@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollText, Shield, RefreshCw, Building2 } from 'lucide-react';
-import { BRAND_NAME, SUPPORT_URL } from '@/lib/brand';
+import { APP_NAME, COMPANY_NAME } from '@/lib/brand';
 
 type PolicyTab = 'terms' | 'privacy' | 'refund';
 
@@ -22,8 +22,8 @@ export default function Policies() {
           <Building2 className="h-5 w-5 text-blue-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-white">{BRAND_NAME} — Policies</h1>
-          <p className="text-slate-400 text-sm">Legal policies governing the use of {BRAND_NAME}</p>
+          <h1 className="text-xl font-bold text-white">{COMPANY_NAME} — Policies</h1>
+          <p className="text-slate-400 text-sm">Legal policies governing the use of {APP_NAME}</p>
         </div>
       </div>
 
@@ -52,7 +52,7 @@ export default function Policies() {
             {tabs.find((t) => t.id === activeTab)?.icon}
             {tabs.find((t) => t.id === activeTab)?.label}
           </CardTitle>
-          <p className="text-slate-400 text-xs">Last updated: February 2026 · {BRAND_NAME}</p>
+          <p className="text-slate-400 text-xs">Last updated: February 2026 · {COMPANY_NAME}</p>
         </CardHeader>
         <CardContent className="prose prose-invert prose-sm max-w-none text-slate-300 space-y-5">
           {activeTab === 'terms' && <TermsOfService />}
@@ -77,14 +77,14 @@ function TermsOfService() {
   return (
     <>
       <p className="text-slate-400 text-sm">
-        These Terms of Service ("Terms") govern your access to and use of the {BRAND_NAME} platform
-        operated by <strong className="text-white">{BRAND_NAME}</strong>. By accessing or using
+        These Terms of Service ("Terms") govern your access to and use of the {APP_NAME} platform
+        operated by <strong className="text-white">{COMPANY_NAME}</strong>. By accessing or using
         the platform, you agree to be bound by these Terms.
       </p>
 
       <Section title="1. Acceptance of Terms">
         <p>
-          By accessing or using {BRAND_NAME}, you confirm that you are at least 18 years of age, have
+          By accessing or using {APP_NAME}, you confirm that you are at least 18 years of age, have
           the legal authority to enter into these Terms, and agree to comply with all applicable
           Philippine laws and regulations.
         </p>
@@ -92,7 +92,7 @@ function TermsOfService() {
 
       <Section title="2. Description of Service">
         <p>
-          {BRAND_NAME} is a payment management platform that integrates Telegram bot functionality with
+          {APP_NAME} is a payment management platform that integrates Telegram bot functionality with
           a web-based admin dashboard. It enables users to collect payments via 7 methods
           (Invoice, QR Code, Alipay QR, Maya Checkout, Payment Link, Virtual Account, and
           E-Wallet), manage disbursements, monitor wallet balances, and access financial
@@ -105,13 +105,13 @@ function TermsOfService() {
       <Section title="3. Account Eligibility">
         <p>
           Access to the Admin Dashboard is restricted to verified Telegram accounts authorized by
-          {BRAND_NAME}. Unauthorized access attempts are strictly prohibited and may result in
+          {COMPANY_NAME}. Unauthorized access attempts are strictly prohibited and may result in
           permanent account suspension and legal action.
         </p>
       </Section>
 
       <Section title="4. Acceptable Use">
-        <p>You agree NOT to use {BRAND_NAME} to:</p>
+        <p>You agree NOT to use {APP_NAME} to:</p>
         <ul className="list-disc pl-5 space-y-1 mt-1">
           <li>Process fraudulent, illegal, or unauthorized transactions</li>
           <li>Engage in money laundering or financing of illegal activities</li>
@@ -123,16 +123,16 @@ function TermsOfService() {
 
       <Section title="5. Payment Processing">
         <p>
-          All payments are processed through our trusted payment gateways. {BRAND_NAME} acts
+          All payments are processed through our trusted payment gateways. {COMPANY_NAME} acts
           as a platform facilitator only. Transaction fees are determined by the respective payment
-          gateways. {BRAND_NAME} is not liable for payment gateway downtimes, failed transactions,
+          gateways. {COMPANY_NAME} is not liable for payment gateway downtimes, failed transactions,
           or third-party processing errors.
         </p>
       </Section>
 
       <Section title="6. Wallet & Funds">
         <p>
-          Wallet balances represent credits within the {BRAND_NAME} system. {BRAND_NAME} reserves the
+          Wallet balances represent credits within the {APP_NAME} system. {COMPANY_NAME} reserves the
           right to freeze or suspend wallet accounts suspected of fraudulent activity. Withdrawal
           requests, top-up requests, and USDT send requests are subject to verification and
           super-admin approval. Processing may take 1–3 business days.
@@ -141,7 +141,7 @@ function TermsOfService() {
 
       <Section title="7. Limitation of Liability">
         <p>
-          {BRAND_NAME} shall not be liable for any indirect, incidental, special, or consequential
+          {COMPANY_NAME} shall not be liable for any indirect, incidental, special, or consequential
           damages arising from your use of the platform. Our maximum aggregate liability shall not
           exceed the total fees paid by you in the 30 days preceding the claim.
         </p>
@@ -149,7 +149,7 @@ function TermsOfService() {
 
       <Section title="8. Termination">
         <p>
-          {BRAND_NAME} may suspend or terminate your access at any time for violation of these
+          {COMPANY_NAME} may suspend or terminate your access at any time for violation of these
           Terms, suspected fraud, or at our sole discretion with reasonable notice.
         </p>
       </Section>
@@ -164,7 +164,7 @@ function TermsOfService() {
       <Section title="10. Contact">
         <p>
           For questions about these Terms, contact us at{' '}
-          <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300">
+          <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300">
             @traxionpay
           </a>{' '}
           on Telegram.
@@ -178,7 +178,7 @@ function PrivacyPolicy() {
   return (
     <>
       <p className="text-slate-400 text-sm">
-        {BRAND_NAME} is committed to protecting your personal data in accordance with the
+        {COMPANY_NAME} is committed to protecting your personal data in accordance with the
         Philippine <strong className="text-white">Data Privacy Act of 2012 (RA 10173)</strong>.
         This policy explains how we collect, use, and protect your information.
       </p>
@@ -230,7 +230,7 @@ function PrivacyPolicy() {
       <Section title="6. Your Rights">
         <p>Under the Data Privacy Act, you have the right to:</p>
         <ul className="list-disc pl-5 space-y-1 mt-1">
-          <li>Access your personal data held by {BRAND_NAME}</li>
+          <li>Access your personal data held by {COMPANY_NAME}</li>
           <li>Correct inaccurate or incomplete data</li>
           <li>Request erasure of data (subject to legal retention requirements)</li>
           <li>Object to processing of your data</li>
@@ -248,7 +248,7 @@ function PrivacyPolicy() {
       <Section title="8. Contact">
         <p>
           For privacy concerns or data requests, contact our Data Protection Officer at{' '}
-          <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300">
+          <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300">
             @traxionpay
           </a>{' '}
           on Telegram.
@@ -263,8 +263,8 @@ function RefundPolicy() {
     <>
       <p className="text-slate-400 text-sm">
         This Refund Policy outlines the conditions under which{' '}
-        <strong className="text-white">{BRAND_NAME}</strong> processes refunds for payments made
-        through the {BRAND_NAME} platform.
+        <strong className="text-white">{COMPANY_NAME}</strong> processes refunds for payments made
+        through the {APP_NAME} platform.
       </p>
 
       <Section title="1. Eligibility for Refunds">
@@ -290,7 +290,7 @@ function RefundPolicy() {
       <Section title="3. How to Request a Refund">
         <p>To request a refund:</p>
         <ol className="list-decimal pl-5 space-y-1 mt-1">
-          <li>Contact us via Telegram at <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300">@traxionpay</a></li>
+          <li>Contact us via Telegram at <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300">@traxionpay</a></li>
           <li>Provide the transaction ID and reason for the refund request</li>
           <li>Our team will review the request within 2 business days</li>
           <li>If approved, refunds are processed back to the original payment method</li>
@@ -308,7 +308,7 @@ function RefundPolicy() {
 
       <Section title="5. Partial Refunds">
         <p>
-          Partial refunds may be issued at {BRAND_NAME}'s discretion when only a portion of a
+          Partial refunds may be issued at {COMPANY_NAME}' discretion when only a portion of a
           transaction is eligible for refund. The refund amount will not exceed the original
           transaction value minus applicable processing fees.
         </p>
@@ -317,16 +317,16 @@ function RefundPolicy() {
       <Section title="6. Disputes">
         <p>
           If you disagree with a refund decision, you may escalate via Telegram at{' '}
-          <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300">
+          <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300">
             @traxionpay
           </a>
-          . {BRAND_NAME} reserves the right to make the final determination on all refund disputes.
+          . {COMPANY_NAME} reserves the right to make the final determination on all refund disputes.
         </p>
       </Section>
 
       <Section title="7. Fraud Prevention">
         <p>
-          {BRAND_NAME} reserves the right to deny refund requests that appear to be fraudulent or
+          {COMPANY_NAME} reserves the right to deny refund requests that appear to be fraudulent or
           abusive. Accounts with repeated suspicious refund requests may be suspended pending
           investigation.
         </p>

@@ -1,6 +1,4 @@
-# 🤖 PayBot Philippines — Telegram Bot & Xendit Payment Gateway Dashboard
-
-> **Rebrand notice:** The product was formerly known as "PayBot" (by DRL Solutions). It has been rebranded to **PayBot Philippines**. All UI text and branding have been updated accordingly.
+# 🤖 PayBot — Telegram Bot & Xendit Payment Gateway Dashboard
 
 A full-featured **payment management platform** that combines a **Telegram Bot** with an **Admin Dashboard** powered by **Xendit** payment gateway. Accept payments via invoices, QR codes, payment links, virtual accounts, and e-wallets — all manageable through Telegram commands or a sleek web interface.
 

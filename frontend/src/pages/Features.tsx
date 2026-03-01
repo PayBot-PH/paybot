@@ -29,7 +29,7 @@ import {
   ChevronLeft,
   X,
 } from 'lucide-react';
-import { BRAND_NAME, SUPPORT_URL, SUPPORT_HANDLE } from '@/lib/brand';
+import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
 
 /* ─── Screenshot gallery ─────────────────────────────────────── */
 function PaymentsHubMockup() {
@@ -243,7 +243,7 @@ function TelegramMockup() {
           <Bot className="h-4 w-4 text-white" />
         </div>
         <div>
-          <p className="text-white text-sm font-semibold">{BRAND_NAME}</p>
+          <p className="text-white text-sm font-semibold">{APP_NAME}</p>
           <p className="text-emerald-400 text-[10px] flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400 inline-block"></span>online</p>
         </div>
       </div>
@@ -274,7 +274,7 @@ function DashboardMockup() {
           <div className="h-5 w-5 bg-blue-600 rounded flex items-center justify-center">
             <Bot className="h-3 w-3 text-white" />
           </div>
-          <span className="text-white font-bold text-xs">{BRAND_NAME}</span>
+          <span className="text-white font-bold text-xs">{APP_NAME}</span>
         </div>
         <span className="text-emerald-400 text-[9px] flex items-center gap-0.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>Live</span>
       </div>
@@ -342,7 +342,7 @@ export default function Features() {
     { icon: <Building2 className="h-4 w-4 text-amber-400" />, title: 'Money Management', description: 'Manage disbursements, refunds, subscriptions, and customer profiles in one place.', color: 'bg-amber-500/10' },
     { icon: <PieChart className="h-4 w-4 text-rose-400" />, title: 'Reports & Analytics', description: 'Revenue breakdowns, payment method analysis, success rates, and fee calculator.', color: 'bg-rose-500/10' },
     { icon: <ShieldCheck className="h-4 w-4 text-violet-400" />, title: 'Admin Management', description: 'Role-based access control with per-admin permissions for secure team management.', color: 'bg-violet-500/10' },
-    { icon: <Users className="h-4 w-4 text-teal-400" />, title: 'Telegram-Only Auth', description: `Secure login — only verified Telegram users authorized by ${BRAND_NAME} can access the UI.`, color: 'bg-teal-500/10' },
+    { icon: <Users className="h-4 w-4 text-teal-400" />, title: 'Telegram-Only Auth', description: 'Secure login — only verified Telegram users authorized by DRL Solutions can access the UI.', color: 'bg-teal-500/10' },
   ];
 
   const [videoLoaded, setVideoLoaded] = useState(false);
@@ -363,7 +363,8 @@ export default function Features() {
               <Bot className="h-4.5 w-4.5 text-white" />
             </div>
             <div>
-              <span className="font-bold text-white text-sm">{BRAND_NAME}</span>
+              <span className="font-bold text-white text-sm">{APP_NAME}</span>
+            <span className="text-slate-500 text-xs ml-1.5">by {COMPANY_NAME}</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -383,7 +384,7 @@ export default function Features() {
       <section className="relative max-w-6xl mx-auto px-4 pt-20 pb-16 text-center">
         <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-1.5 text-blue-300 text-xs font-medium mb-8">
           <Star className="h-3 w-3 fill-blue-400 text-blue-400" />
-          Telegram-native payment operations · Powered by {BRAND_NAME}
+          Telegram-native payment operations · Powered by {APP_NAME}
         </div>
         <h1 className="text-5xl md:text-6xl font-extrabold text-white leading-[1.1] tracking-tight mb-5">
           Collect Payments<br />
@@ -392,7 +393,7 @@ export default function Features() {
           </span>
         </h1>
         <p className="text-slate-400 text-lg max-w-2xl mx-auto mb-10 leading-relaxed">
-          {BRAND_NAME} lets you accept payments,
+          {APP_NAME} lets you accept payments,
           manage your wallet, send disbursements, and generate QR codes — all through simple bot commands or a sleek admin dashboard.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -400,7 +401,7 @@ export default function Features() {
             className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold px-7 py-3.5 rounded-xl transition-all shadow-xl shadow-blue-500/25 text-sm">
             Access Admin Dashboard <ArrowRight className="h-4 w-4" />
           </Link>
-          <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer"
+          <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white font-semibold px-7 py-3.5 rounded-xl transition-all text-sm">
             <MessageCircle className="h-4 w-4 text-sky-400" /> Contact Support
           </a>
@@ -429,7 +430,7 @@ export default function Features() {
           </div>
           <h2 className="text-3xl md:text-4xl font-bold text-white">Watch a Demo</h2>
           <p className="text-slate-400 mt-3 max-w-xl mx-auto">
-            See how {BRAND_NAME} handles real payments end-to-end in under 3 minutes.
+            See how {APP_NAME} handles real payments end-to-end in under 3 minutes.
           </p>
         </div>
         <div className="max-w-3xl mx-auto">
@@ -440,7 +441,7 @@ export default function Features() {
               muted
               loop
               playsInline
-              aria-label={`${BRAND_NAME} demonstration video`}
+              aria-label={`${APP_NAME} demonstration video`}
               onCanPlay={() => setVideoLoaded(true)}
               onError={() => setVideoLoaded(false)}
               className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
@@ -463,7 +464,7 @@ export default function Features() {
                     <Bot className="h-8 w-8 text-white" />
                   </div>
                   <div>
-                    <p className="text-white font-bold text-lg">{BRAND_NAME} Demo</p>
+                    <p className="text-white font-bold text-lg">{APP_NAME} Demo</p>
                     <p className="text-slate-400 text-sm mt-1">Full walkthrough · Payments · Dashboard · Commands</p>
                   </div>
                   <a
@@ -485,7 +486,7 @@ export default function Features() {
             </div>
           </div>
           <p className="text-slate-500 text-xs text-center mt-3">
-            Video demo coming soon · Contact <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" aria-label={`Contact ${SUPPORT_HANDLE} on Telegram`} className="text-sky-400 hover:text-sky-300 transition-colors">{SUPPORT_HANDLE}</a> for a live walkthrough
+            Video demo coming soon · Contact <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" aria-label="Contact traxionpay on Telegram" className="text-sky-400 hover:text-sky-300 transition-colors">@traxionpay</a> for a live walkthrough
           </p>
         </div>
       </section>
@@ -552,7 +553,7 @@ export default function Features() {
             </div>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">Ready to get started?</h2>
             <p className="text-slate-400 mb-8 max-w-md mx-auto">
-              Sign in with your authorized Telegram account to access the {BRAND_NAME} admin dashboard.
+              Sign in with your authorized Telegram account to access the {APP_NAME} admin dashboard.
             </p>
             <Link to="/login"
               className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold px-8 py-3.5 rounded-xl transition-all shadow-xl shadow-blue-500/25">
@@ -560,8 +561,8 @@ export default function Features() {
             </Link>
             <p className="mt-5 text-slate-500 text-sm">
               Need access?{' '}
-              <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 transition-colors">
-                Contact {SUPPORT_HANDLE}
+              <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 transition-colors">
+                Contact @traxionpay
               </a>
             </p>
           </div>
@@ -570,9 +571,9 @@ export default function Features() {
 
       {/* Footer */}
       <footer className="border-t border-white/5 py-8 text-center text-slate-500 text-xs space-x-4">
-        <span>© {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} DRL Solutions. All rights reserved.</span>
         <Link to="/policies" className="hover:text-sky-400 transition-colors">Policies</Link>
-        <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="hover:text-sky-400 transition-colors">Support</a>
+        <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="hover:text-sky-400 transition-colors">Support</a>
       </footer>
     </div>
   );

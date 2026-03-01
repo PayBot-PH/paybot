@@ -3,6 +3,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useEffect, useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import Wallet from './pages/Wallet';
@@ -68,11 +69,12 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <BrowserRouter>
-          <MaintenanceGuard>
+    <ThemeProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <BrowserRouter>
+            <MaintenanceGuard>
             <Routes>
               <Route path="/intro" element={<BotIntro />} />
               <Route path="/login" element={<Login />} />
@@ -100,9 +102,10 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </MaintenanceGuard>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 
