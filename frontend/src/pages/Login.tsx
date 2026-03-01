@@ -3,6 +3,7 @@ import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Bot, Zap, ArrowRight, ShieldCheck, User, Wallet, QrCode, Bell, ChevronRight, UserPlus, UserCheck, Lock } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
+import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
 
 declare global {
   interface Window {
@@ -72,7 +73,7 @@ export default function Login() {
     };
   }, [botUsername, loginWithTelegram]);
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) return <Navigate to="/intro" replace />;
 
   const handleDemoLogin = async (type: 'super_admin' | 'admin') => {
     setDemoLoading(type);
@@ -106,8 +107,8 @@ export default function Login() {
               <Bot className="h-6 w-6 text-white" />
             </div>
             <div>
-              <p className="text-white font-bold text-xl leading-tight tracking-tight">PayBot</p>
-              <p className="text-slate-500 text-xs">by DRL Solutions</p>
+              <p className="text-white font-bold text-xl leading-tight tracking-tight">{APP_NAME}</p>
+              <p className="text-slate-500 text-xs">by {COMPANY_NAME}</p>
             </div>
           </div>
 
@@ -176,7 +177,7 @@ export default function Login() {
             </Link>
             <p className="text-slate-600 text-xs text-center">
               Having trouble?{' '}
-              <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer"
+              <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer"
                 className="text-sky-500 hover:text-sky-400 underline underline-offset-2 transition-colors">
                 Contact us on Telegram
               </a>
@@ -185,7 +186,7 @@ export default function Login() {
         </div>
 
         {/* Footer */}
-        <p className="relative text-slate-700 text-xs">© {new Date().getFullYear()} DRL Solutions. All rights reserved.</p>
+        <p className="relative text-slate-700 text-xs">© {new Date().getFullYear()} {COMPANY_NAME}. All rights reserved.</p>
       </div>
 
       {/* Right panel — login form */}
@@ -196,8 +197,8 @@ export default function Login() {
             <Bot className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-white font-bold text-lg leading-tight">PayBot</p>
-            <p className="text-slate-500 text-xs">by DRL Solutions</p>
+            <p className="text-white font-bold text-lg leading-tight">{APP_NAME}</p>
+            <p className="text-slate-500 text-xs">by {COMPANY_NAME}</p>
           </div>
         </div>
 
@@ -272,7 +273,7 @@ export default function Login() {
 
               <p className="text-slate-600 text-xs text-center pt-1">
                 Need access?{' '}
-                <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer"
+                <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer"
                   className="text-sky-500 hover:text-sky-400 transition-colors">
                   Contact @traxionpay
                 </a>
