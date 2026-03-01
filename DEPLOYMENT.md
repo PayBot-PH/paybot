@@ -447,7 +447,7 @@ After the initial deploy, go to the **paybot-backend** service → **Environment
 
 | Variable | Description |
 |----------|-------------|
-| `PYTHON_BACKEND_URL` | Your Render public URL, e.g. `https://paybot-backend.onrender.com` |
+| `PYTHON_BACKEND_URL` | Your Render public URL, e.g. `https://paybot-backend.onrender.com` — **optional**: Render automatically sets `RENDER_EXTERNAL_URL`, which the app uses as a fallback when `PYTHON_BACKEND_URL` is not provided |
 | `TELEGRAM_BOT_TOKEN` | Token from [@BotFather](https://t.me/botfather) |
 | `TELEGRAM_BOT_USERNAME` | Your bot's username without `@`, e.g. `mypaybot` (used by Telegram Login Widget) |
 | `XENDIT_SECRET_KEY` | Xendit API secret key |
