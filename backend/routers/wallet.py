@@ -19,6 +19,7 @@ from models.usdt_send_requests import UsdtSendRequest
 from models.admin_users import AdminUser
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
+from services.paymongo_service import PayMongoService
 from services.xendit_service import XenditService
 
 # Default USDT TRC20 deposit address — overridable via environment variable
@@ -234,6 +235,28 @@ async def get_balance(
 
     if currency_upper == "PHP":
         wallet = await get_or_create_wallet(db, user_id, "PHP")
+
+        # Super admin: sync balance from the realtime PayMongo account balance
+        perms = current_user.permissions
+        if perms and perms.is_super_admin:
+            svc = PayMongoService()
+            pm_result = await svc.get_balance()
+            if pm_result.get("success"):
+                available = pm_result.get("available", [])
+                php_entry = next(
+                    (e for e in available if e.get("currency", "").upper() == "PHP"),
+                    None,
+                )
+                if php_entry is not None:
+                    live_balance = php_entry["amount"] / 100.0
+                    if live_balance != wallet.balance:
+                        wallet.balance = live_balance
+                        wallet.updated_at = datetime.now()
+                        await db.commit()
+                        await db.refresh(wallet)
+            else:
+                logger.warning("PayMongo get_balance failed: %s", pm_result.get("error"))
+
         return WalletBalanceResponse(
             wallet_id=wallet.id,
             balance=wallet.balance,

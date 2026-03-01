@@ -415,3 +415,125 @@ class TestWalletCrediting:
             json={"amount": 100.0, "payment_method": "checkout"},
         )
         assert r.status_code in (401, 403)
+
+
+# ---------------------------------------------------------------------------
+# PayMongo get_balance unit tests
+# ---------------------------------------------------------------------------
+
+class TestPayMongoGetBalance:
+    """Unit tests for PayMongoService.get_balance() — network calls are mocked."""
+
+    def test_get_balance_success(self):
+        """get_balance() parses a successful PayMongo /balance response."""
+        import asyncio
+        from unittest.mock import AsyncMock, patch, MagicMock
+        from services.paymongo_service import PayMongoService
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": {
+                "attributes": {
+                    "available": [{"amount": 1234500, "currency": "PHP"}],
+                    "pending": [{"amount": 50000, "currency": "PHP"}],
+                }
+            }
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        svc = PayMongoService()
+
+        async def run():
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                mock_client = AsyncMock()
+                mock_client.get = AsyncMock(return_value=mock_response)
+                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+                mock_client.__aexit__ = AsyncMock(return_value=False)
+                mock_client_cls.return_value = mock_client
+                return await svc.get_balance()
+
+        result = asyncio.get_event_loop().run_until_complete(run())
+        assert result["success"] is True
+        assert result["available"] == [{"amount": 1234500, "currency": "PHP"}]
+        assert result["pending"] == [{"amount": 50000, "currency": "PHP"}]
+
+    def test_get_balance_api_error(self):
+        """get_balance() returns success=False on HTTP error."""
+        import asyncio
+        from unittest.mock import AsyncMock, patch, MagicMock
+        from services.paymongo_service import PayMongoService
+        import httpx
+
+        svc = PayMongoService()
+
+        async def run():
+            with patch("httpx.AsyncClient") as mock_client_cls:
+                mock_client = AsyncMock()
+                mock_response = MagicMock()
+                mock_response.text = "Unauthorized"
+                mock_response.status_code = 401
+                mock_client.get = AsyncMock(
+                    side_effect=httpx.HTTPStatusError(
+                        "401", request=MagicMock(), response=mock_response
+                    )
+                )
+                mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+                mock_client.__aexit__ = AsyncMock(return_value=False)
+                mock_client_cls.return_value = mock_client
+                return await svc.get_balance()
+
+        result = asyncio.get_event_loop().run_until_complete(run())
+        assert result["success"] is False
+        assert "error" in result
+
+
+# ---------------------------------------------------------------------------
+# Super admin wallet balance tests
+# ---------------------------------------------------------------------------
+
+class TestSuperAdminWalletBalance:
+    """Test that the super admin's PHP wallet balance is synced from PayMongo."""
+
+    def test_super_admin_balance_synced_from_paymongo(self, client, auth_headers):
+        """Super admin's PHP wallet balance is updated from PayMongo realtime balance."""
+        import asyncio
+        from unittest.mock import AsyncMock, patch, MagicMock
+        from core.database import db_manager
+        from sqlalchemy import select
+        from models.wallets import Wallets
+
+        live_php_balance = 9876.50
+        live_centavos = int(live_php_balance * 100)
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "data": {
+                "attributes": {
+                    "available": [{"amount": live_centavos, "currency": "PHP"}],
+                    "pending": [],
+                }
+            }
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.get = AsyncMock(return_value=mock_response)
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_client_cls.return_value = mock_client
+
+            r = client.get("/api/v1/wallet/balance?currency=PHP", headers=auth_headers)
+
+        # The test user (123456789) is added as a super admin in TELEGRAM_ADMIN_IDS
+        # so the endpoint should attempt to sync from PayMongo.
+        assert r.status_code == 200
+        data = r.json()
+        assert data["currency"] == "PHP"
+        # Balance should reflect the mocked PayMongo live balance
+        assert data["balance"] == pytest.approx(live_php_balance, abs=0.01)
+
+    def test_wallet_balance_endpoint_requires_auth(self, client):
+        """The /wallet/balance endpoint requires authentication."""
+        r = client.get("/api/v1/wallet/balance?currency=PHP")
+        assert r.status_code in (401, 403)
