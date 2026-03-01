@@ -455,6 +455,10 @@ After the initial deploy, go to the **paybot-backend** service → **Environment
 | `ADMIN_USER_PASSWORD` | Password for the admin dashboard |
 | `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric user IDs or `@usernames` allowed as admin |
 | `ALLOWED_ORIGINS` | Comma-separated allowed CORS origins (optional) |
+| `TELEGRAM_BOT_OWNER_ID` | Telegram numeric user ID of the bot owner (super admin for KYB approvals, optional) |
+| `PAYMONGO_SECRET_KEY` | PayMongo secret key — required for Alipay, WeChat Pay, GCash, Maya, and card payments (optional) |
+| `PAYMONGO_PUBLIC_KEY` | PayMongo public key (optional) |
+| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret for signature verification (optional) |
 
 The following variables are pre-configured with sensible defaults in `render.yaml` and do not need to be set manually unless you want to override them:
 
@@ -463,6 +467,7 @@ The following variables are pre-configured with sensible defaults in `render.yam
 | `JWT_ALGORITHM` | `HS256` | JWT signing algorithm |
 | `JWT_EXPIRE_MINUTES` | `60` | JWT token expiry in minutes |
 | `ENVIRONMENT` | `production` | Application environment |
+| `PAYMONGO_MODE` | `live` | PayMongo API mode (`live` for production, `test` for sandbox) |
 
 ### 8.3 Run Database Migrations
 
