@@ -62,6 +62,7 @@ class Settings(BaseSettings):
 
     # API Keys
     telegram_bot_token: str = ""
+    telegram_bot_username: str = ""
     xendit_secret_key: str = ""
 
     # PayMongo API
