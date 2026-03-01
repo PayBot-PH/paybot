@@ -115,20 +115,30 @@ jobs:
     environment: production
 
     steps:
-      - name: Validate Render deploy hook
+      - name: Validate Render credentials
         id: validate
         run: |
-          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
-            echo "::warning::RENDER_DEPLOY_HOOK_URL secret is not set. Skipping Render deployment. See DEPLOYMENT.md for setup instructions."
-            echo "has_hook=false" >> "$GITHUB_OUTPUT"
+          if [ -z "$RENDER_API_KEY" ]; then
+            echo "::warning::RENDER_API_KEY secret is not set. Skipping Render deployment. See DEPLOYMENT.md for setup instructions."
+            echo "has_credentials=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$RENDER_SERVICE_ID" ]; then
+            echo "::warning::RENDER_SERVICE_ID secret is not set. Skipping Render deployment. See DEPLOYMENT.md for setup instructions."
+            echo "has_credentials=false" >> "$GITHUB_OUTPUT"
           else
-            echo "has_hook=true" >> "$GITHUB_OUTPUT"
+            echo "has_credentials=true" >> "$GITHUB_OUTPUT"
           fi
         env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
 
       - name: Trigger Render deploy
-        if: steps.validate.outputs.has_hook == 'true'
-        run: curl -s --fail-with-body -X POST "$RENDER_DEPLOY_HOOK_URL"
+        if: steps.validate.outputs.has_credentials == 'true'
+        run: |
+          curl -s --fail-with-body \
+            -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys"
         env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
