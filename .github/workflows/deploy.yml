@@ -118,25 +118,21 @@ jobs:
       - name: Validate Render credentials
         id: validate
         run: |
-          if [ -z "$RENDER_SERVICE_ID" ]; then
-            echo "::warning::RENDER_SERVICE_ID secret is not set. Skipping Render deployment. See DEPLOYMENT.md for setup instructions."
-            echo "has_credentials=false" >> "$GITHUB_OUTPUT"
-          elif [ -z "$RENDER_DEPLOY_HOOK_KEY" ]; then
+          if [ -z "$RENDER_DEPLOY_HOOK_KEY" ]; then
             echo "::warning::RENDER_DEPLOY_HOOK_KEY secret is not set. Skipping Render deployment. See DEPLOYMENT.md for setup instructions."
             echo "has_credentials=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_credentials=true" >> "$GITHUB_OUTPUT"
           fi
         env:
-          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
           RENDER_DEPLOY_HOOK_KEY: ${{ secrets.RENDER_DEPLOY_HOOK_KEY }}
 
       - name: Trigger Render deploy
         if: steps.validate.outputs.has_credentials == 'true'
         run: |
+          # Service ID for csphi/paybot on Render — update if deploying a fork.
           curl -s --fail-with-body \
             -X POST \
-            "https://api.render.com/deploy/$RENDER_SERVICE_ID?key=$RENDER_DEPLOY_HOOK_KEY"
+            "https://api.render.com/deploy/srv-d6guhlbh46gs73dskggg?key=$RENDER_DEPLOY_HOOK_KEY"
         env:
-          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
           RENDER_DEPLOY_HOOK_KEY: ${{ secrets.RENDER_DEPLOY_HOOK_KEY }}
