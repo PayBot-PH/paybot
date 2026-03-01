@@ -89,7 +89,7 @@ class DatabaseManager:
         logger.info("Starting database initialization...")
 
         async with self._init_lock:
-            if self.engine is not None:
+            if self.engine is not None and self.async_session_maker is not None:
                 logger.info("Database already initialized")
                 return
 
@@ -144,6 +144,8 @@ class DatabaseManager:
 
                 logger.info("Database connection initialized successfully")
             except Exception as e:
+                self.engine = None  # Reset so the next call can retry initialization
+                self.async_session_maker = None
                 logger.error(f"Failed to initialize database: {e}", exc_info=True)
                 raise
 
