@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bot, ShieldCheck, CheckCircle, AlertCircle, User, Phone, Mail, MapPin, Building2, Send } from 'lucide-react';
+import { BRAND_NAME } from '@/lib/brand';
 
 interface FormData {
   full_name: string;
@@ -136,8 +137,8 @@ export default function Register() {
               <Bot className="h-5 w-5 text-white" />
             </div>
             <div>
-              <p className="text-white font-bold text-lg leading-tight">PayBot</p>
-              <p className="text-slate-500 text-sm">by DRL Solutions</p>
+              <p className="text-white font-bold text-lg leading-tight">{BRAND_NAME}</p>
+              <p className="text-slate-500 text-sm">Admin Dashboard</p>
             </div>
           </div>
 
@@ -149,7 +150,7 @@ export default function Register() {
           <div className="space-y-4">
             {[
               { step: '1', label: 'Submit your information', desc: 'Fill in name, email, phone, and Telegram username' },
-              { step: '2', label: 'KYC verification', desc: 'Your identity is verified via the PayBot Philippines KYC platform' },
+              { step: '2', label: 'KYC verification', desc: `Your identity is verified via the ${BRAND_NAME} KYC platform` },
               { step: '3', label: 'Admin review & approval', desc: 'A super admin reviews and approves your application' },
               { step: '4', label: 'Dashboard access granted', desc: 'Sign in with Telegram once approved' },
             ].map((s) => (
@@ -171,7 +172,7 @@ export default function Register() {
           </div>
         </div>
 
-        <p className="relative text-slate-600 text-xs">© {new Date().getFullYear()} DRL Solutions</p>
+        <p className="relative text-slate-600 text-xs">© {new Date().getFullYear()} {BRAND_NAME}</p>
       </div>
 
       {/* Right panel — form */}
@@ -181,8 +182,8 @@ export default function Register() {
             <Bot className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-white font-bold text-base leading-tight">PayBot</p>
-            <p className="text-slate-500 text-xs">by DRL Solutions</p>
+            <p className="text-white font-bold text-base leading-tight">{BRAND_NAME}</p>
+            <p className="text-slate-500 text-xs">Admin Dashboard</p>
           </div>
         </div>
 

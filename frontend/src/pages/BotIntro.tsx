@@ -13,6 +13,7 @@ import {
   ArrowRight,
   CheckCircle2,
 } from 'lucide-react';
+import { BRAND_NAME, SUPPORT_URL, SUPPORT_HANDLE } from '@/lib/brand';
 
 const FEATURES = [
   {
@@ -166,9 +167,9 @@ export default function BotIntro() {
           }`}
         >
           <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
-            Meet <span className="text-blue-400">PayBot</span>
+            Meet <span className="text-blue-400">{BRAND_NAME}</span>
           </h1>
-          <p className="text-slate-500 text-sm mt-1">by DRL Solutions</p>
+          <p className="text-slate-500 text-sm mt-1">Admin Dashboard</p>
         </div>
 
         {/* Subtitle */}
@@ -230,12 +231,12 @@ export default function BotIntro() {
         <p className="mt-8 text-slate-600 text-xs text-center">
           Need access?{' '}
           <a
-            href="https://t.me/traxionpay"
+            href={SUPPORT_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="text-sky-400 hover:text-sky-300 transition-colors"
           >
-            Contact @traxionpay
+            Contact {SUPPORT_HANDLE}
           </a>
         </p>
 

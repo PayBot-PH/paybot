@@ -7,6 +7,7 @@ import {
   MessageCircle, UserCheck,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { BRAND_NAME, BRAND_TAGLINE, SUPPORT_URL } from '@/lib/brand';
 
 interface NavItem {
   to: string;
@@ -120,7 +121,7 @@ export default function Layout({ children, connected }: LayoutProps) {
       <div className="mb-1">
         <p className="px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Help</p>
         <a
-          href="https://t.me/traxionpay"
+          href={SUPPORT_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/60 transition-all duration-150"
@@ -143,8 +144,8 @@ export default function Layout({ children, connected }: LayoutProps) {
             <Bot className="h-4 w-4 text-white" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white leading-tight">PayBot</p>
-            <p className="text-[10px] text-slate-500 leading-tight">Admin Dashboard</p>
+            <p className="text-sm font-bold text-white leading-tight">{BRAND_NAME}</p>
+            <p className="text-[10px] text-slate-500 leading-tight">{BRAND_TAGLINE}</p>
           </div>
         </Link>
 
@@ -181,7 +182,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                 <div className="h-7 w-7 bg-blue-600 rounded-lg flex items-center justify-center">
                   <Bot className="h-4 w-4 text-white" />
                 </div>
-                <p className="text-sm font-bold text-white">PayBot</p>
+                <p className="text-sm font-bold text-white">{BRAND_NAME}</p>
               </Link>
               <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded text-slate-400 hover:text-white">
                 <X className="h-4 w-4" />
@@ -218,7 +219,7 @@ export default function Layout({ children, connected }: LayoutProps) {
             <div className="h-6 w-6 bg-blue-600 rounded flex items-center justify-center">
               <Bot className="h-3.5 w-3.5 text-white" />
             </div>
-            <span className="text-sm font-bold text-white">PayBot</span>
+            <span className="text-sm font-bold text-white">{BRAND_NAME}</span>
           </div>
 
           <div className="flex-1" />
@@ -280,7 +281,7 @@ export default function Layout({ children, connected }: LayoutProps) {
         </main>
 
         <footer className="px-6 py-4 border-t border-slate-800 text-center text-[11px] text-slate-600">
-          © {new Date().getFullYear()} PayBot · <Link to="/policies" className="hover:text-slate-400 transition-colors">Policies</Link>
+          © {new Date().getFullYear()} {BRAND_NAME} · <Link to="/policies" className="hover:text-slate-400 transition-colors">Policies</Link>
         </footer>
       </div>
     </div>
