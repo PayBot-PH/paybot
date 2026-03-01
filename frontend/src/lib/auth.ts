@@ -78,17 +78,4 @@ export const authApi = {
   async logout() {
     clearStoredToken();
   },
-
-  async loginAsDemo(userType: 'super_admin' | 'admin') {
-    const response = await fetch(`/api/v1/auth/dev-login?user_type=${userType}`, {
-      method: 'POST',
-    });
-    if (!response.ok) {
-      const data = await response.json().catch(() => ({}));
-      throw new Error(data?.detail || 'Demo login failed');
-    }
-    const data = await response.json();
-    if (!data?.token) throw new Error('Demo login failed: missing token');
-    setStoredToken(data.token);
-  },
 };
