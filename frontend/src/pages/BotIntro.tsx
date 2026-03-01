@@ -21,7 +21,7 @@ import {
   UserCheck,
   Settings,
 } from 'lucide-react';
-import { APP_NAME, APP_DESCRIPTION, SUPPORT_URL } from '@/lib/brand';
+import { APP_NAME, APP_DESCRIPTION, SUPPORT_HANDLE } from '@/lib/brand';
 
 interface TutorialStep {
   title: string;
@@ -148,7 +148,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     routeLabel: 'Go to Dashboard',
     tips: [
       'You can revisit this tutorial anytime — it appears after every login.',
-      `Need help? Contact support on Telegram: ${SUPPORT_URL}`,
+      `Need help? Contact support on Telegram: ${SUPPORT_HANDLE}`,
     ],
   },
 ];
