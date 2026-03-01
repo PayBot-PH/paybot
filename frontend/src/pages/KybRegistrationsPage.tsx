@@ -8,6 +8,7 @@ interface KybRegistration {
   telegram_username: string | null;
   step: string;
   full_name: string | null;
+  email: string | null;
   phone: string | null;
   address: string | null;
   bank_name: string | null;
@@ -221,6 +222,10 @@ export default function KybRegistrationsPage() {
                           <p className="text-white">{reg.full_name || '—'}</p>
                         </div>
                         <div>
+                          <p className="text-slate-500 text-xs mb-0.5">Email</p>
+                          <p className="text-white">{reg.email || '—'}</p>
+                        </div>
+                        <div>
                           <p className="text-slate-500 text-xs mb-0.5">Phone</p>
                           <p className="text-white">{reg.phone || '—'}</p>
                         </div>
@@ -229,7 +234,9 @@ export default function KybRegistrationsPage() {
                           <p className="text-white">{reg.address || '—'}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500 text-xs mb-0.5">Bank Name</p>
+                          <p className="text-slate-500 text-xs mb-0.5">
+                            {reg.chat_id?.startsWith('web-') ? 'Business Name' : 'Bank Name'}
+                          </p>
                           <p className="text-white">{reg.bank_name || '—'}</p>
                         </div>
                         <div>
