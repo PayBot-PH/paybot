@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     # PayMongo API
     paymongo_secret_key: str = ""
     paymongo_public_key: str = ""
+    paymongo_webhook_secret: str = ""
+    paymongo_mode: str = "test"  # "test" or "live"
 
     # Simple admin authentication
     admin_user_id: str = "admin"

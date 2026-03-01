@@ -226,7 +226,33 @@ curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
 2. Add webhook URL: `https://your-domain.com/api/v1/xendit/webhook`
 3. Select events: `invoices`, `qr_codes`, `payment_links`, `disbursements`
 
-### 3. Verify Everything Works
+### 3. Set Up PayMongo Webhook
+1. Go to [PayMongo Dashboard](https://dashboard.paymongo.com) → **Developers** → **Webhooks**
+2. Click **Add Endpoint** and set URL: `https://your-domain.com/api/v1/paymongo/webhook`
+3. Select events:
+   - `source.chargeable` (Alipay / WeChat Pay QR payments)
+   - `checkout_session.payment.paid`
+   - `checkout_session.payment.failed`
+   - `payment.paid`
+   - `payment.failed`
+4. Copy the **Signing Secret** (starts with `whsk_`) and set it as `PAYMONGO_WEBHOOK_SECRET`
+5. Set `PAYMONGO_MODE=test` for sandbox or `PAYMONGO_MODE=live` for production
+
+#### PayMongo Top-Up Flow
+1. User calls `POST /api/v1/paymongo/topup` (authenticated) with `amount` and optional `payment_method`
+2. Backend creates a PayMongo Checkout Session (or Source for Alipay/WeChat) and returns a `checkout_url`
+3. User completes payment on the PayMongo-hosted page
+4. PayMongo delivers a signed webhook event to `/api/v1/paymongo/webhook`
+5. Backend verifies the signature, checks idempotency, and credits the PHP wallet
+6. Frontend receives a real-time wallet update via SSE (`/api/v1/events/stream`)
+
+#### Local Development Notes
+- In local/sandbox mode, PayMongo webhooks cannot reach `localhost`
+- Use a tunnel (e.g. [ngrok](https://ngrok.com/): `ngrok http 8000`) and update the webhook URL in the PayMongo dashboard
+- Set `PAYMONGO_MODE=test` and use test API keys from the PayMongo dashboard
+- With `PAYMONGO_WEBHOOK_SECRET` unset, signature verification is skipped (dev-only)
+
+### 4. Verify Everything Works
 ```bash
 # Check backend health
 curl https://your-domain.com/health
@@ -247,6 +273,10 @@ curl https://your-domain.com/api/v1/telegram/debug-token-check
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather | ✅ | — |
 | `XENDIT_SECRET_KEY` | Xendit API secret key | ✅ | — |
 | `DATABASE_URL` | PostgreSQL connection string | ✅ | — |
+| `PAYMONGO_SECRET_KEY` | PayMongo secret API key | ❌ | — |
+| `PAYMONGO_PUBLIC_KEY` | PayMongo public API key | ❌ | — |
+| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret (`whsk_…`) | ❌ | — |
+| `PAYMONGO_MODE` | `test` (sandbox) or `live` (production) | ❌ | `test` |
 | `PORT` | Server port | ❌ | `8000` |
 | `DEBUG` | Enable debug mode | ❌ | `false` |
 | `SUPABASE_URL` | Supabase project URL (if using Supabase) | ❌ | — |
