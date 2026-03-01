@@ -119,6 +119,10 @@ async def initialize_admin_user():
     # Ensure database is initialized first
     await initialize_database()
 
+    if not db_manager.async_session_maker:
+        logger.warning("Database not initialized, skipping admin user initialization")
+        return
+
     admin_user_id = getattr(settings, "admin_user_id", "")
     admin_user_email = getattr(settings, "admin_user_email", "")
 
@@ -184,6 +188,10 @@ async def initialize_demo_users():
     """Seed demo super admin and admin user records for dev/demo purposes."""
     from services.database import initialize_database
     await initialize_database()
+
+    if not db_manager.async_session_maker:
+        logger.warning("Database not initialized, skipping demo user seeding")
+        return
 
     async with db_manager.async_session_maker() as db:
         for demo in DEMO_USERS:
