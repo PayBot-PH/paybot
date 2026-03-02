@@ -43,7 +43,7 @@ USDT_TRC20_ADDRESS = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
 _USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
 _USD_DEBIT_TYPES = ("usdt_send", "usd_send", "admin_debit")
 
-# Minimum PHP/Xendit balance required to allow a USDT withdrawal request
+# Minimum PHP balance required to allow a USDT withdrawal request
 _PHP_MIN_WITHDRAWAL_BALANCE = 100_000.0
 
 
@@ -93,17 +93,20 @@ async def _compute_usd_balance_for_wallet(db: AsyncSession, user_id: str) -> flo
 
 
 async def _get_php_balance_for_bot(db: AsyncSession, tg_user_id: str) -> float:
-    """Return the live Xendit PHP balance, falling back to the stored wallet row.
+    """Return the live PayMongo PHP balance, falling back to the stored wallet row.
 
     Returns 0.0 if neither source is available so the caller can decide.
     """
     try:
-        xendit_svc = XenditService()
-        result = await xendit_svc.get_balance()
+        pm_svc = PayMongoService()
+        result = await pm_svc.get_balance()
         if result.get("success"):
-            return float(result.get("balance", 0))
+            available = result.get("available", [])
+            php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
+            if php_entry is not None:
+                return float(php_entry["amount"]) / 100.0
     except Exception as e:
-        logger.warning("Xendit balance fetch failed in PHP threshold check: %s", e)
+        logger.warning("PayMongo balance fetch failed in PHP threshold check: %s", e)
 
     # Fallback: stored PHP wallet row
     try:
@@ -676,6 +679,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         chat_id = str(message.get("chat", {}).get("id", ""))
         text = message.get("text", "")
+        # Keyboard buttons are labelled "💳 /invoice", "📱 /qr", etc.
+        # Strip any leading emoji/whitespace so command routing works correctly.
+        if text and "/" in text and not text.startswith("/"):
+            text = text[text.index("/"):]
         username = message.get("from", {}).get("username", "unknown")
         photos = message.get("photo", [])
 
@@ -1704,7 +1711,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # ==================== /balance ====================
         elif text.startswith("/balance"):
             try:
-                # PHP wallet — get or create, then sync balance from Xendit live balance
+                # PHP wallet — get or create, then sync balance from PayMongo live balance
                 res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP"))
                 wallet = res.scalar_one_or_none()
                 if not wallet:
@@ -1713,17 +1720,20 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     db.add(wallet)
                     await db.commit()
                     await db.refresh(wallet)
-                # Sync PHP balance from Xendit live account balance
+                # Sync PHP balance from PayMongo live account balance
                 try:
-                    xendit_svc = XenditService()
-                    xendit_bal = await xendit_svc.get_balance()
-                    if xendit_bal.get("success"):
-                        wallet.balance = float(xendit_bal.get("balance", wallet.balance))
-                        wallet.updated_at = datetime.now()
-                        await db.commit()
-                        await db.refresh(wallet)
-                except Exception as xe:
-                    logger.warning(f"Xendit balance fetch failed for /balance: {xe}")
+                    pm_svc = PayMongoService()
+                    pm_bal = await pm_svc.get_balance()
+                    if pm_bal.get("success"):
+                        available = pm_bal.get("available", [])
+                        php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
+                        if php_entry is not None:
+                            wallet.balance = float(php_entry["amount"]) / 100.0
+                            wallet.updated_at = datetime.now()
+                            await db.commit()
+                            await db.refresh(wallet)
+                except Exception as pe:
+                    logger.warning(f"PayMongo balance fetch failed for /balance: {pe}")
                 php_balance = wallet.balance
                 # USD wallet — compute balance from transaction history
                 usd_res = await db.execute(
@@ -1885,7 +1895,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
-                    # Reject if the PHP/Xendit balance is below the minimum threshold
+                    # Reject if the PHP/PayMongo balance is below the minimum threshold
                     php_balance = await _get_php_balance_for_bot(db, tg_user_id)
                     if php_balance < _PHP_MIN_WITHDRAWAL_BALANCE:
                         await tg.send_message(
