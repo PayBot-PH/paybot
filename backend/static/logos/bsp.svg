@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="bspbg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1B4F9C"/>
+      <stop offset="100%" stop-color="#0D3070"/>
+    </linearGradient>
+  </defs>
+  <circle cx="50" cy="50" r="50" fill="url(#bspbg)"/>
+  <circle cx="50" cy="50" r="44" fill="none" stroke="#FFD700" stroke-width="2"/>
+  <circle cx="50" cy="50" r="38" fill="none" stroke="#FFD700" stroke-width="0.8"/>
+  <text x="50" y="42" text-anchor="middle" dominant-baseline="middle"
+    font-family="'Arial Black',Arial,sans-serif" font-weight="900"
+    font-size="22" fill="#FFD700">BSP</text>
+  <text x="50" y="60" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial,sans-serif" font-weight="600"
+    font-size="7.5" fill="white" letter-spacing="0.5">BANGKO SENTRAL</text>
+  <text x="50" y="70" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial,sans-serif" font-weight="600"
+    font-size="7.5" fill="white" letter-spacing="0.5">NG PILIPINAS</text>
+</svg>

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
+import ComplianceBar from '@/components/ComplianceBar';
 
 /* ─── Logo helpers (same as Login.tsx) ───────────────────────── */
 function SiIcon({ src, alt, bg, size = 32 }: { src: string; alt: string; bg: string; size?: number }) {
@@ -426,6 +427,9 @@ export default function Pricing() {
           </div>
         </div>
       </footer>
+
+      <ComplianceBar />
+
     </div>
   );
 }

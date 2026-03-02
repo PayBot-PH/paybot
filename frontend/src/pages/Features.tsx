@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import ComplianceBar from '@/components/ComplianceBar';
 import {
   Bot,
   BarChart3,
@@ -580,6 +581,9 @@ export default function Features() {
         <Link to="/policies" className="hover:text-sky-400 transition-colors">Policies</Link>
         <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="hover:text-sky-400 transition-colors">Support</a>
       </footer>
+
+      <ComplianceBar />
+
     </div>
   );
 }

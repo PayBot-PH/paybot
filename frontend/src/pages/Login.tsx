@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
 import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
+import ComplianceBar from '@/components/ComplianceBar';
 
 declare global {
   interface Window { onTelegramAuth?: (user: TelegramWidgetUser) => void; }
@@ -773,6 +774,8 @@ export default function Login() {
 
         </div>
       </footer>
+
+      <ComplianceBar />
 
     </div>
   );
