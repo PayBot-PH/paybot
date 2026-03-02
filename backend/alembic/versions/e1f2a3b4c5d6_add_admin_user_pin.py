@@ -18,12 +18,21 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _table_exists(table: str) -> bool:
+    bind = op.get_bind()
+    return table in inspect(bind).get_table_names()
+
+
 def _col(table: str, col: str) -> bool:
     bind = op.get_bind()
     return col in [c['name'] for c in inspect(bind).get_columns(table)]
 
 
 def upgrade() -> None:
+    # If admin_users does not exist yet it will be created fresh (with PIN
+    # columns included) by migration c1d2e3f4a5b6, so there is nothing to do.
+    if not _table_exists('admin_users'):
+        return
     with op.batch_alter_table('admin_users', schema=None) as batch_op:
         if not _col('admin_users', 'pin_hash'):
             batch_op.add_column(sa.Column('pin_hash', sa.String(length=128), nullable=True))
@@ -36,6 +45,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    if not _table_exists('admin_users'):
+        return
     with op.batch_alter_table('admin_users', schema=None) as batch_op:
         if _col('admin_users', 'pin_locked_until'):
             batch_op.drop_column('pin_locked_until')

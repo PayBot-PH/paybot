@@ -42,6 +42,12 @@ def upgrade() -> None:
             sa.Column('can_manage_bot', sa.Boolean(), nullable=False, server_default='false'),
             sa.Column('can_approve_topups', sa.Boolean(), nullable=False, server_default='false'),
             sa.Column('added_by', sa.String(length=64), nullable=True),
+            # PIN authentication columns (added here for fresh installs;
+            # existing databases get them via e1f2a3b4c5d6).
+            sa.Column('pin_hash', sa.String(length=128), nullable=True),
+            sa.Column('pin_salt', sa.String(length=64), nullable=True),
+            sa.Column('pin_failed_attempts', sa.Integer(), nullable=False, server_default='0'),
+            sa.Column('pin_locked_until', sa.DateTime(timezone=True), nullable=True),
             sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
             sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.func.now()),
             sa.PrimaryKeyConstraint('id'),
