@@ -98,9 +98,9 @@ class PhotonPayService:
     # ------------------------------------------------------------------
 
     def _basic_auth_header(self) -> str:
-        """Encode appId/appSecret as Basic auth credential."""
-        raw = f"{self.app_id}/{self.app_secret}"
-        return f"basic {base64.b64encode(raw.encode()).decode()}"
+        """Encode appId:appSecret as standard HTTP Basic auth credential."""
+        raw = f"{self.app_id}:{self.app_secret}"
+        return f"Basic {base64.b64encode(raw.encode()).decode()}"
 
     def _sign_body(self, body_str: str) -> str:
         """
