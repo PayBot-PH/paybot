@@ -23,6 +23,9 @@ def upgrade() -> None:
     """Add email column to kyb_registrations if it does not already exist."""
     bind = op.get_bind()
     inspector = inspect(bind)
+    existing = set(inspector.get_table_names())
+    if 'kyb_registrations' not in existing:
+        return
     columns = {col['name'] for col in inspector.get_columns('kyb_registrations')}
     if 'email' not in columns:
         op.add_column('kyb_registrations', sa.Column('email', sa.String(length=256), nullable=True))
@@ -32,6 +35,9 @@ def downgrade() -> None:
     """Drop email column from kyb_registrations if it exists."""
     bind = op.get_bind()
     inspector = inspect(bind)
+    existing = set(inspector.get_table_names())
+    if 'kyb_registrations' not in existing:
+        return
     columns = {col['name'] for col in inspector.get_columns('kyb_registrations')}
     if 'email' in columns:
         op.drop_column('kyb_registrations', 'email')
