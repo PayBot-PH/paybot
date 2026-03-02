@@ -142,17 +142,38 @@ class PhotonPayService:
             )
             r.raise_for_status()
             data = r.json()
-            # Response may be nested under "data" or flat
+            logger.info("PhotonPay token response: %s", data)
+
+            # Fail fast if the API returned an error code in the body
+            code = str(data.get("code", ""))
+            # PhotonPay success codes: "0", "200", "0000", or absent
+            is_success = code in ("0", "200", "0000", "") or code.startswith("0")
+            if not is_success:
+                raise ValueError(
+                    f"PhotonPay token endpoint error {code}: {data.get('msg', 'unknown')}"
+                )
+
+            # Token may live under "data" or directly in the root
             token_data = data.get("data") or data
-            self._access_token = (
+            token = (
                 token_data.get("access_token")
                 or token_data.get("accessToken")
                 or token_data.get("token")
                 or ""
             )
-            expires_in = int(token_data.get("expires_in", token_data.get("expiresIn", 7200)) or 7200)
+
+            if not token:
+                raise ValueError(
+                    f"PhotonPay returned no access token — full response: {data}"
+                )
+
+            expires_in = int(
+                token_data.get("expires_in",
+                               token_data.get("expiresIn", 7200)) or 7200
+            )
+            self._access_token = token
             self._token_expires_at = time.time() + expires_in
-            logger.debug("PhotonPay: got access token (expires in %ds)", expires_in)
+            logger.info("PhotonPay: access token obtained (expires in %ds)", expires_in)
             return self._access_token
 
     # ------------------------------------------------------------------
