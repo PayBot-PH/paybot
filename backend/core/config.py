@@ -71,6 +71,20 @@ class Settings(BaseSettings):
     paymongo_webhook_secret: str = ""
     paymongo_mode: str = "test"  # "test" or "live"
 
+    # PhotonPay API (Alipay / WeChat Pay collection)
+    # Credentials from PhotonPay merchant portal (Settings > Developer)
+    photonpay_app_id: str = ""
+    photonpay_app_secret: str = ""
+    # Merchant RSA private key (PKCS#8 PEM) for signing outgoing API requests
+    photonpay_rsa_private_key: str = ""
+    # PhotonPay platform RSA public key for verifying incoming webhook signatures
+    photonpay_rsa_public_key: str = ""
+    # Site ID from PhotonPay merchant portal (Collection > Site Management)
+    photonpay_site_id: str = ""
+    # payMethod strings – adjust based on account type (e.g. "Alipay", "WeChat")
+    photonpay_alipay_method: str = "Alipay"
+    photonpay_wechat_method: str = "WeChat"
+
     # Simple admin authentication
     admin_user_id: str = "admin"
     admin_user_email: str = "admin@paybot.local"

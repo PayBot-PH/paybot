@@ -28,6 +28,7 @@ from services.telegram_service import TelegramService, _resolve_bot_token
 from services.xendit_service import XenditService
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
+from services.photonpay_service import PhotonPayService
 from models.topup_requests import TopupRequest
 from models.usdt_send_requests import UsdtSendRequest
 from models.kyb_registrations import KybRegistration
@@ -973,8 +974,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /link [amt] [desc] — Payment link\n"
                 "  /va [amt] [bank] — Virtual account\n"
                 "  /ewallet [amt] [provider] — E-wallet\n"
-                "  /alipay [amt] [desc] — Alipay QR (via PayMongo)\n"
-                "  /wechat [amt] [desc] — WeChat QR (via PayMongo)\n\n"                "💸 <b>Send Money</b>\n"
+                "  /alipay [amt] [desc] — Alipay QR (via PhotonPay)\n"
+                "  /wechat [amt] [desc] — WeChat QR (via PhotonPay)\n\n"                "💸 <b>Send Money</b>\n"
                 "  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
                 "  /refund [id] [amt] — Refund a payment\n\n"
                 "💰 <b>PHP Wallet</b>\n"
@@ -1224,11 +1225,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /alipay (PayMongo → Alipay QR) ====================
+        # ==================== /alipay (PhotonPay → Alipay QR) ====================
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]\nExample: /alipay 500 Coffee order\n\n💡 <i>Generates an Alipay QR via PayMongo. Wallet credited automatically on payment.</i>")
+                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]\nExample: /alipay 500 Coffee order\n\n💡 <i>Generates an Alipay checkout via PhotonPay. Wallet credited automatically on payment.</i>")
             else:
                 try:
                     amount = float(parts[1])
@@ -1237,18 +1238,30 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
-                    paymongo = PayMongoService()
-                    result = await paymongo.create_alipay_qr(amount=amount, description=description)
+                    photonpay = PhotonPayService()
+                    backend_url = ""
+                    try:
+                        from core.config import settings as _settings
+                        backend_url = _settings.backend_url
+                    except Exception:
+                        pass
+                    result = await photonpay.create_alipay_session(
+                        amount=amount,
+                        description=description,
+                        notify_url=f"{backend_url}/api/v1/photonpay/webhook",
+                        redirect_url=f"{backend_url}/api/v1/photonpay/redirect/success",
+                        shopper_id=str(chat_id),
+                    )
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
-                        ref_num = result.get("reference_number", "")
+                        ref_num = result.get("req_id", "")
                         caption = (
-                            f"✅ <b>Alipay QR Ready!</b>\n"
+                            f"✅ <b>Alipay Payment Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
                             f"🆔 <code>{ref_num}</code>\n\n"
-                            f"📱 Open the link and scan the QR with Alipay to pay.\n"
+                            f"📱 Tap the button below to open the Alipay checkout page.\n"
                             f"💳 Your PHP wallet will be credited automatically once paid."
                         )
                         keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay", "url": checkout_url}]]} if checkout_url else None
@@ -1258,7 +1271,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             now = datetime.now()
                             txn = Transactions(
                                 user_id="telegram", transaction_type="alipay_qr",
-                                external_id=ref_num, xendit_id=result.get("source_id", ""),
+                                external_id=ref_num, xendit_id=result.get("pay_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=checkout_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
@@ -1272,15 +1285,15 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Alipay QR failed: {result.get('error', 'Unknown error')}")
+                        await tg.send_message(chat_id, f"❌ Alipay payment failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /wechat (PayMongo → WeChat Pay QR) ====================
+        # ==================== /wechat (PhotonPay → WeChat Pay QR) ====================
         elif text.startswith("/wechat"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, "❌ Usage: /wechat [amount] [description]\nExample: /wechat 500 Coffee order\n\n💡 <i>Generates a WeChat Pay QR via PayMongo. Wallet credited automatically on payment.</i>")
+                await tg.send_message(chat_id, "❌ Usage: /wechat [amount] [description]\nExample: /wechat 500 Coffee order\n\n💡 <i>Generates a WeChat Pay checkout via PhotonPay. Wallet credited automatically on payment.</i>")
             else:
                 try:
                     amount = float(parts[1])
@@ -1289,18 +1302,30 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
-                    paymongo = PayMongoService()
-                    result = await paymongo.create_wechat_qr(amount=amount, description=description)
+                    photonpay = PhotonPayService()
+                    backend_url = ""
+                    try:
+                        from core.config import settings as _settings
+                        backend_url = _settings.backend_url
+                    except Exception:
+                        pass
+                    result = await photonpay.create_wechat_session(
+                        amount=amount,
+                        description=description,
+                        notify_url=f"{backend_url}/api/v1/photonpay/webhook",
+                        redirect_url=f"{backend_url}/api/v1/photonpay/redirect/success",
+                        shopper_id=str(chat_id),
+                    )
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
-                        ref_num = result.get("reference_number", "")
+                        ref_num = result.get("req_id", "")
                         caption = (
-                            f"✅ <b>WeChat Pay QR Ready!</b>\n"
+                            f"✅ <b>WeChat Pay Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
                             f"🆔 <code>{ref_num}</code>\n\n"
-                            f"📱 Open the link and scan the QR with WeChat to pay.\n"
+                            f"📱 Tap the button below to open the WeChat Pay checkout page.\n"
                             f"💳 Your PHP wallet will be credited automatically once paid."
                         )
                         keyboard = {"inline_keyboard": [[{"text": "💚 Pay via WeChat", "url": checkout_url}]]} if checkout_url else None
@@ -1310,7 +1335,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             now = datetime.now()
                             txn = Transactions(
                                 user_id="telegram", transaction_type="wechat_qr",
-                                external_id=ref_num, xendit_id=result.get("source_id", ""),
+                                external_id=ref_num, xendit_id=result.get("pay_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=checkout_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
@@ -1324,7 +1349,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ WeChat QR failed: {result.get('error', 'Unknown error')}")
+                        await tg.send_message(chat_id, f"❌ WeChat Pay failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
@@ -2454,8 +2479,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "🔗 /link [amt] [desc] — Payment Link\n"
                 "🏦 /va [amt] [bank] — Virtual Account\n"
                 "📲 /ewallet [amt] [provider] — E-Wallet\n"
-                "🔴 /alipay [amt] [desc] — Alipay QR (PayMongo)\n"
-                "🟢 /wechat [amt] [desc] — WeChat QR (PayMongo)\n\n"
+                "🔴 /alipay [amt] [desc] — Alipay QR (PhotonPay)\n"
+                "🟢 /wechat [amt] [desc] — WeChat QR (PhotonPay)\n\n"
                 "💡 Example: /invoice 500 Coffee order"
             )
             await tg.send_message(chat_id, menu, reply_markup=_start_kb())
@@ -2469,8 +2494,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /pay — Payment menu\n"
                 "  /invoice [amt] [desc]\n"
                 "  /qr [amt] [desc]\n"
-                "  /alipay [amt] [desc] — Alipay QR (PayMongo)\n"
-                "  /wechat [amt] [desc] — WeChat QR (PayMongo)\n"
+                "  /alipay [amt] [desc] — Alipay QR (PhotonPay)\n"
+                "  /wechat [amt] [desc] — WeChat QR (PhotonPay)\n"
                 "  /link [amt] [desc]\n"
                 "  /va [amt] [bank]\n"
                 "  /ewallet [amt] [provider]\n\n"
