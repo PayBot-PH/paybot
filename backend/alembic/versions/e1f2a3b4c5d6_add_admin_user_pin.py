@@ -9,7 +9,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy import inspect
+from sqlalchemy import text
 
 
 revision: str = 'e1f2a3b4c5d6'
@@ -18,14 +18,27 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def _table_exists(table: str) -> bool:
+def _table_exists(name: str) -> bool:
     bind = op.get_bind()
-    return table in inspect(bind).get_table_names()
+    if bind.dialect.name == 'postgresql':
+        return bind.execute(
+            text("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=:t"),
+            {"t": name},
+        ).fetchone() is not None
+    return bind.execute(
+        text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:t"), {"t": name}
+    ).fetchone() is not None
 
 
-def _col(table: str, col: str) -> bool:
+def _column_exists(table: str, col: str) -> bool:
     bind = op.get_bind()
-    return col in [c['name'] for c in inspect(bind).get_columns(table)]
+    if bind.dialect.name == 'postgresql':
+        return bind.execute(
+            text("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name=:t AND column_name=:c"),
+            {"t": table, "c": col},
+        ).fetchone() is not None
+    rows = bind.execute(text(f'PRAGMA table_info("{table}")')).fetchall()
+    return any(row[1] == col for row in rows)
 
 
 def upgrade() -> None:
@@ -33,26 +46,24 @@ def upgrade() -> None:
     # columns included) by migration c1d2e3f4a5b6, so there is nothing to do.
     if not _table_exists('admin_users'):
         return
-    with op.batch_alter_table('admin_users', schema=None) as batch_op:
-        if not _col('admin_users', 'pin_hash'):
-            batch_op.add_column(sa.Column('pin_hash', sa.String(length=128), nullable=True))
-        if not _col('admin_users', 'pin_salt'):
-            batch_op.add_column(sa.Column('pin_salt', sa.String(length=64), nullable=True))
-        if not _col('admin_users', 'pin_failed_attempts'):
-            batch_op.add_column(sa.Column('pin_failed_attempts', sa.Integer(), nullable=False, server_default='0'))
-        if not _col('admin_users', 'pin_locked_until'):
-            batch_op.add_column(sa.Column('pin_locked_until', sa.DateTime(timezone=True), nullable=True))
+    if not _column_exists('admin_users', 'pin_hash'):
+        op.add_column('admin_users', sa.Column('pin_hash', sa.String(length=128), nullable=True))
+    if not _column_exists('admin_users', 'pin_salt'):
+        op.add_column('admin_users', sa.Column('pin_salt', sa.String(length=64), nullable=True))
+    if not _column_exists('admin_users', 'pin_failed_attempts'):
+        op.add_column('admin_users', sa.Column('pin_failed_attempts', sa.Integer(), nullable=False, server_default='0'))
+    if not _column_exists('admin_users', 'pin_locked_until'):
+        op.add_column('admin_users', sa.Column('pin_locked_until', sa.DateTime(timezone=True), nullable=True))
 
 
 def downgrade() -> None:
     if not _table_exists('admin_users'):
         return
-    with op.batch_alter_table('admin_users', schema=None) as batch_op:
-        if _col('admin_users', 'pin_locked_until'):
-            batch_op.drop_column('pin_locked_until')
-        if _col('admin_users', 'pin_failed_attempts'):
-            batch_op.drop_column('pin_failed_attempts')
-        if _col('admin_users', 'pin_salt'):
-            batch_op.drop_column('pin_salt')
-        if _col('admin_users', 'pin_hash'):
-            batch_op.drop_column('pin_hash')
+    if _column_exists('admin_users', 'pin_locked_until'):
+        op.drop_column('admin_users', 'pin_locked_until')
+    if _column_exists('admin_users', 'pin_failed_attempts'):
+        op.drop_column('admin_users', 'pin_failed_attempts')
+    if _column_exists('admin_users', 'pin_salt'):
+        op.drop_column('admin_users', 'pin_salt')
+    if _column_exists('admin_users', 'pin_hash'):
+        op.drop_column('admin_users', 'pin_hash')

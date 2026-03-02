@@ -9,28 +9,29 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import inspect
+from sqlalchemy import text
 
 
-# revision identifiers, used by Alembic.
 revision: str = 'a1b2c3d4e5f6'
 down_revision: Union[str, Sequence[str], None] = 'f4e19613f3a8'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
-    """Create users and oidc_states tables if they don't already exist.
-
-    These tables are intentionally excluded from alembic autogenerate
-    (see alembic_include_object in env.py) but must be created before
-    the application can accept logins.
-    """
+def _table_exists(name: str) -> bool:
     bind = op.get_bind()
-    inspector = inspect(bind)
-    existing = set(inspector.get_table_names())
+    if bind.dialect.name == 'postgresql':
+        return bind.execute(
+            text("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=:t"),
+            {"t": name},
+        ).fetchone() is not None
+    return bind.execute(
+        text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:t"), {"t": name}
+    ).fetchone() is not None
 
-    if 'users' not in existing:
+
+def upgrade() -> None:
+    if not _table_exists('users'):
         op.create_table(
             'users',
             sa.Column('id', sa.String(length=255), nullable=False),
@@ -43,7 +44,7 @@ def upgrade() -> None:
         )
         op.create_index(op.f('ix_users_id'), 'users', ['id'], unique=False)
 
-    if 'oidc_states' not in existing:
+    if not _table_exists('oidc_states'):
         op.create_table(
             'oidc_states',
             sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -59,16 +60,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop users and oidc_states tables if they exist."""
-    bind = op.get_bind()
-    inspector = inspect(bind)
-    existing = set(inspector.get_table_names())
-
-    if 'oidc_states' in existing:
+    if _table_exists('oidc_states'):
         op.drop_index(op.f('ix_oidc_states_state'), table_name='oidc_states')
         op.drop_index(op.f('ix_oidc_states_id'), table_name='oidc_states')
         op.drop_table('oidc_states')
-
-    if 'users' in existing:
+    if _table_exists('users'):
         op.drop_index(op.f('ix_users_id'), table_name='users')
         op.drop_table('users')

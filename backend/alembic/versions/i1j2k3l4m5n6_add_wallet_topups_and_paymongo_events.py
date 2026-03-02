@@ -9,22 +9,29 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import inspect
+from sqlalchemy import text
 
-# revision identifiers, used by Alembic.
+
 revision: str = "i1j2k3l4m5n6"
 down_revision: Union[str, Sequence[str], None] = "h1i2j3k4l5m6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
-    """Create wallet_topups and paymongo_webhook_events tables."""
+def _table_exists(name: str) -> bool:
     bind = op.get_bind()
-    inspector = inspect(bind)
-    existing = set(inspector.get_table_names())
+    if bind.dialect.name == "postgresql":
+        return bind.execute(
+            text("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=:t"),
+            {"t": name},
+        ).fetchone() is not None
+    return bind.execute(
+        text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:t"), {"t": name}
+    ).fetchone() is not None
 
-    if "wallet_topups" not in existing:
+
+def upgrade() -> None:
+    if not _table_exists("wallet_topups"):
         op.create_table(
             "wallet_topups",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -50,7 +57,7 @@ def upgrade() -> None:
         op.create_index(op.f("ix_wallet_topups_paymongo_checkout_session_id"), "wallet_topups", ["paymongo_checkout_session_id"], unique=False)
         op.create_index(op.f("ix_wallet_topups_reference_number"), "wallet_topups", ["reference_number"], unique=False)
 
-    if "paymongo_webhook_events" not in existing:
+    if not _table_exists("paymongo_webhook_events"):
         op.create_table(
             "paymongo_webhook_events",
             sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
@@ -65,17 +72,12 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop wallet_topups and paymongo_webhook_events tables."""
-    bind = op.get_bind()
-    inspector = inspect(bind)
-    existing = set(inspector.get_table_names())
-
-    if "paymongo_webhook_events" in existing:
+    if _table_exists("paymongo_webhook_events"):
         op.drop_index(op.f("ix_paymongo_webhook_events_event_id"), table_name="paymongo_webhook_events")
         op.drop_index(op.f("ix_paymongo_webhook_events_id"), table_name="paymongo_webhook_events")
         op.drop_table("paymongo_webhook_events")
 
-    if "wallet_topups" in existing:
+    if _table_exists("wallet_topups"):
         op.drop_index(op.f("ix_wallet_topups_reference_number"), table_name="wallet_topups")
         op.drop_index(op.f("ix_wallet_topups_paymongo_checkout_session_id"), table_name="wallet_topups")
         op.drop_index(op.f("ix_wallet_topups_paymongo_payment_intent_id"), table_name="wallet_topups")

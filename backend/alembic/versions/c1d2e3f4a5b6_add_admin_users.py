@@ -9,23 +9,29 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import inspect
+from sqlalchemy import text
 
 
-# revision identifiers, used by Alembic.
 revision: str = 'c1d2e3f4a5b6'
 down_revision: Union[str, Sequence[str], None] = 'b1c2d3e4f5a6'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
-    """Create admin_users table if it does not already exist."""
+def _table_exists(name: str) -> bool:
     bind = op.get_bind()
-    inspector = inspect(bind)
-    existing = set(inspector.get_table_names())
+    if bind.dialect.name == 'postgresql':
+        return bind.execute(
+            text("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=:t"),
+            {"t": name},
+        ).fetchone() is not None
+    return bind.execute(
+        text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:t"), {"t": name}
+    ).fetchone() is not None
 
-    if 'admin_users' not in existing:
+
+def upgrade() -> None:
+    if not _table_exists('admin_users'):
         op.create_table(
             'admin_users',
             sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -57,12 +63,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop admin_users table if it exists."""
-    bind = op.get_bind()
-    inspector = inspect(bind)
-    existing = set(inspector.get_table_names())
-
-    if 'admin_users' in existing:
+    if _table_exists('admin_users'):
         op.drop_index(op.f('ix_admin_users_telegram_id'), table_name='admin_users')
         op.drop_index(op.f('ix_admin_users_id'), table_name='admin_users')
         op.drop_table('admin_users')

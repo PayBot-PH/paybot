@@ -9,23 +9,29 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import inspect
+from sqlalchemy import text
 
 
-# revision identifiers, used by Alembic.
 revision: str = 'g1h2i3j4k5l6'
 down_revision: Union[str, Sequence[str], None] = 'c3d4e5f6a1b2'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
-def upgrade() -> None:
-    """Create kyc_verifications table if it does not already exist."""
+def _table_exists(name: str) -> bool:
     bind = op.get_bind()
-    inspector = inspect(bind)
-    existing = set(inspector.get_table_names())
+    if bind.dialect.name == 'postgresql':
+        return bind.execute(
+            text("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=:t"),
+            {"t": name},
+        ).fetchone() is not None
+    return bind.execute(
+        text("SELECT 1 FROM sqlite_master WHERE type='table' AND name=:t"), {"t": name}
+    ).fetchone() is not None
 
-    if 'kyc_verifications' not in existing:
+
+def upgrade() -> None:
+    if not _table_exists('kyc_verifications'):
         op.create_table(
             'kyc_verifications',
             sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
@@ -50,12 +56,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Drop kyc_verifications table if it exists."""
-    bind = op.get_bind()
-    inspector = inspect(bind)
-    existing = set(inspector.get_table_names())
-
-    if 'kyc_verifications' in existing:
+    if _table_exists('kyc_verifications'):
         op.drop_index(op.f('ix_kyc_verifications_chat_id'), table_name='kyc_verifications')
         op.drop_index(op.f('ix_kyc_verifications_id'), table_name='kyc_verifications')
         op.drop_table('kyc_verifications')
