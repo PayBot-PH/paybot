@@ -3,10 +3,11 @@ import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   ArrowRight, ChevronRight, CheckCircle2, Zap, Shield,
-  Bell, UserPlus, Bot, Menu, X,
+  Bell, UserPlus, Bot, Menu, X, Lock,
 } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
 import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
+import ComplianceBar from '@/components/ComplianceBar';
 
 declare global {
   interface Window { onTelegramAuth?: (user: TelegramWidgetUser) => void; }
@@ -331,16 +332,21 @@ export default function Login() {
               </div>
 
               {/* Trust badges */}
-              <div className="flex flex-wrap items-center gap-4 sm:gap-5 justify-center lg:justify-start">
+              <div className="flex flex-wrap items-center gap-2 justify-center lg:justify-start">
                 {[
-                  { icon: <Shield className="h-3.5 w-3.5 text-emerald-400" />, label: 'KYC / KYB Verified'  },
-                  { icon: <Zap    className="h-3.5 w-3.5 text-amber-400"   />, label: 'Real-time Alerts'    },
-                  { icon: <Bell   className="h-3.5 w-3.5 text-blue-400"    />, label: 'Telegram Native'     },
-                ].map(({ icon, label }) => (
-                  <div key={label} className="flex items-center gap-1.5 text-slate-400 text-xs">
-                    {icon} {label}
+                  { img: '/logos/bsp.svg', alt: 'BSP Regulated',     bg: 'bg-blue-500/10 border-blue-500/20'     },
+                  { img: '/logos/pci.svg', alt: 'PCI DSS Compliant', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+                  { img: '/logos/dpo.svg', alt: 'NPC / DPO',         bg: 'bg-violet-500/10 border-violet-500/20'  },
+                ].map(({ img, alt, bg }) => (
+                  <div key={alt} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${bg} text-[11px] text-slate-300 font-medium`}>
+                    <img src={img} alt={alt} className="h-4 w-auto" />
+                    {alt}
                   </div>
                 ))}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border bg-teal-500/10 border-teal-500/20 text-[11px] text-slate-300 font-medium">
+                  <Lock className="h-3 w-3 text-teal-400" />
+                  256-bit SSL
+                </div>
               </div>
             </div>
 
@@ -734,6 +740,8 @@ export default function Login() {
       </section>
 
       {/* ── FOOTER ──────────────────────────────────────────────── */}
+      <ComplianceBar />
+
       <footer className="border-t border-white/[0.06] py-8 sm:py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="flex flex-col items-center gap-6 sm:gap-0 sm:flex-row sm:justify-between">
