@@ -18,6 +18,7 @@ from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from schemas.auth import UserResponse
 from services.xendit_service import XenditService
+from services.paymongo_service import PayMongoService
 from services.event_bus import payment_event_bus
 
 logger = logging.getLogger(__name__)
@@ -451,6 +452,24 @@ async def get_xendit_balance(
     result = await service.get_balance()
     if result.get("success"):
         return {"success": True, "balance": result.get("balance", 0)}
+    return {"success": False, "error": result.get("error", "Failed")}
+
+
+# ==================== PAYMONGO BALANCE ====================
+@router.get("/paymongo-balance")
+async def get_paymongo_balance(
+    current_user: UserResponse = Depends(get_current_user),
+):
+    svc = PayMongoService()
+    result = await svc.get_balance()
+    if result.get("success"):
+        available = result.get("available", [])
+        php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
+        balance = (php_entry["amount"] / 100.0) if php_entry else 0.0
+        pending_list = result.get("pending", [])
+        php_pending = next((e for e in pending_list if e.get("currency", "").upper() == "PHP"), None)
+        pending = (php_pending["amount"] / 100.0) if php_pending else 0.0
+        return {"success": True, "balance": balance, "pending": pending}
     return {"success": False, "error": result.get("error", "Failed")}
 
 

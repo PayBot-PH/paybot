@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Loader2,
   Wallet as WalletIcon,
@@ -197,7 +198,7 @@ export default function Wallet() {
   const [addressCopied, setAddressCopied] = useState(false);
 
   // PayMongo Top Up state
-  const [pmProvider, setPmProvider] = useState<'alipay' | 'wechat'>('alipay');
+  const [pmDialogOpen, setPmDialogOpen] = useState(false);
   const [pmAmount, setPmAmount] = useState('');
   const [pmDesc, setPmDesc] = useState('PHP Wallet Top Up');
   const [pmLoading, setPmLoading] = useState(false);
@@ -467,11 +468,10 @@ export default function Wallet() {
     setPmLoading(true);
     setPmResult(null);
     try {
-      const endpoint = pmProvider === 'alipay' ? '/api/v1/paymongo/alipay-qr' : '/api/v1/paymongo/wechat-qr';
-      const res = await fetch(endpoint, {
+      const res = await fetch('/api/v1/paymongo/topup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, description: pmDesc || 'PHP Wallet Top Up' }),
+        body: JSON.stringify({ amount, description: pmDesc || 'PHP Wallet Top Up', payment_method: 'checkout' }),
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -811,45 +811,65 @@ export default function Wallet() {
                     )}
                   </div>
                 ) : topupMethod === 'paymongo' || topupMethod === 'qrpay' ? (
-                  /* Bank Transfer (PayMongo account) Top Up Panel */
+                  /* PayMongo Bank Transfer Top Up Panel */
                   <div className="p-4 sm:p-6 space-y-4">
-                    <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Building2 className="h-4 w-4 text-blue-400" />
-                        <span className="text-blue-300 text-sm font-semibold">Bank Transfer Details</span>
-                      </div>
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Bank</span>
-                          <span className="text-white font-medium">PayMongo Payments, Inc.</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-400">Account Name</span>
-                          <span className="text-white font-medium text-right max-w-[60%]">DRL TECHS. COMPUTER SOFTWARE TRADING</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-400">Account Number</span>
-                          <button
-                            onClick={() => { navigator.clipboard.writeText('655716460543'); }}
-                            className="text-blue-400 font-mono font-semibold hover:text-blue-300 transition flex items-center gap-1"
-                            title="Click to copy"
-                          >
-                            655716460543
-                            <Copy className="h-3 w-3" />
-                          </button>
-                        </div>
-                      </div>
+                    <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400">
+                      Top up your PHP wallet by transferring to the PayMongo account below. Click the button to view deposit instructions.
                     </div>
+                    <Button onClick={() => setPmDialogOpen(true)}
+                      className="w-full bg-red-600 hover:bg-red-700 text-white">
+                      <QrCode className="h-4 w-4 mr-2" />
+                      Top Up via PayMongo
+                    </Button>
 
-                    <div className="bg-slate-800/60 rounded-lg p-3 text-xs text-slate-400 space-y-1">
-                      <p>1️⃣ Transfer your desired amount via <strong className="text-slate-300">InstaPay</strong> or <strong className="text-slate-300">PESONet</strong> to the account above.</p>
-                      <p>2️⃣ On the bot, run <code className="bg-slate-700 px-1 rounded">/phptopup [amount]</code> to create a request and get your reference code.</p>
-                      <p>3️⃣ Send your <strong className="text-slate-300">payment receipt photo</strong> to the bot — admin will verify and credit your wallet.</p>
-                    </div>
-
-                    <div className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-3 text-xs text-amber-400">
-                      ⚠️ Always include your reference code when transferring to avoid delays.
-                    </div>
+                    {/* Deposit Instructions Dialog */}
+                    <Dialog open={pmDialogOpen} onOpenChange={setPmDialogOpen}>
+                      <DialogContent className="bg-[#1E293B] border-slate-700 text-white max-w-md">
+                        <DialogHeader>
+                          <DialogTitle className="text-white flex items-center gap-2">
+                            <Building2 className="h-5 w-5 text-blue-400" />
+                            PayMongo Deposit Instructions
+                          </DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Building2 className="h-4 w-4 text-blue-400" />
+                              <span className="text-blue-300 text-sm font-semibold">Bank Transfer Details</span>
+                            </div>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Bank</span>
+                                <span className="text-white font-medium">PayMongo Payments, Inc.</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Account Name</span>
+                                <span className="text-white font-medium text-right max-w-[60%]">DRL TECHS. COMPUTER SOFTWARE TRADING</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-400">Account Number</span>
+                                <button
+                                  onClick={() => { navigator.clipboard.writeText('655716460543'); toast.success('Account number copied!'); }}
+                                  className="text-blue-400 font-mono font-semibold hover:text-blue-300 transition flex items-center gap-1"
+                                  title="Click to copy"
+                                >
+                                  655716460543
+                                  <Copy className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="bg-slate-800/60 rounded-lg p-3 text-xs text-slate-400 space-y-1">
+                            <p>1️⃣ Transfer your desired amount via <strong className="text-slate-300">InstaPay</strong> or <strong className="text-slate-300">PESONet</strong> to the account above.</p>
+                            <p>2️⃣ On the bot, run <code className="bg-slate-700 px-1 rounded">/phptopup [amount]</code> to create a request and get your reference code.</p>
+                            <p>3️⃣ Send your <strong className="text-slate-300">payment receipt photo</strong> to the bot — admin will verify and credit your wallet.</p>
+                          </div>
+                          <div className="bg-amber-900/20 border border-amber-500/30 rounded-lg p-3 text-xs text-amber-400">
+                            ⚠️ Always include your reference code when transferring to avoid delays.
+                          </div>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </div>
                 ) : (
                   /* Crypto (USDT TRC20) Top Up Panel */

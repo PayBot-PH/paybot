@@ -43,7 +43,7 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState('monthly');
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [xenditBalance, setXenditBalance] = useState<number | null>(null);
+  const [paymongoBalance, setPaymongoBalance] = useState<number | null>(null);
 
   // Fee calculator
   const [feeAmount, setFeeAmount] = useState('');
@@ -57,10 +57,10 @@ export default function ReportsPage() {
     try {
       const [rptRes, balRes] = await Promise.all([
         client.apiCall.invoke({ url: `/api/v1/gateway/reports?period=${period}`, method: 'GET', data: {} }),
-        client.apiCall.invoke({ url: '/api/v1/gateway/xendit-balance', method: 'GET', data: {} }),
+        client.apiCall.invoke({ url: '/api/v1/gateway/paymongo-balance', method: 'GET', data: {} }),
       ]);
       setReport(rptRes.data);
-      if (balRes.data?.success) setXenditBalance(balRes.data.balance);
+      if (balRes.data?.success) setPaymongoBalance(balRes.data.balance);
     } catch { /* ignore */ }
     setLoading(false);
   }, [user, period]);
@@ -201,7 +201,7 @@ export default function ReportsPage() {
                     <div>
                       <p className="text-sm text-slate-400">PHP Balance</p>
                       <p className="text-3xl font-bold text-white mt-1">
-                        {xenditBalance !== null ? fmt(xenditBalance) : 'N/A'}
+                        {paymongoBalance !== null ? fmt(paymongoBalance) : 'N/A'}
                       </p>
                     </div>
                     <div className="h-10 w-10 bg-purple-500/20 rounded-xl flex items-center justify-center">
