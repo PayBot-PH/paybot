@@ -163,6 +163,90 @@ def _start_kb() -> dict:
     }
 
 
+def _lang_kb() -> dict:
+    """Inline keyboard for language selection on /start."""
+    return {
+        "inline_keyboard": [[
+            {"text": "🇬🇧 English", "callback_data": "lang:en"},
+            {"text": "🇨🇳 中文", "callback_data": "lang:zh"},
+        ]]
+    }
+
+
+def _welcome_en() -> str:
+    return (
+        "👋 <b>Welcome to PayBot Philippines!</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "Your all-in-one Philippine payment gateway bot.\n\n"
+        "💳 <b>Accept Payments</b>\n"
+        "  /invoice [amt] [desc] — Create an invoice\n"
+        "  /qr [amt] [desc] — Generate QR code\n"
+        "  /link [amt] [desc] — Payment link\n"
+        "  /va [amt] [bank] — Virtual account\n"
+        "  /ewallet [amt] [provider] — E-wallet\n"
+        "  /alipay [amt] [desc] — Alipay QR (via PhotonPay)\n"
+        "  /wechat [amt] [desc] — WeChat QR (via PhotonPay)\n\n"
+        "💸 <b>Send Money</b>\n"
+        "  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
+        "  /refund [id] [amt] — Refund a payment\n\n"
+        "💰 <b>PHP Wallet</b>\n"
+        "  /balance — View balances &amp; history\n"
+        "  /phptopup [amt] — Top up via payment invoice\n"
+        "  /send [amt] [to] — Send funds\n"
+        "  /withdraw [amt] — Withdraw\n\n"
+        "💵 <b>USD Wallet (USDT TRC20)</b>\n"
+        "  /usdbalance — USD balance &amp; history\n"
+        "  /topup [amt] — Top up via USDT\n"
+        "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
+        "  /sendusd [amt] [@username] — Send USD to another user\n\n"
+        "📊 <b>Reports &amp; Tools</b>\n"
+        "  /status [id] — Payment status\n"
+        "  /list — Recent transactions\n"
+        "  /report [daily|weekly|monthly]\n"
+        "  /fees [amt] [method] — Fee calculator\n"
+        "  /cancel [id] — Cancel pending payment\n"
+        "  /remind [id] — Send payment reminder\n\n"
+        "ℹ️ Type /help for the full command reference."
+    )
+
+
+def _welcome_zh() -> str:
+    return (
+        "👋 <b>欢迎使用 PayBot Philippines！</b>\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "您的一站式菲律宾支付机器人。\n\n"
+        "💳 <b>收款</b>\n"
+        "  /invoice [金额] [说明] — 创建账单\n"
+        "  /qr [金额] [说明] — 生成二维码\n"
+        "  /link [金额] [说明] — 付款链接\n"
+        "  /va [金额] [银行] — 虚拟账户\n"
+        "  /ewallet [金额] [提供商] — 电子钱包\n"
+        "  /alipay [金额] [说明] — 支付宝收款\n"
+        "  /wechat [金额] [说明] — 微信支付收款\n\n"
+        "💸 <b>转账</b>\n"
+        "  /disburse [金额] [银行] [账号] [姓名] — 银行转账\n"
+        "  /refund [ID] [金额] — 退款\n\n"
+        "💰 <b>PHP 钱包</b>\n"
+        "  /balance — 查看余额及历史\n"
+        "  /phptopup [金额] — 通过账单充值\n"
+        "  /send [金额] [接收方] — 转账\n"
+        "  /withdraw [金额] — 提现\n\n"
+        "💵 <b>USD 钱包（USDT TRC20）</b>\n"
+        "  /usdbalance — USD 余额及历史\n"
+        "  /topup [金额] — 通过 USDT 充值\n"
+        "  /sendusdt [金额] [地址] — 发送 USDT 至 TRC20 地址\n"
+        "  /sendusd [金额] [@用户名] — 向用户转账 USD\n\n"
+        "📊 <b>报表与工具</b>\n"
+        "  /status [ID] — 付款状态\n"
+        "  /list — 近期交易记录\n"
+        "  /report [daily|weekly|monthly]\n"
+        "  /fees [金额] [方式] — 费用计算\n"
+        "  /cancel [ID] — 取消待付款项\n"
+        "  /remind [ID] — 发送付款提醒\n\n"
+        "ℹ️ 输入 /help 查看完整命令列表。"
+    )
+
+
 def _pay_kb() -> dict:
     """Quick-action keyboard shown after payment creation commands."""
     return {
@@ -322,11 +406,8 @@ async def _handle_kyb_flow(
     if text and text.startswith("/start"):
         await tg.send_message(
             chat_id,
-            "👋 <b>Welcome to PayBot!</b>\n"
-            "━━━━━━━━━━━━━━━━━━━━\n"
-            "This bot is restricted to registered admins only.\n\n"
-            "To request access, please complete the KYB (Know Your Business) registration.\n\n"
-            "Type /register to begin your registration.",
+            "🌐 <b>Select Language / 请选择语言</b>",
+            reply_markup=_lang_kb(),
         )
         return True
 
@@ -675,6 +756,52 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         logger.info(f"Telegram webhook received: {body}")
 
         message = body.get("message", {})
+        callback_query = body.get("callback_query", {})
+
+        # ── Handle inline button callbacks (language selection) ──────────
+        if callback_query:
+            cq_id      = callback_query.get("id", "")
+            cq_data    = callback_query.get("data", "")
+            cq_from    = callback_query.get("from", {})
+            cq_chat_id = str(cq_from.get("id", ""))
+            tg = TelegramService()
+
+            if cq_data in ("lang:en", "lang:zh"):
+                await tg.answer_callback_query(cq_id)
+                lang = cq_data.split(":")[1]
+
+                # Check whether this chat belongs to a registered admin
+                is_registered = False
+                try:
+                    adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == cq_chat_id, AdminUser.is_active.is_(True)))
+                    is_registered = adm_res.scalar_one_or_none() is not None
+                except Exception:
+                    pass
+
+                if is_registered:
+                    welcome = _welcome_en() if lang == "en" else _welcome_zh()
+                    await tg.send_message(cq_chat_id, welcome, reply_markup=_start_kb())
+                else:
+                    if lang == "en":
+                        msg = (
+                            "👋 <b>Welcome to PayBot!</b>\n"
+                            "━━━━━━━━━━━━━━━━━━━━\n"
+                            "This bot is restricted to registered admins only.\n\n"
+                            "To request access, please complete the KYB (Know Your Business) registration.\n\n"
+                            "Type /register to begin your registration."
+                        )
+                    else:
+                        msg = (
+                            "👋 <b>欢迎使用 PayBot！</b>\n"
+                            "━━━━━━━━━━━━━━━━━━━━\n"
+                            "本机器人仅限已注册管理员使用。\n\n"
+                            "如需申请访问权限，请完成 KYB（了解您的业务）注册。\n\n"
+                            "输入 /register 开始注册。"
+                        )
+                    await tg.send_message(cq_chat_id, msg)
+
+            return {"status": "ok"}
+
         if not message:
             return {"status": "ok"}
 
@@ -964,40 +1091,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /start ====================
         if text.startswith("/start"):
-            welcome = (
-                "👋 <b>Welcome to PayBot Philippines!</b>\n"
-                "━━━━━━━━━━━━━━━━━━━━\n"
-                "Your all-in-one Philippine payment gateway bot.\n\n"
-                "💳 <b>Accept Payments</b>\n"
-                "  /invoice [amt] [desc] — Create an invoice\n"
-                "  /qr [amt] [desc] — Generate QR code\n"
-                "  /link [amt] [desc] — Payment link\n"
-                "  /va [amt] [bank] — Virtual account\n"
-                "  /ewallet [amt] [provider] — E-wallet\n"
-                "  /alipay [amt] [desc] — Alipay QR (via PhotonPay)\n"
-                "  /wechat [amt] [desc] — WeChat QR (via PhotonPay)\n\n"                "💸 <b>Send Money</b>\n"
-                "  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
-                "  /refund [id] [amt] — Refund a payment\n\n"
-                "💰 <b>PHP Wallet</b>\n"
-                "  /balance — View balances &amp; history\n"
-                "  /phptopup [amt] — Top up via payment invoice\n"
-                "  /send [amt] [to] — Send funds\n"
-                "  /withdraw [amt] — Withdraw\n\n"
-                "💵 <b>USD Wallet (USDT TRC20)</b>\n"
-                "  /usdbalance — USD balance &amp; history\n"
-                "  /topup [amt] — Top up via USDT\n"
-                "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
-                "  /sendusd [amt] [@username] — Send USD to another user\n\n"
-                "📊 <b>Reports &amp; Tools</b>\n"
-                "  /status [id] — Payment status\n"
-                "  /list — Recent transactions\n"
-                "  /report [daily|weekly|monthly]\n"
-                "  /fees [amt] [method] — Fee calculator\n"
-                "  /cancel [id] — Cancel pending payment\n"
-                "  /remind [id] — Send payment reminder\n\n"
-                "ℹ️ Type /help for the full command reference."
+            await tg.send_message(
+                chat_id,
+                "🌐 <b>Select Language / 请选择语言</b>",
+                reply_markup=_lang_kb(),
             )
-            await tg.send_message(chat_id, welcome, reply_markup=_start_kb())
 
         # ==================== /kyb_list (bot owner only) ====================
         elif text.startswith("/kyb_list"):
