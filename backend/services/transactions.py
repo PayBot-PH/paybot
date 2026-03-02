@@ -83,10 +83,10 @@ class TransactionsService:
                 if sort.startswith('-'):
                     field_name = sort[1:]
                     if hasattr(Transactions, field_name):
-                        query = query.order_by(getattr(Transactions, field_name).desc())
+                        query = query.order_by(getattr(Transactions, field_name).desc(), Transactions.id.desc())
                 else:
                     if hasattr(Transactions, sort):
-                        query = query.order_by(getattr(Transactions, sort))
+                        query = query.order_by(getattr(Transactions, sort), Transactions.id.asc())
             else:
                 query = query.order_by(Transactions.id.desc())
 
