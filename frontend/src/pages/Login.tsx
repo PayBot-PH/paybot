@@ -740,11 +740,9 @@ export default function Login() {
       </section>
 
       {/* ── FOOTER ──────────────────────────────────────────────── */}
-      <ComplianceBar />
-
       <footer className="border-t border-white/[0.06] py-8 sm:py-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col items-center gap-6 sm:gap-0 sm:flex-row sm:justify-between">
+          <div className="flex flex-col items-center gap-4 sm:gap-0 sm:flex-row sm:justify-between">
 
             {/* Brand */}
             <div className="flex items-center gap-2.5">
@@ -757,28 +755,14 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Logo row */}
-            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-              {[
-                { el: Logo.Alipay(22),    name: 'Alipay'    },
-                { el: Logo.WeChat(22),    name: 'WeChat Pay' },
-                { el: Logo.GCash(22),     name: 'GCash'     },
-                { el: Logo.Maya(22),      name: 'Maya'      },
-                { el: Logo.GrabPay(22),   name: 'GrabPay'   },
-                { el: Logo.USDT(22),      name: 'USDT'      },
-              ].map(({ el, name }) => (
-                <div key={name} className="flex items-center gap-1.5 text-slate-500 text-xs">
-                  {el} {name}
-                </div>
-              ))}
-            </div>
-
             <p className="text-slate-600 text-xs text-center sm:text-right">
               © {new Date().getFullYear()} {COMPANY_NAME}.<br className="sm:hidden" /> All rights reserved.
             </p>
           </div>
         </div>
       </footer>
+
+      <ComplianceBar />
 
     </div>
   );
