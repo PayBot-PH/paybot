@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import re
+import ssl as _ssl_module
 import time
 from pathlib import Path
 
@@ -58,6 +59,11 @@ class DatabaseManager:
             self._check_db_exist(raw_url)
         elif drivername in ("postgresql", "postgres"):
             url = url.set(drivername="postgresql+asyncpg")
+            # Strip libpq-only query params that asyncpg doesn't understand
+            query = dict(url.query)
+            for _p in ("sslmode", "sslcert", "sslkey", "sslrootcert", "sslcrl", "gssencmode", "channel_binding"):
+                query.pop(_p, None)
+            url = url.set(query=query)
         elif drivername in ("mysql",):
             url = url.set(drivername="mysql+aiomysql")
         elif drivername in ("mariadb",):
@@ -71,6 +77,28 @@ class DatabaseManager:
         if normalized != raw_url:
             logger.warning("Adjusted database URL driver for async compatibility")
         return normalized
+
+    @staticmethod
+    def _get_pg_connect_args(database_url: str) -> dict:
+        """Return connect_args with SSL context for non-local PostgreSQL connections.
+
+        Render and other managed PG hosts require SSL even when the connection
+        string has no sslmode parameter. Enable SSL for any non-localhost host.
+        """
+        try:
+            url = make_url(database_url)
+        except Exception:
+            return {}
+        if "+asyncpg" not in (url.drivername or ""):
+            return {}
+        host = str(url.host or "")
+        is_local = host in ("localhost", "127.0.0.1", "::1", "") or host.endswith(".local")
+        if is_local:
+            return {}
+        ssl_ctx = _ssl_module.create_default_context()
+        ssl_ctx.check_hostname = False
+        ssl_ctx.verify_mode = _ssl_module.CERT_NONE
+        return {"ssl": ssl_ctx}
 
     @staticmethod
     def _check_db_exist(raw_url: str) -> bool:
@@ -106,6 +134,12 @@ class DatabaseManager:
                 engine_kwargs = {
                     "echo": settings.debug,
                 }
+
+                # Add SSL for non-local PostgreSQL (Render, Railway, etc. require it)
+                pg_connect_args = self._get_pg_connect_args(database_url)
+                if pg_connect_args:
+                    engine_kwargs["connect_args"] = pg_connect_args
+                    logger.info("PostgreSQL: SSL enabled for remote host")
 
                 # Check if we're in a Lambda environment
                 is_lambda = bool(

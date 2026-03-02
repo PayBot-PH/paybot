@@ -86,19 +86,30 @@ if database_url:
         # libpq/psycopg2 concept). Strip it from the URL and convert to an
         # ssl.SSLContext passed via connect_args so the connection succeeds on
         # hosts that enforce TLS (e.g. Render, Railway, Heroku Postgres).
+        # asyncpg does not accept libpq query parameters — strip them all and
+        # convert sslmode into a proper ssl.SSLContext via connect_args.
         _query = dict(url.query)
         _sslmode = _query.pop("sslmode", None)
-        if _sslmode in ("require", "verify-ca", "verify-full", "prefer"):
-            _ssl_ctx = _ssl_module.create_default_context()
-            _ssl_ctx.check_hostname = False
-            _ssl_ctx.verify_mode = _ssl_module.CERT_NONE
-            _engine_connect_args["ssl"] = _ssl_ctx
-            _alembic_logger.info("asyncpg: converted sslmode=%s to ssl context", _sslmode)
-        # Also strip other libpq-only params that asyncpg doesn't understand.
         for _libpq_param in ("sslcert", "sslkey", "sslrootcert", "sslcrl", "gssencmode", "channel_binding"):
             _query.pop(_libpq_param, None)
         url = url.set(query=_query)
         database_url = str(url)
+
+        # Determine whether to use SSL.
+        # Render (and most managed PG hosts) require SSL even when the conn
+        # string has no sslmode param. Use SSL for any non-local host.
+        _host = str(url.host or "")
+        _is_local = _host in ("localhost", "127.0.0.1", "::1", "") or _host.endswith(".local")
+        _wants_ssl = _sslmode in ("require", "verify-ca", "verify-full", "prefer") or not _is_local
+
+        if _wants_ssl:
+            _ssl_ctx = _ssl_module.create_default_context()
+            _ssl_ctx.check_hostname = False
+            _ssl_ctx.verify_mode = _ssl_module.CERT_NONE
+            _engine_connect_args["ssl"] = _ssl_ctx
+            _alembic_logger.info(
+                "asyncpg: enabling SSL for host=%s (sslmode=%s)", _host, _sslmode or "not-set"
+            )
     elif url.drivername == "sqlite":
         url = url.set(drivername="sqlite+aiosqlite")
         database_url = str(url)
