@@ -6,7 +6,6 @@ services:
     dockerContext: .
     plan: starter
     healthCheckPath: /health
-    preDeployCommand: "cd /app/backend && timeout 30 alembic upgrade head || true"
     envVars:
       - key: PYTHON_BACKEND_URL
         sync: false
