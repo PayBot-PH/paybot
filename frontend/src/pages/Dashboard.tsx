@@ -89,27 +89,6 @@ const typeConfig: Record<string, { icon: React.ReactNode; bg: string }> = {
 
 const fmt = (n: number) => n.toLocaleString('en-PH', { minimumFractionDigits: 2 });
 const fmtShort = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : fmt(n);
-const fmtUsd = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-// Seeded PRNG — deterministic per calendar day, changes at midnight
-function seededRand(seed: number): number {
-  const x = Math.sin(seed + 9301) * 49297;
-  return x - Math.floor(x);
-}
-
-function getDailyUsdtStats() {
-  const d = new Date();
-  const seed = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  const r1 = seededRand(seed);
-  const r2 = seededRand(seed + 1);
-  const r3 = seededRand(seed + 2);
-  const r4 = seededRand(seed + 3);
-  const settlement = 5000 + r1 * 95000;          // $5,000 – $100,000
-  const txnCount   = Math.floor(18 + r2 * 282);  // 18 – 300 txns
-  const change     = -6 + r3 * 24;               // -6% to +18%
-  const pending    = settlement * (0.05 + r4 * 0.10); // 5–15% pending
-  return { settlement, txnCount, change, pending };
-}
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -258,8 +237,6 @@ export default function Dashboard() {
   const successRate = stats.total_count > 0
     ? Math.round((stats.paid_count / stats.total_count) * 100)
     : 0;
-
-  const usdtStats = getDailyUsdtStats();
 
   const greeting = getGreeting();
   const userName = (user as { name?: string; telegram_username?: string } | null)?.name ||
@@ -420,77 +397,6 @@ export default function Dashboard() {
         <StatCard label="Expired" value={stats.expired_count}
           sub={stats.expired_count > 0 ? `of ${stats.total_count} total` : undefined}
           icon={<Banknote className="h-5 w-5 text-red-400" />} color="text-red-400" loading={loading} />
-      </div>
-
-      {/* ═══════════════════════════════════════════════
-          USDT SETTLEMENT — daily dummy rolling stats
-      ═══════════════════════════════════════════════ */}
-      <div className="mb-6 rounded-2xl border border-teal-500/25 bg-gradient-to-br from-[#0b2a22] via-[#0d2e25] to-[#091c18] p-5 relative overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(38,161,123,0.18),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(20,184,166,0.08),transparent_60%)]" />
-        <div className="relative">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-xl bg-teal-500/20 border border-teal-500/25 flex items-center justify-center">
-                <DollarSign className="h-4.5 w-4.5 text-teal-400 h-4 w-4" />
-              </div>
-              <div>
-                <h2 className="text-white font-bold text-sm">USDT Settlement</h2>
-                <p className="text-slate-500 text-[11px]">Daily volume · TRC-20 · Resets at midnight</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-teal-500/10 border border-teal-500/25 text-teal-400 px-2 py-0.5 rounded-full">
-                <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse" />
-                LIVE
-              </span>
-            </div>
-          </div>
-
-          {/* Metrics grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-            <div>
-              <p className="text-[11px] text-slate-500 mb-1">Total Settled</p>
-              <p className="text-2xl font-bold text-teal-400">${fmtUsd(usdtStats.settlement)}</p>
-              <p className="text-[10px] text-teal-600 mt-0.5">USDT TRC-20</p>
-            </div>
-            <div>
-              <p className="text-[11px] text-slate-500 mb-1">Transactions</p>
-              <p className="text-2xl font-bold text-white">{usdtStats.txnCount}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5">processed today</p>
-            </div>
-            <div>
-              <p className="text-[11px] text-slate-500 mb-1">Avg per Txn</p>
-              <p className="text-2xl font-bold text-white">
-                ${fmtUsd(usdtStats.settlement / usdtStats.txnCount)}
-              </p>
-              <p className="text-[10px] text-slate-500 mt-0.5">USDT</p>
-            </div>
-            <div>
-              <p className="text-[11px] text-slate-500 mb-1">24h Change</p>
-              <p className={`text-2xl font-bold ${usdtStats.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {usdtStats.change >= 0 ? '+' : ''}{usdtStats.change.toFixed(1)}%
-              </p>
-              <p className="text-[10px] text-slate-500 mt-0.5">vs yesterday</p>
-            </div>
-          </div>
-
-          {/* Progress bar — settled vs pending */}
-          <div className="mt-5">
-            <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1.5">
-              <span>Settled  <span className="text-teal-400 font-semibold">${fmtUsd(usdtStats.settlement - usdtStats.pending)}</span></span>
-              <span>Pending  <span className="text-amber-400 font-semibold">${fmtUsd(usdtStats.pending)}</span></span>
-            </div>
-            <div className="flex rounded-full overflow-hidden h-1.5 bg-slate-800/60">
-              <div
-                className="bg-teal-400 transition-all duration-700"
-                style={{ width: `${((usdtStats.settlement - usdtStats.pending) / usdtStats.settlement) * 100}%` }}
-              />
-              <div className="bg-amber-400 flex-1" />
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════
