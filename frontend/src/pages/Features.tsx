@@ -368,6 +368,10 @@ export default function Features() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link to="/pricing"
+              className="hidden sm:flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">
+              Pricing
+            </Link>
             <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer"
               className="hidden sm:flex items-center gap-1.5 text-slate-400 hover:text-sky-400 text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-sky-500/10">
               <MessageCircle className="h-4 w-4" /> Support
@@ -572,6 +576,7 @@ export default function Features() {
       {/* Footer */}
       <footer className="border-t border-white/5 py-8 text-center text-slate-500 text-xs space-x-4">
         <span>© {new Date().getFullYear()} DRL Solutions. All rights reserved.</span>
+        <Link to="/pricing" className="hover:text-sky-400 transition-colors">Pricing</Link>
         <Link to="/policies" className="hover:text-sky-400 transition-colors">Policies</Link>
         <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="hover:text-sky-400 transition-colors">Support</a>
       </footer>

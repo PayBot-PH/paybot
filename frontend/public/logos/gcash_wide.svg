@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 60">
+  <rect width="160" height="60" rx="12" fill="#007DC5"/>
+  <text x="80" y="36" text-anchor="middle" dominant-baseline="middle"
+    font-family="'Arial Black',Arial,sans-serif" font-weight="900"
+    font-size="28" fill="white" letter-spacing="0.5">GCash</text>
+</svg>

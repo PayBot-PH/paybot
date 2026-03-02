@@ -211,8 +211,8 @@ export default function Login() {
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6 lg:gap-8">
             {[
-              { label: 'Payments', id: 'payments' },
-              { label: 'Banks',    id: 'banks' },
+              { label: 'Payments',   id: 'payments' },
+              { label: 'Banks',      id: 'banks' },
               { label: 'Settlement', id: 'settlement' },
             ].map(({ label, id }) => (
               <a key={id} href={`#${id}`}
@@ -220,6 +220,8 @@ export default function Login() {
                 onClick={e => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }}
               >{label}</a>
             ))}
+            <Link to="/features" className="text-slate-400 hover:text-white text-sm transition-colors">Features</Link>
+            <Link to="/pricing"  className="text-slate-400 hover:text-white text-sm transition-colors">Pricing</Link>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -253,6 +255,9 @@ export default function Login() {
                 onClick={e => { e.preventDefault(); setMobileNavOpen(false); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }}
               >{label}</a>
             ))}
+            <Link to="/features" className="block py-2.5 text-slate-300 hover:text-white text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Features</Link>
+            <Link to="/pricing"  className="block py-2.5 text-slate-300 hover:text-white text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Pricing</Link>
+            <Link to="/register" className="block py-2.5 text-emerald-400 hover:text-emerald-300 text-sm font-semibold transition-colors" onClick={() => setMobileNavOpen(false)}>Create an account →</Link>
           </div>
         )}
       </header>
@@ -713,10 +718,10 @@ export default function Login() {
 
       {/* ── FOOTER ──────────────────────────────────────────────── */}
       <footer className="border-t border-white/[0.06] py-8 sm:py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col items-center gap-6 sm:gap-0 sm:flex-row sm:justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
 
-            {/* Brand */}
+          {/* Top row: brand + nav */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
             <div className="flex items-center gap-2.5">
               <div className="h-7 w-7 sm:h-8 sm:w-8 bg-blue-600 rounded-lg flex items-center justify-center">
                 <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
@@ -727,26 +732,45 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Logo row */}
-            <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
-              {[
-                { el: Logo.Alipay(22),    name: 'Alipay'    },
-                { el: Logo.WeChat(22),    name: 'WeChat Pay' },
-                { el: Logo.GCash(22),     name: 'GCash'     },
-                { el: Logo.Maya(22),      name: 'Maya'      },
-                { el: Logo.GrabPay(22),   name: 'GrabPay'   },
-                { el: Logo.USDT(22),      name: 'USDT'      },
-              ].map(({ el, name }) => (
-                <div key={name} className="flex items-center gap-1.5 text-slate-500 text-xs">
-                  {el} {name}
-                </div>
-              ))}
-            </div>
+            <nav className="flex flex-wrap items-center justify-center gap-5 text-xs text-slate-500">
+              <a href="#payments" className="hover:text-slate-300 transition-colors"
+                onClick={e => { e.preventDefault(); document.getElementById('payments')?.scrollIntoView({ behavior: 'smooth' }); }}>
+                Payments
+              </a>
+              <a href="#banks" className="hover:text-slate-300 transition-colors"
+                onClick={e => { e.preventDefault(); document.getElementById('banks')?.scrollIntoView({ behavior: 'smooth' }); }}>
+                Banks
+              </a>
+              <Link to="/features" className="hover:text-slate-300 transition-colors">Features</Link>
+              <Link to="/pricing"  className="hover:text-slate-300 transition-colors">Pricing</Link>
+              <Link to="/register" className="hover:text-slate-300 transition-colors">Register</Link>
+              <Link to="/policies" className="hover:text-slate-300 transition-colors">Policies</Link>
+              <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="hover:text-slate-300 transition-colors">Support</a>
+            </nav>
 
             <p className="text-slate-600 text-xs text-center sm:text-right">
               © {new Date().getFullYear()} {COMPANY_NAME}.<br className="sm:hidden" /> All rights reserved.
             </p>
           </div>
+
+          {/* Bottom row: payment logos */}
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 pt-4 border-t border-white/[0.04]">
+            {[
+              { el: Logo.Alipay(20),    name: 'Alipay'    },
+              { el: Logo.WeChat(20),    name: 'WeChat Pay' },
+              { el: Logo.GCash(20),     name: 'GCash'     },
+              { el: Logo.Maya(20),      name: 'Maya'      },
+              { el: Logo.GrabPay(20),   name: 'GrabPay'   },
+              { el: Logo.BPI(20),       name: 'BPI'       },
+              { el: Logo.BDO(20),       name: 'BDO'       },
+              { el: Logo.USDT(20),      name: 'USDT'      },
+            ].map(({ el, name }) => (
+              <div key={name} className="flex items-center gap-1.5 text-slate-500 text-xs">
+                {el} {name}
+              </div>
+            ))}
+          </div>
+
         </div>
       </footer>
 

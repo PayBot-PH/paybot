@@ -23,6 +23,7 @@ import RequireSuperAdmin from './components/RequireSuperAdmin';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import Policies from './pages/Policies';
 import Features from './pages/Features';
+import Pricing from './pages/Pricing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import AuthCallback from './pages/AuthCallback';
@@ -35,7 +36,7 @@ import BotIntro from './pages/BotIntro';
 const queryClient = new QueryClient();
 
 // Paths that should remain accessible even during maintenance
-const MAINTENANCE_EXEMPT_PATHS = ['/intro', '/login', '/register', '/features', '/auth/callback', '/auth/error', '/logout-callback', '/maintenance'];
+const MAINTENANCE_EXEMPT_PATHS = ['/intro', '/login', '/register', '/features', '/pricing', '/auth/callback', '/auth/error', '/logout-callback', '/maintenance'];
 
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -80,6 +81,7 @@ const App = () => (
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/features" element={<Features />} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/auth/error" element={<AuthError />} />
               <Route path="/logout-callback" element={<LogoutCallbackPage />} />
