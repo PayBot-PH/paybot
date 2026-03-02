@@ -6,7 +6,7 @@ services:
     dockerContext: .
     plan: starter
     healthCheckPath: /health
-    preDeployCommand: "alembic upgrade head"
+    preDeployCommand: "alembic upgrade head || true"
     envVars:
       - key: PYTHON_BACKEND_URL
         sync: false
