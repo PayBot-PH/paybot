@@ -439,18 +439,6 @@ def handle_config_request(headers: dict, query_params: dict) -> Dict[str, Any]:
 
 def validate_config_request(headers: dict) -> Dict[str, Any]:
     """Validate configuration request for security"""
-    # Check for suspicious user agents (basic bot detection)
-    user_agent = headers.get("user-agent", headers.get("User-Agent", ""))
-    suspicious_patterns = ["bot", "crawler", "spider", "scraper", "curl", "wget"]
-
-    if any(pattern in user_agent.lower() for pattern in suspicious_patterns):
-        return {"isValid": False, "reason": "Suspicious user agent detected"}
-
-    # Optional: Check referer for additional security (can be disabled if needed)
-    referer = headers.get("referer", headers.get("Referer", ""))
-    if referer and not is_valid_referer(referer):
-        return {"isValid": False, "reason": "Invalid referer"}
-
     return {"isValid": True}
 
 
