@@ -364,6 +364,32 @@ class PayMongoService:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    async def list_payments(self, limit: int = 50) -> Dict[str, Any]:
+        """Fetch recent payments from the PayMongo account.
+
+        Args:
+            limit: Maximum number of payments to retrieve (capped at 100).
+
+        Returns:
+            dict with success and data (list of payment objects).
+        """
+        try:
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    f"{PAYMONGO_BASE_URL}/payments",
+                    params={"limit": min(limit, 100)},
+                    auth=self._get_auth(),
+                    timeout=30.0,
+                )
+                r.raise_for_status()
+                return {"success": True, "data": r.json().get("data", [])}
+        except httpx.HTTPStatusError as e:
+            logger.error("PayMongo list_payments failed: %s", e.response.text)
+            return {"success": False, "error": e.response.text}
+        except Exception as e:
+            logger.error("PayMongo list_payments error: %s", str(e))
+            return {"success": False, "error": str(e)}
+
     async def get_balance(self) -> Dict[str, Any]:
         """Fetch the realtime PayMongo account balance.
 

@@ -89,6 +89,26 @@ class PaymentResponse(BaseModel):
     data: dict = {}
 
 
+class ClaimDepositRequest(BaseModel):
+    payment_channel: str   # "gcash", "maya", "bdo", "bpi", etc.
+    account_number: str    # mobile number or bank account used to send
+    amount: float
+
+
+# Map user-friendly channel names to PayMongo source types
+CHANNEL_SOURCE_TYPES: dict = {
+    "gcash":      ["gcash"],
+    "maya":       ["paymaya"],
+    "paymaya":    ["paymaya"],
+    "bdo":        ["dob", "brankas_bdo"],
+    "bpi":        ["dob", "brankas_bpi"],
+    "metrobank":  ["dob", "brankas_metrobank"],
+    "landbank":   ["dob", "brankas_landbank"],
+    "unionbank":  ["dob"],
+    "card":       ["card"],
+}
+
+
 # ---------- Helpers ----------
 
 async def _save_transaction(
@@ -283,6 +303,93 @@ async def initiate_topup(
             "amount": req.amount,
         },
     )
+
+
+@router.post("/claim-deposit")
+async def claim_deposit(
+    req: ClaimDepositRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Claim a manually-sent bank/e-wallet deposit.
+
+    The user sends money to the PayMongo merchant account via GCash, Maya, bank
+    transfer, etc., then submits the payment channel, account/mobile number used,
+    and the exact amount.  The backend fetches recent PayMongo payments and matches
+    on (status=paid, amount, source type).  If a unique unclaimed match is found,
+    the user's PHP wallet is credited and the payment ID is recorded to prevent
+    double-claiming.
+    """
+    if req.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be greater than zero")
+
+    amount_centavos = int(round(req.amount * 100))
+    channel = req.payment_channel.strip().lower()
+    allowed_source_types = CHANNEL_SOURCE_TYPES.get(channel, [channel])
+
+    svc = PayMongoService()
+    result = await svc.list_payments(limit=50)
+    if not result.get("success"):
+        raise HTTPException(status_code=502, detail="Failed to fetch payments from PayMongo")
+
+    matched_payment = None
+    for payment in result.get("data", []):
+        attrs = payment.get("attributes", {})
+        if attrs.get("status") != "paid":
+            continue
+        if attrs.get("amount", 0) != amount_centavos:
+            continue
+        source_type = (attrs.get("source") or {}).get("type", "")
+        if source_type not in allowed_source_types:
+            continue
+
+        pay_id = payment.get("id", "")
+        # Check this payment hasn't already been claimed
+        existing = await db.execute(
+            select(WalletTopup).where(WalletTopup.reference_number == pay_id)
+        )
+        if existing.scalar_one_or_none():
+            continue  # already claimed — skip
+
+        matched_payment = payment
+        break
+
+    if not matched_payment:
+        raise HTTPException(
+            status_code=404,
+            detail="No matching unclaimed payment found. Please verify your payment channel, account number, and amount then try again.",
+        )
+
+    pay_id = matched_payment.get("id", "")
+    now = datetime.now()
+    topup = WalletTopup(
+        user_id=str(current_user.id),
+        amount=req.amount,
+        currency="PHP",
+        reference_number=pay_id,  # stores PayMongo payment ID to block double-claims
+        payment_method=channel,
+        status="paid",
+        description=f"Manual deposit via {req.payment_channel.upper()}",
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(topup)
+    await db.flush()
+
+    await _credit_wallet(
+        db,
+        str(current_user.id),
+        req.amount,
+        note=f"Manual deposit — {req.payment_channel.upper()} account {req.account_number}",
+        reference_id=pay_id,
+    )
+
+    return {
+        "success": True,
+        "message": f"₱{req.amount:,.2f} has been credited to your PHP wallet.",
+        "payment_id": pay_id,
+        "amount": req.amount,
+    }
 
 
 @router.post("/alipay-qr", response_model=PaymentResponse)

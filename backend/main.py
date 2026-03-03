@@ -16,8 +16,7 @@ from fastapi.staticfiles import StaticFiles
 
 # MODULE_IMPORTS_START
 from services.database import initialize_database, close_database
-from services.mock_data import initialize_mock_data
-from services.auth import initialize_admin_user, initialize_demo_users
+from services.auth import initialize_admin_user
 # MODULE_IMPORTS_END
 
 # Telegram bot commands registered on startup
@@ -117,9 +116,7 @@ async def lifespan(app: FastAPI):
     # MODULE_STARTUP_START
     try:
         await initialize_database()
-        await initialize_mock_data()
         await initialize_admin_user()
-        await initialize_demo_users()
     except Exception as e:
         logger.error(f"Database startup failed (app will run in degraded mode): {e}")
     # MODULE_STARTUP_END

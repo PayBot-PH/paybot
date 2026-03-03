@@ -284,46 +284,6 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
     return TokenExchangeResponse(token=app_token)
 
 
-@router.post("/dev-login", response_model=TokenExchangeResponse)
-async def dev_login(
-    user_type: str,
-    db: AsyncSession = Depends(get_db),
-):
-    """Dev/demo login — bypasses Telegram auth. Only works with demo user IDs.
-
-    user_type: "super_admin" | "admin"
-    """
-    from services.auth import DEMO_SUPER_ADMIN_ID, DEMO_ADMIN_ID
-
-    uid = DEMO_SUPER_ADMIN_ID if user_type == "super_admin" else DEMO_ADMIN_ID
-
-    res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == uid))
-    db_admin = res.scalar_one_or_none()
-    if not db_admin:
-        raise HTTPException(status_code=404, detail=f"Demo user '{uid}' not found. Ensure the server has started and seeded demo users.")
-
-    perms = UserPermissions(
-        is_super_admin=db_admin.is_super_admin,
-        can_manage_payments=db_admin.can_manage_payments,
-        can_manage_disbursements=db_admin.can_manage_disbursements,
-        can_view_reports=db_admin.can_view_reports,
-        can_manage_wallet=db_admin.can_manage_wallet,
-        can_manage_transactions=db_admin.can_manage_transactions,
-        can_manage_bot=db_admin.can_manage_bot,
-        can_approve_topups=db_admin.can_approve_topups,
-    )
-
-    user = User(id=uid, email=db_admin.name.lower().replace(" ", "") + "@paybot.local", name=db_admin.name, role="admin")
-    auth_service = AuthService(db)
-    try:
-        app_token, _, _ = await auth_service.issue_app_token(user=user, permissions=perms)
-    except ValueError as exc:
-        raise HTTPException(status_code=503, detail=str(exc))
-
-    logger.info("[dev-login] Demo login: %s (%s)", uid, db_admin.name)
-    return TokenExchangeResponse(token=app_token)
-
-
 @router.get("/telegram-login-config")
 async def telegram_login_config():
     """Provide Telegram Login Widget config at runtime."""

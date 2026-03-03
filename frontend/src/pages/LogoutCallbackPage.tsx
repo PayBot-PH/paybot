@@ -11,11 +11,11 @@ const LogoutCallbackPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-[#0A0F1E]">
       <div className="text-center">
-        <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-green-100 mb-4">
+        <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-green-500/20 border border-green-500/30 mb-4">
           <svg
-            className="h-6 w-6 text-green-600"
+            className="h-6 w-6 text-green-400"
             fill="none"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -26,13 +26,13 @@ const LogoutCallbackPage: React.FC = () => {
             <path d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <h2 className="text-2xl font-bold text-white mb-2">
           Logout Successful
         </h2>
-        <p className="text-gray-600 mb-4">
+        <p className="text-slate-400 mb-4">
           You have been successfully logged out.
         </p>
-        <p className="text-sm text-gray-500">Redirecting to home page...</p>
+        <p className="text-sm text-slate-500">Redirecting to home page...</p>
       </div>
     </div>
   );

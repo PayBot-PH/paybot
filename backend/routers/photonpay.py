@@ -92,21 +92,19 @@ async def _credit_wallet(
         wallet_id=wallet.id,
         transaction_type="credit",
         amount=amount,
-        currency="PHP",
         balance_before=balance_before,
         balance_after=wallet.balance,
         status="completed",
         reference_id=reference_id,
-        description=f"PhotonPay {pay_method} payment",
+        note=f"PhotonPay {pay_method} payment",
         created_at=datetime.now(),
-        updated_at=datetime.now(),
     )
     db.add(ledger)
     await db.commit()
     logger.info("Wallet credited +%s PHP for user=%s via PhotonPay (%s)", amount, user_id, pay_method)
 
     try:
-        await payment_event_bus.publish({
+        payment_event_bus.publish({
             "event": "payment_received",
             "provider": "photonpay",
             "pay_method": pay_method,
