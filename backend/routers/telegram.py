@@ -690,7 +690,7 @@ async def _safe_log(db: AsyncSession, chat_id: str, username: str, text: str):
     """Log bot interaction to DB. Failures are silently caught."""
     try:
         log = Bot_logs(
-            user_id="telegram", log_type="command", message=text,
+            user_id=f"tg-{chat_id}", log_type="command", message=text,
             telegram_chat_id=chat_id, telegram_username=username,
             command=text.split()[0] if text else "",
             created_at=datetime.now(),
@@ -1407,7 +1407,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         try:
                             now = datetime.now()
                             txn = Transactions(
-                                user_id="telegram", transaction_type="invoice",
+                                user_id=f"tg-{chat_id}", transaction_type="invoice",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("invoice_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 payment_url=result.get("invoice_url", ""), telegram_chat_id=chat_id,
@@ -1451,7 +1451,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         try:
                             now = datetime.now()
                             txn = Transactions(
-                                user_id="telegram", transaction_type="qr_code",
+                                user_id=f"tg-{chat_id}", transaction_type="qr_code",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("qr_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=result.get("qr_string", ""), telegram_chat_id=chat_id,
@@ -1632,7 +1632,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         try:
                             now = datetime.now()
                             txn = Transactions(
-                                user_id="telegram", transaction_type="payment_link",
+                                user_id=f"tg-{chat_id}", transaction_type="payment_link",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("payment_link_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 payment_url=result.get("payment_link_url", ""), telegram_chat_id=chat_id,
@@ -1676,7 +1676,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         try:
                             now = datetime.now()
                             txn = Transactions(
-                                user_id="telegram", transaction_type="virtual_account",
+                                user_id=f"tg-{chat_id}", transaction_type="virtual_account",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("va_id", ""),
                                 amount=amount, currency="PHP", status="pending",
                                 description=f"VA: {bank_code}", telegram_chat_id=chat_id,
@@ -1729,7 +1729,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         try:
                             now = datetime.now()
                             txn = Transactions(
-                                user_id="telegram", transaction_type="ewallet",
+                                user_id=f"tg-{chat_id}", transaction_type="ewallet",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("charge_id", ""),
                                 amount=amount, currency="PHP", status="pending",
                                 description=f"E-Wallet: {provider}", payment_url=checkout,
@@ -1809,7 +1809,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         try:
                             now = datetime.now()
                             disb = Disbursements(
-                                user_id="telegram", external_id=result.get("external_id", ""),
+                                user_id=tg_uid, external_id=result.get("external_id", ""),
                                 xendit_id=result.get("disbursement_id", ""), amount=amount, currency="PHP",
                                 bank_code=bank_code, account_number=account_number, account_name=account_name,
                                 description="TG disbursement", status="pending", disbursement_type="single",
@@ -1899,7 +1899,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         try:
                             now = datetime.now()
                             ref = Refunds(
-                                user_id="telegram", transaction_id=txn.id,
+                                user_id=f"tg-{chat_id}", transaction_id=txn.id,
                                 external_id=f"ref-{txn.id}", amount=refund_amount, reason="Telegram refund",
                                 status="pending" if ref_result.get("success") else "failed",
                                 refund_type=ref_type, created_at=now, updated_at=now,
@@ -2602,7 +2602,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     # Then DB
                     try:
                         sub = Subscriptions(
-                            user_id="telegram", plan_name=plan_name, amount=amount,
+                            user_id=f"tg-{chat_id}", plan_name=plan_name, amount=amount,
                             currency="PHP", interval="monthly", customer_name=username,
                             status="active", next_billing_date=now + timedelta(days=30),
                             total_cycles=0, external_id=f"sub-tg-{uuid.uuid4().hex[:8]}",
