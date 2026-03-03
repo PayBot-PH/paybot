@@ -1515,7 +1515,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         try:
                             now = datetime.now()
                             txn = Transactions(
-                                user_id="telegram", transaction_type="alipay_qr",
+                                user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
                                 external_id=ref_num, xendit_id=result.get("pay_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=checkout_url, telegram_chat_id=chat_id,
@@ -1579,7 +1579,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         try:
                             now = datetime.now()
                             txn = Transactions(
-                                user_id="telegram", transaction_type="wechat_qr",
+                                user_id=f"tg-{chat_id}", transaction_type="wechat_qr",
                                 external_id=ref_num, xendit_id=result.get("pay_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=checkout_url, telegram_chat_id=chat_id,
