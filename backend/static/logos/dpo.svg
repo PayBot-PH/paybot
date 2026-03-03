@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 100">
+  <!-- Shield shape -->
+  <path d="M45 2 L88 18 L88 55 C88 76 68 93 45 98 C22 93 2 76 2 55 L2 18 Z"
+    fill="#0D47A1"/>
+  <path d="M45 8 L82 22 L82 55 C82 73 64 88 45 93 C26 88 8 73 8 55 L8 22 Z"
+    fill="none" stroke="#64B5F6" stroke-width="1.5"/>
+  <text x="45" y="36" text-anchor="middle" dominant-baseline="middle"
+    font-family="'Arial Black',Arial,sans-serif" font-weight="900"
+    font-size="20" fill="white">DPO</text>
+  <text x="45" y="56" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial,sans-serif" font-weight="700"
+    font-size="8.5" fill="#90CAF9">REGISTERED</text>
+  <text x="45" y="71" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial,sans-serif" font-weight="500"
+    font-size="6.5" fill="#BBDEFB" letter-spacing="1">NPC PHILIPPINES</text>
+</svg>

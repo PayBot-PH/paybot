@@ -6,6 +6,7 @@ import asyncio
 import importlib
 import os
 import pkgutil
+import ssl as _ssl_module
 from logging.config import fileConfig
 
 import models
@@ -34,15 +35,18 @@ if not database_url:
     except (ImportError, AttributeError, Exception) as _e:
         import logging as _logging
         _logging.getLogger(__name__).warning("Could not load settings for database URL: %s", _e)
+
+# connect_args to pass to create_async_engine (used for SSL on PostgreSQL)
+_engine_connect_args: dict = {}
+
 if database_url:
     import logging as _log
     _alembic_logger = _log.getLogger(__name__)
 
-    # Strip stray whitespace / newlines that can appear in Railway env vars.
+    # Strip stray whitespace / newlines that can appear in Railway/Render env vars.
     database_url = database_url.strip()
 
-    # Normalize postgres:// → postgresql:// (Railway uses the legacy scheme;
-    # SQLAlchemy 2.0 no longer accepts it and raises a parse error).
+    # Normalize postgres:// → postgresql:// (legacy scheme not accepted by SQLAlchemy 2.0)
     if database_url.startswith("postgres://"):
         database_url = "postgresql://" + database_url[len("postgres://"):]
 
@@ -77,7 +81,35 @@ if database_url:
             raise
     if url.drivername in ("postgresql", "postgres"):
         url = url.set(drivername="postgresql+asyncpg")
+
+        # asyncpg does not accept sslmode as a query parameter (that is a
+        # libpq/psycopg2 concept). Strip it from the URL and convert to an
+        # ssl.SSLContext passed via connect_args so the connection succeeds on
+        # hosts that enforce TLS (e.g. Render, Railway, Heroku Postgres).
+        # asyncpg does not accept libpq query parameters — strip them all and
+        # convert sslmode into a proper ssl.SSLContext via connect_args.
+        _query = dict(url.query)
+        _sslmode = _query.pop("sslmode", None)
+        for _libpq_param in ("sslcert", "sslkey", "sslrootcert", "sslcrl", "gssencmode", "channel_binding"):
+            _query.pop(_libpq_param, None)
+        url = url.set(query=_query)
         database_url = str(url)
+
+        # Determine whether to use SSL.
+        # Render (and most managed PG hosts) require SSL even when the conn
+        # string has no sslmode param. Use SSL for any non-local host.
+        _host = str(url.host or "")
+        _is_local = _host in ("localhost", "127.0.0.1", "::1", "") or _host.endswith(".local")
+        _wants_ssl = _sslmode in ("require", "verify-ca", "verify-full", "prefer") or not _is_local
+
+        if _wants_ssl:
+            _ssl_ctx = _ssl_module.create_default_context()
+            _ssl_ctx.check_hostname = False
+            _ssl_ctx.verify_mode = _ssl_module.CERT_NONE
+            _engine_connect_args["ssl"] = _ssl_ctx
+            _alembic_logger.info(
+                "asyncpg: enabling SSL for host=%s (sslmode=%s)", _host, _sslmode or "not-set"
+            )
     elif url.drivername == "sqlite":
         url = url.set(drivername="sqlite+aiosqlite")
         database_url = str(url)
@@ -107,7 +139,11 @@ def do_run_migrations(connection):
 
 
 async def run_migrations_online():
-    connectable = create_async_engine(config.get_main_option("sqlalchemy.url"), poolclass=pool.NullPool)
+    connectable = create_async_engine(
+        config.get_main_option("sqlalchemy.url"),
+        poolclass=pool.NullPool,
+        connect_args=_engine_connect_args,
+    )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()

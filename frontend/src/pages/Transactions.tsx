@@ -189,7 +189,7 @@ export default function Transactions() {
                 />
               </div>
               <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
-                <SelectTrigger className="w-[140px] bg-slate-800 border-slate-600 text-white">
+                <SelectTrigger className="w-full sm:w-[140px] bg-slate-800 border-slate-600 text-white">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-600">
@@ -200,7 +200,7 @@ export default function Transactions() {
                 </SelectContent>
               </Select>
               <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
-                <SelectTrigger className="w-[160px] bg-slate-800 border-slate-600 text-white">
+                <SelectTrigger className="w-full sm:w-[160px] bg-slate-800 border-slate-600 text-white">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
                 <SelectContent className="bg-slate-800 border-slate-600">
@@ -233,8 +233,8 @@ export default function Transactions() {
                     <tr className="border-b border-slate-700/50">
                       <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3">Type</th>
                       <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3">ID</th>
-                      <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3">Description</th>
-                      <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3">Customer</th>
+                      <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3 hidden md:table-cell">Description</th>
+                      <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3 hidden md:table-cell">Customer</th>
                       <th className="text-right text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3">Amount</th>
                       <th className="text-center text-xs font-medium text-slate-400 uppercase tracking-wider px-6 py-3">Status</th>
                       <th className="text-left text-xs font-medium text-slate-400 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">Date</th>
@@ -270,10 +270,10 @@ export default function Transactions() {
                               )}
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 hidden md:table-cell">
                             <span className="text-sm text-white">{txn.description || '-'}</span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-6 py-4 hidden md:table-cell">
                             <div>
                               <span className="text-sm text-white">{txn.customer_name || '-'}</span>
                               {txn.customer_email && (

@@ -3,6 +3,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import { useEffect, useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import Wallet from './pages/Wallet';
@@ -17,10 +18,12 @@ import BotMessagesPage from './pages/BotMessagesPage';
 import TopupRequestsPage from './pages/TopupRequestsPage';
 import UsdtSendRequestsPage from './pages/UsdtSendRequestsPage';
 import KybRegistrationsPage from './pages/KybRegistrationsPage';
+import KycVerificationsPage from './pages/KycVerificationsPage';
 import RequireSuperAdmin from './components/RequireSuperAdmin';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import Policies from './pages/Policies';
 import Features from './pages/Features';
+import Pricing from './pages/Pricing';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import AuthCallback from './pages/AuthCallback';
@@ -33,7 +36,7 @@ import BotIntro from './pages/BotIntro';
 const queryClient = new QueryClient();
 
 // Paths that should remain accessible even during maintenance
-const MAINTENANCE_EXEMPT_PATHS = ['/intro', '/login', '/register', '/features', '/auth/callback', '/auth/error', '/logout-callback', '/maintenance'];
+const MAINTENANCE_EXEMPT_PATHS = ['/intro', '/login', '/register', '/features', '/pricing', '/auth/callback', '/auth/error', '/logout-callback', '/maintenance'];
 
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -67,16 +70,18 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <BrowserRouter>
-          <MaintenanceGuard>
+    <ThemeProvider>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <BrowserRouter>
+            <MaintenanceGuard>
             <Routes>
               <Route path="/intro" element={<BotIntro />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/features" element={<Features />} />
+              <Route path="/pricing" element={<Pricing />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/auth/error" element={<AuthError />} />
               <Route path="/logout-callback" element={<LogoutCallbackPage />} />
@@ -94,13 +99,15 @@ const App = () => (
               <Route path="/topup-requests" element={<RequireSuperAdmin><TopupRequestsPage /></RequireSuperAdmin>} />
               <Route path="/usdt-send-requests" element={<RequireSuperAdmin><UsdtSendRequestsPage /></RequireSuperAdmin>} />
               <Route path="/kyb-registrations" element={<RequireSuperAdmin><KybRegistrationsPage /></RequireSuperAdmin>} />
+              <Route path="/kyc-verifications" element={<RequireSuperAdmin><KycVerificationsPage /></RequireSuperAdmin>} />
               <Route path="/policies" element={<Policies />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </MaintenanceGuard>
-        </BrowserRouter>
-      </TooltipProvider>
-    </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </QueryClientProvider>
 );
 

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bot, ShieldCheck, CheckCircle, AlertCircle, User, Phone, Mail, MapPin, Building2, Send } from 'lucide-react';
+import { APP_NAME, COMPANY_NAME } from '@/lib/brand';
 
 interface FormData {
   full_name: string;
@@ -27,7 +28,7 @@ export default function Register() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [kybId, setKybId] = useState<number | null>(null);
-  const [xenditId, setXenditId] = useState<string | null>(null);
+  const [kycId, setKycId] = useState<string | null>(null);
 
   const handleChange = (field: keyof FormData, value: string) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -64,7 +65,7 @@ export default function Register() {
       } else {
         setSuccess(true);
         setKybId(data.kyb_id);
-        setXenditId(data.xendit_customer_id ?? null);
+        setKycId(data.xendit_customer_id ?? null);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Network error. Please try again.');
@@ -96,10 +97,10 @@ export default function Register() {
               <span className="text-slate-500">Application ID</span>
               <span className="text-white font-mono">#{kybId}</span>
             </div>
-            {xenditId && (
+            {kycId && (
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-500">Xendit KYC ID</span>
-                <span className="text-emerald-400 font-mono text-[10px] truncate max-w-[180px]">{xenditId}</span>
+                <span className="text-slate-500">{APP_NAME} KYC ID</span>
+                <span className="text-emerald-400 font-mono text-[10px] truncate max-w-[180px]">{kycId}</span>
               </div>
             )}
             <div className="flex items-center justify-between text-xs">
@@ -136,8 +137,8 @@ export default function Register() {
               <Bot className="h-5 w-5 text-white" />
             </div>
             <div>
-              <p className="text-white font-bold text-lg leading-tight">PayBot</p>
-              <p className="text-slate-500 text-sm">by DRL Solutions</p>
+              <p className="text-white font-bold text-lg leading-tight">{APP_NAME}</p>
+              <p className="text-slate-500 text-sm">by {COMPANY_NAME}</p>
             </div>
           </div>
 
@@ -149,7 +150,7 @@ export default function Register() {
           <div className="space-y-4">
             {[
               { step: '1', label: 'Submit your information', desc: 'Fill in name, email, phone, and Telegram username' },
-              { step: '2', label: 'Xendit KYC verification', desc: 'Your identity is verified via the Xendit KYC platform' },
+              { step: '2', label: 'KYC verification', desc: `Your identity is verified via the ${APP_NAME} KYC platform` },
               { step: '3', label: 'Admin review & approval', desc: 'A super admin reviews and approves your application' },
               { step: '4', label: 'Dashboard access granted', desc: 'Sign in with Telegram once approved' },
             ].map((s) => (
@@ -171,7 +172,7 @@ export default function Register() {
           </div>
         </div>
 
-        <p className="relative text-slate-600 text-xs">© {new Date().getFullYear()} DRL Solutions</p>
+        <p className="relative text-slate-600 text-xs">© {new Date().getFullYear()} {COMPANY_NAME}</p>
       </div>
 
       {/* Right panel — form */}
@@ -181,8 +182,8 @@ export default function Register() {
             <Bot className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-white font-bold text-base leading-tight">PayBot</p>
-            <p className="text-slate-500 text-xs">by DRL Solutions</p>
+            <p className="text-white font-bold text-base leading-tight">{APP_NAME}</p>
+            <p className="text-slate-500 text-xs">by {COMPANY_NAME}</p>
           </div>
         </div>
 
@@ -295,11 +296,11 @@ export default function Register() {
               <p className="text-slate-600 text-[10px] mt-1.5 ml-1">Required to link and notify your Telegram account after approval.</p>
             </div>
 
-            {/* Xendit badge */}
+            {/* KYC badge */}
             <div className="bg-blue-500/8 border border-blue-500/20 rounded-xl p-3 flex items-center gap-3">
               <ShieldCheck className="h-4 w-4 text-blue-400 shrink-0" />
               <p className="text-slate-400 text-xs">
-                Your identity will be verified via the <span className="text-blue-400 font-semibold">Xendit KYC platform</span>.
+                Your identity will be verified via the <span className="text-blue-400 font-semibold">{APP_NAME} KYC platform</span>.
               </p>
             </div>
 

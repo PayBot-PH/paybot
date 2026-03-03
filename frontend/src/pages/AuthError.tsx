@@ -33,7 +33,7 @@ export default function AuthErrorPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50 p-6 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#0A0F1E] p-6 text-center">
       <div className="space-y-6 max-w-md">
         <div className="space-y-4">
           {/* Error icon */}
@@ -48,20 +48,20 @@ export default function AuthErrorPage() {
           </div>
 
           {/* Error title */}
-          <h1 className="text-2xl font-bold text-gray-800">
+          <h1 className="text-2xl font-bold text-white">
             Authentication Error
           </h1>
 
           {/* Error description */}
-          <p className="text-base text-muted-foreground">{errorMessage}</p>
+          <p className="text-base text-slate-400">{errorMessage}</p>
 
           {/* Countdown提示 */}
           <div className="pt-2">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500">
               {countdown > 0 ? (
                 <>
                   Will automatically return to the home page in{' '}
-                  <span className="text-blue-600 font-semibold text-base">
+                  <span className="text-blue-400 font-semibold text-base">
                     {countdown}
                   </span>{' '}
                   seconds

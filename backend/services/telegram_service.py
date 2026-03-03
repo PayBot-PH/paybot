@@ -214,3 +214,20 @@ class TelegramService:
         except Exception as e:
             logger.error(f"Error sending photo: {str(e)}")
             return {"success": False, "error": str(e)}
+
+    async def answer_callback_query(
+        self,
+        callback_query_id: str,
+        text: str = "",
+    ) -> Dict[str, Any]:
+        """Acknowledge a Telegram inline button press (required to stop the loading spinner)."""
+        try:
+            payload: Dict[str, Any] = {"callback_query_id": callback_query_id}
+            if text:
+                payload["text"] = text
+            response = await self._post_with_retry(f"{self.api_url}/answerCallbackQuery", payload)
+            data = response.json()
+            return {"success": data.get("ok", False)}
+        except Exception as e:
+            logger.error(f"Error answering callback query: {str(e)}")
+            return {"success": False, "error": str(e)}

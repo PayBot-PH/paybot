@@ -3,6 +3,7 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from 'react';
 import { authApi, TelegramWidgetUser } from '../lib/auth';
@@ -32,7 +33,6 @@ interface AuthContextType {
   error: string | null;
   login: (userId?: string, password?: string) => Promise<void>;
   loginWithTelegram: (user: TelegramWidgetUser) => Promise<void>;
-  loginAsDemo: (userType: 'super_admin' | 'admin') => Promise<void>;
   logout: () => Promise<void>;
   refetch: () => Promise<void>;
   isAdmin: boolean;
@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const checkAuthStatus = async () => {
+  const checkAuthStatus = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -71,9 +71,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const login = async (userId?: string, password?: string) => {
+  const login = useCallback(async (userId?: string, password?: string) => {
     try {
       setError(null);
 
@@ -87,9 +87,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     }
-  };
+  }, [checkAuthStatus]);
 
-  const loginWithTelegram = async (telegramUser: TelegramWidgetUser) => {
+  const loginWithTelegram = useCallback(async (telegramUser: TelegramWidgetUser) => {
     try {
       setError(null);
       await authApi.loginWithTelegram(telegramUser);
@@ -97,19 +97,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Telegram login failed');
     }
-  };
+  }, [checkAuthStatus]);
 
-  const loginAsDemo = async (userType: 'super_admin' | 'admin') => {
-    try {
-      setError(null);
-      await authApi.loginAsDemo(userType);
-      await checkAuthStatus();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Demo login failed');
-    }
-  };
-
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       setError(null);
       await authApi.logout();
@@ -117,7 +107,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Logout failed');
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkAuthStatus();
@@ -129,7 +119,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     error,
     login,
     loginWithTelegram,
-    loginAsDemo,
     logout,
     refetch: checkAuthStatus,
     isAdmin: user?.role === 'admin',

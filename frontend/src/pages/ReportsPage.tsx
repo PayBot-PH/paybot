@@ -43,7 +43,7 @@ export default function ReportsPage() {
   const [period, setPeriod] = useState('monthly');
   const [report, setReport] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [xenditBalance, setXenditBalance] = useState<number | null>(null);
+  const [paymongoBalance, setPaymongoBalance] = useState<number | null>(null);
 
   // Fee calculator
   const [feeAmount, setFeeAmount] = useState('');
@@ -55,14 +55,14 @@ export default function ReportsPage() {
     if (!user) return;
     setLoading(true);
     try {
-      const [rptRes, balRes] = await Promise.all([
-        client.apiCall.invoke({ url: `/api/v1/gateway/reports?period=${period}`, method: 'GET', data: {} }),
-        client.apiCall.invoke({ url: '/api/v1/gateway/xendit-balance', method: 'GET', data: {} }),
-      ]);
+      const rptRes = await client.apiCall.invoke({ url: `/api/v1/gateway/reports?period=${period}`, method: 'GET', data: {} });
       setReport(rptRes.data);
-      if (balRes.data?.success) setXenditBalance(balRes.data.balance);
     } catch { /* ignore */ }
     setLoading(false);
+    try {
+      const balRes = await client.apiCall.invoke({ url: '/api/v1/gateway/paymongo-balance', method: 'GET', data: {} });
+      if (balRes.data?.success) setPaymongoBalance(balRes.data.balance);
+    } catch { /* ignore */ }
   }, [user, period]);
 
   useEffect(() => { fetchReport(); }, [fetchReport]);
@@ -90,11 +90,11 @@ export default function ReportsPage() {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
           <h1 className="text-2xl font-bold text-white">Reports & Analytics</h1>
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center gap-3">
             <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-[140px] bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[140px] bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-slate-800 border-slate-600">
                 <SelectItem value="daily" className="text-white">Daily</SelectItem>
                 <SelectItem value="weekly" className="text-white">Weekly</SelectItem>
@@ -201,7 +201,7 @@ export default function ReportsPage() {
                     <div>
                       <p className="text-sm text-slate-400">PHP Balance</p>
                       <p className="text-3xl font-bold text-white mt-1">
-                        {xenditBalance !== null ? fmt(xenditBalance) : 'N/A'}
+                        {paymongoBalance !== null ? fmt(paymongoBalance) : 'N/A'}
                       </p>
                     </div>
                     <div className="h-10 w-10 bg-purple-500/20 rounded-xl flex items-center justify-center">

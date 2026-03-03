@@ -25,6 +25,7 @@ class KybRegistration(Base):
 
     # Collected KYB answers
     full_name = Column(String(256), nullable=True)
+    email = Column(String(256), nullable=True)
     phone = Column(String(64), nullable=True)
     address = Column(String(512), nullable=True)
     bank_name = Column(String(128), nullable=True)

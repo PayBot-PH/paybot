@@ -6,7 +6,6 @@ services:
     dockerContext: .
     plan: starter
     healthCheckPath: /health
-    preDeployCommand: "alembic upgrade head"
     envVars:
       - key: PYTHON_BACKEND_URL
         sync: false
@@ -34,6 +33,16 @@ services:
           property: connectionString
       - key: ALLOWED_ORIGINS
         sync: false
+      - key: TELEGRAM_BOT_OWNER_ID
+        sync: false
+      - key: PAYMONGO_SECRET_KEY
+        sync: false
+      - key: PAYMONGO_PUBLIC_KEY
+        sync: false
+      - key: PAYMONGO_WEBHOOK_SECRET
+        sync: false
+      - key: PAYMONGO_MODE
+        value: live
 
 databases:
   - name: paybot-db
