@@ -31,7 +31,10 @@ class Settings(BaseSettings):
         which is unreachable from outside the private network or misconfigured.
         Also normalises the legacy postgres:// scheme to postgresql:// so that
         SQLAlchemy 2.0 can parse it without errors."""
-        if "railway.internal" in self.database_url:
+        # Only switch to the public URL when running OUTSIDE Railway (local dev).
+        # Inside Railway containers, the .railway.internal hostname is reachable directly.
+        is_on_railway = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
+        if "railway.internal" in self.database_url and not is_on_railway:
             public = os.environ.get("DATABASE_PUBLIC_URL", "")
             if public:
                 logger.debug("Switching DATABASE_URL to DATABASE_PUBLIC_URL (internal hostname detected)")
