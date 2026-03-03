@@ -41,8 +41,8 @@ def _resolve_bot_token() -> str:
 class TelegramService:
     """Service for Telegram Bot API integration"""
 
-    def __init__(self):
-        self.bot_token = _resolve_bot_token()
+    def __init__(self, token: str | None = None):
+        self.bot_token = token or _resolve_bot_token()
         if not self.bot_token:
             logger.warning("TELEGRAM_BOT_TOKEN not set - bot will not function")
         self._timeout = httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0)

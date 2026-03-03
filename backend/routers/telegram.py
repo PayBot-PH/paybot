@@ -5,7 +5,7 @@ import os
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -147,91 +147,8 @@ _PH_BANKS = [
 # Ordered list of KYB steps
 _KYB_STEPS = ["full_name", "phone", "address", "bank", "id_photo"]
 
-# ---------- Command wizard (step-by-step prompts) ----------
-# In-memory state per chat: {chat_id: {"cmd": str, "step": int, "data": dict}}
-_pending: Dict[str, Dict] = {}
 
-_CMD_STEPS: Dict[str, List[Dict]] = {
-    "/invoice": [
-        {"key": "amount",      "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
-        {"key": "description", "type": "str",   "prompt": "📝 Enter the <b>description</b>:\n<i>e.g. Monthly subscription</i>\n\nOr type <code>skip</code> to use the default.", "optional": True, "default": "Invoice payment"},
-    ],
-    "/qr": [
-        {"key": "amount",      "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
-        {"key": "description", "type": "str",   "prompt": "📝 Enter the <b>description</b>:\n<i>e.g. QR payment</i>\n\nOr type <code>skip</code> to use the default.", "optional": True, "default": "QR payment"},
-    ],
-    "/link": [
-        {"key": "amount",      "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
-        {"key": "description", "type": "str",   "prompt": "📝 Enter the <b>description</b>:\n<i>e.g. Payment link</i>\n\nOr type <code>skip</code> to use the default.", "optional": True, "default": "Payment link"},
-    ],
-    "/va": [
-        {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
-        {"key": "bank",   "type": "str",   "prompt": "🏦 Enter the <b>bank code</b>:\n<i>BDO · BPI · UNIONBANK · METROBANK · LANDBANK · PNB · RCBC</i>"},
-    ],
-    "/ewallet": [
-        {"key": "amount",   "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
-        {"key": "provider", "type": "str",   "prompt": "📱 Enter the <b>provider</b>:\n<i>GCASH · MAYA · GRABPAY</i>"},
-    ],
-    "/alipay": [
-        {"key": "amount",      "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
-        {"key": "description", "type": "str",   "prompt": "📝 Enter the <b>description</b>:\n<i>e.g. Alipay payment</i>\n\nOr type <code>skip</code> to use the default.", "optional": True, "default": "Alipay payment"},
-    ],
-    "/wechat": [
-        {"key": "amount",      "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
-        {"key": "description", "type": "str",   "prompt": "📝 Enter the <b>description</b>:\n<i>e.g. WeChat payment</i>\n\nOr type <code>skip</code> to use the default.", "optional": True, "default": "WeChat payment"},
-    ],
-    "/disburse": [
-        {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 1000</i>"},
-        {"key": "bank",    "type": "str",   "prompt": "🏦 Enter the <b>bank code</b>:\n<i>BDO · BPI · UNIONBANK · METROBANK · LANDBANK · PNB · RCBC</i>"},
-        {"key": "account", "type": "str",   "prompt": "🔢 Enter the <b>account number</b>:\n<i>e.g. 1234567890</i>"},
-        {"key": "name",    "type": "str",   "prompt": "👤 Enter the <b>account holder name</b>:\n<i>e.g. Juan Dela Cruz</i>"},
-    ],
-    "/refund": [
-        {"key": "id",     "type": "str",   "prompt": "🆔 Enter the <b>transaction ID</b> to refund:\n<i>e.g. INV-xxx</i>"},
-        {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>refund amount</b> in PHP:\n<i>e.g. 500</i>"},
-    ],
-    "/phptopup": [
-        {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>top-up amount</b> in PHP:\n<i>e.g. 1000</i>"},
-    ],
-    "/send": [
-        {"key": "amount",    "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
-        {"key": "recipient", "type": "str",   "prompt": "👤 Enter the <b>recipient</b> (username or Telegram ID):\n<i>e.g. @username</i>"},
-    ],
-    "/withdraw": [
-        {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>withdrawal amount</b> in PHP:\n<i>e.g. 500</i>"},
-    ],
-    "/topup": [
-        {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>USDT amount</b> to top up:\n<i>e.g. 100</i>"},
-    ],
-    "/sendusdt": [
-        {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>USDT amount</b> to send:\n<i>e.g. 50</i>"},
-        {"key": "address", "type": "str",   "prompt": "📬 Enter the <b>TRC20 wallet address</b>:\n<i>e.g. TXxx...</i>"},
-    ],
-    "/sendusd": [
-        {"key": "amount",   "type": "float", "prompt": "💰 Enter the <b>USD amount</b> to send:\n<i>e.g. 50</i>"},
-        {"key": "username", "type": "str",   "prompt": "👤 Enter the <b>recipient username</b>:\n<i>e.g. @username</i>"},
-    ],
-    "/fees": [
-        {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
-        {"key": "method", "type": "str",   "prompt": "💳 Enter the <b>payment method</b>:\n<i>invoice · qr · link · va · ewallet</i>"},
-    ],
-    "/cancel": [
-        {"key": "id", "type": "str", "prompt": "🆔 Enter the <b>transaction ID</b> to cancel:\n<i>e.g. INV-xxx</i>"},
-    ],
-    "/remind": [
-        {"key": "id", "type": "str", "prompt": "🆔 Enter the <b>transaction ID</b> to send a reminder:\n<i>e.g. INV-xxx</i>"},
-    ],
-}
-
-
-def _wizard_start(chat_id: str, cmd: str) -> str:
-    """Initialise pending state for cmd and return the first prompt."""
-    _pending[chat_id] = {"cmd": cmd, "step": 0, "data": {}}
-    return (
-        f"📋 <b>{cmd}</b> — let's fill in the details.\n"
-        f"Type <code>/cancel</code> at any time to abort.\n\n"
-        + _CMD_STEPS[cmd][0]["prompt"]
-    )
+# ---------- Keyboard helpers ----------
 def _start_kb() -> dict:
     """Full quick-action keyboard for /start and /help."""
     return {
@@ -244,90 +161,6 @@ def _start_kb() -> dict:
         "resize_keyboard": True,
         "one_time_keyboard": False,
     }
-
-
-def _lang_kb() -> dict:
-    """Inline keyboard for language selection on /start."""
-    return {
-        "inline_keyboard": [[
-            {"text": "🇬🇧 English", "callback_data": "lang:en"},
-            {"text": "🇨🇳 中文", "callback_data": "lang:zh"},
-        ]]
-    }
-
-
-def _welcome_en() -> str:
-    return (
-        "👋 <b>Welcome to PayBot Philippines!</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "Your all-in-one Philippine payment gateway bot.\n\n"
-        "💳 <b>Accept Payments</b>\n"
-        "  /invoice [amt] [desc] — Create an invoice\n"
-        "  /qr [amt] [desc] — Generate QR code\n"
-        "  /link [amt] [desc] — Payment link\n"
-        "  /va [amt] [bank] — Virtual account\n"
-        "  /ewallet [amt] [provider] — E-wallet\n"
-        "  /alipay [amt] [desc] — Alipay QR (via PhotonPay)\n"
-        "  /wechat [amt] [desc] — WeChat QR (via PhotonPay)\n\n"
-        "💸 <b>Send Money</b>\n"
-        "  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
-        "  /refund [id] [amt] — Refund a payment\n\n"
-        "💰 <b>PHP Wallet</b>\n"
-        "  /balance — View balances &amp; history\n"
-        "  /phptopup [amt] — Top up via payment invoice\n"
-        "  /send [amt] [to] — Send funds\n"
-        "  /withdraw [amt] — Withdraw\n\n"
-        "💵 <b>USD Wallet (USDT TRC20)</b>\n"
-        "  /usdbalance — USD balance &amp; history\n"
-        "  /topup [amt] — Top up via USDT\n"
-        "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
-        "  /sendusd [amt] [@username] — Send USD to another user\n\n"
-        "📊 <b>Reports &amp; Tools</b>\n"
-        "  /status [id] — Payment status\n"
-        "  /list — Recent transactions\n"
-        "  /report [daily|weekly|monthly]\n"
-        "  /fees [amt] [method] — Fee calculator\n"
-        "  /cancel [id] — Cancel pending payment\n"
-        "  /remind [id] — Send payment reminder\n\n"
-        "ℹ️ Type /help for the full command reference."
-    )
-
-
-def _welcome_zh() -> str:
-    return (
-        "👋 <b>欢迎使用 PayBot Philippines！</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "您的一站式菲律宾支付机器人。\n\n"
-        "💳 <b>收款</b>\n"
-        "  /invoice [金额] [说明] — 创建账单\n"
-        "  /qr [金额] [说明] — 生成二维码\n"
-        "  /link [金额] [说明] — 付款链接\n"
-        "  /va [金额] [银行] — 虚拟账户\n"
-        "  /ewallet [金额] [提供商] — 电子钱包\n"
-        "  /alipay [金额] [说明] — 支付宝收款\n"
-        "  /wechat [金额] [说明] — 微信支付收款\n\n"
-        "💸 <b>转账</b>\n"
-        "  /disburse [金额] [银行] [账号] [姓名] — 银行转账\n"
-        "  /refund [ID] [金额] — 退款\n\n"
-        "💰 <b>PHP 钱包</b>\n"
-        "  /balance — 查看余额及历史\n"
-        "  /phptopup [金额] — 通过账单充值\n"
-        "  /send [金额] [接收方] — 转账\n"
-        "  /withdraw [金额] — 提现\n\n"
-        "💵 <b>USD 钱包（USDT TRC20）</b>\n"
-        "  /usdbalance — USD 余额及历史\n"
-        "  /topup [金额] — 通过 USDT 充值\n"
-        "  /sendusdt [金额] [地址] — 发送 USDT 至 TRC20 地址\n"
-        "  /sendusd [金额] [@用户名] — 向用户转账 USD\n\n"
-        "📊 <b>报表与工具</b>\n"
-        "  /status [ID] — 付款状态\n"
-        "  /list — 近期交易记录\n"
-        "  /report [daily|weekly|monthly]\n"
-        "  /fees [金额] [方式] — 费用计算\n"
-        "  /cancel [ID] — 取消待付款项\n"
-        "  /remind [ID] — 发送付款提醒\n\n"
-        "ℹ️ 输入 /help 查看完整命令列表。"
-    )
 
 
 def _pay_kb() -> dict:
@@ -489,8 +322,11 @@ async def _handle_kyb_flow(
     if text and text.startswith("/start"):
         await tg.send_message(
             chat_id,
-            "🌐 <b>Select Language / 请选择语言</b>",
-            reply_markup=_lang_kb(),
+            "👋 <b>Welcome to PayBot!</b>\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            "This bot is restricted to registered admins only.\n\n"
+            "To request access, please complete the KYB (Know Your Business) registration.\n\n"
+            "Type /register to begin your registration.",
         )
         return True
 
@@ -825,8 +661,144 @@ async def auto_setup_webhook(
     }
 
 
+# ─────────────────────────────────────────────────────────────
+# Clone-bot management endpoints
+# ─────────────────────────────────────────────────────────────
+
+class CloneBotTokenRequest(BaseModel):
+    bot_token: str
+
+
+@router.post("/clone-bot/validate")
+async def clone_bot_validate(
+    data: CloneBotTokenRequest,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Validate a custom bot token by calling Telegram getMe. Returns bot info."""
+    token = data.bot_token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="bot_token is required")
+    tg = TelegramService(token=token)
+    result = await tg.get_bot_info()
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Invalid bot token"))
+    return {"success": True, "bot": result.get("data", {})}
+
+
+@router.post("/clone-bot/save")
+async def clone_bot_save(
+    request: Request,
+    data: CloneBotTokenRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save the user's custom bot token, derive webhook secret, and register the webhook."""
+    token = data.bot_token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="bot_token is required")
+
+    # Validate token with Telegram
+    tg = TelegramService(token=token)
+    result = await tg.get_bot_info()
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Invalid bot token"))
+
+    bot_data = result.get("data", {})
+    user_id = str(current_user.id)
+
+    # Upsert bot_settings row for this user
+    res = await db.execute(select(Bot_settings).where(Bot_settings.user_id == user_id))
+    bs = res.scalar_one_or_none()
+    now = datetime.now()
+
+    # Generate a stable webhook secret from the token (SHA-256 prefix, URL-safe)
+    secret = hashlib.sha256(token.encode()).hexdigest()[:32]
+
+    # Build webhook URL from the incoming request
+    scheme = request.headers.get("x-forwarded-proto", "https")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    webhook_url = f"{scheme}://{host}/api/v1/telegram/user-webhook/{secret}" if host else ""
+
+    if bs:
+        bs.custom_bot_token    = token
+        bs.custom_bot_name     = bot_data.get("first_name", "")
+        bs.custom_bot_username = bot_data.get("username", "")
+        bs.custom_bot_id       = str(bot_data.get("id", ""))
+        bs.custom_webhook_url  = webhook_url
+        bs.webhook_secret      = secret
+        bs.updated_at          = now
+    else:
+        bs = Bot_settings(
+            user_id=user_id,
+            custom_bot_token=token,
+            custom_bot_name=bot_data.get("first_name", ""),
+            custom_bot_username=bot_data.get("username", ""),
+            custom_bot_id=str(bot_data.get("id", "")),
+            custom_webhook_url=webhook_url,
+            webhook_secret=secret,
+            bot_status="active",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(bs)
+
+    await db.commit()
+
+    # Register webhook with Telegram if we know the URL
+    webhook_registered = False
+    if webhook_url:
+        wr = await tg.set_webhook(webhook_url)
+        webhook_registered = wr.get("success", False)
+
+    return {
+        "success": True,
+        "bot": bot_data,
+        "webhook_url": webhook_url,
+        "webhook_registered": webhook_registered,
+        "webhook_secret": secret,
+    }
+
+
+@router.get("/clone-bot/info")
+async def clone_bot_info(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the clone-bot config for the current user."""
+    res = await db.execute(select(Bot_settings).where(Bot_settings.user_id == str(current_user.id)))
+    bs = res.scalar_one_or_none()
+    if not bs or not bs.custom_bot_token:
+        return {"configured": False}
+    return {
+        "configured": True,
+        "bot_name": bs.custom_bot_name,
+        "bot_username": bs.custom_bot_username,
+        "bot_id": bs.custom_bot_id,
+        "webhook_url": bs.custom_webhook_url,
+        "webhook_secret": bs.webhook_secret,
+    }
+
+
+@router.post("/user-webhook/{webhook_secret}")
+async def user_telegram_webhook(
+    webhook_secret: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Receive updates for a clone bot identified by webhook_secret."""
+    res = await db.execute(select(Bot_settings).where(Bot_settings.webhook_secret == webhook_secret))
+    bs = res.scalar_one_or_none()
+    if not bs or not bs.custom_bot_token:
+        return {"status": "ok"}
+    return await _handle_telegram_update(request, db, bot_token=bs.custom_bot_token)
+
+
 @router.post("/webhook")
 async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db)):
+    return await _handle_telegram_update(request, db)
+
+
+async def _handle_telegram_update(request: Request, db: AsyncSession, bot_token: str | None = None):
     """Receive Telegram bot updates (no auth required).
 
     Design principle: ALWAYS send the Telegram reply FIRST, then attempt
@@ -839,52 +811,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         logger.info(f"Telegram webhook received: {body}")
 
         message = body.get("message", {})
-        callback_query = body.get("callback_query", {})
-
-        # ── Handle inline button callbacks (language selection) ──────────
-        if callback_query:
-            cq_id      = callback_query.get("id", "")
-            cq_data    = callback_query.get("data", "")
-            cq_from    = callback_query.get("from", {})
-            cq_chat_id = str(cq_from.get("id", ""))
-            tg = TelegramService()
-
-            if cq_data in ("lang:en", "lang:zh"):
-                await tg.answer_callback_query(cq_id)
-                lang = cq_data.split(":")[1]
-
-                # Check whether this chat belongs to a registered admin
-                is_registered = False
-                try:
-                    adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == cq_chat_id, AdminUser.is_active.is_(True)))
-                    is_registered = adm_res.scalar_one_or_none() is not None
-                except Exception:
-                    pass
-
-                if is_registered:
-                    welcome = _welcome_en() if lang == "en" else _welcome_zh()
-                    await tg.send_message(cq_chat_id, welcome, reply_markup=_start_kb())
-                else:
-                    if lang == "en":
-                        msg = (
-                            "👋 <b>Welcome to PayBot!</b>\n"
-                            "━━━━━━━━━━━━━━━━━━━━\n"
-                            "This bot is restricted to registered admins only.\n\n"
-                            "To request access, please complete the KYB (Know Your Business) registration.\n\n"
-                            "Type /register to begin your registration."
-                        )
-                    else:
-                        msg = (
-                            "👋 <b>欢迎使用 PayBot！</b>\n"
-                            "━━━━━━━━━━━━━━━━━━━━\n"
-                            "本机器人仅限已注册管理员使用。\n\n"
-                            "如需申请访问权限，请完成 KYB（了解您的业务）注册。\n\n"
-                            "输入 /register 开始注册。"
-                        )
-                    await tg.send_message(cq_chat_id, msg)
-
-            return {"status": "ok"}
-
         if not message:
             return {"status": "ok"}
 
@@ -900,7 +826,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         if not chat_id:
             return {"status": "ok"}
 
-        tg = TelegramService()
+        tg = TelegramService(token=bot_token)
         tg_user_id = f"tg-{chat_id}"
 
         # ==================== Access control: KYB gate ====================
@@ -1172,71 +1098,42 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             )
             return {"status": "ok"}
 
-        # ==================== Wizard handler ====================
-        # If a user is mid-wizard and sends plain text, collect the next value.
-        # A new /command cancels the wizard and falls through to normal routing.
-        if chat_id in _pending and not (text and text.startswith("/")):
-            state = _pending[chat_id]
-            cmd   = state["cmd"]
-            steps = _CMD_STEPS.get(cmd, [])
-            step  = state["step"]
-
-            if step < len(steps):
-                param = steps[step]
-                raw   = (text or "").strip()
-
-                # "skip" is allowed for optional steps
-                if raw.lower() == "skip" and param.get("optional"):
-                    raw = param["default"]
-
-                if param["type"] == "float":
-                    try:
-                        fval = float(raw)
-                        if fval <= 0:
-                            raise ValueError("Must be > 0")
-                        state["data"][param["key"]] = str(fval)
-                    except ValueError:
-                        await tg.send_message(
-                            chat_id,
-                            "❌ Please enter a valid positive number.\n\n" + param["prompt"],
-                        )
-                        return {"status": "ok"}
-                else:
-                    if not raw:
-                        await tg.send_message(chat_id, "❌ Value cannot be empty.\n\n" + param["prompt"])
-                        return {"status": "ok"}
-                    state["data"][param["key"]] = raw
-
-                state["step"] += 1
-
-            # More steps outstanding?
-            if state["step"] < len(steps):
-                next_param = steps[state["step"]]
-                await tg.send_message(chat_id, next_param["prompt"])
-                return {"status": "ok"}
-
-            # All values collected — rebuild command text and fall through
-            del _pending[chat_id]
-            parts = [cmd] + [state["data"].get(s["key"], s.get("default", "")) for s in steps]
-            text = " ".join(str(p) for p in parts)
-            # fall through to command routing below
-
-        elif chat_id in _pending and text and text.startswith("/"):
-            if text.startswith("/cancel"):
-                # /cancel always aborts the current wizard
-                del _pending[chat_id]
-                await tg.send_message(chat_id, "❌ Wizard cancelled.", reply_markup=_start_kb())
-                return {"status": "ok"}
-            # Any other new command: silently cancel wizard and process normally
-            del _pending[chat_id]
-
         # ==================== /start ====================
         if text.startswith("/start"):
-            await tg.send_message(
-                chat_id,
-                "🌐 <b>Select Language / 请选择语言</b>",
-                reply_markup=_lang_kb(),
+            welcome = (
+                "👋 <b>Welcome to PayBot Philippines!</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "Your all-in-one Philippine payment gateway bot.\n\n"
+                "💳 <b>Accept Payments</b>\n"
+                "  /invoice [amt] [desc] — Create an invoice\n"
+                "  /qr [amt] [desc] — Generate QR code\n"
+                "  /link [amt] [desc] — Payment link\n"
+                "  /va [amt] [bank] — Virtual account\n"
+                "  /ewallet [amt] [provider] — E-wallet\n"
+                "  /alipay [amt] [desc] — Alipay QR (via PhotonPay)\n"
+                "  /wechat [amt] [desc] — WeChat QR (via PhotonPay)\n\n"                "💸 <b>Send Money</b>\n"
+                "  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
+                "  /refund [id] [amt] — Refund a payment\n\n"
+                "💰 <b>PHP Wallet</b>\n"
+                "  /balance — View balances &amp; history\n"
+                "  /phptopup [amt] — Top up via payment invoice\n"
+                "  /send [amt] [to] — Send funds\n"
+                "  /withdraw [amt] — Withdraw\n\n"
+                "💵 <b>USD Wallet (USDT TRC20)</b>\n"
+                "  /usdbalance — USD balance &amp; history\n"
+                "  /topup [amt] — Top up via USDT\n"
+                "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
+                "  /sendusd [amt] [@username] — Send USD to another user\n\n"
+                "📊 <b>Reports &amp; Tools</b>\n"
+                "  /status [id] — Payment status\n"
+                "  /list — Recent transactions\n"
+                "  /report [daily|weekly|monthly]\n"
+                "  /fees [amt] [method] — Fee calculator\n"
+                "  /cancel [id] — Cancel pending payment\n"
+                "  /remind [id] — Send payment reminder\n\n"
+                "ℹ️ Type /help for the full command reference."
             )
+            await tg.send_message(chat_id, welcome, reply_markup=_start_kb())
 
         # ==================== /kyb_list (bot owner only) ====================
         elif text.startswith("/kyb_list"):
@@ -1369,7 +1266,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/invoice"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/invoice"))
+                await tg.send_message(chat_id, "❌ Usage: /invoice [amount] [description]\nExample: /invoice 500 Monthly subscription")
             else:
                 try:
                     amount = float(parts[1])
@@ -1424,7 +1321,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/qr"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/qr"))
+                await tg.send_message(chat_id, "❌ Usage: /qr [amount] [description]")
             else:
                 try:
                     amount = float(parts[1])
@@ -1468,7 +1365,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/alipay"))
+                await tg.send_message(chat_id, "❌ Usage: /alipay [amount] [description]\nExample: /alipay 500 Coffee order\n\n💡 <i>Generates an Alipay checkout via PhotonPay. Wallet credited automatically on payment.</i>")
             else:
                 try:
                     amount = float(parts[1])
@@ -1532,7 +1429,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/wechat"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/wechat"))
+                await tg.send_message(chat_id, "❌ Usage: /wechat [amount] [description]\nExample: /wechat 500 Coffee order\n\n💡 <i>Generates a WeChat Pay checkout via PhotonPay. Wallet credited automatically on payment.</i>")
             else:
                 try:
                     amount = float(parts[1])
@@ -1596,7 +1493,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/link"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/link"))
+                await tg.send_message(chat_id, "❌ Usage: /link [amount] [description]")
             else:
                 try:
                     amount = float(parts[1])
@@ -1649,7 +1546,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/va"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/va"))
+                await tg.send_message(chat_id, "❌ Usage: /va [amount] [bank_code]\nExample: /va 1000 BDO\nBanks: BDO, BPI, UNIONBANK, RCBC")
             else:
                 try:
                     amount = float(parts[1])
@@ -1693,7 +1590,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/ewallet"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/ewallet"))
+                await tg.send_message(chat_id, "❌ Usage: /ewallet [amount] [provider]\nProviders: GCASH, GRABPAY")
             else:
                 try:
                     amount = float(parts[1])
@@ -1705,7 +1602,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     channel_map = {
                         "GCASH": "PH_GCASH", "GRABPAY": "PH_GRABPAY",
                         "PH_GCASH": "PH_GCASH", "PH_GRABPAY": "PH_GRABPAY",
-                        "MAYA": "PAYMAYA", "PAYMAYA": "PAYMAYA",
                     }
                     channel = channel_map.get(provider, f"PH_{provider}")
                     xendit = XenditService()
@@ -1746,7 +1642,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/disburse"):
             parts = text.split(maxsplit=4)
             if len(parts) < 5:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/disburse"))
+                await tg.send_message(
+                    chat_id,
+                    "❌ Usage: /disburse [amount] [bank] [account] [name]\n"
+                    "Example: /disburse 500 BDO 1234567890 Juan Dela Cruz\n\n"
+                    "Banks: BDO BPI UNIONBANK METROBANK LANDBANK PNB RCBC CHINABANK EASTWEST"
+                )
             else:
                 try:
                     amount = float(parts[1])
@@ -1756,7 +1657,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     # Balance gate — check user has sufficient PHP wallet balance
                     tg_uid = f"tg-{chat_id}"
-                    php_bal = await _get_php_balance_for_bot(db, tg_uid)
+                    php_bal = await _get_php_balance(db, tg_uid)
                     if php_bal <= 0:
                         await tg.send_message(
                             chat_id,
@@ -1847,7 +1748,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/refund"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/refund"))
+                await tg.send_message(chat_id, "❌ Usage: /refund [external_id] [amount]\nExample: /refund inv-abc123 500")
             else:
                 ext_id = parts[1].strip()
                 # DB lookup is required for refund logic — wrap it safely
@@ -2111,7 +2012,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/sendusdt"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/sendusdt"))
+                await tg.send_message(
+                    chat_id,
+                    "Please contact support."
+                )
             else:
                 try:
                     amount = float(parts[1])
@@ -2165,11 +2069,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
-                    # Create pending send request and deduct balance atomically
+                    # Create pending send request
                     now = datetime.now()
                     wallet_id = usd_wallet.id if usd_wallet else 0
-                    bal_before = usd_wallet.balance if usd_wallet else 0.0
-                    bal_after = bal_before - amount
                     send_req = UsdtSendRequest(
                         user_id=tg_user_id,
                         wallet_id=wallet_id,
@@ -2181,32 +2083,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         updated_at=now,
                     )
                     db.add(send_req)
-                    # Deduct immediately to prevent double-spend; admin rejection credits it back
-                    if usd_wallet:
-                        usd_wallet.balance = bal_after
-                        usd_wallet.updated_at = now
-                        wtxn = Wallet_transactions(
-                            user_id=tg_user_id, wallet_id=wallet_id,
-                            transaction_type="usdt_send_pending", amount=amount,
-                            balance_before=bal_before, balance_after=bal_after,
-                            note=f"USDT send pending to {addr}", status="pending",
-                            reference_id=f"tg-sendusdt-{wallet_id}-{int(now.timestamp())}",
-                            created_at=now,
-                        )
-                        db.add(wtxn)
                     await db.commit()
                     await db.refresh(send_req)
 
                     short_addr = f"{addr[:8]}...{addr[-6:]}"
                     await tg.send_message(
                         chat_id,
-                        f"✅ <b>USDT Send Request Submitted</b>\n\n"
-                        f"💵 Amount: <b>${amount:,.2f} USDT</b>\n"
-                        f"📬 To: <code>{short_addr}</code>\n"
-                        f"🆔 Request ID: <code>{send_req.id}</code>\n"
-                        f"💰 Remaining balance: <b>${bal_after:,.2f} USDT</b>\n\n"
-                        f"⏳ Pending admin approval. You'll be notified once processed.",
-                        reply_markup=_wallet_kb(),
+                        "Your request settlement is now on process."
                     )
                     logger.info("USDT send via bot: user=%s amount=%s to=%s req=%s", tg_user_id, amount, addr, send_req.id)
                 except ValueError:
@@ -2223,7 +2106,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/sendusd"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/sendusd"))
+                await tg.send_message(
+                    chat_id,
+                    "❌ Usage: /sendusd [amount] [@username]\n"
+                    "Example: /sendusd 50 @johndoe\n\n"
+                    "💡 Sends USD from your wallet to another user."
+                )
             else:
                 try:
                     amount = float(parts[1])
@@ -2390,7 +2278,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/send"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/send"))
+                await tg.send_message(chat_id, "❌ Usage: /send [amount] [recipient]")
             else:
                 try:
                     amount = float(parts[1])
@@ -2400,7 +2288,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     else:
                         # DB required for wallet ops
                         try:
-                            res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP"))
+                            res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id))
                             wallet = res.scalar_one_or_none()
                             if not wallet:
                                 now_w = datetime.now()
@@ -2456,7 +2344,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/withdraw"):
             parts = text.split(maxsplit=1)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/withdraw"))
+                await tg.send_message(chat_id, "❌ Usage: /withdraw [amount]")
             else:
                 try:
                     amount = float(parts[1])
@@ -2464,7 +2352,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ Amount must be positive.")
                     else:
                         try:
-                            res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP"))
+                            res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id))
                             wallet = res.scalar_one_or_none()
                             if not wallet:
                                 now_w = datetime.now()
@@ -2561,7 +2449,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/fees"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/fees"))
+                await tg.send_message(chat_id, "❌ Usage: /fees [amount] [method]\nMethods: invoice, qr_code, ewallet, virtual_account, card, disbursement")
             else:
                 try:
                     amount = float(parts[1])
@@ -2617,7 +2505,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/remind"):
             parts = text.split(maxsplit=1)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/remind"))
+                await tg.send_message(chat_id, "❌ Usage: /remind [external_id]")
             else:
                 ext_id = parts[1].strip()
                 try:
@@ -2681,7 +2569,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/cancel"):
             parts = text.split(maxsplit=1)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/cancel"))
+                await tg.send_message(chat_id, "❌ Usage: /cancel [external_id]\nExample: /cancel inv-abc123")
             else:
                 ext_id = parts[1].strip()
                 try:
