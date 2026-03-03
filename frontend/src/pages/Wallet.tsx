@@ -731,7 +731,7 @@ export default function Wallet() {
                     Invoice (PHP)
                   </button>
                   <button
-                    onClick={() => { setTopupMethod('paymongo'); setPmResult(null); }}
+                    onClick={() => { setTopupMethod('paymongo'); setPmClaimResult(null); }}
                     className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                       topupMethod === 'paymongo'
                         ? 'text-red-400 border-b-2 border-red-400 bg-red-500/5'
@@ -813,7 +813,7 @@ export default function Wallet() {
                       </>
                     )}
                   </div>
-                ) : topupMethod === 'paymongo' || topupMethod === 'qrpay' ? (
+                ) : topupMethod === 'paymongo' ? (
                   /* PayMongo Manual Deposit Claim Panel */
                   <div className="p-4 sm:p-6 space-y-4">
                     {pmClaimResult ? (
