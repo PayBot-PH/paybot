@@ -92,7 +92,7 @@ class DatabaseManager:
         if "+asyncpg" not in (url.drivername or ""):
             return {}
         host = str(url.host or "")
-        is_local = host in ("localhost", "127.0.0.1", "::1", "") or host.endswith(".local")
+        is_local = host in ("localhost", "127.0.0.1", "::1", "") or host.endswith(".local") or host.endswith(".railway.internal")
         if is_local:
             return {}
         ssl_ctx = _ssl_module.create_default_context()
