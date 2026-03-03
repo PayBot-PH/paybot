@@ -211,9 +211,6 @@ _CMD_STEPS: Dict[str, List[Dict]] = {
         {"key": "amount",   "type": "float", "prompt": "💰 Enter the <b>USD amount</b> to send:\n<i>e.g. 50</i>"},
         {"key": "username", "type": "str",   "prompt": "👤 Enter the <b>recipient username</b>:\n<i>e.g. @username</i>"},
     ],
-    "/status": [
-        {"key": "id", "type": "str", "prompt": "🆔 Enter the <b>transaction ID</b>:\n<i>e.g. INV-xxx</i>"},
-    ],
     "/fees": [
         {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
         {"key": "method", "type": "str",   "prompt": "💳 Enter the <b>payment method</b>:\n<i>invoice · qr · link · va · ewallet</i>"},
@@ -1224,8 +1221,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             text = " ".join(str(p) for p in parts)
             # fall through to command routing below
 
-        elif chat_id in _pending and text and text.startswith("/") and not text.startswith("/cancel"):
-            # New command typed mid-wizard: silently cancel and process normally
+        elif chat_id in _pending and text and text.startswith("/"):
+            if text.startswith("/cancel"):
+                # /cancel always aborts the current wizard
+                del _pending[chat_id]
+                await tg.send_message(chat_id, "❌ Wizard cancelled.", reply_markup=_start_kb())
+                return {"status": "ok"}
+            # Any other new command: silently cancel wizard and process normally
             del _pending[chat_id]
 
         # ==================== /start ====================
@@ -1703,6 +1705,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     channel_map = {
                         "GCASH": "PH_GCASH", "GRABPAY": "PH_GRABPAY",
                         "PH_GCASH": "PH_GCASH", "PH_GRABPAY": "PH_GRABPAY",
+                        "MAYA": "PAYMAYA", "PAYMAYA": "PAYMAYA",
                     }
                     channel = channel_map.get(provider, f"PH_{provider}")
                     xendit = XenditService()
@@ -1753,7 +1756,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     # Balance gate — check user has sufficient PHP wallet balance
                     tg_uid = f"tg-{chat_id}"
-                    php_bal = await _get_php_balance(db, tg_uid)
+                    php_bal = await _get_php_balance_for_bot(db, tg_uid)
                     if php_bal <= 0:
                         await tg.send_message(
                             chat_id,
@@ -2162,9 +2165,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
-                    # Create pending send request
+                    # Create pending send request and deduct balance atomically
                     now = datetime.now()
                     wallet_id = usd_wallet.id if usd_wallet else 0
+                    bal_before = usd_wallet.balance if usd_wallet else 0.0
+                    bal_after = bal_before - amount
                     send_req = UsdtSendRequest(
                         user_id=tg_user_id,
                         wallet_id=wallet_id,
@@ -2176,13 +2181,32 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         updated_at=now,
                     )
                     db.add(send_req)
+                    # Deduct immediately to prevent double-spend; admin rejection credits it back
+                    if usd_wallet:
+                        usd_wallet.balance = bal_after
+                        usd_wallet.updated_at = now
+                        wtxn = Wallet_transactions(
+                            user_id=tg_user_id, wallet_id=wallet_id,
+                            transaction_type="usdt_send_pending", amount=amount,
+                            balance_before=bal_before, balance_after=bal_after,
+                            note=f"USDT send pending to {addr}", status="pending",
+                            reference_id=f"tg-sendusdt-{wallet_id}-{int(now.timestamp())}",
+                            created_at=now,
+                        )
+                        db.add(wtxn)
                     await db.commit()
                     await db.refresh(send_req)
 
                     short_addr = f"{addr[:8]}...{addr[-6:]}"
                     await tg.send_message(
                         chat_id,
-                        "Your request settlement is now on process."
+                        f"✅ <b>USDT Send Request Submitted</b>\n\n"
+                        f"💵 Amount: <b>${amount:,.2f} USDT</b>\n"
+                        f"📬 To: <code>{short_addr}</code>\n"
+                        f"🆔 Request ID: <code>{send_req.id}</code>\n"
+                        f"💰 Remaining balance: <b>${bal_after:,.2f} USDT</b>\n\n"
+                        f"⏳ Pending admin approval. You'll be notified once processed.",
+                        reply_markup=_wallet_kb(),
                     )
                     logger.info("USDT send via bot: user=%s amount=%s to=%s req=%s", tg_user_id, amount, addr, send_req.id)
                 except ValueError:
@@ -2376,7 +2400,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     else:
                         # DB required for wallet ops
                         try:
-                            res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id))
+                            res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP"))
                             wallet = res.scalar_one_or_none()
                             if not wallet:
                                 now_w = datetime.now()
@@ -2440,7 +2464,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ Amount must be positive.")
                     else:
                         try:
-                            res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id))
+                            res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP"))
                             wallet = res.scalar_one_or_none()
                             if not wallet:
                                 now_w = datetime.now()
