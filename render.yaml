@@ -43,6 +43,22 @@ services:
         sync: false
       - key: PAYMONGO_MODE
         value: live
+      - key: PHOTONPAY_APP_ID
+        sync: false
+      - key: PHOTONPAY_APP_SECRET
+        sync: false
+      - key: PHOTONPAY_SITE_ID
+        sync: false
+      - key: PHOTONPAY_RSA_PRIVATE_KEY
+        sync: false
+      - key: PHOTONPAY_RSA_PUBLIC_KEY
+        sync: false
+      - key: PHOTONPAY_ALIPAY_METHOD
+        value: Alipay
+      - key: PHOTONPAY_WECHAT_METHOD
+        value: WeChat
+      - key: PHOTONPAY_WEBHOOK_VERIFY_REQUIRED
+        value: "true"
 
 databases:
   - name: paybot-db
