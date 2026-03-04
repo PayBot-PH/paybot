@@ -7,13 +7,13 @@ class Transactions(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
-    user_id = Column(String, nullable=False)
+    user_id = Column(String, nullable=False, index=True)
     transaction_type = Column(String, nullable=False)
-    external_id = Column(String, nullable=True)
+    external_id = Column(String, nullable=True, index=True)
     xendit_id = Column(String, nullable=True)
     amount = Column(Float, nullable=False)
     currency = Column(String, nullable=True, default='PHP', server_default='PHP')
-    status = Column(String, nullable=False)
+    status = Column(String, nullable=False, index=True)
     description = Column(String, nullable=True)
     customer_name = Column(String, nullable=True)
     customer_email = Column(String, nullable=True)
