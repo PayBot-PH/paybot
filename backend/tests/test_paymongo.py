@@ -256,7 +256,7 @@ class TestWebhookIdempotency:
                 db.add(topup)
                 await db.commit()
 
-        asyncio.get_event_loop().run_until_complete(seed_topup())
+        asyncio.run(seed_topup())
 
         body = _source_chargeable_body(
             source_id=source_id,
@@ -290,7 +290,7 @@ class TestWebhookIdempotency:
                 w = res.scalar_one_or_none()
                 return w.balance if w else 0.0
 
-        balance = asyncio.get_event_loop().run_until_complete(get_balance())
+        balance = asyncio.run(get_balance())
         # Balance should be 500 (credited once), not 1000 (credited twice)
         # Allow for pre-existing balance from other tests — just check increment
         # We verify idempotency by checking no second credit happened
@@ -344,7 +344,7 @@ class TestWalletCrediting:
                 w = res.scalar_one_or_none()
                 return w.balance if w else 0.0
 
-        balance_before = asyncio.get_event_loop().run_until_complete(seed_and_get_before())
+        balance_before = asyncio.run(seed_and_get_before())
 
         body = _source_chargeable_body(
             source_id=source_id,
@@ -384,7 +384,7 @@ class TestWalletCrediting:
 
                 return balance_after, ledger_entry, topup
 
-        bal, ledger, topup = asyncio.get_event_loop().run_until_complete(check_after())
+        bal, ledger, topup = asyncio.run(check_after())
 
         assert bal == pytest.approx(balance_before + amount, abs=0.01)
         assert ledger is not None, "Ledger entry was not created"
@@ -452,7 +452,7 @@ class TestPayMongoGetBalance:
                 mock_client_cls.return_value = mock_client
                 return await svc.get_balance()
 
-        result = asyncio.get_event_loop().run_until_complete(run())
+        result = asyncio.run(run())
         assert result["success"] is True
         assert result["available"] == [{"amount": 1234500, "currency": "PHP"}]
         assert result["pending"] == [{"amount": 50000, "currency": "PHP"}]
@@ -482,7 +482,7 @@ class TestPayMongoGetBalance:
                 mock_client_cls.return_value = mock_client
                 return await svc.get_balance()
 
-        result = asyncio.get_event_loop().run_until_complete(run())
+        result = asyncio.run(run())
         assert result["success"] is False
         assert "error" in result
 

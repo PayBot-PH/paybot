@@ -310,7 +310,7 @@ class TestAuth:
                     ))
                     await db.commit()
 
-        asyncio.get_event_loop().run_until_complete(seed_regular_admin())
+        asyncio.run(seed_regular_admin())
 
         import routers.auth as auth_mod
         from core.config import Settings
@@ -835,7 +835,7 @@ class TestKybAccessControl:
                 kyb = res.scalar_one_or_none()
                 return kyb
 
-        kyb = asyncio.get_event_loop().run_until_complete(check_kyb())
+        kyb = asyncio.run(check_kyb())
         assert kyb is not None
         assert kyb.status == "pending_review"
         assert kyb.full_name == "Juan dela Cruz"
@@ -895,7 +895,7 @@ class TestKybAccessControl:
                     db.add(kyb)
                     await db.commit()
 
-        asyncio.get_event_loop().run_until_complete(ensure_kyb())
+        asyncio.run(ensure_kyb())
 
         patched = Settings()
         patched.telegram_bot_owner_id = owner_id
@@ -923,7 +923,7 @@ class TestKybAccessControl:
                 admin = res2.scalar_one_or_none()
                 return kyb, admin
 
-        kyb, admin = asyncio.get_event_loop().run_until_complete(check_approved())
+        kyb, admin = asyncio.run(check_approved())
         assert kyb is not None
         assert kyb.status == "approved"
         assert admin is not None
