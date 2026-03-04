@@ -70,17 +70,20 @@ class PhotonPayService:
         self.alipay_method = os.environ.get("PHOTONPAY_ALIPAY_METHOD", "Alipay")
         self.wechat_method = os.environ.get("PHOTONPAY_WECHAT_METHOD", "WeChat")
 
-        # Try settings fallback
+        # Try settings fallback only for values not already found in os.environ
         if not self.app_id:
             try:
                 from core.config import settings
-                self.app_id = getattr(settings, "photonpay_app_id", "")
-                self.app_secret = getattr(settings, "photonpay_app_secret", "")
-                self.rsa_private_key_pem = getattr(settings, "photonpay_rsa_private_key", "")
-                self.rsa_public_key_pem = getattr(settings, "photonpay_rsa_public_key", "")
-                self.site_id = getattr(settings, "photonpay_site_id", "")
-                self.alipay_method = getattr(settings, "photonpay_alipay_method", self.alipay_method)
-                self.wechat_method = getattr(settings, "photonpay_wechat_method", self.wechat_method)
+                self.app_id = getattr(settings, "photonpay_app_id", "") or self.app_id
+                self.app_secret = getattr(settings, "photonpay_app_secret", "") or self.app_secret
+                if not self.rsa_private_key_pem:
+                    self.rsa_private_key_pem = getattr(settings, "photonpay_rsa_private_key", "")
+                if not self.rsa_public_key_pem:
+                    self.rsa_public_key_pem = getattr(settings, "photonpay_rsa_public_key", "")
+                if not self.site_id:
+                    self.site_id = getattr(settings, "photonpay_site_id", "")
+                self.alipay_method = getattr(settings, "photonpay_alipay_method", self.alipay_method) or self.alipay_method
+                self.wechat_method = getattr(settings, "photonpay_wechat_method", self.wechat_method) or self.wechat_method
             except Exception:
                 pass
 
@@ -358,13 +361,16 @@ class PhotonPayService:
         """
         Verify a PhotonPay webhook notification signature.
 
-        PhotonPay signs the request body with their RSA private key using
-        MD5withRSA.  Verify using the PhotonPay platform public key obtained
-        from the merchant portal (Settings > Developer > Platform Public Key).
+        PhotonPay signs the raw request body with their RSA private key.
+        The algorithm may be MD5withRSA or SHA256withRSA depending on the
+        account configuration; both are tried.  Verify using the PhotonPay
+        platform public key obtained from the merchant portal
+        (Settings > Developer > Platform Public Key).
 
         Args:
             raw_body:      Raw (undecoded) request body bytes.
-            signature_b64: Value of the X-PD-SIGN header (base64-encoded).
+            signature_b64: Value of the X-PD-SIGN header (base64-encoded,
+                           standard or URL-safe variant).
 
         Returns:
             True if signature is valid, False otherwise.
@@ -374,21 +380,56 @@ class PhotonPayService:
                 "PhotonPay: PHOTONPAY_RSA_PUBLIC_KEY not configured — "
                 "skipping webhook signature verification"
             )
-            return True  # Degrade gracefully; tighten in production
+            return False
 
         try:
             from cryptography.hazmat.primitives import hashes, serialization
             from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
             from cryptography.exceptions import InvalidSignature
 
+            # Normalise the PEM: handle escaped newlines from env vars and
+            # ensure the key wrapper is present in PKCS#8 or PKCS#1 form.
             pem = self.rsa_public_key_pem.strip().replace("\\n", "\n")
+
+            # If the PEM header/footer are missing (bare base64 blob), wrap it.
+            # PKCS#8 format ("BEGIN PUBLIC KEY") is assumed; if the key is actually
+            # PKCS#1 this load will fail and the error is caught below.
+            if "BEGIN" not in pem:
+                pem = f"-----BEGIN PUBLIC KEY-----\n{pem}\n-----END PUBLIC KEY-----"
+
+            # Accept both PKCS#8 ("PUBLIC KEY") and PKCS#1 ("RSA PUBLIC KEY") wrappers.
             public_key = serialization.load_pem_public_key(pem.encode())
-            sig_bytes = base64.b64decode(signature_b64)
-            public_key.verify(sig_bytes, raw_body, asym_padding.PKCS1v15(), hashes.MD5())
-            return True
-        except InvalidSignature:
-            logger.warning("PhotonPay: webhook signature verification FAILED")
+
+            # Decode the signature — strip surrounding whitespace/newlines first,
+            # then handle URL-safe base64 (replace - / _ and add missing padding).
+            sig_b64 = signature_b64.strip()
+            # Convert URL-safe alphabet to standard and add padding
+            sig_b64_std = sig_b64.replace("-", "+").replace("_", "/")
+            missing = len(sig_b64_std) % 4
+            if missing:
+                sig_b64_std += "=" * (4 - missing)
+            sig_bytes = base64.b64decode(sig_b64_std)
+
+            # Try SHA256withRSA first (preferred / more modern), then MD5withRSA.
+            for hash_algo in (hashes.SHA256(), hashes.MD5()):
+                try:
+                    public_key.verify(sig_bytes, raw_body, asym_padding.PKCS1v15(), hash_algo)
+                    logger.debug(
+                        "PhotonPay: webhook signature verified with %s",
+                        hash_algo.name,
+                    )
+                    return True
+                except InvalidSignature:
+                    continue
+
+            logger.warning(
+                "PhotonPay: webhook signature verification FAILED "
+                "(tried SHA256withRSA and MD5withRSA)"
+            )
             return False
         except Exception as e:
-            logger.error("PhotonPay: webhook verification error: %s", e)
+            logger.error(
+                "PhotonPay: webhook signature verification error: %s",
+                type(e).__name__,
+            )
             return False

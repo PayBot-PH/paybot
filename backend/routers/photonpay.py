@@ -22,6 +22,7 @@ Configure the webhook in the PhotonPay merchant portal
 """
 import json
 import logging
+import os
 from datetime import datetime
 from typing import Optional
 
@@ -272,13 +273,24 @@ async def photonpay_webhook(
 
     svc = PhotonPayService()
 
-    # Verify signature when the public key is configured
-    if x_pd_sign:
+    # Determine whether signature verification is required.
+    # Read directly from os.environ so that the value is always current
+    # (the pydantic-settings singleton is initialised at startup).
+    # Defaults to True (secure for production); set
+    # PHOTONPAY_WEBHOOK_VERIFY_REQUIRED=false only during initial integration.
+    verify_required_raw = os.environ.get("PHOTONPAY_WEBHOOK_VERIFY_REQUIRED", "true").strip().lower()
+    verify_required = verify_required_raw not in ("false", "0", "no", "off")
+
+    if not x_pd_sign:
+        if verify_required:
+            logger.warning("PhotonPay webhook: X-PD-SIGN header missing — rejected")
+            raise HTTPException(status_code=401, detail="Missing webhook signature")
+        else:
+            logger.warning("PhotonPay webhook: X-PD-SIGN header missing — proceeding (verify not required)")
+    else:
         if not svc.verify_webhook_signature(raw_body, x_pd_sign):
             logger.warning("PhotonPay webhook: invalid X-PD-SIGN — rejected")
             raise HTTPException(status_code=401, detail="Invalid webhook signature")
-    else:
-        logger.warning("PhotonPay webhook: X-PD-SIGN header missing — proceeding without verification")
 
     try:
         payload = json.loads(raw_body)

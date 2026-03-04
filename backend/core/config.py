@@ -87,6 +87,9 @@ class Settings(BaseSettings):
     # payMethod strings – adjust based on account type (e.g. "Alipay", "WeChat")
     photonpay_alipay_method: str = "Alipay"
     photonpay_wechat_method: str = "WeChat"
+    # Set to False only during initial integration/testing; True enforces
+    # signature verification for all incoming webhook requests.
+    photonpay_webhook_verify_required: bool = True
 
     # Simple admin authentication
     admin_user_id: str = "admin"
