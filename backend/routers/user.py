@@ -5,7 +5,7 @@ from core.database import get_db
 from dependencies.auth import get_current_user
 from fastapi import APIRouter, Depends, HTTPException, status
 from models.auth import User
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from schemas.auth import UserResponse
 from services.user import UserService
 from sqlalchemy import select
@@ -51,8 +51,7 @@ class UserOut(BaseModel):
     created_at: Optional[datetime] = None
     last_login: Optional[datetime] = None
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserRoleUpdate(BaseModel):
