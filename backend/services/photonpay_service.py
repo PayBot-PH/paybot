@@ -5,7 +5,7 @@ the PhotonPay Open Platform API.
 Authentication
 --------------
 PhotonPay uses a two-step OAuth flow:
-  1. POST /oauth2/token/accessToken
+  1. POST /token/accessToken
      Header: Authorization: basic base64({appId}/{appSecret})
      Returns: access_token (JWT)
 
@@ -70,22 +70,23 @@ class PhotonPayService:
         self.alipay_method = os.environ.get("PHOTONPAY_ALIPAY_METHOD", "Alipay")
         self.wechat_method = os.environ.get("PHOTONPAY_WECHAT_METHOD", "WeChat")
 
-        # Try settings fallback only for values not already found in os.environ
-        if not self.app_id:
-            try:
-                from core.config import settings
+        # Try settings fallback for any values not already found in os.environ
+        try:
+            from core.config import settings
+            if not self.app_id:
                 self.app_id = getattr(settings, "photonpay_app_id", "") or self.app_id
+            if not self.app_secret:
                 self.app_secret = getattr(settings, "photonpay_app_secret", "") or self.app_secret
-                if not self.rsa_private_key_pem:
-                    self.rsa_private_key_pem = getattr(settings, "photonpay_rsa_private_key", "")
-                if not self.rsa_public_key_pem:
-                    self.rsa_public_key_pem = getattr(settings, "photonpay_rsa_public_key", "")
-                if not self.site_id:
-                    self.site_id = getattr(settings, "photonpay_site_id", "")
-                self.alipay_method = getattr(settings, "photonpay_alipay_method", self.alipay_method) or self.alipay_method
-                self.wechat_method = getattr(settings, "photonpay_wechat_method", self.wechat_method) or self.wechat_method
-            except Exception:
-                pass
+            if not self.rsa_private_key_pem:
+                self.rsa_private_key_pem = getattr(settings, "photonpay_rsa_private_key", "")
+            if not self.rsa_public_key_pem:
+                self.rsa_public_key_pem = getattr(settings, "photonpay_rsa_public_key", "")
+            if not self.site_id:
+                self.site_id = getattr(settings, "photonpay_site_id", "")
+            self.alipay_method = getattr(settings, "photonpay_alipay_method", self.alipay_method) or self.alipay_method
+            self.wechat_method = getattr(settings, "photonpay_wechat_method", self.wechat_method) or self.wechat_method
+        except Exception:
+            pass
 
         if not self.app_id or not self.app_secret:
             logger.warning(
@@ -137,9 +138,9 @@ class PhotonPayService:
         async with httpx.AsyncClient() as client:
             # PhotonPay OAuth2 client_credentials flow.
             # The Authorization header uses slash-separated appId/appSecret (base64).
-            # grant_type must be sent as a form field per standard OAuth2.
+            # The token endpoint is /token/accessToken (no oauth2/ prefix).
             r = await client.post(
-                f"{PHOTONPAY_BASE_URL}/oauth2/token/accessToken",
+                f"{PHOTONPAY_BASE_URL}/token/accessToken",
                 headers={
                     "Authorization": self._basic_auth_header(),
                     "Content-Type": "application/x-www-form-urlencoded",
