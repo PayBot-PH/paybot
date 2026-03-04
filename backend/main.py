@@ -244,6 +244,17 @@ setup_logging()
 include_routers_from_package(app, "routers")
 
 
+# Custom HTTP exception handler — logs 404s to aid debugging, then delegates to FastAPI default.
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    from fastapi.exception_handlers import http_exception_handler as _default_handler
+
+    if exc.status_code == 404:
+        logger = logging.getLogger(__name__)
+        logger.warning("404 Not Found: %s %s", request.method, request.url.path)
+    return await _default_handler(request, exc)
+
+
 # Add exception handler for all exceptions except HTTPException
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
@@ -317,7 +328,15 @@ if _STATIC_DIR.exists():
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
-        """Catch-all: serve static files or fall back to index.html for React Router."""
+        """Catch-all: serve static files or fall back to index.html for React Router.
+
+        Requests that begin with 'api/' are NOT intercepted — they fall through so
+        FastAPI can return a proper 404/405 for unknown API paths instead of silently
+        serving the SPA HTML.
+        """
+        # Let unknown API paths return a proper 404 instead of serving HTML.
+        if full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail="Not Found")
         file_path = (_STATIC_DIR / full_path).resolve()
         # Guard against path traversal attacks
         if not str(file_path).startswith(str(_STATIC_DIR.resolve())):
