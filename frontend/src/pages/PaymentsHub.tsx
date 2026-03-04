@@ -64,6 +64,10 @@ export default function PaymentsHub() {
           endpoint = '/api/v1/gateway/ewallet-charge';
           payload = { amount: amt, channel_code: ewalletProvider, mobile_number: mobileNumber };
           break;
+        case 'alipay':
+          endpoint = '/api/v1/photonpay/alipay-session';
+          payload = { amount: amt, description: description || 'Alipay payment' };
+          break;
         case 'wechat':
           endpoint = '/api/v1/photonpay/wechat-session';
           payload = { amount: amt, description: description || 'WeChat Pay' };
@@ -96,9 +100,6 @@ export default function PaymentsHub() {
     wechat: { icon: <QrCode className="h-4 w-4" />, color: 'text-green-400' },
   };
 
-  const isAlipay = tab === 'alipay';
-  const parsedAmount = parseFloat(amount);
-
   return (
     <Layout>
       <div className="max-w-5xl mx-auto">
@@ -122,120 +123,86 @@ export default function PaymentsHub() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {isAlipay ? (
-                  /* Static Alipay QR panel */
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-slate-300">Amount (PHP)</Label>
-                      <Input type="number" step="0.01" min="1" placeholder="0.00" value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
-                    </div>
-                    <div className="flex flex-col items-center gap-3 py-2">
-                      <img
-                        src="/images/alipay_qr.png"
-                        alt="Alipay QR Code"
-                        className="rounded-lg border border-red-500/30 w-48 h-48 object-contain bg-white p-2"
-                      />
-                      {amount && !isNaN(parsedAmount) && parsedAmount > 0 && (
-                        <p className="text-red-300 font-semibold text-lg">₱{parsedAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
-                      )}
-                      <p className="text-slate-400 text-sm text-center">
-                        Open Alipay, scan the QR code, and enter the amount above.
-                        <br />Notify the admin after payment for wallet credit.
-                      </p>
-                    </div>
+                <div>
+                  <Label className="text-slate-300">Amount (PHP)</Label>
+                  <Input type="number" step="0.01" min="1" placeholder="0.00" value={amount}
+                    onChange={(e) => setAmount(e.target.value)}
+                    className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                </div>
+
+                {(tab === 'invoice' || tab === 'qr_code' || tab === 'payment_link' || tab === 'alipay' || tab === 'wechat') && (
+                  <div>
+                    <Label className="text-slate-300">Description</Label>
+                    <Textarea placeholder="Payment description..." value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 resize-none" rows={2} />
                   </div>
-                ) : (
+                )}
+
+                {(tab === 'invoice' || tab === 'payment_link' || tab === 'virtual_account') && (
+                  <div>
+                    <Label className="text-slate-300">Customer Name</Label>
+                    <Input placeholder="John Doe" value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                  </div>
+                )}
+
+                {(tab === 'invoice' || tab === 'payment_link') && (
+                  <div>
+                    <Label className="text-slate-300">Customer Email</Label>
+                    <Input type="email" placeholder="john@example.com" value={customerEmail}
+                      onChange={(e) => setCustomerEmail(e.target.value)}
+                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                  </div>
+                )}
+
+                {tab === 'virtual_account' && (
+                  <div>
+                    <Label className="text-slate-300">Bank</Label>
+                    <Select value={bankCode} onValueChange={setBankCode}>
+                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-600">
+                        {['BDO', 'BPI', 'UNIONBANK', 'RCBC', 'CHINABANK', 'PNB'].map(b => (
+                          <SelectItem key={b} value={b} className="text-white">{b}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {tab === 'ewallet' && (
                   <>
                     <div>
-                      <Label className="text-slate-300">Amount (PHP)</Label>
-                      <Input type="number" step="0.01" min="1" placeholder="0.00" value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
+                      <Label className="text-slate-300">E-Wallet Provider</Label>
+                      <Select value={ewalletProvider} onValueChange={setEwalletProvider}>
+                        <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-600">
+                          {[['PH_GCASH', 'GCash'], ['PH_GRABPAY', 'GrabPay']].map(([v, l]) => (
+                            <SelectItem key={v} value={v} className="text-white">{l}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-slate-300">Mobile Number (optional)</Label>
+                      <Input placeholder="+639XXXXXXXXX" value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value)}
                         className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
                     </div>
-
-                    {(tab === 'invoice' || tab === 'qr_code' || tab === 'payment_link' || tab === 'wechat') && (
-                      <div>
-                        <Label className="text-slate-300">Description</Label>
-                        <Textarea placeholder="Payment description..." value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 resize-none" rows={2} />
-                      </div>
-                    )}
-
-                    {(tab === 'invoice' || tab === 'payment_link' || tab === 'virtual_account') && (
-                      <div>
-                        <Label className="text-slate-300">Customer Name</Label>
-                        <Input placeholder="John Doe" value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
-                          className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
-                      </div>
-                    )}
-
-                    {(tab === 'invoice' || tab === 'payment_link') && (
-                      <div>
-                        <Label className="text-slate-300">Customer Email</Label>
-                        <Input type="email" placeholder="john@example.com" value={customerEmail}
-                          onChange={(e) => setCustomerEmail(e.target.value)}
-                          className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
-                      </div>
-                    )}
-
-                    {tab === 'virtual_account' && (
-                      <div>
-                        <Label className="text-slate-300">Bank</Label>
-                        <Select value={bankCode} onValueChange={setBankCode}>
-                          <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                          <SelectContent className="bg-slate-800 border-slate-600">
-                            {['BDO', 'BPI', 'UNIONBANK', 'RCBC', 'CHINABANK', 'PNB'].map(b => (
-                              <SelectItem key={b} value={b} className="text-white">{b}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-
-                    {tab === 'ewallet' && (
-                      <>
-                        <div>
-                          <Label className="text-slate-300">E-Wallet Provider</Label>
-                          <Select value={ewalletProvider} onValueChange={setEwalletProvider}>
-                            <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-slate-800 border-slate-600">
-                              {[['PH_GCASH', 'GCash'], ['PH_GRABPAY', 'GrabPay']].map(([v, l]) => (
-                                <SelectItem key={v} value={v} className="text-white">{l}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-slate-300">Mobile Number (optional)</Label>
-                          <Input placeholder="+639XXXXXXXXX" value={mobileNumber}
-                            onChange={(e) => setMobileNumber(e.target.value)}
-                            className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
-                        </div>
-                      </>
-                    )}
-
-                    <Button onClick={handleCreate} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                      {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</> : <><Plus className="h-4 w-4 mr-2" />Create</>}
-                    </Button>
                   </>
                 )}
+
+                <Button onClick={handleCreate} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</> : <><Plus className="h-4 w-4 mr-2" />Create</>}
+                </Button>
               </CardContent>
             </Card>
 
             <Card className="bg-[#1E293B] border-slate-700/50">
               <CardHeader><CardTitle className="text-white">Result</CardTitle></CardHeader>
               <CardContent>
-                {isAlipay ? (
-                  <div className="text-center py-8 space-y-3">
-                    <QrCode className="h-12 w-12 text-red-400 mx-auto" />
-                    <p className="text-slate-300 font-medium">Static Alipay QR</p>
-                    <p className="text-slate-400 text-sm">Scan the QR code on the left with your Alipay app. Enter the payment amount manually, then confirm with the admin.</p>
-                  </div>
-                ) : !result ? (
+                {!result ? (
                   <div className="text-center py-12">
                     <CreditCard className="h-16 w-16 text-slate-600 mx-auto mb-4" />
                     <p className="text-slate-400">Create a payment to see the result</p>

@@ -64,11 +64,6 @@ def _usdt_static_qr_url() -> str:
     return f"{settings.backend_url.rstrip('/')}/images/usdt_trc20_qr.png"
 
 
-def _alipay_static_qr_url() -> str:
-    """Return the absolute URL for the hosted static Alipay QR code image."""
-    return f"{settings.backend_url.rstrip('/')}/images/alipay_qr.png"
-
-
 async def _get_usd_balance(db: AsyncSession, chat_id: str) -> float:
     """Return USD wallet balance for a Telegram user, computed from transaction history."""
     return await _compute_usd_balance_for_wallet(db, f"tg-{chat_id}")
@@ -1475,7 +1470,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /alipay (Static Alipay QR) ====================
+        # ==================== /alipay (PhotonPay → Alipay QR) ====================
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
@@ -1488,34 +1483,52 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
-                    qr_url = _alipay_static_qr_url()
-                    caption = (
-                        f"🔴 <b>Alipay Payment</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
-                        f"📝 {description}\n\n"
-                        f"📱 Scan the QR code with your Alipay app and pay the amount above.\n"
-                        f"✅ After payment, notify the admin for wallet credit."
+                    photonpay = PhotonPayService()
+                    result = await photonpay.create_alipay_session(
+                        amount=amount,
+                        description=description,
+                        notify_url=f"{settings.backend_url}/api/v1/photonpay/webhook",
+                        redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
+                        shopper_id=str(chat_id),
                     )
-                    await tg.send_photo(chat_id, qr_url, caption=caption)
-                    await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
-                    try:
-                        now = datetime.now()
-                        txn = Transactions(
-                            user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
-                            external_id="", xendit_id="",
-                            amount=amount, currency="PHP", status="pending", description=description,
-                            qr_code_url=qr_url, telegram_chat_id=chat_id,
-                            created_at=now, updated_at=now,
+                    if result.get("success"):
+                        checkout_url = result.get("checkout_url", "")
+                        ref_num = result.get("req_id", "")
+                        qr_img_url = _make_qr_url(checkout_url) if checkout_url else ""
+                        caption = (
+                            f"✅ <b>Alipay Payment Ready!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
+                            f"📝 {description}\n"
+                            f"🆔 <code>{ref_num}</code>\n\n"
+                            f"📱 Scan the QR code with your Alipay app, or tap the button below.\n"
+                            f"💳 Your PHP wallet will be credited automatically once paid."
                         )
-                        db.add(txn)
-                        await db.commit()
-                    except Exception as e:
-                        logger.error(f"DB save failed for /alipay: {e}", exc_info=True)
+                        keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay", "url": checkout_url}]]} if checkout_url else None
+                        if qr_img_url:
+                            await tg.send_photo(chat_id, qr_img_url, caption=caption, reply_markup=keyboard)
+                        else:
+                            await tg.send_message(chat_id, caption, reply_markup=keyboard)
+                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         try:
-                            await db.rollback()
-                        except Exception:
-                            pass
+                            now = datetime.now()
+                            txn = Transactions(
+                                user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
+                                external_id=ref_num, xendit_id=result.get("pay_id", ""),
+                                amount=amount, currency="PHP", status="pending", description=description,
+                                qr_code_url=checkout_url, telegram_chat_id=chat_id,
+                                created_at=now, updated_at=now,
+                            )
+                            db.add(txn)
+                            await db.commit()
+                        except Exception as e:
+                            logger.error(f"DB save failed for /alipay: {e}", exc_info=True)
+                            try:
+                                await db.rollback()
+                            except Exception:
+                                pass
+                    else:
+                        await tg.send_message(chat_id, f"❌ Alipay payment failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
@@ -1533,33 +1546,31 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
                     photonpay = PhotonPayService()
-                    backend_url = ""
-                    try:
-                        from core.config import settings as _settings
-                        backend_url = _settings.backend_url
-                    except Exception:
-                        pass
                     result = await photonpay.create_wechat_session(
                         amount=amount,
                         description=description,
-                        notify_url=f"{backend_url}/api/v1/photonpay/webhook",
-                        redirect_url=f"{backend_url}/api/v1/photonpay/redirect/success",
+                        notify_url=f"{settings.backend_url}/api/v1/photonpay/webhook",
+                        redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
                         shopper_id=str(chat_id),
                     )
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
                         ref_num = result.get("req_id", "")
+                        qr_img_url = _make_qr_url(checkout_url) if checkout_url else ""
                         caption = (
                             f"✅ <b>WeChat Pay Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
                             f"🆔 <code>{ref_num}</code>\n\n"
-                            f"📱 Tap the button below to open the WeChat Pay checkout page.\n"
+                            f"📱 Scan the QR code with WeChat, or tap the button below.\n"
                             f"💳 Your PHP wallet will be credited automatically once paid."
                         )
                         keyboard = {"inline_keyboard": [[{"text": "💚 Pay via WeChat", "url": checkout_url}]]} if checkout_url else None
-                        await tg.send_message(chat_id, caption, reply_markup=keyboard)
+                        if qr_img_url:
+                            await tg.send_photo(chat_id, qr_img_url, caption=caption, reply_markup=keyboard)
+                        else:
+                            await tg.send_message(chat_id, caption, reply_markup=keyboard)
                         await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
