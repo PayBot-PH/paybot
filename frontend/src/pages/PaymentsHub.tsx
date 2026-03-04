@@ -65,11 +65,11 @@ export default function PaymentsHub() {
           payload = { amount: amt, channel_code: ewalletProvider, mobile_number: mobileNumber };
           break;
         case 'alipay':
-          endpoint = '/api/v1/paymongo/alipay-qr';
+          endpoint = '/api/v1/photonpay/alipay-session';
           payload = { amount: amt, description: description || 'Alipay payment' };
           break;
         case 'wechat':
-          endpoint = '/api/v1/paymongo/wechat-qr';
+          endpoint = '/api/v1/photonpay/wechat-session';
           payload = { amount: amt, description: description || 'WeChat Pay' };
           break;
       }

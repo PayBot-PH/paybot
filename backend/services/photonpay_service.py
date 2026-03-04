@@ -132,12 +132,16 @@ class PhotonPayService:
             return self._access_token
 
         async with httpx.AsyncClient() as client:
+            # PhotonPay OAuth2 client_credentials flow.
+            # The Authorization header uses slash-separated appId/appSecret (base64).
+            # grant_type must be sent as a form field per standard OAuth2.
             r = await client.post(
                 f"{PHOTONPAY_BASE_URL}/oauth2/token/accessToken",
                 headers={
                     "Authorization": self._basic_auth_header(),
-                    "Content-Type": "application/json",
+                    "Content-Type": "application/x-www-form-urlencoded",
                 },
+                data={"grant_type": "client_credentials"},
                 timeout=30.0,
             )
             r.raise_for_status()
