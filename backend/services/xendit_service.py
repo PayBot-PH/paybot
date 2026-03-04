@@ -29,7 +29,13 @@ class XenditService:
             logger.warning("XENDIT_SECRET_KEY not configured - Xendit API calls will fail")
 
     def _get_auth(self):
-        return (self.secret_key, "")
+        key = self.secret_key or settings.xendit_secret_key
+        if not key:
+            raise ValueError(
+                "XENDIT_SECRET_KEY is not configured. "
+                "Set it in your .env file or as an environment variable."
+            )
+        return (key, "")
 
     # ==================== INVOICES ====================
     async def create_invoice(
