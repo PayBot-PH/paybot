@@ -288,16 +288,16 @@ class TestPhotonPayTokenRetrieval:
     # -- token endpoint path ------------------------------------------------
 
     def test_token_path_starts_with_slash(self):
-        """Token path must start with /token/ (no oauth2/ prefix)."""
-        assert _TOKEN_PATH.startswith("/token/"), (
-            f"Expected token path to start with /token/ but got: {_TOKEN_PATH!r}"
+        """Token path must start with /oauth2/token/ (oauth2-prefixed endpoint)."""
+        assert _TOKEN_PATH.startswith("/oauth2/token/"), (
+            f"Expected token path to start with /oauth2/token/ but got: {_TOKEN_PATH!r}"
         )
 
     def test_token_url_correct_for_production(self):
-        """Full token URL in production mode uses the production host + /token/ path."""
+        """Full token URL in production mode uses the production host + /oauth2/token/ path."""
         svc = _make_full_service()
         expected = f"{_PHOTONPAY_PRODUCTION_URL}{_TOKEN_PATH}"
-        assert "/token/" in expected
+        assert "/oauth2/token/" in expected
         assert expected == f"https://x-api.photonpay.com{_TOKEN_PATH}"
 
     # -- successful token retrieval ----------------------------------------
