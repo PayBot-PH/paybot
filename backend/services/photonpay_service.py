@@ -200,6 +200,24 @@ class PhotonPayService:
             data = r.json()
             logger.info("PhotonPay token response: %s", data)
 
+            # Detect API gateway routing/auth error responses.
+            # PhotonPay returns {"path": "<route>", "method": "POST"} (with no
+            # other fields) when the request is rejected at the gateway level —
+            # typically due to wrong APP_ID / APP_SECRET credentials or a
+            # malformed Authorization header.
+            if (
+                "path" in data
+                and "method" in data
+                and "code" not in data
+                and "data" not in data
+                and not any(k in data for k in ("access_token", "accessToken", "token"))
+            ):
+                raise ValueError(
+                    f"PhotonPay token endpoint rejected the request — "
+                    f"verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET "
+                    f"(endpoint: {token_url}, response: {data})"
+                )
+
             # Fail fast if the API returned an error code in the body
             code = str(data.get("code", ""))
             # PhotonPay success codes: "0", "200", "0000", or absent

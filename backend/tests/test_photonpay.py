@@ -414,6 +414,42 @@ class TestPhotonPayTokenRetrieval:
         assert "AUTH_FAILED" in str(exc_info.value)
 
     @pytest.mark.asyncio
+    async def test_gateway_error_response_raises_with_credentials_hint(self):
+        """A 200 response with the PhotonPay gateway error pattern raises a helpful ValueError.
+
+        When PhotonPay receives an invalid APP_ID / APP_SECRET it returns a JSON
+        body of the form {"path": "/token/accessToken", "method": "POST"} with
+        HTTP 200.  The code must detect this and surface an actionable message
+        rather than the opaque "no access token" error.
+        """
+        svc = _make_full_service()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"path": "/token/accessToken", "method": "POST"}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await svc._get_access_token()
+
+        msg = str(exc_info.value)
+        # Must mention credentials so users know what to fix
+        assert "PHOTONPAY_APP_ID" in msg and "PHOTONPAY_APP_SECRET" in msg, (
+            f"Expected both PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET in error message, got: {msg}"
+        )
+        # Must indicate the request was rejected / ask users to verify credentials
+        assert "verify" in msg.lower() or "rejected" in msg.lower(), (
+            f"Expected 'verify' or 'rejected' in error message, got: {msg}"
+        )
+        # Must not fall through to the generic "no access token" message
+        assert "no access token" not in msg
+
+    @pytest.mark.asyncio
     async def test_network_error_raises_with_context(self):
         """A network-level error raises ValueError with endpoint context."""
         import httpx
