@@ -24,7 +24,7 @@ Webhook processing
   the top-up record as failed.
 
 Configure the webhook in the PayMongo dashboard:
-  URL    : https://<your-domain>/api/v1/paymongo/webhook
+  URL    : https://paybot-backend-production-84b2.up.railway.app/api/v1/paymongo/webhook
   Events : source.chargeable, checkout_session.payment.paid,
            checkout_session.payment.failed, payment.paid, payment.failed
 """
@@ -533,7 +533,7 @@ async def paymongo_webhook(
     * On failure/cancel events the wallet_topups record is marked failed.
 
     Configure in PayMongo dashboard:
-      URL   : https://<your-domain>/api/v1/paymongo/webhook
+      URL   : https://paybot-backend-production-84b2.up.railway.app/api/v1/paymongo/webhook
       Events: source.chargeable, checkout_session.payment.paid,
               checkout_session.payment.failed, payment.paid, payment.failed
     """
