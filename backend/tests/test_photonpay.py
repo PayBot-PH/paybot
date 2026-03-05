@@ -1,6 +1,7 @@
-"""Tests for PhotonPay webhook signature verification."""
+"""Tests for PhotonPay webhook signature verification and token retrieval."""
 import base64
 import os
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -14,7 +15,12 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding as asym_padding
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from services.photonpay_service import PhotonPayService
+from services.photonpay_service import (
+    PhotonPayService,
+    _PHOTONPAY_PRODUCTION_URL,
+    _PHOTONPAY_SANDBOX_URL,
+    _TOKEN_PATH,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -232,3 +238,257 @@ class TestPhotonPayWebhookEndpoint:
             )
         # No matching transaction → 200 "transaction not found — acknowledged"
         assert r.status_code == 200
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for _get_access_token (mocked HTTP)
+# ---------------------------------------------------------------------------
+
+def _make_full_service(app_id: str = "test-app", app_secret: str = "test-secret") -> PhotonPayService:
+    """Return a PhotonPayService instance with minimal credentials set."""
+    svc = PhotonPayService.__new__(PhotonPayService)
+    svc.app_id = app_id
+    svc.app_secret = app_secret
+    svc.rsa_private_key_pem = ""
+    svc.rsa_public_key_pem = ""
+    svc.site_id = ""
+    svc.alipay_method = "Alipay"
+    svc.wechat_method = "WeChat"
+    svc.mode = "production"
+    svc._base_url_override = ""
+    svc._access_token = None
+    svc._token_expires_at = 0.0
+    return svc
+
+
+class TestPhotonPayTokenRetrieval:
+    """Mocked-HTTP tests for _get_access_token."""
+
+    # -- base_url property --------------------------------------------------
+
+    def test_base_url_production(self):
+        """Default (production) mode resolves to the production host."""
+        svc = _make_full_service()
+        svc.mode = "production"
+        assert svc.base_url == _PHOTONPAY_PRODUCTION_URL
+
+    def test_base_url_sandbox(self):
+        """Sandbox mode resolves to the sandbox/UAT host."""
+        svc = _make_full_service()
+        svc.mode = "sandbox"
+        assert svc.base_url == _PHOTONPAY_SANDBOX_URL
+
+    def test_base_url_explicit_override(self):
+        """PHOTONPAY_BASE_URL env-var override takes precedence over mode."""
+        svc = _make_full_service()
+        svc.mode = "sandbox"
+        svc._base_url_override = "https://custom.example.com"
+        assert svc.base_url == "https://custom.example.com"
+
+    # -- token endpoint path ------------------------------------------------
+
+    def test_token_path_starts_with_oauth2(self):
+        """Token path must start with /oauth2/ (not just /token/)."""
+        assert _TOKEN_PATH.startswith("/oauth2/"), (
+            f"Expected token path to start with /oauth2/ but got: {_TOKEN_PATH!r}"
+        )
+
+    def test_token_url_correct_for_production(self):
+        """Full token URL in production mode uses the production host + /oauth2/ path."""
+        svc = _make_full_service()
+        expected = f"{_PHOTONPAY_PRODUCTION_URL}{_TOKEN_PATH}"
+        assert "oauth2" in expected
+        assert expected == f"https://x-api.photonpay.com{_TOKEN_PATH}"
+
+    # -- successful token retrieval ----------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_successful_token_retrieval(self):
+        """A valid 200 response with access_token is stored and returned."""
+        svc = _make_full_service()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "code": "0",
+            "data": {"access_token": "tok-abc123", "expires_in": 7200},
+        }
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            token = await svc._get_access_token()
+
+        assert token == "tok-abc123"
+        assert svc._access_token == "tok-abc123"
+        assert svc._token_expires_at > 0
+
+    @pytest.mark.asyncio
+    async def test_token_cached_after_first_call(self):
+        """Subsequent calls within the TTL do not make a second HTTP request."""
+        import time
+
+        svc = _make_full_service()
+        svc._access_token = "cached-token"
+        svc._token_expires_at = time.time() + 3600  # valid for 1 hour
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock()
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            token = await svc._get_access_token()
+
+        assert token == "cached-token"
+        mock_client.post.assert_not_called()
+
+    # -- 404 / error endpoint diagnostics -----------------------------------
+
+    @pytest.mark.asyncio
+    async def test_404_produces_clear_error_with_endpoint(self):
+        """A 404 response raises ValueError that includes the endpoint URL."""
+        svc = _make_full_service()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.text = "Not Found"
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await svc._get_access_token()
+
+        msg = str(exc_info.value)
+        assert "404" in msg, f"Expected '404' in error message, got: {msg}"
+        assert "oauth2" in msg or _TOKEN_PATH in msg, (
+            f"Expected token endpoint path in error message, got: {msg}"
+        )
+
+    @pytest.mark.asyncio
+    async def test_5xx_produces_clear_error_with_status_and_body(self):
+        """A 500 response raises ValueError that includes status code and body snippet."""
+        svc = _make_full_service()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error — upstream timeout"
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await svc._get_access_token()
+
+        msg = str(exc_info.value)
+        assert "500" in msg
+
+    @pytest.mark.asyncio
+    async def test_api_error_code_in_body_raises(self):
+        """A 200 response that contains a non-success error code raises ValueError."""
+        svc = _make_full_service()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"code": "AUTH_FAILED", "msg": "invalid credentials"}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await svc._get_access_token()
+
+        assert "AUTH_FAILED" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_network_error_raises_with_context(self):
+        """A network-level error raises ValueError with endpoint context."""
+        import httpx
+        svc = _make_full_service()
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(
+            side_effect=httpx.ConnectError("Connection refused")
+        )
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await svc._get_access_token()
+
+        msg = str(exc_info.value)
+        assert "network error" in msg.lower() or "Connection refused" in msg
+
+
+# ---------------------------------------------------------------------------
+# Graceful Alipay failure when token retrieval fails
+# ---------------------------------------------------------------------------
+
+class TestPhotonPayAlipayGracefulFailure:
+
+    @pytest.mark.asyncio
+    async def test_alipay_session_returns_error_dict_on_token_failure(self):
+        """create_alipay_session returns success=False when token retrieval fails."""
+        svc = _make_full_service()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.text = "Not Found"
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            result = await svc.create_alipay_session(
+                amount=500.0,
+                currency="PHP",
+                description="Test payment",
+            )
+
+        assert result.get("success") is False
+        assert "error" in result
+        # Error message should be actionable (mention auth)
+        assert result["error"], "Error message must not be empty"
+
+    @pytest.mark.asyncio
+    async def test_create_payment_session_auth_error_no_exception_raised(self):
+        """create_payment_session never raises — it returns a dict with success=False."""
+        svc = _make_full_service()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.text = "Not Found"
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            result = await svc.create_payment_session(
+                amount=100.0,
+                currency="PHP",
+                pay_method="Alipay",
+                req_id="test-req-001",
+                notify_url="https://example.com/webhook",
+                redirect_url="https://example.com/success",
+            )
+
+        assert isinstance(result, dict)
+        assert result.get("success") is False

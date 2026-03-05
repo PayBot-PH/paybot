@@ -90,6 +90,13 @@ class Settings(BaseSettings):
     # Set to False only during initial integration/testing; True enforces
     # signature verification for all incoming webhook requests.
     photonpay_webhook_verify_required: bool = True
+    # "production" (default) or "sandbox".
+    # sandbox uses https://x-api1.uat.photontech.cc;
+    # production uses https://x-api.photonpay.com.
+    # Override PHOTONPAY_BASE_URL to use a fully custom endpoint.
+    photonpay_mode: str = "production"
+    # Explicit API base URL override — takes precedence over photonpay_mode when set.
+    photonpay_base_url: str = ""
 
     # Simple admin authentication
     admin_user_id: str = "admin"
