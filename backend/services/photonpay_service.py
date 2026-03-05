@@ -5,7 +5,7 @@ the PhotonPay Open Platform API.
 Authentication
 --------------
 PhotonPay uses a two-step OAuth flow:
-  1. POST /oauth2/token/accessToken
+  1. POST /token/accessToken
      Header: Authorization: Basic base64({appId}/{appSecret})
      Body:   grant_type=client_credentials  (form-encoded)
      Returns: access_token (JWT)
@@ -67,8 +67,8 @@ _PHOTONPAY_SANDBOX_URL = "https://x-api1.uat.photontech.cc"
 
 PHOTONPAY_CASHIER_URL = "https://cashier.photonpay.com"
 
-# Token path (relative to base URL) — /oauth2/token/accessToken
-_TOKEN_PATH = "/oauth2/token/accessToken"
+# Token path (relative to base URL) — /token/accessToken
+_TOKEN_PATH = "/token/accessToken"
 
 
 class PhotonPayService:
@@ -171,7 +171,7 @@ class PhotonPayService:
         async with httpx.AsyncClient() as client:
             # PhotonPay OAuth2 client_credentials flow.
             # The Authorization header uses slash-separated appId/appSecret (base64).
-            # Endpoint: POST /oauth2/token/accessToken
+            # Endpoint: POST /token/accessToken
             try:
                 r = await client.post(
                     token_url,
