@@ -75,7 +75,7 @@ Railway will automatically create services based on your `railway.toml` configur
 | `DATABASE_URL` | PostgreSQL connection string (auto-added by Railway) | `postgresql://user:pass@host:5432/db` |
 | `TELEGRAM_BOT_TOKEN` | Your Telegram bot token | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11` |
 | `XENDIT_SECRET_KEY` | Your Xendit API secret key | `xnd_production_...` |
-| `PYTHON_BACKEND_URL` | Your Railway backend public URL (for Telegram webhook) | `https://your-backend.railway.app` |
+| `PYTHON_BACKEND_URL` | Your Railway backend public URL (for Telegram webhook) | `https://paybot-backend-production-84b2.up.railway.app` |
 | `JWT_SECRET_KEY` | Secret key for signing JWT tokens | Run `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `ADMIN_USER_PASSWORD` | Password for admin dashboard login | `your_secure_password` |
 | `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram user IDs allowed as admin | `123456789,987654321` |
@@ -93,7 +93,7 @@ Railway will automatically create services based on your `railway.toml` configur
 
 #### Example ALLOWED_ORIGINS:
 ```
-ALLOWED_ORIGINS=https://your-frontend.railway.app,http://localhost:3000
+ALLOWED_ORIGINS=https://paybot-backend-production-84b2.up.railway.app,http://localhost:3000
 ```
 
 ### 2.2 Frontend Environment Variables (if deploying frontend separately)
@@ -222,7 +222,7 @@ After deployment, you need to configure webhooks for external services.
 1. Go to your Railway backend service
 2. Click on the **"Settings"** tab
 3. Find the **"Public Networking"** section
-4. Copy your **Railway domain** (e.g., `https://your-backend.railway.app`)
+4. Copy your **Railway domain** (e.g., `https://paybot-backend-production-84b2.up.railway.app`)
 
 ### 4.2 Xendit Webhook Setup
 
@@ -230,7 +230,7 @@ After deployment, you need to configure webhooks for external services.
 2. Go to **Settings** → **Webhooks**
 3. Add a new webhook URL:
    ```
-   https://your-backend.railway.app/api/v1/xendit/webhook
+   https://paybot-backend-production-84b2.up.railway.app/api/v1/xendit/webhook
    ```
 4. Select the events you want to receive:
    - `payment.succeeded`
@@ -248,7 +248,7 @@ The Telegram webhook is automatically registered on startup when `PYTHON_BACKEND
 curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://your-backend.railway.app/api/v1/telegram/webhook"
+    "url": "https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook"
   }'
 ```
 
@@ -269,7 +269,7 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 Check the health endpoint:
 
 ```bash
-curl https://your-backend.railway.app/health
+curl https://paybot-backend-production-84b2.up.railway.app/health
 ```
 
 Expected response:
@@ -283,7 +283,7 @@ Expected response:
 
 Open your frontend URL in a browser:
 ```
-https://your-frontend.railway.app
+https://paybot-backend-production-84b2.up.railway.app
 ```
 
 ### 6.3 Check Database Connection
@@ -384,7 +384,7 @@ railway logs
 **Solution**:
 1. Add your frontend URL to `ALLOWED_ORIGINS` environment variable:
    ```
-   ALLOWED_ORIGINS=https://your-frontend.railway.app,http://localhost:3000
+   ALLOWED_ORIGINS=https://paybot-backend-production-84b2.up.railway.app,http://localhost:3000
    ```
 
 #### Port Binding Issues
@@ -406,12 +406,12 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
    ```
 2. Check if the URL is accessible:
    ```bash
-   curl https://your-backend.railway.app/api/v1/telegram/webhook
+   curl https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook
    ```
 3. Delete and reset the webhook:
    ```bash
    curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/deleteWebhook"
-   curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" -d "url=https://your-backend.railway.app/api/v1/telegram/webhook"
+   curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" -d "url=https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook"
    ```
 
 #### Admin Login Issues
@@ -481,7 +481,7 @@ This runs in the deployed container (at `/app/backend`) before the new version g
 
 ### 8.4 Configure Webhooks
 
-Follow the same steps as [Section 5](#5-webhook-configuration) in the Railway guide, substituting your Render URL (e.g. `https://paybot-backend.onrender.com`) for `https://your-backend.railway.app`.
+Follow the same steps as [Section 5](#5-webhook-configuration) in the Railway guide, substituting your Render URL (e.g. `https://paybot-backend.onrender.com`) for `https://paybot-backend-production-84b2.up.railway.app`.
 
 ### 8.5 Verify the Deployment
 

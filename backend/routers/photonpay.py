@@ -18,7 +18,7 @@ Webhook processing
 
 Configure the webhook in the PhotonPay merchant portal
   (Settings > Developer > Notify URL):
-  URL : https://<your-domain>/api/v1/photonpay/webhook
+  URL : https://paybot-backend-production-84b2.up.railway.app/api/v1/photonpay/webhook
 """
 import json
 import logging

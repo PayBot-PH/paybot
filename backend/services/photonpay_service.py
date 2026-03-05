@@ -5,8 +5,9 @@ the PhotonPay Open Platform API.
 Authentication
 --------------
 PhotonPay uses a two-step OAuth flow:
-  1. POST /token/accessToken
-     Header: Authorization: basic base64({appId}/{appSecret})
+  1. POST /oauth2/token/accessToken
+     Header: Authorization: Basic base64({appId}/{appSecret})
+     Body:   grant_type=client_credentials  (form-encoded)
      Returns: access_token (JWT)
 
   2. All subsequent calls carry:
@@ -40,6 +41,12 @@ Key setup (merchant portal)
   Note: configure PHOTONPAY_RSA_PRIVATE_KEY (your private key, never leaves your server)
         and PHOTONPAY_RSA_PUBLIC_KEY (PhotonPay's public key for webhook verification).
 
+Environment / mode
+-------------------
+  PHOTONPAY_MODE=production  (default) → https://x-api.photonpay.com
+  PHOTONPAY_MODE=sandbox               → https://x-api1.uat.photontech.cc
+  PHOTONPAY_BASE_URL=<url>             → explicit override (takes precedence)
+
 Docs: https://api-doc.photonpay.com
 """
 import base64
@@ -54,8 +61,14 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-PHOTONPAY_BASE_URL = "https://x-api.photonpay.com"
+# Base URLs for each environment
+_PHOTONPAY_PRODUCTION_URL = "https://x-api.photonpay.com"
+_PHOTONPAY_SANDBOX_URL = "https://x-api1.uat.photontech.cc"
+
 PHOTONPAY_CASHIER_URL = "https://cashier.photonpay.com"
+
+# Token path (relative to base URL) — /oauth2/token/accessToken
+_TOKEN_PATH = "/oauth2/token/accessToken"
 
 
 class PhotonPayService:
@@ -69,6 +82,10 @@ class PhotonPayService:
         self.site_id = os.environ.get("PHOTONPAY_SITE_ID", "")
         self.alipay_method = os.environ.get("PHOTONPAY_ALIPAY_METHOD", "Alipay")
         self.wechat_method = os.environ.get("PHOTONPAY_WECHAT_METHOD", "WeChat")
+        # "production" (default) or "sandbox"
+        self.mode = os.environ.get("PHOTONPAY_MODE", "production").lower().strip()
+        # Explicit base URL override (empty = derive from mode)
+        self._base_url_override = os.environ.get("PHOTONPAY_BASE_URL", "").rstrip("/")
 
         # Try settings fallback for any values not already found in os.environ
         try:
@@ -85,6 +102,10 @@ class PhotonPayService:
                 self.site_id = getattr(settings, "photonpay_site_id", "")
             self.alipay_method = getattr(settings, "photonpay_alipay_method", self.alipay_method) or self.alipay_method
             self.wechat_method = getattr(settings, "photonpay_wechat_method", self.wechat_method) or self.wechat_method
+            if not self.mode or self.mode == "production":
+                self.mode = (getattr(settings, "photonpay_mode", "production") or "production").lower().strip()
+            if not self._base_url_override:
+                self._base_url_override = (getattr(settings, "photonpay_base_url", "") or "").rstrip("/")
         except Exception:
             pass
 
@@ -96,6 +117,15 @@ class PhotonPayService:
 
         self._access_token: Optional[str] = None
         self._token_expires_at: float = 0.0
+
+    @property
+    def base_url(self) -> str:
+        """Return the effective PhotonPay API base URL (no trailing slash)."""
+        if self._base_url_override:
+            return self._base_url_override
+        if self.mode == "sandbox":
+            return _PHOTONPAY_SANDBOX_URL
+        return _PHOTONPAY_PRODUCTION_URL
 
     # ------------------------------------------------------------------
     # Authentication
@@ -135,20 +165,38 @@ class PhotonPayService:
         if self._access_token and time.time() < self._token_expires_at - 60:
             return self._access_token
 
+        token_url = f"{self.base_url}{_TOKEN_PATH}"
+        logger.debug("PhotonPay: requesting access token from %s", token_url)
+
         async with httpx.AsyncClient() as client:
             # PhotonPay OAuth2 client_credentials flow.
             # The Authorization header uses slash-separated appId/appSecret (base64).
-            # The token endpoint is /token/accessToken (no oauth2/ prefix).
-            r = await client.post(
-                f"{PHOTONPAY_BASE_URL}/token/accessToken",
-                headers={
-                    "Authorization": self._basic_auth_header(),
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                data={"grant_type": "client_credentials"},
-                timeout=30.0,
-            )
-            r.raise_for_status()
+            # Endpoint: POST /oauth2/token/accessToken
+            try:
+                r = await client.post(
+                    token_url,
+                    headers={
+                        "Authorization": self._basic_auth_header(),
+                        "Content-Type": "application/x-www-form-urlencoded",
+                    },
+                    data={"grant_type": "client_credentials"},
+                    timeout=30.0,
+                )
+            except httpx.RequestError as exc:
+                raise ValueError(
+                    f"PhotonPay token request failed (network error) — "
+                    f"endpoint: {token_url}, error: {exc}"
+                ) from exc
+
+            if r.status_code != 200:
+                # Limit the body snippet to avoid log noise; credentials are in
+                # the request Authorization header (not the URL or response body).
+                snippet = r.text[:200]
+                raise ValueError(
+                    f"PhotonPay token endpoint returned HTTP {r.status_code} — "
+                    f"endpoint: {token_url}, body: {snippet}"
+                )
+
             data = r.json()
             logger.info("PhotonPay token response: %s", data)
 
@@ -158,7 +206,8 @@ class PhotonPayService:
             is_success = code in ("0", "200", "0000", "") or code.startswith("0")
             if not is_success:
                 raise ValueError(
-                    f"PhotonPay token endpoint error {code}: {data.get('msg', 'unknown')}"
+                    f"PhotonPay token endpoint error {code}: {data.get('msg', 'unknown')} "
+                    f"(endpoint: {token_url})"
                 )
 
             # Token may live under "data" or directly in the root
@@ -270,7 +319,7 @@ class PhotonPayService:
         try:
             async with httpx.AsyncClient() as client:
                 r = await client.post(
-                    f"{PHOTONPAY_BASE_URL}/txncore/openApi/v4/cashierSession",
+                    f"{self.base_url}/txncore/openApi/v4/cashierSession",
                     headers=headers,
                     content=body_str.encode("utf-8"),
                     timeout=30.0,

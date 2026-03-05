@@ -211,24 +211,24 @@ After deploying, complete these steps to fully activate all features:
 ### 1. Set Up Telegram Webhook
 - Open your deployed app's **Bot Settings** page
 - Enter your Telegram Bot Token
-- Set the webhook URL to: `https://your-domain.com/api/v1/telegram/webhook`
+- Set the webhook URL to: `https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook`
 - Click **"Set Webhook"**
 
 Or use the Telegram API directly:
 ```bash
 curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
-  -d '{"url": "https://your-domain.com/api/v1/telegram/webhook"}'
+  -d '{"url": "https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook"}'
 ```
 
 ### 2. Set Up Xendit Webhook
 1. Go to [Xendit Dashboard](https://dashboard.xendit.co) → **Settings** → **Webhooks**
-2. Add webhook URL: `https://your-domain.com/api/v1/xendit/webhook`
+2. Add webhook URL: `https://paybot-backend-production-84b2.up.railway.app/api/v1/xendit/webhook`
 3. Select events: `invoices`, `qr_codes`, `payment_links`, `disbursements`
 
 ### 3. Set Up PayMongo Webhook
 1. Go to [PayMongo Dashboard](https://dashboard.paymongo.com) → **Developers** → **Webhooks**
-2. Click **Add Endpoint** and set URL: `https://your-domain.com/api/v1/paymongo/webhook`
+2. Click **Add Endpoint** and set URL: `https://paybot-backend-production-84b2.up.railway.app/api/v1/paymongo/webhook`
 3. Select events:
    - `source.chargeable` (Alipay / WeChat Pay QR payments)
    - `checkout_session.payment.paid`
@@ -255,13 +255,13 @@ curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
 ### 4. Verify Everything Works
 ```bash
 # Check backend health
-curl https://your-domain.com/health
+curl https://paybot-backend-production-84b2.up.railway.app/health
 
 # Check Telegram bot connection
-curl https://your-domain.com/api/v1/telegram/bot-info
+curl https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/bot-info
 
 # Check token configuration (debug)
-curl https://your-domain.com/api/v1/telegram/debug-token-check
+curl https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/debug-token-check
 ```
 
 ---

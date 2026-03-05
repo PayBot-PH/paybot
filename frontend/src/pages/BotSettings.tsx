@@ -707,14 +707,14 @@ export default function BotSettings() {
                     <p className="font-semibold text-blue-200">Manual setup</p>
                     <ol className="list-decimal list-inside space-y-1 ml-1">
                       <li>Publish the app and copy its URL</li>
-                      <li>Set webhook URL to: <code className="bg-slate-800 px-1 rounded">https://your-app-url/api/v1/telegram/webhook</code></li>
+                      <li>Set webhook URL to: <code className="bg-slate-800 px-1 rounded">https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook</code></li>
                     </ol>
                   </div>
                 </div>
               </div>
               <div>
                 <Label className="text-slate-300">Webhook URL</Label>
-                <Input placeholder="https://your-domain.com/api/v1/telegram/webhook" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                <Input placeholder="https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
               </div>
               <Button onClick={handleSetWebhook} disabled={webhookLoading} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
                 {webhookLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Setting Webhook…</> : <><Webhook className="h-4 w-4 mr-2" />Set Webhook</>}
