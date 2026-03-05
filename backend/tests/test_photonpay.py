@@ -287,17 +287,17 @@ class TestPhotonPayTokenRetrieval:
 
     # -- token endpoint path ------------------------------------------------
 
-    def test_token_path_starts_with_oauth2(self):
-        """Token path must start with /oauth2/ (not just /token/)."""
-        assert _TOKEN_PATH.startswith("/oauth2/"), (
-            f"Expected token path to start with /oauth2/ but got: {_TOKEN_PATH!r}"
+    def test_token_path_starts_with_slash(self):
+        """Token path must start with /token/ (no oauth2/ prefix)."""
+        assert _TOKEN_PATH.startswith("/token/"), (
+            f"Expected token path to start with /token/ but got: {_TOKEN_PATH!r}"
         )
 
     def test_token_url_correct_for_production(self):
-        """Full token URL in production mode uses the production host + /oauth2/ path."""
+        """Full token URL in production mode uses the production host + /token/ path."""
         svc = _make_full_service()
         expected = f"{_PHOTONPAY_PRODUCTION_URL}{_TOKEN_PATH}"
-        assert "oauth2" in expected
+        assert "/token/" in expected
         assert expected == f"https://x-api.photonpay.com{_TOKEN_PATH}"
 
     # -- successful token retrieval ----------------------------------------
@@ -368,7 +368,7 @@ class TestPhotonPayTokenRetrieval:
 
         msg = str(exc_info.value)
         assert "404" in msg, f"Expected '404' in error message, got: {msg}"
-        assert "oauth2" in msg or _TOKEN_PATH in msg, (
+        assert _TOKEN_PATH in msg, (
             f"Expected token endpoint path in error message, got: {msg}"
         )
 
