@@ -528,3 +528,67 @@ class TestPhotonPayAlipayGracefulFailure:
 
         assert isinstance(result, dict)
         assert result.get("success") is False
+
+
+# ---------------------------------------------------------------------------
+# Fast-fail when PhotonPay credentials are not configured
+# ---------------------------------------------------------------------------
+
+class TestPhotonPayMissingCredentials:
+
+    @pytest.mark.asyncio
+    async def test_empty_app_id_raises_before_http_call(self):
+        """When app_id is empty, _get_access_token raises immediately (no HTTP call made)."""
+        svc = _make_full_service(app_id="", app_secret="test-secret")
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock()
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await svc._get_access_token()
+
+        msg = str(exc_info.value)
+        assert "PHOTONPAY_APP_ID" in msg, f"Expected PHOTONPAY_APP_ID in message, got: {msg}"
+        assert "PHOTONPAY_APP_SECRET" in msg, f"Expected PHOTONPAY_APP_SECRET in message, got: {msg}"
+        # No HTTP call should be made — fail fast
+        mock_client.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_empty_app_secret_raises_before_http_call(self):
+        """When app_secret is empty, _get_access_token raises immediately (no HTTP call made)."""
+        svc = _make_full_service(app_id="test-app", app_secret="")
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock()
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await svc._get_access_token()
+
+        msg = str(exc_info.value)
+        assert "PHOTONPAY_APP_ID" in msg, f"Expected PHOTONPAY_APP_ID in message, got: {msg}"
+        assert "PHOTONPAY_APP_SECRET" in msg, f"Expected PHOTONPAY_APP_SECRET in message, got: {msg}"
+        mock_client.post.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_unconfigured_service_returns_error_dict_not_exception(self):
+        """create_alipay_session returns success=False (not an exception) when credentials are missing."""
+        svc = _make_full_service(app_id="", app_secret="")
+
+        result = await svc.create_alipay_session(
+            amount=500.0,
+            currency="PHP",
+            description="Test payment",
+        )
+
+        assert result.get("success") is False
+        assert "error" in result
+        error_msg = result["error"]
+        assert "PHOTONPAY_APP_ID" in error_msg and "not configured" in error_msg.lower(), (
+            f"Expected credentials hint in error message, got: {error_msg}"
+        )

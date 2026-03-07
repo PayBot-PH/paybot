@@ -165,6 +165,15 @@ class PhotonPayService:
         if self._access_token and time.time() < self._token_expires_at - 60:
             return self._access_token
 
+        # Fail fast with a clear message rather than letting an API call with
+        # empty credentials produce the opaque gateway-rejection response.
+        if not self.app_id or not self.app_secret:
+            raise ValueError(
+                "PhotonPay is not configured: PHOTONPAY_APP_ID and "
+                "PHOTONPAY_APP_SECRET must be set in environment variables or "
+                "the .env file"
+            )
+
         token_url = f"{self.base_url}{_TOKEN_PATH}"
         logger.debug("PhotonPay: requesting access token from %s", token_url)
 
