@@ -244,6 +244,15 @@ class TestPhotonPayWebhookEndpoint:
 # Unit tests for _get_access_token (mocked HTTP)
 # ---------------------------------------------------------------------------
 
+def _make_noop_async_client():
+    """Return a mock AsyncClient whose .post() is never expected to be called."""
+    client = AsyncMock()
+    client.__aenter__ = AsyncMock(return_value=client)
+    client.__aexit__ = AsyncMock(return_value=False)
+    client.post = AsyncMock()
+    return client
+
+
 def _make_full_service(app_id: str = "test-app", app_secret: str = "test-secret") -> PhotonPayService:
     """Return a PhotonPayService instance with minimal credentials set."""
     svc = PhotonPayService.__new__(PhotonPayService)
@@ -299,6 +308,58 @@ class TestPhotonPayTokenRetrieval:
         expected = f"{_PHOTONPAY_PRODUCTION_URL}{_TOKEN_PATH}"
         assert "/token/" in expected
         assert expected == f"https://x-api.photonpay.com{_TOKEN_PATH}"
+
+    # -- basic auth header format -------------------------------------------
+
+    def test_basic_auth_header_uses_colon_separator(self):
+        """Authorization header must use colon (standard OAuth2), not slash."""
+        svc = _make_full_service(app_id="myAppId", app_secret="myAppSecret")
+        header = svc._basic_auth_header()
+        assert header.startswith("Basic "), "Header must start with 'Basic '"
+        encoded = header[len("Basic "):]
+        decoded = base64.b64decode(encoded).decode()
+        assert decoded == "myAppId:myAppSecret", (
+            f"Expected 'myAppId:myAppSecret' but got: {decoded!r}"
+        )
+
+    def test_basic_auth_header_no_slash_separator(self):
+        """Authorization header must NOT use a slash separator."""
+        svc = _make_full_service(app_id="app123", app_secret="secret456")
+        header = svc._basic_auth_header()
+        encoded = header[len("Basic "):]
+        decoded = base64.b64decode(encoded).decode()
+        assert "/" not in decoded, (
+            f"Slash separator found in Basic auth credential: {decoded!r}. "
+            "Use colon (standard OAuth2 RFC 7617)."
+        )
+
+    # -- empty-credential fast-fail -----------------------------------------
+
+    @pytest.mark.asyncio
+    async def test_empty_app_id_raises_before_http_call(self):
+        """When app_id is empty, _get_access_token raises immediately (no HTTP request)."""
+        svc = _make_full_service(app_id="", app_secret="some-secret")
+        mock_client = _make_noop_async_client()
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await svc._get_access_token()
+
+        mock_client.post.assert_not_called()
+        assert "PHOTONPAY_APP_ID" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_empty_app_secret_raises_before_http_call(self):
+        """When app_secret is empty, _get_access_token raises immediately (no HTTP request)."""
+        svc = _make_full_service(app_id="some-id", app_secret="")
+        mock_client = _make_noop_async_client()
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await svc._get_access_token()
+
+        mock_client.post.assert_not_called()
+        assert "PHOTONPAY_APP_SECRET" in str(exc_info.value)
 
     # -- successful token retrieval ----------------------------------------
 

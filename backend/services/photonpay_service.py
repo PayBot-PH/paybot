@@ -6,7 +6,7 @@ Authentication
 --------------
 PhotonPay uses a two-step OAuth flow:
   1. POST /oauth2/token/accessToken
-     Header: Authorization: Basic base64({appId}/{appSecret})
+     Header: Authorization: Basic base64({appId}:{appSecret})
      Body:   grant_type=client_credentials  (form-encoded)
      Returns: access_token (JWT)
 
@@ -132,8 +132,8 @@ class PhotonPayService:
     # ------------------------------------------------------------------
 
     def _basic_auth_header(self) -> str:
-        """Encode appId/appSecret as PhotonPay Basic auth credential (slash separator)."""
-        raw = f"{self.app_id}/{self.app_secret}"
+        """Encode appId:appSecret as a standard OAuth2 Basic auth credential (colon separator)."""
+        raw = f"{self.app_id}:{self.app_secret}"
         return f"Basic {base64.b64encode(raw.encode()).decode()}"
 
     def _sign_body(self, body_str: str) -> str:
@@ -179,7 +179,8 @@ class PhotonPayService:
 
         async with httpx.AsyncClient() as client:
             # PhotonPay OAuth2 client_credentials flow.
-            # The Authorization header uses slash-separated appId/appSecret (base64).
+            # The Authorization header uses the standard colon-separated
+            # appId:appSecret encoded as Base64 (RFC 7617 Basic auth).
             # Endpoint: POST /oauth2/token/accessToken
             try:
                 r = await client.post(
