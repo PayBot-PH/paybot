@@ -42,6 +42,7 @@ from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
 from services.photonpay_service import PhotonPayService
+from services.xendit_service import XenditService
 
 logger = logging.getLogger(__name__)
 
@@ -131,7 +132,7 @@ async def create_alipay_session(
 ):
     """
     Generate an Alipay cashier session via PhotonPay.
-    Falls back to PayMongo Alipay source when PhotonPay is not configured or
+    Falls back to PayMongo then Xendit when PhotonPay is not configured or
     when the PhotonPay auth request is rejected (e.g. wrong credentials).
     Returns a checkout_url the user opens to pay via Alipay QR.
     PHP wallet is credited automatically when the webhook confirms payment.
@@ -162,36 +163,86 @@ async def create_alipay_session(
             photonpay_result = None  # fall through to PayMongo fallback
 
     if photonpay_result is None:
-        # Fallback: use PayMongo Alipay source
+        # Fallback: try PayMongo Alipay source
         pm_svc = PayMongoService()
-        if not pm_svc.secret_key:
+        if pm_svc.secret_key:
+            pm_result = await pm_svc.create_alipay_qr(
+                amount=req.amount,
+                description=req.description,
+                success_url=f"{backend_url}/api/v1/paymongo/redirect/success",
+                failed_url=f"{backend_url}/api/v1/paymongo/redirect/failed",
+            )
+            if pm_result.get("success"):
+                source_id = pm_result.get("source_id", "")
+                reference_number = pm_result.get("reference_number", "")
+                checkout_url = pm_result.get("checkout_url", "")
+                now = datetime.now()
+                topup = WalletTopup(
+                    user_id=str(current_user.id),
+                    amount=req.amount,
+                    currency="PHP",
+                    paymongo_source_id=source_id,
+                    reference_number=reference_number,
+                    payment_method="alipay",
+                    status="pending",
+                    description=req.description,
+                    checkout_url=checkout_url,
+                    created_at=now,
+                    updated_at=now,
+                )
+                db.add(topup)
+                txn = Transactions(
+                    user_id=str(current_user.id),
+                    transaction_type="alipay_qr",
+                    external_id=reference_number,
+                    xendit_id=source_id,
+                    amount=req.amount,
+                    currency="PHP",
+                    status="pending",
+                    description=req.description,
+                    qr_code_url=checkout_url,
+                    created_at=now,
+                    updated_at=now,
+                )
+                db.add(txn)
+                await db.commit()
+                return {
+                    "success": True,
+                    "checkout_url": checkout_url,
+                    "req_id": reference_number,
+                    "amount": req.amount,
+                    "currency": req.currency,
+                    "pay_method": "Alipay",
+                    "message": "Alipay session created via PayMongo. Open the URL and scan QR to pay — wallet credited automatically.",
+                }
+            else:
+                logger.warning("PayMongo Alipay failed (%s), trying Xendit fallback", pm_result.get("error", ""))
+
+        # Final fallback: Xendit Alipay QR
+        xendit_svc = XenditService()
+        if not xendit_svc.secret_key:
             raise HTTPException(
                 status_code=503,
-                detail="Alipay payments are not available: neither PhotonPay nor PayMongo is configured. Contact the administrator.",
+                detail="Alipay payments are not available: no payment provider (PhotonPay, PayMongo, Xendit) is configured. Contact the administrator.",
             )
-        result = await pm_svc.create_alipay_qr(
+        xendit_result = await xendit_svc.create_alipay_qr(
             amount=req.amount,
             description=req.description,
-            success_url=f"{backend_url}/api/v1/paymongo/redirect/success",
-            failed_url=f"{backend_url}/api/v1/paymongo/redirect/failed",
         )
-        if not result.get("success"):
-            raise HTTPException(status_code=502, detail=result.get("error", "PayMongo error"))
-
-        source_id = result.get("source_id", "")
-        reference_number = result.get("reference_number", "")
-        checkout_url = result.get("checkout_url", "")
+        if not xendit_result.get("success"):
+            raise HTTPException(status_code=502, detail=xendit_result.get("error", "Xendit error"))
+        xendit_external_id = xendit_result.get("external_id", "")
+        xendit_qr_string = xendit_result.get("qr_string", "")
         now = datetime.now()
         topup = WalletTopup(
             user_id=str(current_user.id),
             amount=req.amount,
             currency="PHP",
-            paymongo_source_id=source_id,
-            reference_number=reference_number,
+            reference_number=xendit_external_id,
             payment_method="alipay",
             status="pending",
             description=req.description,
-            checkout_url=checkout_url,
+            checkout_url=xendit_qr_string,
             created_at=now,
             updated_at=now,
         )
@@ -199,27 +250,26 @@ async def create_alipay_session(
         txn = Transactions(
             user_id=str(current_user.id),
             transaction_type="alipay_qr",
-            external_id=reference_number,
-            xendit_id=source_id,
+            external_id=xendit_external_id,
+            xendit_id=xendit_result.get("qr_id", ""),
             amount=req.amount,
             currency="PHP",
             status="pending",
             description=req.description,
-            qr_code_url=checkout_url,
+            qr_code_url=xendit_qr_string,
             created_at=now,
             updated_at=now,
         )
         db.add(txn)
         await db.commit()
-
         return {
             "success": True,
-            "checkout_url": checkout_url,
-            "req_id": reference_number,
+            "checkout_url": xendit_qr_string,
+            "req_id": xendit_external_id,
             "amount": req.amount,
             "currency": req.currency,
             "pay_method": "Alipay",
-            "message": "Alipay session created via PayMongo. Open the URL and scan QR to pay — wallet credited automatically.",
+            "message": "Alipay QR created via Xendit. Scan QR to pay — wallet credited automatically.",
         }
 
     # PhotonPay success path — persist pending transaction

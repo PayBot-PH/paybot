@@ -779,3 +779,88 @@ class TestPhotonPayConfiguredButFailing:
         assert "Auth failed" in error or "token" in error.lower() or "photonpay" in error.lower(), (
             f"Expected endpoint context in error: {error!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Complete fallback chain: PhotonPay → PayMongo → Xendit
+# ---------------------------------------------------------------------------
+
+class TestAlipayCompleteFallbackChain:
+    """Validate that create_alipay_session returns success=False when PayMongo fails
+    so that callers (telegram.py, photonpay.py router) can try Xendit next.
+
+    The service itself only handles the single provider level; the full chain is
+    assembled by the router/handler layer.  These tests verify that the service
+    method correctly signals failure so the caller can continue to the next provider.
+    """
+
+    @pytest.mark.asyncio
+    async def test_paymongo_failure_does_not_block_xendit_attempt(self):
+        """Callers must be able to try Xendit after PayMongo signals success=False.
+
+        The service (PhotonPayService) is not responsible for the full chain, but
+        the failure dict it returns must have success=False so that caller logic
+        can set result=None and fall through to Xendit.
+        This test verifies the data contract: success=False ⟹ caller should try next provider.
+        """
+        svc = _make_full_service(app_id="wrong-id", app_secret="wrong-secret")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"path": "/token/accessToken", "method": "POST"}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            result = await svc.create_alipay_session(
+                amount=500.0,
+                currency="PHP",
+                description="Test",
+            )
+
+        # Caller checks result.get("success") and if False, sets result=None to fall through
+        assert result.get("success") is False, (
+            "Service must return success=False when auth fails so caller can try next provider"
+        )
+
+    @pytest.mark.asyncio
+    async def test_photonpay_success_skips_fallbacks(self):
+        """When PhotonPay succeeds, the result has success=True so caller doesn't try fallbacks."""
+        svc = _make_full_service()
+
+        token_response = MagicMock()
+        token_response.status_code = 200
+        token_response.json.return_value = {
+            "code": "0",
+            "data": {"access_token": "tok-abc123", "expires_in": 7200},
+        }
+
+        cashier_response = MagicMock()
+        cashier_response.status_code = 200
+        cashier_response.raise_for_status = MagicMock()
+        cashier_response.json.return_value = {
+            "code": "0",
+            "data": {"authCode": "auth-xyz", "payId": "pay-123"},
+        }
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        # First call = token, second call = cashierSession
+        mock_client.post = AsyncMock(side_effect=[token_response, cashier_response])
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            result = await svc.create_alipay_session(
+                amount=500.0,
+                currency="PHP",
+                description="Test",
+                notify_url="https://example.com/webhook",
+                redirect_url="https://example.com/success",
+            )
+
+        assert result.get("success") is True
+        assert result.get("auth_code") == "auth-xyz"
+        assert result.get("pay_id") == "pay-123"

@@ -1521,31 +1521,35 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         pm_svc = PayMongoService()
                         if pm_svc.secret_key:
                             # Fallback: use PayMongo Alipay source
-                            result = await pm_svc.create_alipay_qr(
+                            pm_result = await pm_svc.create_alipay_qr(
                                 amount=amount,
                                 description=description,
                                 success_url=f"{settings.backend_url}/api/v1/paymongo/redirect/success",
                                 failed_url=f"{settings.backend_url}/api/v1/paymongo/redirect/failed",
                             )
-                            ref_num = result.get("reference_number", "")
-                            xendit_id = result.get("source_id", "")
-                        else:
-                            # Fallback: use Xendit Alipay QR
-                            xendit_svc = XenditService()
-                            if not xendit_svc.secret_key:
-                                await tg.send_message(
-                                    chat_id,
-                                    "❌ <b>Alipay payments are not available at this time.</b>\n\n"
-                                    "Please contact the bot administrator to enable this payment method.",
-                                )
-                                await _safe_log(db, chat_id, username, text)
-                                return {"status": "ok"}
-                            result = await xendit_svc.create_alipay_qr(
-                                amount=amount,
-                                description=description,
+                            if pm_result.get("success"):
+                                result = pm_result
+                                ref_num = result.get("reference_number", "")
+                                xendit_id = result.get("source_id", "")
+                            else:
+                                logger.warning("PayMongo Alipay failed (%s), trying Xendit fallback", pm_result.get("error", ""))
+                    if result is None:
+                        # Final fallback: use Xendit Alipay QR
+                        xendit_svc = XenditService()
+                        if not xendit_svc.secret_key:
+                            await tg.send_message(
+                                chat_id,
+                                "❌ <b>Alipay payments are not available at this time.</b>\n\n"
+                                "Please contact the bot administrator to enable this payment method.",
                             )
-                            ref_num = result.get("external_id", "")
-                            xendit_id = result.get("qr_id", "")
+                            await _safe_log(db, chat_id, username, text)
+                            return {"status": "ok"}
+                        result = await xendit_svc.create_alipay_qr(
+                            amount=amount,
+                            description=description,
+                        )
+                        ref_num = result.get("external_id", "")
+                        xendit_id = result.get("qr_id", "")
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
                         qr_content = checkout_url or result.get("qr_string", "")
