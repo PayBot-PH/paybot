@@ -673,3 +673,109 @@ class TestPhotonPayMissingCredentials:
         """is_configured returns True when both app_id and app_secret are set."""
         svc = _make_full_service(app_id="app-id", app_secret="secret")
         assert svc.is_configured is True
+
+
+# ---------------------------------------------------------------------------
+# Fallback behavior when PhotonPay is configured but auth fails
+# ---------------------------------------------------------------------------
+
+class TestPhotonPayConfiguredButFailing:
+    """Validate that when PhotonPay credentials are set but the gateway rejects
+    the request, create_alipay_session / create_wechat_session return a
+    success=False dict (never raise) so that callers can fall back to
+    PayMongo or Xendit without exposing the raw error to users."""
+
+    @pytest.mark.asyncio
+    async def test_gateway_rejection_alipay_returns_failure_dict(self):
+        """Gateway-rejection (wrong credentials) makes create_alipay_session return success=False."""
+        svc = _make_full_service(app_id="wrong-id", app_secret="wrong-secret")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        # Simulate PhotonPay gateway rejection response
+        mock_response.json.return_value = {"path": "/token/accessToken", "method": "POST"}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            result = await svc.create_alipay_session(
+                amount=500.0,
+                currency="PHP",
+                description="Test payment",
+            )
+
+        # Must return a dict, never raise
+        assert isinstance(result, dict)
+        assert result.get("success") is False
+        assert "error" in result
+        error = result["error"]
+        # Error must contain enough detail for admins to diagnose
+        assert error, "Error message must not be empty"
+        assert "PHOTONPAY_APP_ID" in error or "PHOTONPAY_APP_SECRET" in error or "rejected" in error.lower()
+
+    @pytest.mark.asyncio
+    async def test_gateway_rejection_wechat_returns_failure_dict(self):
+        """Gateway-rejection (wrong credentials) makes create_wechat_session return success=False."""
+        svc = _make_full_service(app_id="wrong-id", app_secret="wrong-secret")
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"path": "/token/accessToken", "method": "POST"}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            result = await svc.create_wechat_session(
+                amount=200.0,
+                currency="PHP",
+                description="WeChat test",
+            )
+
+        assert isinstance(result, dict)
+        assert result.get("success") is False
+        assert "error" in result
+        assert result["error"], "Error message must not be empty"
+
+    def test_is_configured_true_for_wrong_credentials(self):
+        """is_configured returns True for wrong-but-set credentials (fallback triggered on failure)."""
+        # Credentials are set (non-empty) but wrong — is_configured must be True
+        # so the code attempts PhotonPay first and falls back on failure.
+        svc = _make_full_service(app_id="invalid-app-id", app_secret="invalid-secret")
+        assert svc.is_configured is True, (
+            "is_configured must be True when credentials are set even if they are wrong; "
+            "the fallback is triggered by the failure result, not by is_configured=False."
+        )
+
+    @pytest.mark.asyncio
+    async def test_auth_failure_error_includes_endpoint_info(self):
+        """The failure error message from a gateway rejection includes endpoint context."""
+        svc = _make_full_service()
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"path": "/token/accessToken", "method": "POST"}
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("services.photonpay_service.httpx.AsyncClient", return_value=mock_client):
+            result = await svc.create_alipay_session(
+                amount=100.0,
+                currency="PHP",
+                description="Test",
+            )
+
+        assert result.get("success") is False
+        # The error should mention the token endpoint so admins can troubleshoot
+        error = result.get("error", "")
+        assert "Auth failed" in error or "token" in error.lower() or "photonpay" in error.lower(), (
+            f"Expected endpoint context in error: {error!r}"
+        )

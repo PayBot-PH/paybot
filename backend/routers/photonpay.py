@@ -131,7 +131,8 @@ async def create_alipay_session(
 ):
     """
     Generate an Alipay cashier session via PhotonPay.
-    Falls back to PayMongo Alipay source when PhotonPay is not configured.
+    Falls back to PayMongo Alipay source when PhotonPay is not configured or
+    when the PhotonPay auth request is rejected (e.g. wrong credentials).
     Returns a checkout_url the user opens to pay via Alipay QR.
     PHP wallet is credited automatically when the webhook confirms payment.
     """
@@ -144,6 +145,23 @@ async def create_alipay_session(
         pass
 
     if not svc.is_configured:
+        photonpay_result = None
+    else:
+        notify_url = req.notify_url or f"{backend_url}/api/v1/photonpay/webhook"
+        redirect_url = req.success_url or f"{backend_url}/api/v1/photonpay/redirect/success"
+        photonpay_result = await svc.create_alipay_session(
+            amount=req.amount,
+            currency=req.currency,
+            description=req.description,
+            notify_url=notify_url,
+            redirect_url=redirect_url,
+            shopper_id=str(current_user.id),
+        )
+        if not photonpay_result.get("success"):
+            logger.warning("PhotonPay Alipay failed (%s), trying PayMongo fallback", photonpay_result.get("error", ""))
+            photonpay_result = None  # fall through to PayMongo fallback
+
+    if photonpay_result is None:
         # Fallback: use PayMongo Alipay source
         pm_svc = PayMongoService()
         if not pm_svc.secret_key:
@@ -204,20 +222,8 @@ async def create_alipay_session(
             "message": "Alipay session created via PayMongo. Open the URL and scan QR to pay — wallet credited automatically.",
         }
 
-    notify_url = req.notify_url or f"{backend_url}/api/v1/photonpay/webhook"
-    redirect_url = req.success_url or f"{backend_url}/api/v1/photonpay/redirect/success"
-
-    result = await svc.create_alipay_session(
-        amount=req.amount,
-        currency=req.currency,
-        description=req.description,
-        notify_url=notify_url,
-        redirect_url=redirect_url,
-        shopper_id=str(current_user.id),
-    )
-
-    if not result.get("success"):
-        raise HTTPException(status_code=502, detail=result.get("error", "PhotonPay error"))
+    # PhotonPay success path — persist pending transaction
+    result = photonpay_result
 
     # Persist pending transaction
     now = datetime.now()
@@ -257,7 +263,8 @@ async def create_wechat_session(
 ):
     """
     Generate a WeChat Pay cashier session via PhotonPay.
-    Falls back to PayMongo WeChat source when PhotonPay is not configured.
+    Falls back to PayMongo WeChat source when PhotonPay is not configured or
+    when the PhotonPay auth request is rejected (e.g. wrong credentials).
     Returns a checkout_url the user opens to pay via WeChat QR.
     PHP wallet is credited automatically when the webhook confirms payment.
     """
@@ -270,6 +277,23 @@ async def create_wechat_session(
         pass
 
     if not svc.is_configured:
+        photonpay_result = None
+    else:
+        notify_url = req.notify_url or f"{backend_url}/api/v1/photonpay/webhook"
+        redirect_url = req.success_url or f"{backend_url}/api/v1/photonpay/redirect/success"
+        photonpay_result = await svc.create_wechat_session(
+            amount=req.amount,
+            currency=req.currency,
+            description=req.description,
+            notify_url=notify_url,
+            redirect_url=redirect_url,
+            shopper_id=str(current_user.id),
+        )
+        if not photonpay_result.get("success"):
+            logger.warning("PhotonPay WeChat failed (%s), trying PayMongo fallback", photonpay_result.get("error", ""))
+            photonpay_result = None  # fall through to PayMongo fallback
+
+    if photonpay_result is None:
         # Fallback: use PayMongo WeChat source
         pm_svc = PayMongoService()
         if not pm_svc.secret_key:
@@ -330,20 +354,8 @@ async def create_wechat_session(
             "message": "WeChat Pay session created via PayMongo. Open the URL and scan QR to pay — wallet credited automatically.",
         }
 
-    notify_url = req.notify_url or f"{backend_url}/api/v1/photonpay/webhook"
-    redirect_url = req.success_url or f"{backend_url}/api/v1/photonpay/redirect/success"
-
-    result = await svc.create_wechat_session(
-        amount=req.amount,
-        currency=req.currency,
-        description=req.description,
-        notify_url=notify_url,
-        redirect_url=redirect_url,
-        shopper_id=str(current_user.id),
-    )
-
-    if not result.get("success"):
-        raise HTTPException(status_code=502, detail=result.get("error", "PhotonPay error"))
+    # PhotonPay success path — persist pending transaction
+    result = photonpay_result
 
     now = datetime.now()
     txn = Transactions(

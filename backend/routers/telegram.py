@@ -1500,6 +1500,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
                     photonpay = PhotonPayService()
+                    result = None
+                    ref_num = ""
+                    xendit_id = ""
                     if photonpay.is_configured:
                         result = await photonpay.create_alipay_session(
                             amount=amount,
@@ -1508,9 +1511,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
                             shopper_id=str(chat_id),
                         )
-                        ref_num = result.get("req_id", "")
-                        xendit_id = result.get("pay_id", "")
-                    else:
+                        if result.get("success"):
+                            ref_num = result.get("req_id", "")
+                            xendit_id = result.get("pay_id", "")
+                        else:
+                            logger.warning("PhotonPay Alipay failed (%s), trying PayMongo fallback", result.get("error", ""))
+                            result = None  # fall through to PayMongo / Xendit fallback
+                    if result is None:
                         pm_svc = PayMongoService()
                         if pm_svc.secret_key:
                             # Fallback: use PayMongo Alipay source
@@ -1594,6 +1601,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
                     photonpay = PhotonPayService()
+                    result = None
+                    ref_num = ""
+                    xendit_id = ""
                     if photonpay.is_configured:
                         result = await photonpay.create_wechat_session(
                             amount=amount,
@@ -1602,9 +1612,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
                             shopper_id=str(chat_id),
                         )
-                        ref_num = result.get("req_id", "")
-                        xendit_id = result.get("pay_id", "")
-                    else:
+                        if result.get("success"):
+                            ref_num = result.get("req_id", "")
+                            xendit_id = result.get("pay_id", "")
+                        else:
+                            logger.warning("PhotonPay WeChat failed (%s), trying PayMongo fallback", result.get("error", ""))
+                            result = None  # fall through to PayMongo fallback
+                    if result is None:
                         # Fallback: use PayMongo WeChat source
                         pm_svc = PayMongoService()
                         if not pm_svc.secret_key:
