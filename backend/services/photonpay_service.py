@@ -119,6 +119,11 @@ class PhotonPayService:
         self._token_expires_at: float = 0.0
 
     @property
+    def is_configured(self) -> bool:
+        """Return True when the minimum required credentials (app_id + app_secret) are present."""
+        return bool(self.app_id and self.app_secret)
+
+    @property
     def base_url(self) -> str:
         """Return the effective PhotonPay API base URL (no trailing slash)."""
         if self._base_url_override:

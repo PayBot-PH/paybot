@@ -653,3 +653,23 @@ class TestPhotonPayMissingCredentials:
         assert "PHOTONPAY_APP_ID" in error_msg and "not configured" in error_msg.lower(), (
             f"Expected credentials hint in error message, got: {error_msg}"
         )
+
+    def test_is_configured_false_when_both_missing(self):
+        """is_configured returns False when both app_id and app_secret are empty."""
+        svc = _make_full_service(app_id="", app_secret="")
+        assert svc.is_configured is False
+
+    def test_is_configured_false_when_app_id_missing(self):
+        """is_configured returns False when app_id is empty."""
+        svc = _make_full_service(app_id="", app_secret="secret")
+        assert svc.is_configured is False
+
+    def test_is_configured_false_when_app_secret_missing(self):
+        """is_configured returns False when app_secret is empty."""
+        svc = _make_full_service(app_id="app-id", app_secret="")
+        assert svc.is_configured is False
+
+    def test_is_configured_true_when_both_present(self):
+        """is_configured returns True when both app_id and app_secret are set."""
+        svc = _make_full_service(app_id="app-id", app_secret="secret")
+        assert svc.is_configured is True
