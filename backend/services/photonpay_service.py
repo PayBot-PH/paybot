@@ -6,7 +6,7 @@ Authentication
 --------------
 PhotonPay uses a two-step OAuth flow:
   1. POST /oauth2/token/accessToken
-     Header: Authorization: basic base64({appId}/{appSecret})
+     Header: Authorization: Basic base64({appId}:{appSecret})
      Returns: access_token (JWT)
 
   2. All subsequent calls carry:
@@ -98,8 +98,8 @@ class PhotonPayService:
     # ------------------------------------------------------------------
 
     def _basic_auth_header(self) -> str:
-        """Encode appId/appSecret as PhotonPay Basic auth credential (slash separator)."""
-        raw = f"{self.app_id}/{self.app_secret}"
+        """Encode appId:appSecret as HTTP Basic auth credential (RFC 7617 colon separator)."""
+        raw = f"{self.app_id}:{self.app_secret}"
         return f"Basic {base64.b64encode(raw.encode()).decode()}"
 
     def _sign_body(self, body_str: str) -> str:
@@ -133,7 +133,7 @@ class PhotonPayService:
 
         async with httpx.AsyncClient() as client:
             # PhotonPay OAuth2 client_credentials flow.
-            # The Authorization header uses slash-separated appId/appSecret (base64).
+            # The Authorization header uses colon-separated appId:appSecret (base64, RFC 7617).
             # grant_type must be sent as a form field per standard OAuth2.
             r = await client.post(
                 f"{PHOTONPAY_BASE_URL}/oauth2/token/accessToken",
@@ -144,6 +144,13 @@ class PhotonPayService:
                 data={"grant_type": "client_credentials"},
                 timeout=30.0,
             )
+            if not r.is_success:
+                raise ValueError(
+                    f"PhotonPay token endpoint rejected the request — "
+                    f"verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET "
+                    f"(endpoint: {PHOTONPAY_BASE_URL}/oauth2/token/accessToken, "
+                    f"status: {r.status_code}, response: {r.text})"
+                )
             r.raise_for_status()
             data = r.json()
             logger.info("PhotonPay token response: %s", data)
@@ -300,8 +307,12 @@ class PhotonPayService:
                     "currency": currency,
                 }
         except httpx.HTTPStatusError as e:
-            logger.error("PhotonPay cashierSession HTTP error: %s", e.response.text)
-            return {"success": False, "error": e.response.text}
+            logger.error(
+                "PhotonPay cashierSession HTTP %s error: %s",
+                e.response.status_code,
+                e.response.text,
+            )
+            return {"success": False, "error": f"HTTP {e.response.status_code}: {e.response.text}"}
         except Exception as e:
             logger.error("PhotonPay cashierSession error: %s", e)
             return {"success": False, "error": str(e)}
