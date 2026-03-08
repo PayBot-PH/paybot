@@ -140,6 +140,12 @@ async def create_alipay_session(
     except Exception:
         pass
 
+    if not svc.is_configured:
+        raise HTTPException(
+            status_code=503,
+            detail="Alipay payments are not available: PhotonPay is not configured. Contact the administrator.",
+        )
+
     notify_url = req.notify_url or f"{backend_url}/api/v1/photonpay/webhook"
     redirect_url = req.success_url or f"{backend_url}/api/v1/photonpay/redirect/success"
 
@@ -203,6 +209,12 @@ async def create_wechat_session(
         backend_url = settings.backend_url
     except Exception:
         pass
+
+    if not svc.is_configured:
+        raise HTTPException(
+            status_code=503,
+            detail="WeChat Pay is not available: PhotonPay is not configured. Contact the administrator.",
+        )
 
     notify_url = req.notify_url or f"{backend_url}/api/v1/photonpay/webhook"
     redirect_url = req.success_url or f"{backend_url}/api/v1/photonpay/redirect/success"

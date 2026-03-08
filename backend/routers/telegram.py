@@ -1500,6 +1500,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
                     photonpay = PhotonPayService()
+                    if not photonpay.is_configured:
+                        await tg.send_message(
+                            chat_id,
+                            "❌ <b>Alipay payments are not available at this time.</b>\n\n"
+                            "Please contact the bot administrator to enable this payment method.",
+                        )
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     result = await photonpay.create_alipay_session(
                         amount=amount,
                         description=description,
@@ -1562,6 +1570,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
                     photonpay = PhotonPayService()
+                    if not photonpay.is_configured:
+                        await tg.send_message(
+                            chat_id,
+                            "❌ <b>WeChat Pay is not available at this time.</b>\n\n"
+                            "Please contact the bot administrator to enable this payment method.",
+                        )
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     result = await photonpay.create_wechat_session(
                         amount=amount,
                         description=description,
