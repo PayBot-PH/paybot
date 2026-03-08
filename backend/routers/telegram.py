@@ -1500,6 +1500,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
                     photonpay = PhotonPayService()
+                    result = None
+                    ref_num = ""
+                    xendit_id = ""
                     if photonpay.is_configured:
                         result = await photonpay.create_alipay_session(
                             amount=amount,
@@ -1508,37 +1511,45 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
                             shopper_id=str(chat_id),
                         )
-                        ref_num = result.get("req_id", "")
-                        xendit_id = result.get("pay_id", "")
-                    else:
+                        if result.get("success"):
+                            ref_num = result.get("req_id", "")
+                            xendit_id = result.get("pay_id", "")
+                        else:
+                            logger.warning("PhotonPay Alipay failed (%s), trying PayMongo fallback", result.get("error", ""))
+                            result = None  # fall through to PayMongo / Xendit fallback
+                    if result is None:
                         pm_svc = PayMongoService()
                         if pm_svc.secret_key:
                             # Fallback: use PayMongo Alipay source
-                            result = await pm_svc.create_alipay_qr(
+                            pm_result = await pm_svc.create_alipay_qr(
                                 amount=amount,
                                 description=description,
                                 success_url=f"{settings.backend_url}/api/v1/paymongo/redirect/success",
                                 failed_url=f"{settings.backend_url}/api/v1/paymongo/redirect/failed",
                             )
-                            ref_num = result.get("reference_number", "")
-                            xendit_id = result.get("source_id", "")
-                        else:
-                            # Fallback: use Xendit Alipay QR
-                            xendit_svc = XenditService()
-                            if not xendit_svc.secret_key:
-                                await tg.send_message(
-                                    chat_id,
-                                    "❌ <b>Alipay payments are not available at this time.</b>\n\n"
-                                    "Please contact the bot administrator to enable this payment method.",
-                                )
-                                await _safe_log(db, chat_id, username, text)
-                                return {"status": "ok"}
-                            result = await xendit_svc.create_alipay_qr(
-                                amount=amount,
-                                description=description,
+                            if pm_result.get("success"):
+                                result = pm_result
+                                ref_num = result.get("reference_number", "")
+                                xendit_id = result.get("source_id", "")
+                            else:
+                                logger.warning("PayMongo Alipay failed (%s), trying Xendit fallback", pm_result.get("error", ""))
+                    if result is None:
+                        # Final fallback: use Xendit Alipay QR
+                        xendit_svc = XenditService()
+                        if not xendit_svc.secret_key:
+                            await tg.send_message(
+                                chat_id,
+                                "❌ <b>Alipay payments are not available at this time.</b>\n\n"
+                                "Please contact the bot administrator to enable this payment method.",
                             )
-                            ref_num = result.get("external_id", "")
-                            xendit_id = result.get("qr_id", "")
+                            await _safe_log(db, chat_id, username, text)
+                            return {"status": "ok"}
+                        result = await xendit_svc.create_alipay_qr(
+                            amount=amount,
+                            description=description,
+                        )
+                        ref_num = result.get("external_id", "")
+                        xendit_id = result.get("qr_id", "")
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
                         qr_content = checkout_url or result.get("qr_string", "")
@@ -1594,6 +1605,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
                     photonpay = PhotonPayService()
+                    result = None
+                    ref_num = ""
+                    xendit_id = ""
                     if photonpay.is_configured:
                         result = await photonpay.create_wechat_session(
                             amount=amount,
@@ -1602,9 +1616,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
                             shopper_id=str(chat_id),
                         )
-                        ref_num = result.get("req_id", "")
-                        xendit_id = result.get("pay_id", "")
-                    else:
+                        if result.get("success"):
+                            ref_num = result.get("req_id", "")
+                            xendit_id = result.get("pay_id", "")
+                        else:
+                            logger.warning("PhotonPay WeChat failed (%s), trying PayMongo fallback", result.get("error", ""))
+                            result = None  # fall through to PayMongo fallback
+                    if result is None:
                         # Fallback: use PayMongo WeChat source
                         pm_svc = PayMongoService()
                         if not pm_svc.secret_key:
