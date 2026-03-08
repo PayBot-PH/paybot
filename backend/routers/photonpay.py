@@ -69,6 +69,33 @@ class WeChatSessionRequest(BaseModel):
 
 # ---------- Helpers ----------
 
+def _get_backend_url(request: Request) -> str:
+    """Resolve the backend base URL for notify/redirect URL construction.
+
+    Priority:
+      1. ``settings.backend_url`` — already chains through PYTHON_BACKEND_URL,
+         RAILWAY_PUBLIC_DOMAIN, RENDER_EXTERNAL_URL, and a local host:port fallback.
+      2. ``request.base_url`` — derived from the incoming HTTP request, used only
+         when the settings module itself cannot be imported.
+
+    The returned string always has no trailing slash.
+    """
+    # 1. settings-based resolution (covers most deployment environments)
+    try:
+        from core.config import settings as _settings
+        url = _settings.backend_url.rstrip("/")
+        if url:
+            logger.debug("_get_backend_url: using settings.backend_url => %s", url)
+            return url
+    except Exception:
+        pass
+
+    # 2. derive absolute URL from the incoming request (ultimate fallback)
+    url = str(request.base_url).rstrip("/")
+    logger.info("_get_backend_url: settings unavailable, derived from request.base_url => %s", url)
+    return url
+
+
 async def _credit_wallet(
     db: AsyncSession,
     user_id: str,
@@ -138,18 +165,14 @@ async def create_alipay_session(
     PHP wallet is credited automatically when the webhook confirms payment.
     """
     svc = PhotonPayService()
-    backend_url = ""
-    try:
-        from core.config import settings
-        backend_url = settings.backend_url
-    except Exception:
-        pass
+    backend_url = _get_backend_url(request)
 
     if not svc.is_configured:
         photonpay_result = None
     else:
         notify_url = req.notify_url or f"{backend_url}/api/v1/photonpay/webhook"
         redirect_url = req.success_url or f"{backend_url}/api/v1/photonpay/redirect/success"
+        logger.debug("Alipay session: notify_url=%s redirect_url=%s", notify_url, redirect_url)
         photonpay_result = await svc.create_alipay_session(
             amount=req.amount,
             currency=req.currency,
@@ -316,18 +339,14 @@ async def create_wechat_session(
     PHP wallet is credited automatically when the webhook confirms payment.
     """
     svc = PhotonPayService()
-    backend_url = ""
-    try:
-        from core.config import settings
-        backend_url = settings.backend_url
-    except Exception:
-        pass
+    backend_url = _get_backend_url(request)
 
     if not svc.is_configured:
         photonpay_result = None
     else:
         notify_url = req.notify_url or f"{backend_url}/api/v1/photonpay/webhook"
         redirect_url = req.success_url or f"{backend_url}/api/v1/photonpay/redirect/success"
+        logger.debug("WeChat session: notify_url=%s redirect_url=%s", notify_url, redirect_url)
         photonpay_result = await svc.create_wechat_session(
             amount=req.amount,
             currency=req.currency,
