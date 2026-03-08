@@ -1508,8 +1508,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
                             shopper_id=str(chat_id),
                         )
-                        ref_num = result.get("req_id", "") if result.get("success") else ""
-                        xendit_id = result.get("pay_id", "") if result.get("success") else ""
+                        ref_num = result.get("req_id", "")
+                        xendit_id = result.get("pay_id", "")
                     else:
                         # Fallback: use PayMongo Alipay source
                         pm_svc = PayMongoService()
@@ -1527,8 +1527,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             success_url=f"{settings.backend_url}/api/v1/paymongo/redirect/success",
                             failed_url=f"{settings.backend_url}/api/v1/paymongo/redirect/failed",
                         )
-                        ref_num = result.get("reference_number", "") if result.get("success") else ""
-                        xendit_id = result.get("source_id", "") if result.get("success") else ""
+                        ref_num = result.get("reference_number", "")
+                        xendit_id = result.get("source_id", "")
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
                         qr_img_url = _make_qr_url(checkout_url) if checkout_url else ""
@@ -1569,7 +1569,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /wechat (PhotonPay → WeChat Pay QR) ====================
+        # ==================== /wechat (PhotonPay → WeChat Pay QR, fallback PayMongo) ====================
         elif text.startswith("/wechat"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
@@ -1583,24 +1583,37 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
                     photonpay = PhotonPayService()
-                    if not photonpay.is_configured:
-                        await tg.send_message(
-                            chat_id,
-                            "❌ <b>WeChat Pay is not available at this time.</b>\n\n"
-                            "Please contact the bot administrator to enable this payment method.",
+                    if photonpay.is_configured:
+                        result = await photonpay.create_wechat_session(
+                            amount=amount,
+                            description=description,
+                            notify_url=f"{settings.backend_url}/api/v1/photonpay/webhook",
+                            redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
+                            shopper_id=str(chat_id),
                         )
-                        await _safe_log(db, chat_id, username, text)
-                        return {"status": "ok"}
-                    result = await photonpay.create_wechat_session(
-                        amount=amount,
-                        description=description,
-                        notify_url=f"{settings.backend_url}/api/v1/photonpay/webhook",
-                        redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
-                        shopper_id=str(chat_id),
-                    )
+                        ref_num = result.get("req_id", "")
+                        xendit_id = result.get("pay_id", "")
+                    else:
+                        # Fallback: use PayMongo WeChat source
+                        pm_svc = PayMongoService()
+                        if not pm_svc.secret_key:
+                            await tg.send_message(
+                                chat_id,
+                                "❌ <b>WeChat Pay is not available at this time.</b>\n\n"
+                                "Please contact the bot administrator to enable this payment method.",
+                            )
+                            await _safe_log(db, chat_id, username, text)
+                            return {"status": "ok"}
+                        result = await pm_svc.create_wechat_qr(
+                            amount=amount,
+                            description=description,
+                            success_url=f"{settings.backend_url}/api/v1/paymongo/redirect/success",
+                            failed_url=f"{settings.backend_url}/api/v1/paymongo/redirect/failed",
+                        )
+                        ref_num = result.get("reference_number", "")
+                        xendit_id = result.get("source_id", "")
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
-                        ref_num = result.get("req_id", "")
                         qr_img_url = _make_qr_url(checkout_url) if checkout_url else ""
                         caption = (
                             f"✅ <b>WeChat Pay Ready!</b>\n"
@@ -1621,7 +1634,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             now = datetime.now()
                             txn = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="wechat_qr",
-                                external_id=ref_num, xendit_id=result.get("pay_id", ""),
+                                external_id=ref_num, xendit_id=xendit_id,
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=checkout_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
