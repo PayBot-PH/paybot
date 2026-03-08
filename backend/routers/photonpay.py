@@ -223,20 +223,17 @@ async def create_alipay_session(
         }
 
     # PhotonPay success path — persist pending transaction
-    result = photonpay_result
-
-    # Persist pending transaction
     now = datetime.now()
     txn = Transactions(
         user_id=str(current_user.id),
         transaction_type="alipay_qr",
-        external_id=result["req_id"],
-        xendit_id=result.get("pay_id", ""),
+        external_id=photonpay_result["req_id"],
+        xendit_id=photonpay_result.get("pay_id", ""),
         amount=req.amount,
         currency="PHP",
         status="pending",
         description=req.description,
-        qr_code_url=result["checkout_url"],
+        qr_code_url=photonpay_result["checkout_url"],
         created_at=now,
         updated_at=now,
     )
@@ -245,8 +242,8 @@ async def create_alipay_session(
 
     return {
         "success": True,
-        "checkout_url": result["checkout_url"],
-        "req_id": result["req_id"],
+        "checkout_url": photonpay_result["checkout_url"],
+        "req_id": photonpay_result["req_id"],
         "amount": req.amount,
         "currency": req.currency,
         "pay_method": "Alipay",
@@ -355,19 +352,17 @@ async def create_wechat_session(
         }
 
     # PhotonPay success path — persist pending transaction
-    result = photonpay_result
-
     now = datetime.now()
     txn = Transactions(
         user_id=str(current_user.id),
         transaction_type="wechat_qr",
-        external_id=result["req_id"],
-        xendit_id=result.get("pay_id", ""),
+        external_id=photonpay_result["req_id"],
+        xendit_id=photonpay_result.get("pay_id", ""),
         amount=req.amount,
         currency="PHP",
         status="pending",
         description=req.description,
-        qr_code_url=result["checkout_url"],
+        qr_code_url=photonpay_result["checkout_url"],
         created_at=now,
         updated_at=now,
     )
@@ -376,8 +371,8 @@ async def create_wechat_session(
 
     return {
         "success": True,
-        "checkout_url": result["checkout_url"],
-        "req_id": result["req_id"],
+        "checkout_url": photonpay_result["checkout_url"],
+        "req_id": photonpay_result["req_id"],
         "amount": req.amount,
         "currency": req.currency,
         "pay_method": "WeChat",
