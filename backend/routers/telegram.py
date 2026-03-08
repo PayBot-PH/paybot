@@ -1486,7 +1486,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /alipay (PhotonPay → Alipay QR, fallback PayMongo) ====================
+        # ==================== /alipay (PhotonPay → PayMongo → Xendit Alipay QR) ====================
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
@@ -1511,27 +1511,38 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         ref_num = result.get("req_id", "")
                         xendit_id = result.get("pay_id", "")
                     else:
-                        # Fallback: use PayMongo Alipay source
                         pm_svc = PayMongoService()
-                        if not pm_svc.secret_key:
-                            await tg.send_message(
-                                chat_id,
-                                "❌ <b>Alipay payments are not available at this time.</b>\n\n"
-                                "Please contact the bot administrator to enable this payment method.",
+                        if pm_svc.secret_key:
+                            # Fallback: use PayMongo Alipay source
+                            result = await pm_svc.create_alipay_qr(
+                                amount=amount,
+                                description=description,
+                                success_url=f"{settings.backend_url}/api/v1/paymongo/redirect/success",
+                                failed_url=f"{settings.backend_url}/api/v1/paymongo/redirect/failed",
                             )
-                            await _safe_log(db, chat_id, username, text)
-                            return {"status": "ok"}
-                        result = await pm_svc.create_alipay_qr(
-                            amount=amount,
-                            description=description,
-                            success_url=f"{settings.backend_url}/api/v1/paymongo/redirect/success",
-                            failed_url=f"{settings.backend_url}/api/v1/paymongo/redirect/failed",
-                        )
-                        ref_num = result.get("reference_number", "")
-                        xendit_id = result.get("source_id", "")
+                            ref_num = result.get("reference_number", "")
+                            xendit_id = result.get("source_id", "")
+                        else:
+                            # Fallback: use Xendit Alipay QR
+                            xendit_svc = XenditService()
+                            if not xendit_svc.secret_key:
+                                await tg.send_message(
+                                    chat_id,
+                                    "❌ <b>Alipay payments are not available at this time.</b>\n\n"
+                                    "Please contact the bot administrator to enable this payment method.",
+                                )
+                                await _safe_log(db, chat_id, username, text)
+                                return {"status": "ok"}
+                            result = await xendit_svc.create_alipay_qr(
+                                amount=amount,
+                                description=description,
+                            )
+                            ref_num = result.get("external_id", "")
+                            xendit_id = result.get("qr_id", "")
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
-                        qr_img_url = _make_qr_url(checkout_url) if checkout_url else ""
+                        qr_content = checkout_url or result.get("qr_string", "")
+                        qr_img_url = _make_qr_url(qr_content) if qr_content else ""
                         caption = (
                             f"✅ <b>Alipay Payment Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -1553,7 +1564,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
                                 external_id=ref_num, xendit_id=xendit_id,
                                 amount=amount, currency="PHP", status="pending", description=description,
-                                qr_code_url=checkout_url, telegram_chat_id=chat_id,
+                                qr_code_url=qr_content, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
                             db.add(txn)
