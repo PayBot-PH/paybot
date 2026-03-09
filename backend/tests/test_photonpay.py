@@ -864,3 +864,79 @@ class TestAlipayCompleteFallbackChain:
         assert result.get("success") is True
         assert result.get("auth_code") == "auth-xyz"
         assert result.get("pay_id") == "pay-123"
+
+
+# ---------------------------------------------------------------------------
+# Unit tests for _get_backend_url helper
+# ---------------------------------------------------------------------------
+
+class TestGetBackendUrl:
+    """Verify that _get_backend_url returns absolute URLs in all configurations."""
+
+    def _make_request(self, base_url: str = "http://testserver/"):
+        """Return a minimal mock Request with a base_url attribute."""
+        req = MagicMock()
+        req.base_url = base_url
+        return req
+
+    def test_uses_settings_backend_url_when_available(self):
+        """When settings.backend_url returns a non-empty value, that value is used."""
+        import core.config as _cfg
+        from routers.photonpay import _get_backend_url
+
+        req = self._make_request()
+        with patch.object(_cfg, "settings") as mock_settings:
+            mock_settings.backend_url = "https://configured.example.com"
+            result = _get_backend_url(req)
+
+        assert result == "https://configured.example.com"
+
+    def test_settings_url_strips_trailing_slash(self):
+        """Trailing slash in settings.backend_url is removed."""
+        import core.config as _cfg
+        from routers.photonpay import _get_backend_url
+
+        req = self._make_request()
+        with patch.object(_cfg, "settings") as mock_settings:
+            mock_settings.backend_url = "https://configured.example.com/"
+            result = _get_backend_url(req)
+
+        assert result == "https://configured.example.com"
+
+    def test_request_base_url_used_when_settings_returns_empty(self):
+        """When settings.backend_url returns empty string, request.base_url is used."""
+        import core.config as _cfg
+        from routers.photonpay import _get_backend_url
+
+        req = self._make_request("https://inferred-from-request.example.com/")
+        with patch.object(_cfg, "settings") as mock_settings:
+            mock_settings.backend_url = ""
+            result = _get_backend_url(req)
+
+        assert result == "https://inferred-from-request.example.com"
+
+    def test_request_base_url_strips_trailing_slash(self):
+        """Trailing slash in request.base_url is removed."""
+        import core.config as _cfg
+        from routers.photonpay import _get_backend_url
+
+        req = self._make_request("https://inferred-from-request.example.com/")
+        with patch.object(_cfg, "settings") as mock_settings:
+            mock_settings.backend_url = ""
+            result = _get_backend_url(req)
+
+        assert not result.endswith("/")
+
+    def test_result_is_always_absolute(self):
+        """The resulting URL must always start with http:// or https://."""
+        import core.config as _cfg
+        from routers.photonpay import _get_backend_url
+
+        req = self._make_request("http://localhost:8000/")
+        with patch.object(_cfg, "settings") as mock_settings:
+            mock_settings.backend_url = ""
+            result = _get_backend_url(req)
+
+        assert result.startswith("http://") or result.startswith("https://"), (
+            f"Expected absolute URL but got: {result!r}"
+        )
