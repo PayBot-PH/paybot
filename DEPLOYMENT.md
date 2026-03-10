@@ -1,33 +1,207 @@
 # PayBot Deployment Guide
 
-This guide covers deploying PayBot on **Railway** or **Render** with a PostgreSQL database.
+This guide covers deploying PayBot on **Render** or **Railway** with a managed PostgreSQL database.
+
+> **Recommended platform: Render.** The `render.yaml` file at the root of the repository provides a one-click Blueprint deploy that provisions the web service and a PostgreSQL database together, with automatic migrations on every push to `main`.
 
 ## Prerequisites
 
 - A GitHub account with access to the PayBot repository
-- A [Railway](https://railway.app) **or** [Render](https://render.com) account
+- A [Render](https://render.com) **or** [Railway](https://railway.app) account
 - A Xendit account for payment processing
 - A Telegram Bot Token (create via [@BotFather](https://t.me/botfather))
 
 ## Table of Contents
 
-### Railway
-1. [Railway Setup](#1-railway-setup)
-2. [Environment Variables Setup](#2-environment-variables-setup)
-3. [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup)
-4. [Database Migration](#4-database-migration)
-5. [Webhook Configuration](#5-webhook-configuration)
-6. [Post-Deployment Steps](#6-post-deployment-steps)
+### Render (Recommended)
+1. [Render Setup](#1-render-setup)
+2. [Render Environment Variables](#2-render-environment-variables)
+3. [Render Webhooks & Post-deploy Checks](#3-render-webhooks--post-deploy-checks)
+4. [Render GitHub Actions Integration](#4-render-github-actions-integration)
 
-### Render
-7. [Troubleshooting](#7-troubleshooting)
-8. [Render Setup](#8-render-setup)
+### Railway
+5. [Railway Setup](#5-railway-setup)
+6. [Environment Variables Setup](#6-environment-variables-setup)
+7. [GitHub Actions Secrets Setup](#7-github-actions-secrets-setup)
+8. [Database Migration](#8-database-migration)
+9. [Webhook Configuration](#9-webhook-configuration)
+10. [Post-Deployment Steps](#10-post-deployment-steps)
+
+### General
+11. [Troubleshooting](#11-troubleshooting)
 
 ---
 
-## 1. Railway Setup
+## 1. Render Setup
 
-### 1.1 Create a New Railway Project
+[Render](https://render.com) is the recommended deployment platform. The `render.yaml` file at the repository root defines a **Blueprint** — a declarative spec that Render uses to create all services (web app + PostgreSQL database) in one step.
+
+### 1.1 One-Click Blueprint Deploy
+
+1. Log in to [Render](https://render.com)
+2. Click **"New +"** → **"Blueprint"**
+3. Connect your GitHub account and select the `csphi/paybot` repository
+4. Render reads `render.yaml` and displays a preview of what will be created:
+   - **paybot-backend** — Web service (Docker, FastAPI + React admin UI, `starter` plan)
+   - **paybot-db** — Managed PostgreSQL 15 (`starter` plan, Oregon region)
+5. Click **"Apply"**
+
+Render will:
+- Build the Docker image from `backend/Dockerfile` (multi-stage: Node → Python)
+- Provision a PostgreSQL database and inject `DATABASE_URL` automatically
+- Run `alembic upgrade head` before going live (the `preDeployCommand`)
+- Expose the service on a public `*.onrender.com` URL
+- Set up auto-deploy: every push to `main` triggers a new build
+
+### 1.2 Service & Database Plans
+
+The `render.yaml` uses `starter` plan for both the web service and the database:
+
+| Resource | Plan | Cost | Notes |
+|----------|------|------|-------|
+| Web service | `starter` | see [render.com/pricing](https://render.com/pricing) | Always-on, 512 MB RAM, shared CPU |
+| PostgreSQL | `starter` | see [render.com/pricing](https://render.com/pricing) | 1 GB storage, no 90-day expiration |
+
+> **Free-tier option:** You can change both plans to `free` for initial testing. Free web services spin down after 15 minutes of inactivity (cold-start delay ~30 s) and the free database expires after **90 days**. Upgrade to `starter` before going to production.
+
+---
+
+## 2. Render Environment Variables
+
+After the Blueprint deploy, some secrets must be filled in manually (they are marked `sync: false` in `render.yaml` and are never auto-populated). Go to the **paybot-backend** service → **Environment** tab.
+
+### 2.1 Required Secrets
+
+| Variable | Description | How to get it |
+|----------|-------------|---------------|
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token | [@BotFather](https://t.me/botfather) → `/newbot` |
+| `XENDIT_SECRET_KEY` | Xendit API secret key | [Xendit Dashboard](https://dashboard.xendit.co) → Settings → API Keys |
+| `JWT_SECRET_KEY` | Random 32-byte hex string | `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ADMIN_USER_PASSWORD` | Password for the admin dashboard | Choose a strong password |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric IDs or `@usernames` allowed as admin | Find your numeric ID via [@userinfobot](https://t.me/userinfobot); use `@username` format if you prefer (e.g. `@yourname,123456789`) |
+
+### 2.2 Optional but Recommended
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PYTHON_BACKEND_URL` | Your Render public URL — **optional**: the app auto-detects `RENDER_EXTERNAL_URL`. Set only for custom domains (e.g. `https://paybot.example.com`). | Auto-detected |
+| `TELEGRAM_BOT_USERNAME` | Bot username without `@` — required for the Telegram Login Widget | — |
+| `TELEGRAM_BOT_OWNER_ID` | Super-admin Telegram user ID (approves KYB registrations) | — |
+| `ALLOWED_ORIGINS` | Comma-separated CORS origins, e.g. `https://paybot.onrender.com` | Allows all |
+
+### 2.3 Payment Gateway Secrets (add the ones you need)
+
+| Variable | Description |
+|----------|-------------|
+| `PAYMONGO_SECRET_KEY` | PayMongo secret key (cards, GCash, GrabPay, Maya, Alipay, WeChat via PayMongo) |
+| `PAYMONGO_PUBLIC_KEY` | PayMongo public key |
+| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret for signature verification |
+| `PHOTONPAY_APP_ID` | PhotonPay App ID (Alipay / WeChat Pay via PhotonPay) |
+| `PHOTONPAY_APP_SECRET` | PhotonPay App Secret |
+| `PHOTONPAY_SITE_ID` | PhotonPay Site ID (Collection → Site Management) |
+| `PHOTONPAY_RSA_PRIVATE_KEY` | Merchant RSA private key (PKCS#8 PEM) for signing requests |
+| `PHOTONPAY_RSA_PUBLIC_KEY` | PhotonPay platform RSA public key for webhook verification |
+| `TRANSFI_API_KEY` | TransFi Checkout API key (Alipay / WeChat Pay via TransFi) |
+| `TRANSFI_WEBHOOK_SECRET` | TransFi HMAC-SHA256 webhook secret |
+
+### 2.4 Pre-configured Defaults (no action needed)
+
+These are set in `render.yaml` and work out-of-the-box:
+
+| Variable | Value | Description |
+|----------|-------|-------------|
+| `ENVIRONMENT` | `production` | Enables production error handling |
+| `JWT_ALGORITHM` | `HS256` | JWT signing algorithm |
+| `JWT_EXPIRE_MINUTES` | `60` | JWT token expiry |
+| `PAYMONGO_MODE` | `live` | PayMongo live mode |
+| `PHOTONPAY_MODE` | `production` | PhotonPay production API |
+| `PHOTONPAY_ALIPAY_METHOD` | `Alipay` | PayMongo Alipay method string |
+| `PHOTONPAY_WECHAT_METHOD` | `WeChat` | PhotonPay WeChat method string |
+| `PHOTONPAY_WEBHOOK_VERIFY_REQUIRED` | `true` | Enforce webhook signature checks |
+| `TRANSFI_MODE` | `production` | TransFi production API |
+
+---
+
+## 3. Render Webhooks & Post-deploy Checks
+
+### 3.1 Get Your Render Public URL
+
+1. Open the **paybot-backend** service in Render
+2. The URL is shown at the top of the dashboard (e.g. `https://paybot-backend.onrender.com`)
+3. Optionally add a **custom domain** under **Settings → Custom Domains**
+
+### 3.2 Verify the Deployment
+
+```bash
+curl https://paybot-backend.onrender.com/health
+# Expected: {"status":"healthy"}
+```
+
+Open `https://paybot-backend.onrender.com` in a browser to view the React admin dashboard.
+
+### 3.3 Xendit Webhook
+
+1. Log in to [Xendit Dashboard](https://dashboard.xendit.co) → **Settings → Webhooks**
+2. Add a new webhook URL:
+   ```
+   https://paybot-backend.onrender.com/api/v1/xendit/webhook
+   ```
+3. Enable events: `payment.succeeded`, `payment.failed`, `invoice.paid`, `invoice.expired`
+
+### 3.4 PayMongo Webhook
+
+1. Log in to [PayMongo Dashboard](https://dashboard.paymongo.com) → **Developers → Webhooks**
+2. Create a webhook pointing to:
+   ```
+   https://paybot-backend.onrender.com/api/v1/paymongo/webhook
+   ```
+3. Enable events: `source.chargeable`, `checkout_session.payment.paid`, `checkout_session.payment.failed`, `payment.paid`, `payment.failed`
+4. Copy the **signing secret** → set as `PAYMONGO_WEBHOOK_SECRET`
+
+### 3.5 Telegram Webhook
+
+The Telegram webhook is **automatically registered** on startup when `PYTHON_BACKEND_URL` is set (or when `RENDER_EXTERNAL_URL` is detected). To register or verify it manually:
+
+```bash
+# Register
+curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+  -H "Content-Type: application/json" \
+  -d '{"url":"https://paybot-backend.onrender.com/api/v1/telegram/webhook"}'
+
+# Verify
+curl "https://api.telegram.org/bot<TOKEN>/getWebhookInfo"
+```
+
+### 3.6 TransFi Webhook (if using TransFi)
+
+1. Log in to the [TransFi dashboard](https://checkout-dashboard.transfi.com) → **Settings → Integration**
+2. Add webhook URL: `https://paybot-backend.onrender.com/api/v1/transfi/webhook`
+3. Copy the webhook secret → set as `TRANSFI_WEBHOOK_SECRET`
+
+---
+
+## 4. Render GitHub Actions Integration
+
+Pushing to `main` automatically triggers a Render rebuild (configured via `autoDeploy: true` in `render.yaml`). You can also wire up the GitHub Actions workflow for an explicit redeploy notification.
+
+### 4.1 Get the Render Deploy Hook URL
+
+1. Open the **paybot-backend** service in Render
+2. Go to **Settings → Deploy Hook**
+3. Copy the URL (looks like `https://api.render.com/deploy/srv-<id>?key=<key>`)
+
+### 4.2 Add as a GitHub Secret
+
+1. GitHub repository → **Settings → Environments → production**
+2. Add secret: `RENDER_DEPLOY_HOOK_URL` = the URL copied above
+
+The `deploy.yml` workflow will POST to this URL after every successful test run on `main`.
+
+---
+
+## 5. Railway Setup
+
+### 5.1 Create a New Railway Project
 
 1. Log in to [Railway](https://railway.app)
 2. Click **"New Project"**
@@ -36,7 +210,7 @@ This guide covers deploying PayBot on **Railway** or **Render** with a PostgreSQ
 5. Select the `csphi/paybot` repository
 6. Railway will detect the `railway.toml` configuration automatically
 
-### 1.2 Add PostgreSQL Database
+### 5.2 Add PostgreSQL Database
 
 1. In your Railway project dashboard, click **"New"**
 2. Select **"Database"**
@@ -44,14 +218,14 @@ This guide covers deploying PayBot on **Railway** or **Render** with a PostgreSQ
 4. Railway will automatically provision a PostgreSQL database
 5. The `DATABASE_URL` environment variable will be automatically added to your backend service
 
-### 1.3 Configure Services
+### 5.3 Configure Services
 
 Railway will automatically create services based on your `railway.toml` configuration:
 
 - **Backend Service**: Runs the FastAPI application
 - **Database**: PostgreSQL database
 
-### 1.4 Get the DATABASE_URL
+### 5.4 Get the DATABASE_URL
 
 1. Click on the **PostgreSQL** service in your Railway project
 2. Go to the **"Variables"** tab
@@ -60,9 +234,9 @@ Railway will automatically create services based on your `railway.toml` configur
 
 ---
 
-## 2. Environment Variables Setup
+## 6. Environment Variables Setup
 
-### 2.1 Backend Environment Variables
+### 6.1 Backend Environment Variables
 
 1. Click on your **Backend Service** in Railway
 2. Go to the **"Variables"** tab
@@ -96,17 +270,17 @@ Railway will automatically create services based on your `railway.toml` configur
 ALLOWED_ORIGINS=https://paybot-backend-production-84b2.up.railway.app,http://localhost:3000
 ```
 
-### 2.2 Frontend Environment Variables (if deploying frontend separately)
+### 6.2 Frontend Environment Variables (if deploying frontend separately)
 
 The frontend is served directly by the backend as a static SPA, so no separate frontend deployment is needed. All requests to `/api/...` are handled by the backend, and the React app is served from the same URL.
 
 ---
 
-## 3. GitHub Actions Secrets Setup
+## 7. GitHub Actions Secrets Setup
 
 The GitHub Actions deployment workflow (`deploy.yml`) deploys to Railway automatically on every push to `main`. It requires a Railway project token configured as a GitHub secret.
 
-### 3.1 Generate a Railway Project Token
+### 7.1 Generate a Railway Project Token
 
 A **project token** is a scoped token that grants access only to a specific Railway project and environment. This is the recommended token type for CI/CD.
 
@@ -117,7 +291,7 @@ A **project token** is a scoped token that grants access only to a specific Rail
 5. Give it a name (e.g., `github-actions`) and select the **production** environment
 6. Copy the generated token
 
-### 3.2 Add the Secrets as GitHub Secrets
+### 7.2 Add the Secrets as GitHub Secrets
 
 The workflow uses the `production` environment in GitHub Actions. You can add secrets either at the repository level or the environment level:
 
@@ -139,36 +313,23 @@ The workflow uses the `production` environment in GitHub Actions. You can add se
 
 | Secret Name | Description |
 |-------------|-------------|
-| `RAILWAY_TOKEN` | Railway project token (see [step 3.1](#31-generate-a-railway-project-token)) |
+| `RAILWAY_TOKEN` | Railway project token (see [step 7.1](#71-generate-a-railway-project-token)) |
 | `RAILWAY_SERVICE` | Exact name of the Railway service to deploy (e.g. `backend`) |
-| `RENDER_DEPLOY_HOOK_URL` | Render deploy hook URL (see [step 3.3](#33-render-deploy-hook-optional)) |
+| `RENDER_DEPLOY_HOOK_URL` | Render deploy hook URL (see [Section 4](#4-render-github-actions-integration)) |
 
 > **Note:** If either `RAILWAY_TOKEN` or `RAILWAY_SERVICE` is missing or empty, the deployment step will be skipped with a warning message pointing to this guide. To find your service name, open your Railway project dashboard and note the name shown on the service card.
 
 ---
 
-### 3.3 Render Deploy Hook (optional)
+### 7.3 Render Deploy Hook (optional)
 
-If you also want GitHub Actions to automatically redeploy your Render service on every push to `main`, add a Render deploy hook URL as a GitHub secret named `RENDER_DEPLOY_HOOK_URL`.
-
-**How to get the deploy hook URL:**
-
-1. Log in to [Render](https://render.com)
-2. Open your **paybot-backend** service
-3. Go to **Settings** → **Deploy Hook**
-4. Copy the hook URL (it looks like `https://api.render.com/deploy/srv-<id>?key=<key>`)
-
-**Add it as a GitHub secret:**
-
-1. Go to your GitHub repository → **Settings** → **Environments** → **production**
-2. Under **"Environment secrets"**, click **"Add secret"**
-3. Name: `RENDER_DEPLOY_HOOK_URL`, Value: the URL you copied above
+If you also want GitHub Actions to automatically redeploy your Render service on every push to `main`, see [Section 4](#4-render-github-actions-integration) for instructions on getting the deploy hook URL and adding `RENDER_DEPLOY_HOOK_URL` as a GitHub secret.
 
 > **Note:** If `RENDER_DEPLOY_HOOK_URL` is not set, the Render deploy step is silently skipped — no errors, just a warning. This lets you use Railway-only or Render-only without changing the workflow.
 
 ---
 
-## 4. Database Migration
+## 8. Database Migration
 
 ### Automatic Migrations
 
@@ -213,18 +374,18 @@ To see migration history:
 railway run alembic history
 ```
 
-## 5. Webhook Configuration
+## 9. Webhook Configuration
 
 After deployment, you need to configure webhooks for external services.
 
-### 4.1 Get Your Backend URL
+### 9.1 Get Your Backend URL
 
 1. Go to your Railway backend service
 2. Click on the **"Settings"** tab
 3. Find the **"Public Networking"** section
 4. Copy your **Railway domain** (e.g., `https://paybot-backend-production-84b2.up.railway.app`)
 
-### 4.2 Xendit Webhook Setup
+### 9.2 Xendit Webhook Setup
 
 1. Log in to your [Xendit Dashboard](https://dashboard.xendit.co)
 2. Go to **Settings** → **Webhooks**
@@ -240,7 +401,7 @@ After deployment, you need to configure webhooks for external services.
 
 5. Save the webhook configuration
 
-### 4.2b TransFi Webhook Setup
+### 9.2b TransFi Webhook Setup
 
 1. Log in to your [TransFi Checkout dashboard](https://checkout-dashboard.transfi.com)
 2. Go to **Settings** → **Integration** (or **Webhooks**)
@@ -251,7 +412,7 @@ After deployment, you need to configure webhooks for external services.
 4. Copy the **webhook secret** and set it as `TRANSFI_WEBHOOK_SECRET` in your environment variables.
 5. Save the webhook configuration.
 
-### 4.3 Telegram Webhook Setup
+### 9.3 Telegram Webhook Setup
 
 The Telegram webhook is automatically registered on startup when `PYTHON_BACKEND_URL` is set. To set it up manually:
 
@@ -273,9 +434,9 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 
 ---
 
-## 6. Post-Deployment Steps
+## 10. Post-Deployment Steps
 
-### 6.1 Verify Backend is Running
+### 10.1 Verify Backend is Running
 
 Check the health endpoint:
 
@@ -290,14 +451,14 @@ Expected response:
 }
 ```
 
-### 6.2 Verify Frontend is Running (if deployed)
+### 10.2 Verify Frontend is Running
 
 Open your frontend URL in a browser:
 ```
 https://paybot-backend-production-84b2.up.railway.app
 ```
 
-### 6.3 Check Database Connection
+### 10.3 Check Database Connection
 
 1. Go to your Railway project dashboard
 2. Click on the backend service
@@ -311,19 +472,19 @@ Database connection initialized successfully
 Tables initialized successfully
 ```
 
-### 6.4 Test Telegram Bot
+### 10.4 Test Telegram Bot
 
 1. Open Telegram and find your bot
 2. Send `/start` command
 3. Verify the bot responds correctly
 
-### 6.5 Test Payment Functionality
+### 10.5 Test Payment Functionality
 
 1. Create a test payment through your application
 2. Check the Xendit dashboard to verify the payment was created
 3. Verify webhook events are being received by checking Railway logs
 
-### 6.6 Monitor Logs
+### 10.6 Monitor Logs
 
 To view real-time logs:
 
@@ -341,7 +502,7 @@ railway logs
 
 ---
 
-## 7. Troubleshooting
+## 11. Troubleshooting
 
 ### Common Issues
 
@@ -351,7 +512,7 @@ railway logs
 
 **Solution**:
 1. Generate a Railway project token: **Project Settings** → **Tokens** → **New Token** (select the **production** environment)
-2. Add it as a GitHub secret named `RAILWAY_TOKEN` (see [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup) for detailed instructions)
+2. Add it as a GitHub secret named `RAILWAY_TOKEN` (see [GitHub Actions Secrets Setup](#7-github-actions-secrets-setup) for detailed instructions)
 3. Verify the secret is added to the correct scope: the deploy workflow uses the `production` environment, so the secret should be an **environment secret** under the `production` environment, or a **repository secret**
 4. If the token was previously set but is now expired or revoked, generate a new token and update the secret
 
@@ -361,7 +522,7 @@ railway logs
 
 **Solution**:
 1. Find your Railway service name by opening your Railway project dashboard and noting the name on the service card (e.g. `backend`)
-2. Add it as a GitHub secret named `RAILWAY_SERVICE` (see [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup))
+2. Add it as a GitHub secret named `RAILWAY_SERVICE` (see [GitHub Actions Secrets Setup](#7-github-actions-secrets-setup))
 3. If `RAILWAY_SERVICE` is missing or empty, the deploy step will be skipped with a warning rather than failing the workflow
 
 #### Database Connection Errors
@@ -436,86 +597,10 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 ---
 
-## 8. Render Setup
-
-[Render](https://render.com) is an alternative cloud platform that can host the PayBot backend and a managed PostgreSQL database. The `render.yaml` file at the root of the repository defines everything Render needs to provision your services automatically.
-
-### 8.1 One-click Deploy
-
-1. Log in to [Render](https://render.com)
-2. Click **"New"** → **"Blueprint"**
-3. Connect your GitHub account and select the `csphi/paybot` repository
-4. Render detects `render.yaml` and shows a preview of the services it will create:
-   - **paybot-backend** – Web service (Docker, FastAPI)
-   - **paybot-db** – Managed PostgreSQL database
-5. Click **"Apply"**
-
-Render will build the Docker image defined in `backend/Dockerfile`, provision a free-tier PostgreSQL database, and wire `DATABASE_URL` automatically.
-
-### 8.2 Set Required Environment Variables
-
-After the initial deploy, go to the **paybot-backend** service → **Environment** tab and add the following secrets (marked `sync: false` in `render.yaml`, so they are never auto-populated):
-
-| Variable | Description |
-|----------|-------------|
-| `PYTHON_BACKEND_URL` | Your Render public URL, e.g. `https://paybot-backend.onrender.com` — **optional**: Render automatically sets `RENDER_EXTERNAL_URL`, which the app uses as a fallback when `PYTHON_BACKEND_URL` is not provided |
-| `TELEGRAM_BOT_TOKEN` | Token from [@BotFather](https://t.me/botfather) |
-| `TELEGRAM_BOT_USERNAME` | Your bot's username without `@`, e.g. `mypaybot` (used by Telegram Login Widget) |
-| `XENDIT_SECRET_KEY` | Xendit API secret key |
-| `JWT_SECRET_KEY` | Random secret – run `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `ADMIN_USER_PASSWORD` | Password for the admin dashboard |
-| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric user IDs or `@usernames` allowed as admin |
-| `ALLOWED_ORIGINS` | Comma-separated allowed CORS origins (optional) |
-| `TELEGRAM_BOT_OWNER_ID` | Telegram numeric user ID of the bot owner (super admin for KYB approvals, optional) |
-| `PAYMONGO_SECRET_KEY` | PayMongo secret key — required for Alipay, WeChat Pay, GCash, Maya, and card payments (optional) |
-| `PAYMONGO_PUBLIC_KEY` | PayMongo public key (optional) |
-| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret for signature verification (optional) |
-| `TRANSFI_API_KEY` | **TransFi Checkout API key** — required to enable Alipay and WeChat Pay via TransFi (highest-priority provider). Found in TransFi dashboard → Settings → Integration. |
-| `TRANSFI_WEBHOOK_SECRET` | TransFi webhook HMAC-SHA256 secret for signature verification (optional but recommended) |
-
-The following variables are pre-configured with sensible defaults in `render.yaml` and do not need to be set manually unless you want to override them:
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JWT_ALGORITHM` | `HS256` | JWT signing algorithm |
-| `JWT_EXPIRE_MINUTES` | `60` | JWT token expiry in minutes |
-| `ENVIRONMENT` | `production` | Application environment |
-| `PAYMONGO_MODE` | `live` | PayMongo API mode (`live` for production, `test` for sandbox) |
-| `TRANSFI_MODE` | `production` | TransFi API environment (`production` or `sandbox`) |
-
-### 8.3 Run Database Migrations
-
-Database migrations run **automatically** on each Render deployment via the `preDeployCommand` in `render.yaml`:
-
-```bash
-alembic upgrade head
-```
-
-This runs in the deployed container (at `/app/backend`) before the new version goes live. If the migration fails, Render aborts the deploy and keeps the previous version running.
-
-### 8.4 Configure Webhooks
-
-Follow the same steps as [Section 5](#5-webhook-configuration) in the Railway guide, substituting your Render URL (e.g. `https://paybot-backend.onrender.com`) for `https://paybot-backend-production-84b2.up.railway.app`.
-
-### 8.5 Verify the Deployment
-
-```bash
-curl https://paybot-backend.onrender.com/health
-```
-
-Expected response:
-```json
-{"status": "healthy"}
-```
-
-> **Note on free-tier cold starts:** Render's free plan spins down idle services after 15 minutes of inactivity. The first request after a cold start may take up to 30 seconds. Upgrade to a paid plan to keep the service always-on.
-
----
-
 ## Additional Resources
 
-- [Railway Documentation](https://docs.railway.app)
 - [Render Documentation](https://docs.render.com)
+- [Railway Documentation](https://docs.railway.app)
 - [Alembic Documentation](https://alembic.sqlalchemy.org)
 - [FastAPI Documentation](https://fastapi.tiangolo.com)
 - [Xendit API Documentation](https://developers.xendit.co)
@@ -527,8 +612,8 @@ Expected response:
 
 If you encounter any issues:
 
-1. Check the service logs (Railway: **Deployments** tab; Render: **Logs** tab) for detailed error messages
-2. Review the [Troubleshooting](#7-troubleshooting) section
+1. Check the service logs (Render: **Logs** tab; Railway: **Deployments** tab) for detailed error messages
+2. Review the [Troubleshooting](#11-troubleshooting) section
 3. Consult the official documentation links above
 4. Open an issue on the GitHub repository
 
@@ -536,14 +621,14 @@ If you encounter any issues:
 
 ## Summary
 
-You should now have PayBot running on either Railway or Render:
+You should now have PayBot running on Render (or Railway):
 
-✅ Backend service running on Railway or Render  
+✅ Backend service running and healthy  
 ✅ PostgreSQL database provisioned and connected  
-✅ Database migrations applied  
-✅ Environment variables configured  
+✅ Database migrations applied automatically on every deploy  
+✅ Environment variables and secrets configured  
 ✅ JWT authentication configured for admin dashboard  
-✅ Webhooks configured for Xendit and Telegram  
+✅ Webhooks configured for Xendit, PayMongo, and Telegram  
 ✅ Health checks passing  
 ✅ Logs accessible for monitoring  
 
