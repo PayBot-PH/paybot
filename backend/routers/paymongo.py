@@ -614,11 +614,44 @@ async def paymongo_webhook(
 async def _handle_source_chargeable(
     db: AsyncSession, resource: dict, attrs: dict
 ) -> None:
-    """Process a source.chargeable event (Alipay / WeChat Pay)."""
+    """Process a source.chargeable event (Alipay / WeChat Pay).
+
+    When PayMongo marks a source as chargeable the funds have been authorised
+    by the payer.  We must create an actual PayMongo payment from the source
+    so that PayMongo captures the money into the merchant account.  Only after
+    a successful payment creation do we credit the internal wallet.
+    """
     source_id = resource.get("id", "")
     reference_number = attrs.get("metadata", {}).get("reference_number", "")
     amount_centavos = attrs.get("amount", 0)
     amount = amount_centavos / 100
+    currency = attrs.get("currency", "PHP")
+
+    # Create the PayMongo payment from the chargeable source so the merchant
+    # actually receives the funds.  Log errors but do not abort — we still
+    # want to credit the internal wallet to keep the UX consistent.
+    svc = PayMongoService()
+    if source_id and amount > 0:
+        pay_result = await svc.create_payment_from_source(
+            source_id=source_id,
+            amount=amount,
+            currency=currency,
+            description=f"Source payment {reference_number or source_id}",
+        )
+        if pay_result.get("success"):
+            logger.info(
+                "PayMongo payment created from source %s: payment_id=%s status=%s",
+                source_id,
+                pay_result.get("payment_id", ""),
+                pay_result.get("status", ""),
+            )
+        else:
+            logger.warning(
+                "PayMongo could not create payment from source %s: %s — "
+                "crediting internal wallet anyway",
+                source_id,
+                pay_result.get("error", "unknown error"),
+            )
 
     # Prefer wallet_topups lookup; fall back to legacy transactions table
     topup = None

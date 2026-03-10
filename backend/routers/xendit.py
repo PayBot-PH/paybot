@@ -338,7 +338,10 @@ async def xendit_webhook(
                 if status == "paid" and old_status != "paid" and txn.user_id:
                     try:
                         wallet_result = await db.execute(
-                            select(Wallets).where(Wallets.user_id == txn.user_id)
+                            select(Wallets).where(
+                                Wallets.user_id == txn.user_id,
+                                Wallets.currency == "PHP",
+                            )
                         )
                         wallet = wallet_result.scalar_one_or_none()
                         if not wallet:
