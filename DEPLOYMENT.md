@@ -141,30 +141,30 @@ The workflow uses the `production` environment in GitHub Actions. You can add se
 |-------------|-------------|
 | `RAILWAY_TOKEN` | Railway project token (see [step 3.1](#31-generate-a-railway-project-token)) |
 | `RAILWAY_SERVICE` | Exact name of the Railway service to deploy (e.g. `backend`) |
-| `RENDER_DEPLOY_HOOK_URL` | Render deploy hook URL (see [step 3.3](#33-render-deploy-hook-optional)) |
+| `RENDER_DEPLOY_HOOK_KEY` | Render deploy hook secret key (see [step 3.3](#33-render-deployment-optional)) |
 
 > **Note:** If either `RAILWAY_TOKEN` or `RAILWAY_SERVICE` is missing or empty, the deployment step will be skipped with a warning message pointing to this guide. To find your service name, open your Railway project dashboard and note the name shown on the service card.
 
 ---
 
-### 3.3 Render Deploy Hook (optional)
+### 3.3 Render Deployment (optional)
 
-If you also want GitHub Actions to automatically redeploy your Render service on every push to `main`, add a Render deploy hook URL as a GitHub secret named `RENDER_DEPLOY_HOOK_URL`.
+If you also want GitHub Actions to automatically redeploy your Render service on every push to `main`, add the Render deploy hook key as a GitHub secret. The service ID (`srv-d6guhlbh46gs73dskggg`) is already embedded in the workflow; only the secret key portion needs to be stored.
 
-**How to get the deploy hook URL:**
+**How to get the deploy hook key:**
 
 1. Log in to [Render](https://render.com)
 2. Open your **paybot-backend** service
 3. Go to **Settings** → **Deploy Hook**
-4. Copy the hook URL (it looks like `https://api.render.com/deploy/srv-<id>?key=<key>`)
+4. The hook URL looks like `https://api.render.com/deploy/srv-d6guhlbh46gs73dskggg?key=<key>` — copy the value after `key=`
 
 **Add it as a GitHub secret:**
 
 1. Go to your GitHub repository → **Settings** → **Environments** → **production**
 2. Under **"Environment secrets"**, click **"Add secret"**
-3. Name: `RENDER_DEPLOY_HOOK_URL`, Value: the URL you copied above
+3. Add `RENDER_DEPLOY_HOOK_KEY` with the secret key value copied above
 
-> **Note:** If `RENDER_DEPLOY_HOOK_URL` is not set, the Render deploy step is silently skipped — no errors, just a warning. This lets you use Railway-only or Render-only without changing the workflow.
+> **Note:** If `RENDER_DEPLOY_HOOK_KEY` is not set, the Render deploy step is silently skipped — no errors, just a warning. This lets you use Railway-only or Render-only without changing the workflow.
 
 ---
 
