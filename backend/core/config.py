@@ -17,6 +17,12 @@ class Settings(BaseSettings):
     app_name: str = "PayBot"
     debug: bool = False
     version: str = "1.0.0"
+    environment: str = "development"
+
+    # Deployment platform detection (set automatically by hosting providers)
+    railway_environment: str = ""
+    railway_project_id: str = ""
+    render: str = ""  # Render sets RENDER=true
 
     # Server
     host: str = "0.0.0.0"

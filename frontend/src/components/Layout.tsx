@@ -74,6 +74,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                   { to: '/topup-requests', icon: DollarSign, label: 'Topup Requests', badge: 'Super' },
                   { to: '/kyb-registrations', icon: ClipboardList, label: 'KYB Registrations', badge: 'Super' },
                   { to: '/kyc-verifications', icon: UserCheck, label: 'KYC Verifications', badge: 'Super' },
+                  { to: '/deployment-status', icon: Activity, label: 'Deployment Status', badge: 'Super' },
                 ]
               : []),
           ],
