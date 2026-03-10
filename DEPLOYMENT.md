@@ -55,14 +55,14 @@ Render will:
 
 ### 1.2 Service & Database Plans
 
-The `render.yaml` uses `starter` plan for both the web service and the database:
+| Resource | Plan | Notes |
+|----------|------|-------|
+| Web service | `starter` | Always-on, 512 MB RAM, shared CPU |
+| PostgreSQL | `free` | Suitable for testing; **expires after 90 days** |
 
-| Resource | Plan | Cost | Notes |
-|----------|------|------|-------|
-| Web service | `starter` | see [render.com/pricing](https://render.com/pricing) | Always-on, 512 MB RAM, shared CPU |
-| PostgreSQL | `starter` | see [render.com/pricing](https://render.com/pricing) | 1 GB storage, no 90-day expiration |
+> **Production database upgrade:** Once you are ready for production, upgrade the database plan from **free** to **starter** (or higher) in the Render dashboard (**paybot-db → Settings → Change Plan**). Do **not** change the plan in `render.yaml` directly — doing so causes Render to provision a brand-new database instance, losing all existing data and invalidating the old credentials.
 
-> **Free-tier option:** You can change both plans to `free` for initial testing. Free web services spin down after 15 minutes of inactivity (cold-start delay ~30 s) and the free database expires after **90 days**. Upgrade to `starter` before going to production.
+> **Free web service:** If you want to try the app at no cost, change the web service plan to `free` in `render.yaml` before deploying. Free services spin down after 15 minutes of inactivity (cold-start delay ~30 s).
 
 ---
 

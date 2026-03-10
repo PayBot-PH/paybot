@@ -102,10 +102,10 @@ services:
           property: connectionString
 
 databases:
-  # Managed PostgreSQL database. The free plan expires after 90 days — upgrade
-  # to "starter" ($7/month) for a permanent production database.
+  # Managed PostgreSQL database.
+  # Free plan: suitable for testing; expires after 90 days — upgrade to "starter"
+  # in the Render dashboard once you are ready for production.
   - name: paybot-db
-    plan: starter
-    region: oregon
+    plan: free
     databaseName: paybot
     user: paybot
