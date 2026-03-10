@@ -1,5 +1,5 @@
 """
-PhotonPay API Router.
+PhotonPay / TransFi API Router.
 
 Endpoints
 ---------
@@ -9,16 +9,24 @@ POST /webhook         — Receive PhotonPay payment notifications (RSA-signature
 GET  /redirect/success — After-payment success landing page.
 GET  /redirect/failed  — After-payment failure/cancel landing page.
 
+Provider priority
+-----------------
+1. TransFi Checkout (when TRANSFI_API_KEY is configured)
+2. PhotonPay (when PHOTONPAY_APP_ID + PHOTONPAY_APP_SECRET are configured)
+3. PayMongo (Alipay/WeChat source)
+4. Xendit Alipay QR (Alipay only)
+
 Webhook processing
 ------------------
 * Verifies the X-PD-SIGN header (MD5withRSA) using PhotonPay's RSA public key.
 * On successful payment notifications (status == "succeed" / "success"), credits
   the user's PHP wallet and marks the transaction as paid.
 * Idempotent — checks whether the transaction is already paid before crediting.
+* TransFi webhooks are handled separately at /api/v1/transfi/webhook.
 
 Configure the webhook in the PhotonPay merchant portal
   (Settings > Developer > Notify URL):
-  URL : https://paybot-backend-production-84b2.up.railway.app/api/v1/photonpay/webhook
+  URL : https://<your-domain>/api/v1/photonpay/webhook
 """
 import json
 import logging
@@ -42,6 +50,7 @@ from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
 from services.photonpay_service import PhotonPayService
+from services.transfi_service import TransFiService
 from services.xendit_service import XenditService
 
 logger = logging.getLogger(__name__)
@@ -158,21 +167,71 @@ async def create_alipay_session(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Generate an Alipay cashier session via PhotonPay.
-    Falls back to PayMongo then Xendit when PhotonPay is not configured or
-    when the PhotonPay auth request is rejected (e.g. wrong credentials).
+    Generate an Alipay cashier session.
+    Provider priority: TransFi → PhotonPay → PayMongo → Xendit.
     Returns a checkout_url the user opens to pay via Alipay QR.
     PHP wallet is credited automatically when the webhook confirms payment.
     """
-    svc = PhotonPayService()
     backend_url = _get_backend_url(request)
 
+    # ------------------------------------------------------------------
+    # 1. Try TransFi Checkout (highest priority)
+    # ------------------------------------------------------------------
+    transfi_svc = TransFiService()
+    if transfi_svc.is_configured:
+        notify_url = req.notify_url or f"{backend_url}/api/v1/transfi/webhook"
+        redirect_url = req.success_url or f"{backend_url}/api/v1/transfi/redirect/success"
+        logger.debug("Alipay session (TransFi): notify_url=%s redirect_url=%s", notify_url, redirect_url)
+        transfi_result = await transfi_svc.create_alipay_invoice(
+            amount=req.amount,
+            currency=req.currency,
+            description=req.description,
+            notify_url=notify_url,
+            redirect_url=redirect_url,
+            shopper_id=str(current_user.id),
+        )
+        if transfi_result.get("success"):
+            now = datetime.now()
+            txn = Transactions(
+                user_id=str(current_user.id),
+                transaction_type="alipay_qr",
+                external_id=transfi_result["req_id"],
+                xendit_id=transfi_result.get("invoice_id", ""),
+                amount=req.amount,
+                currency=req.currency,
+                status="pending",
+                description=req.description,
+                qr_code_url=transfi_result["checkout_url"],
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(txn)
+            await db.commit()
+            return {
+                "success": True,
+                "checkout_url": transfi_result["checkout_url"],
+                "req_id": transfi_result["req_id"],
+                "amount": req.amount,
+                "currency": req.currency,
+                "pay_method": "Alipay",
+                "message": "Alipay session created via TransFi. Open the URL and scan QR to pay — wallet credited automatically.",
+            }
+        else:
+            logger.warning(
+                "TransFi Alipay failed (%s), trying PhotonPay fallback",
+                transfi_result.get("error", ""),
+            )
+
+    # ------------------------------------------------------------------
+    # 2. Fall back to PhotonPay
+    # ------------------------------------------------------------------
+    svc = PhotonPayService()
     if not svc.is_configured:
         photonpay_result = None
     else:
         notify_url = req.notify_url or f"{backend_url}/api/v1/photonpay/webhook"
         redirect_url = req.success_url or f"{backend_url}/api/v1/photonpay/redirect/success"
-        logger.debug("Alipay session: notify_url=%s redirect_url=%s", notify_url, redirect_url)
+        logger.debug("Alipay session (PhotonPay): notify_url=%s redirect_url=%s", notify_url, redirect_url)
         photonpay_result = await svc.create_alipay_session(
             amount=req.amount,
             currency=req.currency,
@@ -332,21 +391,71 @@ async def create_wechat_session(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Generate a WeChat Pay cashier session via PhotonPay.
-    Falls back to PayMongo WeChat source when PhotonPay is not configured or
-    when the PhotonPay auth request is rejected (e.g. wrong credentials).
+    Generate a WeChat Pay cashier session.
+    Provider priority: TransFi → PhotonPay → PayMongo.
     Returns a checkout_url the user opens to pay via WeChat QR.
     PHP wallet is credited automatically when the webhook confirms payment.
     """
-    svc = PhotonPayService()
     backend_url = _get_backend_url(request)
 
+    # ------------------------------------------------------------------
+    # 1. Try TransFi Checkout (highest priority)
+    # ------------------------------------------------------------------
+    transfi_svc = TransFiService()
+    if transfi_svc.is_configured:
+        notify_url = req.notify_url or f"{backend_url}/api/v1/transfi/webhook"
+        redirect_url = req.success_url or f"{backend_url}/api/v1/transfi/redirect/success"
+        logger.debug("WeChat session (TransFi): notify_url=%s redirect_url=%s", notify_url, redirect_url)
+        transfi_result = await transfi_svc.create_wechat_invoice(
+            amount=req.amount,
+            currency=req.currency,
+            description=req.description,
+            notify_url=notify_url,
+            redirect_url=redirect_url,
+            shopper_id=str(current_user.id),
+        )
+        if transfi_result.get("success"):
+            now = datetime.now()
+            txn = Transactions(
+                user_id=str(current_user.id),
+                transaction_type="wechat_qr",
+                external_id=transfi_result["req_id"],
+                xendit_id=transfi_result.get("invoice_id", ""),
+                amount=req.amount,
+                currency=req.currency,
+                status="pending",
+                description=req.description,
+                qr_code_url=transfi_result["checkout_url"],
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(txn)
+            await db.commit()
+            return {
+                "success": True,
+                "checkout_url": transfi_result["checkout_url"],
+                "req_id": transfi_result["req_id"],
+                "amount": req.amount,
+                "currency": req.currency,
+                "pay_method": "WeChat",
+                "message": "WeChat Pay session created via TransFi. Open the URL and scan QR to pay — wallet credited automatically.",
+            }
+        else:
+            logger.warning(
+                "TransFi WeChat failed (%s), trying PhotonPay fallback",
+                transfi_result.get("error", ""),
+            )
+
+    # ------------------------------------------------------------------
+    # 2. Fall back to PhotonPay
+    # ------------------------------------------------------------------
+    svc = PhotonPayService()
     if not svc.is_configured:
         photonpay_result = None
     else:
         notify_url = req.notify_url or f"{backend_url}/api/v1/photonpay/webhook"
         redirect_url = req.success_url or f"{backend_url}/api/v1/photonpay/redirect/success"
-        logger.debug("WeChat session: notify_url=%s redirect_url=%s", notify_url, redirect_url)
+        logger.debug("WeChat session (PhotonPay): notify_url=%s redirect_url=%s", notify_url, redirect_url)
         photonpay_result = await svc.create_wechat_session(
             amount=req.amount,
             currency=req.currency,

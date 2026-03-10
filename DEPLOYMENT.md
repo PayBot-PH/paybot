@@ -240,6 +240,17 @@ After deployment, you need to configure webhooks for external services.
 
 5. Save the webhook configuration
 
+### 4.2b TransFi Webhook Setup
+
+1. Log in to your [TransFi Checkout dashboard](https://checkout-dashboard.transfi.com)
+2. Go to **Settings** → **Integration** (or **Webhooks**)
+3. Add a new webhook URL:
+   ```
+   https://<your-domain>/api/v1/transfi/webhook
+   ```
+4. Copy the **webhook secret** and set it as `TRANSFI_WEBHOOK_SECRET` in your environment variables.
+5. Save the webhook configuration.
+
 ### 4.3 Telegram Webhook Setup
 
 The Telegram webhook is automatically registered on startup when `PYTHON_BACKEND_URL` is set. To set it up manually:
@@ -459,6 +470,8 @@ After the initial deploy, go to the **paybot-backend** service → **Environment
 | `PAYMONGO_SECRET_KEY` | PayMongo secret key — required for Alipay, WeChat Pay, GCash, Maya, and card payments (optional) |
 | `PAYMONGO_PUBLIC_KEY` | PayMongo public key (optional) |
 | `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret for signature verification (optional) |
+| `TRANSFI_API_KEY` | **TransFi Checkout API key** — required to enable Alipay and WeChat Pay via TransFi (highest-priority provider). Found in TransFi dashboard → Settings → Integration. |
+| `TRANSFI_WEBHOOK_SECRET` | TransFi webhook HMAC-SHA256 secret for signature verification (optional but recommended) |
 
 The following variables are pre-configured with sensible defaults in `render.yaml` and do not need to be set manually unless you want to override them:
 
@@ -468,6 +481,7 @@ The following variables are pre-configured with sensible defaults in `render.yam
 | `JWT_EXPIRE_MINUTES` | `60` | JWT token expiry in minutes |
 | `ENVIRONMENT` | `production` | Application environment |
 | `PAYMONGO_MODE` | `live` | PayMongo API mode (`live` for production, `test` for sandbox) |
+| `TRANSFI_MODE` | `production` | TransFi API environment (`production` or `sandbox`) |
 
 ### 8.3 Run Database Migrations
 
