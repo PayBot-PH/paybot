@@ -1,4 +1,23 @@
-# Single-stage build — frontend is pre-built and committed to backend/static/
+# Multi-stage build
+# Stage 1: build the React admin dashboard from source
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm@8.10.0
+
+# Copy dependency manifests first for better layer caching
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+
+RUN pnpm install --frozen-lockfile
+
+# Copy the full frontend source and build
+COPY frontend/ ./
+RUN pnpm run build
+
+# -------------------------------------------------------------------
+# Stage 2: Python backend
 FROM python:3.11-slim
 
 WORKDIR /app/backend
@@ -13,10 +32,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all backend source files (includes pre-built frontend in static/)
+# Copy all backend source files (includes static/ with images/ and logos/)
 COPY backend/ .
 
-# Expose port 8000 (Railway will use $PORT environment variable)
+# Overlay the freshly built frontend assets on top of static/
+# (assets/, index.html, favicon.svg, robots.txt, logos/ from the Vite build)
+COPY --from=frontend-build /app/dist/ ./static/
+
+# Expose port 8000 (Railway/Render will use $PORT environment variable)
 EXPOSE 8000
 
 # Set environment variables
