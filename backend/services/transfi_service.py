@@ -57,9 +57,7 @@ class TransFiService:
     def __init__(self):
         self.api_key = os.environ.get("TRANSFI_API_KEY", "")
         self.webhook_secret = os.environ.get("TRANSFI_WEBHOOK_SECRET", "")
-        # "production" (default) or "sandbox"
         self.mode = os.environ.get("TRANSFI_MODE", "production").lower().strip()
-        # Explicit base URL override (empty = derive from mode)
         self._base_url_override = os.environ.get("TRANSFI_BASE_URL", "").rstrip("/")
 
         # Try settings fallback for any values not already found in os.environ
@@ -94,6 +92,21 @@ class TransFiService:
         if self.mode == "sandbox":
             return _TRANSFI_SANDBOX_URL
         return _TRANSFI_PRODUCTION_URL
+
+    @property
+    def _http(self) -> httpx.AsyncClient:
+        """Return a shared AsyncClient, creating it lazily on first use."""
+        client = getattr(self, "_client", None)
+        if client is None:
+            self._client = httpx.AsyncClient(timeout=30.0)
+        return self._client
+
+    async def aclose(self) -> None:
+        """Close the shared HTTP client. Call on application shutdown."""
+        client = getattr(self, "_client", None)
+        if client is not None:
+            await client.aclose()
+            self._client = None
 
     def _auth_headers(self) -> Dict[str, str]:
         """Return HTTP headers for authenticated API calls."""
@@ -155,8 +168,7 @@ class TransFiService:
         )
 
         try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(url, json=payload, headers=self._auth_headers())
+            resp = await self._http.post(url, json=payload, headers=self._auth_headers())
 
             if resp.status_code in (200, 201):
                 data = resp.json()
