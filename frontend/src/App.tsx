@@ -32,6 +32,7 @@ import LogoutCallbackPage from './pages/LogoutCallbackPage';
 import NotFound from './pages/NotFound';
 import MaintenancePage from './pages/MaintenancePage';
 import BotIntro from './pages/BotIntro';
+import DeploymentStatus from './pages/DeploymentStatus';
 
 const queryClient = new QueryClient();
 
@@ -100,6 +101,7 @@ const App = () => (
               <Route path="/usdt-send-requests" element={<RequireSuperAdmin><UsdtSendRequestsPage /></RequireSuperAdmin>} />
               <Route path="/kyb-registrations" element={<RequireSuperAdmin><KybRegistrationsPage /></RequireSuperAdmin>} />
               <Route path="/kyc-verifications" element={<RequireSuperAdmin><KycVerificationsPage /></RequireSuperAdmin>} />
+              <Route path="/deployment-status" element={<DeploymentStatus />} />
               <Route path="/policies" element={<Policies />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
