@@ -29,6 +29,7 @@ from services.xendit_service import XenditService
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
 from services.photonpay_service import PhotonPayService
+from services.transfi_service import TransFiService
 from models.topup_requests import TopupRequest
 from models.usdt_send_requests import UsdtSendRequest
 from models.kyb_registrations import KybRegistration
@@ -1486,7 +1487,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /alipay (PhotonPay → PayMongo → Xendit Alipay QR) ====================
+        # ==================== /alipay (TransFi → PhotonPay → PayMongo → Xendit Alipay QR) ====================
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
@@ -1499,24 +1500,46 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
-                    photonpay = PhotonPayService()
                     result = None
                     ref_num = ""
                     xendit_id = ""
-                    if photonpay.is_configured:
-                        result = await photonpay.create_alipay_session(
+
+                    # 1. Try TransFi first
+                    transfi = TransFiService()
+                    if transfi.is_configured:
+                        result = await transfi.create_alipay_invoice(
                             amount=amount,
                             description=description,
-                            notify_url=f"{settings.backend_url}/api/v1/photonpay/webhook",
-                            redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
+                            notify_url=f"{settings.backend_url}/api/v1/transfi/webhook",
+                            redirect_url=f"{settings.backend_url}/api/v1/transfi/redirect/success",
                             shopper_id=str(chat_id),
                         )
                         if result.get("success"):
                             ref_num = result.get("req_id", "")
-                            xendit_id = result.get("pay_id", "")
+                            xendit_id = result.get("invoice_id", "")
                         else:
-                            logger.warning("PhotonPay Alipay failed (%s), trying PayMongo fallback", result.get("error", ""))
-                            result = None  # fall through to PayMongo / Xendit fallback
+                            logger.warning("TransFi Alipay failed (%s), trying PhotonPay fallback", result.get("error", ""))
+                            result = None
+
+                    # 2. Fall back to PhotonPay
+                    if result is None:
+                        photonpay = PhotonPayService()
+                        if photonpay.is_configured:
+                            result = await photonpay.create_alipay_session(
+                                amount=amount,
+                                description=description,
+                                notify_url=f"{settings.backend_url}/api/v1/photonpay/webhook",
+                                redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
+                                shopper_id=str(chat_id),
+                            )
+                            if result.get("success"):
+                                ref_num = result.get("req_id", "")
+                                xendit_id = result.get("pay_id", "")
+                            else:
+                                logger.warning("PhotonPay Alipay failed (%s), trying PayMongo fallback", result.get("error", ""))
+                                result = None  # fall through to PayMongo / Xendit fallback
+
+                    # 3. Fall back to PayMongo
                     if result is None:
                         pm_svc = PayMongoService()
                         if pm_svc.secret_key:
@@ -1533,8 +1556,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 xendit_id = result.get("source_id", "")
                             else:
                                 logger.warning("PayMongo Alipay failed (%s), trying Xendit fallback", pm_result.get("error", ""))
+
+                    # 4. Final fallback: Xendit
                     if result is None:
-                        # Final fallback: use Xendit Alipay QR
                         xendit_svc = XenditService()
                         if not xendit_svc.secret_key:
                             await tg.send_message(
@@ -1591,7 +1615,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /wechat (PhotonPay → WeChat Pay QR, fallback PayMongo) ====================
+        # ==================== /wechat (TransFi → PhotonPay → WeChat Pay QR, fallback PayMongo) ====================
         elif text.startswith("/wechat"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
@@ -1604,26 +1628,47 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
-                    photonpay = PhotonPayService()
                     result = None
                     ref_num = ""
                     xendit_id = ""
-                    if photonpay.is_configured:
-                        result = await photonpay.create_wechat_session(
+
+                    # 1. Try TransFi first
+                    transfi = TransFiService()
+                    if transfi.is_configured:
+                        result = await transfi.create_wechat_invoice(
                             amount=amount,
                             description=description,
-                            notify_url=f"{settings.backend_url}/api/v1/photonpay/webhook",
-                            redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
+                            notify_url=f"{settings.backend_url}/api/v1/transfi/webhook",
+                            redirect_url=f"{settings.backend_url}/api/v1/transfi/redirect/success",
                             shopper_id=str(chat_id),
                         )
                         if result.get("success"):
                             ref_num = result.get("req_id", "")
-                            xendit_id = result.get("pay_id", "")
+                            xendit_id = result.get("invoice_id", "")
                         else:
-                            logger.warning("PhotonPay WeChat failed (%s), trying PayMongo fallback", result.get("error", ""))
-                            result = None  # fall through to PayMongo fallback
+                            logger.warning("TransFi WeChat failed (%s), trying PhotonPay fallback", result.get("error", ""))
+                            result = None
+
+                    # 2. Fall back to PhotonPay
                     if result is None:
-                        # Fallback: use PayMongo WeChat source
+                        photonpay = PhotonPayService()
+                        if photonpay.is_configured:
+                            result = await photonpay.create_wechat_session(
+                                amount=amount,
+                                description=description,
+                                notify_url=f"{settings.backend_url}/api/v1/photonpay/webhook",
+                                redirect_url=f"{settings.backend_url}/api/v1/photonpay/redirect/success",
+                                shopper_id=str(chat_id),
+                            )
+                            if result.get("success"):
+                                ref_num = result.get("req_id", "")
+                                xendit_id = result.get("pay_id", "")
+                            else:
+                                logger.warning("PhotonPay WeChat failed (%s), trying PayMongo fallback", result.get("error", ""))
+                                result = None  # fall through to PayMongo fallback
+
+                    # 3. Fall back to PayMongo
+                    if result is None:
                         pm_svc = PayMongoService()
                         if not pm_svc.secret_key:
                             await tg.send_message(

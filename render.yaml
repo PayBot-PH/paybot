@@ -59,6 +59,14 @@ services:
         value: WeChat
       - key: PHOTONPAY_WEBHOOK_VERIFY_REQUIRED
         value: "true"
+      - key: TRANSFI_API_KEY
+        sync: false
+      - key: TRANSFI_WEBHOOK_SECRET
+        sync: false
+      - key: TRANSFI_MODE
+        value: production
+      - key: TRANSFI_BASE_URL
+        sync: false
 
 databases:
   - name: paybot-db

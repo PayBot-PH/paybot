@@ -98,6 +98,20 @@ class Settings(BaseSettings):
     # Explicit API base URL override — takes precedence over photonpay_mode when set.
     photonpay_base_url: str = ""
 
+    # TransFi Checkout API (Alipay / WeChat Pay collection)
+    # Credentials from TransFi dashboard (Settings > Integration)
+    # Docs: https://transfi-checkout.readme.io/docs/getting-started
+    transfi_api_key: str = ""
+    # Optional explicit base URL override (empty = derived from transfi_mode)
+    transfi_base_url: str = ""
+    # HMAC-SHA256 secret used to verify incoming TransFi webhook signatures
+    transfi_webhook_secret: str = ""
+    # "production" (default) or "sandbox"
+    # sandbox uses https://sandbox-api.transfi.com;
+    # production uses https://api.transfi.com.
+    # Override TRANSFI_BASE_URL to use a fully custom endpoint.
+    transfi_mode: str = "production"
+
     # Simple admin authentication
     admin_user_id: str = "admin"
     admin_user_email: str = "admin@paybot.local"
