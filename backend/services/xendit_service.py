@@ -1,7 +1,5 @@
 import logging
-import os
 import uuid
-from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -16,26 +14,32 @@ class XenditService:
     """Service for Xendit payment API integration — full gateway features"""
 
     def __init__(self):
-        self.secret_key = os.environ.get("XENDIT_SECRET_KEY", "")
-        if not self.secret_key:
-            try:
-                from core.config import settings
-                self.secret_key = settings.xendit_secret_key
-                if self.secret_key:
-                    logger.info("XENDIT_SECRET_KEY resolved via settings")
-            except (AttributeError, ImportError) as e:
-                logger.warning(f"Failed to get XENDIT_SECRET_KEY via settings: {e}")
+        self.secret_key = settings.xendit_secret_key
         if not self.secret_key:
             logger.warning("XENDIT_SECRET_KEY not configured - Xendit API calls will fail")
 
+    @property
+    def _http(self) -> httpx.AsyncClient:
+        """Return a shared AsyncClient, creating it lazily on first use."""
+        client = getattr(self, "_client", None)
+        if client is None:
+            self._client = httpx.AsyncClient(timeout=30.0)
+        return self._client
+
+    async def aclose(self) -> None:
+        """Close the shared HTTP client. Call on application shutdown."""
+        client = getattr(self, "_client", None)
+        if client is not None:
+            await client.aclose()
+            self._client = None
+
     def _get_auth(self):
-        key = self.secret_key or settings.xendit_secret_key
-        if not key:
+        if not self.secret_key:
             raise ValueError(
                 "XENDIT_SECRET_KEY is not configured. "
                 "Set it in your .env file or as an environment variable."
             )
-        return (key, "")
+        return (self.secret_key, "")
 
     # ==================== INVOICES ====================
     async def create_invoice(
@@ -56,12 +60,11 @@ class XenditService:
         if customer_email:
             payload["payer_email"] = customer_email
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.post(f"{XENDIT_BASE_URL}/v2/invoices", json=payload, auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                d = r.json()
-                return {"success": True, "invoice_id": d.get("id", ""), "invoice_url": d.get("invoice_url", ""),
-                        "external_id": external_id, "amount": amount, "status": d.get("status", "PENDING")}
+            r = await self._http.post(f"{XENDIT_BASE_URL}/v2/invoices", json=payload, auth=self._get_auth())
+            r.raise_for_status()
+            d = r.json()
+            return {"success": True, "invoice_id": d.get("id", ""), "invoice_url": d.get("invoice_url", ""),
+                    "external_id": external_id, "amount": amount, "status": d.get("status", "PENDING")}
         except httpx.HTTPStatusError as e:
             logger.error(f"Xendit invoice creation failed: {e.response.text}")
             return {"success": False, "error": e.response.text}
@@ -71,19 +74,17 @@ class XenditService:
 
     async def get_invoice(self, invoice_id: str) -> Dict[str, Any]:
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.get(f"{XENDIT_BASE_URL}/v2/invoices/{invoice_id}", auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                return {"success": True, "data": r.json()}
+            r = await self._http.get(f"{XENDIT_BASE_URL}/v2/invoices/{invoice_id}", auth=self._get_auth())
+            r.raise_for_status()
+            return {"success": True, "data": r.json()}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
     async def expire_invoice(self, invoice_id: str) -> Dict[str, Any]:
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.post(f"{XENDIT_BASE_URL}/invoices/{invoice_id}/expire!", auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                return {"success": True, "data": r.json()}
+            r = await self._http.post(f"{XENDIT_BASE_URL}/invoices/{invoice_id}/expire!", auth=self._get_auth())
+            r.raise_for_status()
+            return {"success": True, "data": r.json()}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -95,12 +96,11 @@ class XenditService:
         if description:
             payload["metadata"] = {"description": description}
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.post(f"{XENDIT_BASE_URL}/qr_codes", json=payload, auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                d = r.json()
-                return {"success": True, "qr_id": d.get("id", ""), "qr_string": d.get("qr_string", ""),
-                        "external_id": external_id, "amount": amount, "status": d.get("status", "ACTIVE")}
+            r = await self._http.post(f"{XENDIT_BASE_URL}/qr_codes", json=payload, auth=self._get_auth())
+            r.raise_for_status()
+            d = r.json()
+            return {"success": True, "qr_id": d.get("id", ""), "qr_string": d.get("qr_string", ""),
+                    "external_id": external_id, "amount": amount, "status": d.get("status", "ACTIVE")}
         except httpx.HTTPStatusError as e:
             return {"success": False, "error": e.response.text}
         except Exception as e:
@@ -124,12 +124,11 @@ class XenditService:
             if customer_email:
                 payload["customer"]["email"] = customer_email
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.post(f"{XENDIT_BASE_URL}/v2/invoices", json=payload, auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                d = r.json()
-                return {"success": True, "payment_link_id": d.get("id", ""), "payment_link_url": d.get("invoice_url", ""),
-                        "external_id": external_id, "amount": amount, "status": d.get("status", "PENDING")}
+            r = await self._http.post(f"{XENDIT_BASE_URL}/v2/invoices", json=payload, auth=self._get_auth())
+            r.raise_for_status()
+            d = r.json()
+            return {"success": True, "payment_link_id": d.get("id", ""), "payment_link_url": d.get("invoice_url", ""),
+                    "external_id": external_id, "amount": amount, "status": d.get("status", "PENDING")}
         except httpx.HTTPStatusError as e:
             return {"success": False, "error": e.response.text}
         except Exception as e:
@@ -147,13 +146,12 @@ class XenditService:
             "currency": "PHP",
         }
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.post(f"{XENDIT_BASE_URL}/callback_virtual_accounts", json=payload, auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                d = r.json()
-                return {"success": True, "va_id": d.get("id", ""), "account_number": d.get("account_number", ""),
-                        "bank_code": bank_code, "external_id": external_id, "amount": amount,
-                        "name": d.get("name", name), "status": d.get("status", "PENDING")}
+            r = await self._http.post(f"{XENDIT_BASE_URL}/callback_virtual_accounts", json=payload, auth=self._get_auth())
+            r.raise_for_status()
+            d = r.json()
+            return {"success": True, "va_id": d.get("id", ""), "account_number": d.get("account_number", ""),
+                    "bank_code": bank_code, "external_id": external_id, "amount": amount,
+                    "name": d.get("name", name), "status": d.get("status", "PENDING")}
         except httpx.HTTPStatusError as e:
             return {"success": False, "error": e.response.text}
         except Exception as e:
@@ -175,17 +173,16 @@ class XenditService:
         if mobile_number:
             payload["channel_properties"]["mobile_number"] = mobile_number
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.post(f"{XENDIT_BASE_URL}/ewallets/charges", json=payload, auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                d = r.json()
-                actions = d.get("actions", {})
-                checkout_url = ""
-                if isinstance(actions, dict):
-                    checkout_url = actions.get("desktop_web_checkout_url", "") or actions.get("mobile_web_checkout_url", "") or actions.get("mobile_deeplink_checkout_url", "")
-                return {"success": True, "charge_id": d.get("id", ""), "external_id": external_id,
-                        "amount": amount, "channel_code": channel_code,
-                        "checkout_url": checkout_url, "status": d.get("status", "PENDING")}
+            r = await self._http.post(f"{XENDIT_BASE_URL}/ewallets/charges", json=payload, auth=self._get_auth())
+            r.raise_for_status()
+            d = r.json()
+            actions = d.get("actions", {})
+            checkout_url = ""
+            if isinstance(actions, dict):
+                checkout_url = actions.get("desktop_web_checkout_url", "") or actions.get("mobile_web_checkout_url", "") or actions.get("mobile_deeplink_checkout_url", "")
+            return {"success": True, "charge_id": d.get("id", ""), "external_id": external_id,
+                    "amount": amount, "channel_code": channel_code,
+                    "checkout_url": checkout_url, "status": d.get("status", "PENDING")}
         except httpx.HTTPStatusError as e:
             return {"success": False, "error": e.response.text}
         except Exception as e:
@@ -205,12 +202,11 @@ class XenditService:
             "callback_url": callback_url,
         }
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.post(f"{XENDIT_BASE_URL}/disbursements", json=payload, auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                d = r.json()
-                return {"success": True, "disbursement_id": d.get("id", ""), "external_id": external_id,
-                        "amount": amount, "status": d.get("status", "PENDING")}
+            r = await self._http.post(f"{XENDIT_BASE_URL}/disbursements", json=payload, auth=self._get_auth())
+            r.raise_for_status()
+            d = r.json()
+            return {"success": True, "disbursement_id": d.get("id", ""), "external_id": external_id,
+                    "amount": amount, "status": d.get("status", "PENDING")}
         except httpx.HTTPStatusError as e:
             return {"success": False, "error": e.response.text}
         except Exception as e:
@@ -218,10 +214,9 @@ class XenditService:
 
     async def get_disbursement(self, disbursement_id: str) -> Dict[str, Any]:
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.get(f"{XENDIT_BASE_URL}/disbursements/{disbursement_id}", auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                return {"success": True, "data": r.json()}
+            r = await self._http.get(f"{XENDIT_BASE_URL}/disbursements/{disbursement_id}", auth=self._get_auth())
+            r.raise_for_status()
+            return {"success": True, "data": r.json()}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -232,12 +227,11 @@ class XenditService:
             "invoice_id": invoice_id, "amount": amount, "reason": reason or "REQUESTED_BY_CUSTOMER",
         }
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.post(f"{XENDIT_BASE_URL}/refunds", json=payload, auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                d = r.json()
-                return {"success": True, "refund_id": d.get("id", ""), "external_id": external_id,
-                        "amount": amount, "status": d.get("status", "PENDING")}
+            r = await self._http.post(f"{XENDIT_BASE_URL}/refunds", json=payload, auth=self._get_auth())
+            r.raise_for_status()
+            d = r.json()
+            return {"success": True, "refund_id": d.get("id", ""), "external_id": external_id,
+                    "amount": amount, "status": d.get("status", "PENDING")}
         except httpx.HTTPStatusError as e:
             return {"success": False, "error": e.response.text}
         except Exception as e:
@@ -246,21 +240,19 @@ class XenditService:
     # ==================== BALANCE ====================
     async def get_balance(self, account_type: str = "CASH") -> Dict[str, Any]:
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.get(f"{XENDIT_BASE_URL}/balance?account_type={account_type}", auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                d = r.json()
-                return {"success": True, "balance": d.get("balance", 0)}
+            r = await self._http.get(f"{XENDIT_BASE_URL}/balance?account_type={account_type}", auth=self._get_auth())
+            r.raise_for_status()
+            d = r.json()
+            return {"success": True, "balance": d.get("balance", 0)}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
     # ==================== AVAILABLE BANKS ====================
     async def get_available_banks(self) -> Dict[str, Any]:
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.get(f"{XENDIT_BASE_URL}/available_disbursements_banks", auth=self._get_auth(), timeout=30.0)
-                r.raise_for_status()
-                return {"success": True, "banks": r.json()}
+            r = await self._http.get(f"{XENDIT_BASE_URL}/available_disbursements_banks", auth=self._get_auth())
+            r.raise_for_status()
+            return {"success": True, "banks": r.json()}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -312,16 +304,14 @@ class XenditService:
         if mobile_number:
             payload["mobile_number"] = mobile_number
         try:
-            async with httpx.AsyncClient() as c:
-                r = await c.post(
-                    f"{XENDIT_BASE_URL}/customers",
-                    json=payload,
-                    auth=self._get_auth(),
-                    timeout=30.0,
-                )
-                r.raise_for_status()
-                d = r.json()
-                return {"success": True, "customer_id": d.get("id", ""), "data": d}
+            r = await self._http.post(
+                f"{XENDIT_BASE_URL}/customers",
+                json=payload,
+                auth=self._get_auth(),
+            )
+            r.raise_for_status()
+            d = r.json()
+            return {"success": True, "customer_id": d.get("id", ""), "data": d}
         except httpx.HTTPStatusError as e:
             logger.error("Xendit create_customer failed: %s", e.response.text)
             return {"success": False, "error": e.response.text}

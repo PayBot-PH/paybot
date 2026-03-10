@@ -82,9 +82,7 @@ class PhotonPayService:
         self.site_id = os.environ.get("PHOTONPAY_SITE_ID", "")
         self.alipay_method = os.environ.get("PHOTONPAY_ALIPAY_METHOD", "Alipay")
         self.wechat_method = os.environ.get("PHOTONPAY_WECHAT_METHOD", "WeChat")
-        # "production" (default) or "sandbox"
         self.mode = os.environ.get("PHOTONPAY_MODE", "production").lower().strip()
-        # Explicit base URL override (empty = derive from mode)
         self._base_url_override = os.environ.get("PHOTONPAY_BASE_URL", "").rstrip("/")
 
         # Try settings fallback for any values not already found in os.environ
@@ -131,6 +129,21 @@ class PhotonPayService:
         if self.mode == "sandbox":
             return _PHOTONPAY_SANDBOX_URL
         return _PHOTONPAY_PRODUCTION_URL
+
+    @property
+    def _http(self) -> httpx.AsyncClient:
+        """Return a shared AsyncClient, creating it lazily on first use."""
+        client = getattr(self, "_client", None)
+        if client is None:
+            self._client = httpx.AsyncClient(timeout=30.0)
+        return self._client
+
+    async def aclose(self) -> None:
+        """Close the shared HTTP client. Call on application shutdown."""
+        client = getattr(self, "_client", None)
+        if client is not None:
+            await client.aclose()
+            self._client = None
 
     # ------------------------------------------------------------------
     # Authentication
@@ -182,89 +195,87 @@ class PhotonPayService:
         token_url = f"{self.base_url}{_TOKEN_PATH}"
         logger.debug("PhotonPay: requesting access token from %s", token_url)
 
-        async with httpx.AsyncClient() as client:
-            # PhotonPay OAuth2 client_credentials flow.
-            # The Authorization header uses the standard colon-separated
-            # appId:appSecret encoded as Base64 (RFC 7617 Basic auth).
-            # Endpoint: POST /oauth2/token/accessToken
-            try:
-                r = await client.post(
-                    token_url,
-                    headers={
-                        "Authorization": self._basic_auth_header(),
-                        "Content-Type": "application/x-www-form-urlencoded",
-                    },
-                    data={"grant_type": "client_credentials"},
-                    timeout=30.0,
-                )
-            except httpx.RequestError as exc:
-                raise ValueError(
-                    f"PhotonPay token request failed (network error) — "
-                    f"endpoint: {token_url}, error: {exc}"
-                ) from exc
+        # PhotonPay OAuth2 client_credentials flow.
+        # The Authorization header uses the standard colon-separated
+        # appId:appSecret encoded as Base64 (RFC 7617 Basic auth).
+        # Endpoint: POST /oauth2/token/accessToken
+        try:
+            r = await self._http.post(
+                token_url,
+                headers={
+                    "Authorization": self._basic_auth_header(),
+                    "Content-Type": "application/x-www-form-urlencoded",
+                },
+                data={"grant_type": "client_credentials"},
+            )
+        except httpx.RequestError as exc:
+            raise ValueError(
+                f"PhotonPay token request failed (network error) — "
+                f"endpoint: {token_url}, error: {exc}"
+            ) from exc
 
-            if r.status_code != 200:
-                # Limit the body snippet to avoid log noise; credentials are in
-                # the request Authorization header (not the URL or response body).
-                snippet = r.text[:200]
-                raise ValueError(
-                    f"PhotonPay token endpoint returned HTTP {r.status_code} — "
-                    f"endpoint: {token_url}, body: {snippet}"
-                )
-
-            data = r.json()
-            logger.info("PhotonPay token response: %s", data)
-
-            # Detect API gateway routing/auth error responses.
-            # PhotonPay returns {"path": "<route>", "method": "POST"} (with no
-            # other fields) when the request is rejected at the gateway level —
-            # typically due to wrong APP_ID / APP_SECRET credentials or a
-            # malformed Authorization header.
-            if (
-                "path" in data
-                and "method" in data
-                and "code" not in data
-                and "data" not in data
-                and not any(k in data for k in ("access_token", "accessToken", "token"))
-            ):
-                raise ValueError(
-                    f"PhotonPay token endpoint rejected the request — "
-                    f"verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET "
-                    f"(endpoint: {token_url}, response: {data})"
-                )
-
-            # Fail fast if the API returned an error code in the body
-            code = str(data.get("code", ""))
-            # PhotonPay success codes: "0", "200", "0000", or absent
-            is_success = code in ("0", "200", "0000", "") or code.startswith("0")
-            if not is_success:
-                raise ValueError(
-                    f"PhotonPay token endpoint error {code}: {data.get('msg', 'unknown')} "
-                    f"(endpoint: {token_url})"
-                )
-
-            # Token may live under "data" or directly in the root
-            token_data = data.get("data") or data
-            token = (
-                token_data.get("access_token")
-                or token_data.get("accessToken")
-                or token_data.get("token")
-                or ""
+        if r.status_code != 200:
+            # Limit the body snippet to avoid log noise; credentials are in
+            # the request Authorization header (not the URL or response body).
+            snippet = r.text[:200]
+            raise ValueError(
+                f"PhotonPay token endpoint returned HTTP {r.status_code} — "
+                f"endpoint: {token_url}, body: {snippet}"
             )
 
-            if not token:
-                raise ValueError(
-                    f"PhotonPay returned no access token — full response: {data}"
-                )
+        data = r.json()
+        logger.info("PhotonPay token response: %s", data)
 
-            expires_in = int(
-                token_data.get("expires_in",
-                               token_data.get("expiresIn", 7200)) or 7200
+        # Detect API gateway routing/auth error responses.
+        # PhotonPay returns {"path": "<route>", "method": "POST"} (with no
+        # other fields) when the request is rejected at the gateway level —
+        # typically due to wrong APP_ID / APP_SECRET credentials or a
+        # malformed Authorization header.
+        if (
+            "path" in data
+            and "method" in data
+            and "code" not in data
+            and "data" not in data
+            and not any(k in data for k in ("access_token", "accessToken", "token"))
+        ):
+            raise ValueError(
+                f"PhotonPay token endpoint rejected the request — "
+                f"verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET "
+                f"(endpoint: {token_url}, response: {data})"
             )
-            self._access_token = token
-            self._token_expires_at = time.time() + expires_in
-            logger.info("PhotonPay: access token obtained (expires in %ds)", expires_in)
-            return self._access_token
+
+        # Fail fast if the API returned an error code in the body
+        code = str(data.get("code", ""))
+        # PhotonPay success codes: "0", "200", "0000", or absent
+        is_success = code in ("0", "200", "0000", "") or code.startswith("0")
+        if not is_success:
+            raise ValueError(
+                f"PhotonPay token endpoint error {code}: {data.get('msg', 'unknown')} "
+                f"(endpoint: {token_url})"
+            )
+
+        # Token may live under "data" or directly in the root
+        token_data = data.get("data") or data
+        token = (
+            token_data.get("access_token")
+            or token_data.get("accessToken")
+            or token_data.get("token")
+            or ""
+        )
+
+        if not token:
+            raise ValueError(
+                f"PhotonPay returned no access token — full response: {data}"
+            )
+
+        expires_in = int(
+            token_data.get("expires_in",
+                           token_data.get("expiresIn", 7200)) or 7200
+        )
+        self._access_token = token
+        self._token_expires_at = time.time() + expires_in
+        logger.info("PhotonPay: access token obtained (expires in %ds)", expires_in)
+        return self._access_token
 
     # ------------------------------------------------------------------
     # Payment session creation
@@ -350,41 +361,39 @@ class PhotonPayService:
             logger.warning("PhotonPay: PHOTONPAY_RSA_PRIVATE_KEY not set — X-PD-SIGN header omitted")
 
         try:
-            async with httpx.AsyncClient() as client:
-                r = await client.post(
-                    f"{self.base_url}/txncore/openApi/v4/cashierSession",
-                    headers=headers,
-                    content=body_str.encode("utf-8"),
-                    timeout=30.0,
-                )
-                r.raise_for_status()
-                data = r.json()
-                # Handle nested data or flat response
-                resp = data.get("data") or data
-                auth_code = resp.get("authCode") or resp.get("auth_code") or ""
-                pay_id = resp.get("payId") or resp.get("pay_id") or req_id
-                code = resp.get("code", data.get("code", ""))
-                msg = resp.get("msg", data.get("msg", ""))
+            r = await self._http.post(
+                f"{self.base_url}/txncore/openApi/v4/cashierSession",
+                headers=headers,
+                content=body_str.encode("utf-8"),
+            )
+            r.raise_for_status()
+            data = r.json()
+            # Handle nested data or flat response
+            resp = data.get("data") or data
+            auth_code = resp.get("authCode") or resp.get("auth_code") or ""
+            pay_id = resp.get("payId") or resp.get("pay_id") or req_id
+            code = resp.get("code", data.get("code", ""))
+            msg = resp.get("msg", data.get("msg", ""))
 
-                if not auth_code:
-                    logger.error("PhotonPay: no authCode in response: %s", data)
-                    return {
-                        "success": False,
-                        "error": f"PhotonPay error {code}: {msg or 'no authCode returned'}",
-                    }
-
-                checkout_url = f"{PHOTONPAY_CASHIER_URL}/?code={auth_code}"
-
+            if not auth_code:
+                logger.error("PhotonPay: no authCode in response: %s", data)
                 return {
-                    "success": True,
-                    "auth_code": auth_code,
-                    "pay_id": pay_id,
-                    "checkout_url": checkout_url,
-                    "req_id": req_id,
-                    "pay_method": pay_method,
-                    "amount": amount,
-                    "currency": currency,
+                    "success": False,
+                    "error": f"PhotonPay error {code}: {msg or 'no authCode returned'}",
                 }
+
+            checkout_url = f"{PHOTONPAY_CASHIER_URL}/?code={auth_code}"
+
+            return {
+                "success": True,
+                "auth_code": auth_code,
+                "pay_id": pay_id,
+                "checkout_url": checkout_url,
+                "req_id": req_id,
+                "pay_method": pay_method,
+                "amount": amount,
+                "currency": currency,
+            }
         except httpx.HTTPStatusError as e:
             logger.error("PhotonPay cashierSession HTTP error: %s", e.response.text)
             return {"success": False, "error": e.response.text}

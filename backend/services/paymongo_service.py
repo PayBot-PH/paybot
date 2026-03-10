@@ -57,8 +57,8 @@ class PayMongoService:
             try:
                 from core.config import settings
                 self.secret_key = settings.paymongo_secret_key
-            except (AttributeError, ImportError) as e:
-                logger.warning(f"Failed to get PAYMONGO_SECRET_KEY via settings: {e}")
+            except (AttributeError, ImportError):
+                pass
         if not self.secret_key:
             logger.warning("PAYMONGO_SECRET_KEY not configured — PayMongo API calls will fail")
 
@@ -70,12 +70,29 @@ class PayMongoService:
             except (AttributeError, ImportError):
                 pass
 
-        self.mode = os.environ.get("PAYMONGO_MODE", "test")
-        try:
-            from core.config import settings
-            self.mode = settings.paymongo_mode or self.mode
-        except (AttributeError, ImportError):
-            pass
+        mode = os.environ.get("PAYMONGO_MODE", "")
+        if not mode:
+            try:
+                from core.config import settings
+                mode = settings.paymongo_mode
+            except (AttributeError, ImportError):
+                pass
+        self.mode = mode or "test"
+
+    @property
+    def _http(self) -> httpx.AsyncClient:
+        """Return a shared AsyncClient, creating it lazily on first use."""
+        client = getattr(self, "_client", None)
+        if client is None:
+            self._client = httpx.AsyncClient(timeout=30.0)
+        return self._client
+
+    async def aclose(self) -> None:
+        """Close the shared HTTP client. Call on application shutdown."""
+        client = getattr(self, "_client", None)
+        if client is not None:
+            await client.aclose()
+            self._client = None
 
     def _get_auth(self):
         return (self.secret_key, "")
@@ -222,25 +239,23 @@ class PayMongoService:
         payload = {"data": {"attributes": attributes}}
 
         try:
-            async with httpx.AsyncClient() as client:
-                r = await client.post(
-                    f"{PAYMONGO_BASE_URL}/checkout_sessions",
-                    json=payload,
-                    auth=self._get_auth(),
-                    timeout=30.0,
-                )
-                r.raise_for_status()
-                data = r.json().get("data", {})
-                attrs = data.get("attributes", {})
-                return {
-                    "success": True,
-                    "checkout_session_id": data.get("id", ""),
-                    "reference_number": reference_number,
-                    "checkout_url": attrs.get("checkout_url", ""),
-                    "amount": amount,
-                    "currency": currency,
-                    "status": attrs.get("status", "active"),
-                }
+            r = await self._http.post(
+                f"{PAYMONGO_BASE_URL}/checkout_sessions",
+                json=payload,
+                auth=self._get_auth(),
+            )
+            r.raise_for_status()
+            data = r.json().get("data", {})
+            attrs = data.get("attributes", {})
+            return {
+                "success": True,
+                "checkout_session_id": data.get("id", ""),
+                "reference_number": reference_number,
+                "checkout_url": attrs.get("checkout_url", ""),
+                "amount": amount,
+                "currency": currency,
+                "status": attrs.get("status", "active"),
+            }
         except httpx.HTTPStatusError as e:
             logger.error(f"PayMongo checkout session creation failed: {e.response.text}")
             return {"success": False, "error": e.response.text}
@@ -305,26 +320,24 @@ class PayMongoService:
         }
 
         try:
-            async with httpx.AsyncClient() as client:
-                r = await client.post(
-                    f"{PAYMONGO_BASE_URL}/sources",
-                    json=payload,
-                    auth=self._get_auth(),
-                    timeout=30.0,
-                )
-                r.raise_for_status()
-                data = r.json().get("data", {})
-                attrs = data.get("attributes", {})
-                return {
-                    "success": True,
-                    "source_id": data.get("id", ""),
-                    "reference_number": reference_number,
-                    "checkout_url": attrs.get("redirect", {}).get("checkout_url", ""),
-                    "amount": amount,
-                    "currency": currency,
-                    "status": attrs.get("status", "pending"),
-                    "payment_type": payment_type,
-                }
+            r = await self._http.post(
+                f"{PAYMONGO_BASE_URL}/sources",
+                json=payload,
+                auth=self._get_auth(),
+            )
+            r.raise_for_status()
+            data = r.json().get("data", {})
+            attrs = data.get("attributes", {})
+            return {
+                "success": True,
+                "source_id": data.get("id", ""),
+                "reference_number": reference_number,
+                "checkout_url": attrs.get("redirect", {}).get("checkout_url", ""),
+                "amount": amount,
+                "currency": currency,
+                "status": attrs.get("status", "pending"),
+                "payment_type": payment_type,
+            }
         except httpx.HTTPStatusError as e:
             logger.error(f"PayMongo source creation failed ({payment_type}): {e.response.text}")
             return {"success": False, "error": e.response.text}
@@ -353,14 +366,12 @@ class PayMongoService:
     async def get_source(self, source_id: str) -> Dict[str, Any]:
         """Retrieve a PayMongo source by ID."""
         try:
-            async with httpx.AsyncClient() as client:
-                r = await client.get(
-                    f"{PAYMONGO_BASE_URL}/sources/{source_id}",
-                    auth=self._get_auth(),
-                    timeout=30.0,
-                )
-                r.raise_for_status()
-                return {"success": True, "data": r.json().get("data", {})}
+            r = await self._http.get(
+                f"{PAYMONGO_BASE_URL}/sources/{source_id}",
+                auth=self._get_auth(),
+            )
+            r.raise_for_status()
+            return {"success": True, "data": r.json().get("data", {})}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -374,15 +385,13 @@ class PayMongoService:
             dict with success and data (list of payment objects).
         """
         try:
-            async with httpx.AsyncClient() as client:
-                r = await client.get(
-                    f"{PAYMONGO_BASE_URL}/payments",
-                    params={"limit": min(limit, 100)},
-                    auth=self._get_auth(),
-                    timeout=30.0,
-                )
-                r.raise_for_status()
-                return {"success": True, "data": r.json().get("data", [])}
+            r = await self._http.get(
+                f"{PAYMONGO_BASE_URL}/payments",
+                params={"limit": min(limit, 100)},
+                auth=self._get_auth(),
+            )
+            r.raise_for_status()
+            return {"success": True, "data": r.json().get("data", [])}
         except httpx.HTTPStatusError as e:
             logger.error("PayMongo list_payments failed: %s", e.response.text)
             return {"success": False, "error": e.response.text}
@@ -407,19 +416,17 @@ class PayMongoService:
         Docs: https://developers.paymongo.com/reference/retrieve-balance
         """
         try:
-            async with httpx.AsyncClient() as client:
-                r = await client.get(
-                    f"{PAYMONGO_BASE_URL}/balance",
-                    auth=self._get_auth(),
-                    timeout=30.0,
-                )
-                r.raise_for_status()
-                attrs = r.json().get("data", {}).get("attributes", {})
-                return {
-                    "success": True,
-                    "available": attrs.get("available", []),
-                    "pending": attrs.get("pending", []),
-                }
+            r = await self._http.get(
+                f"{PAYMONGO_BASE_URL}/balance",
+                auth=self._get_auth(),
+            )
+            r.raise_for_status()
+            attrs = r.json().get("data", {}).get("attributes", {})
+            return {
+                "success": True,
+                "available": attrs.get("available", []),
+                "pending": attrs.get("pending", []),
+            }
         except httpx.HTTPStatusError as e:
             logger.error("PayMongo get_balance failed: %s", e.response.text)
             return {"success": False, "error": e.response.text}
