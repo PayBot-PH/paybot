@@ -2,40 +2,49 @@ services:
   - type: web
     name: paybot-backend
     runtime: docker
+    # Multi-stage Dockerfile that builds the React admin dashboard and packages
+    # it together with the FastAPI backend into a single deployable image.
     dockerfilePath: backend/Dockerfile
     dockerContext: .
     plan: starter
+    region: oregon
+    branch: main
+    autoDeploy: true
+    # Only trigger a new build when backend or frontend source files change.
+    buildFilter:
+      paths:
+        - backend/**
+        - frontend/**
     healthCheckPath: /health
+    # Runs inside the deployed container (WORKDIR /app/backend) before the new
+    # version goes live. A migration failure aborts the deploy and keeps the
+    # previous version running.
     preDeployCommand: "alembic upgrade head"
+    # Persistent disk for application logs (mounted at /app/backend/logs).
+    disk:
+      name: paybot-logs
+      mountPath: /app/backend/logs
+      sizeGB: 1
     envVars:
+      # ── Backend public URL ──────────────────────────────────────────────────
+      # Optional: Render automatically sets RENDER_EXTERNAL_URL, which the app
+      # uses as a fallback. Set this only if you need an explicit override (e.g.
+      # custom domain). Example: https://paybot.example.com
       - key: PYTHON_BACKEND_URL
         sync: false
+      # ── Telegram ────────────────────────────────────────────────────────────
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_BOT_USERNAME
         sync: false
-      - key: XENDIT_SECRET_KEY
-        sync: false
-      - key: JWT_SECRET_KEY
-        sync: false
-      - key: JWT_ALGORITHM
-        value: HS256
-      - key: JWT_EXPIRE_MINUTES
-        value: "60"
-      - key: ADMIN_USER_PASSWORD
-        sync: false
       - key: TELEGRAM_ADMIN_IDS
-        sync: false
-      - key: ENVIRONMENT
-        value: production
-      - key: DATABASE_URL
-        fromDatabase:
-          name: paybot-db
-          property: connectionString
-      - key: ALLOWED_ORIGINS
         sync: false
       - key: TELEGRAM_BOT_OWNER_ID
         sync: false
+      # ── Payment gateways ────────────────────────────────────────────────────
+      - key: XENDIT_SECRET_KEY
+        sync: false
+      # PayMongo (GCash, Maya, cards, Alipay, WeChat via PayMongo)
       - key: PAYMONGO_SECRET_KEY
         sync: false
       - key: PAYMONGO_PUBLIC_KEY
@@ -44,6 +53,7 @@ services:
         sync: false
       - key: PAYMONGO_MODE
         value: live
+      # PhotonPay (Alipay / WeChat Pay)
       - key: PHOTONPAY_APP_ID
         sync: false
       - key: PHOTONPAY_APP_SECRET
@@ -62,6 +72,7 @@ services:
         value: "true"
       - key: PHOTONPAY_MODE
         value: production
+      # TransFi (Alipay / WeChat Pay via TransFi)
       - key: TRANSFI_API_KEY
         sync: false
       - key: TRANSFI_WEBHOOK_SECRET
@@ -70,8 +81,30 @@ services:
         value: production
       - key: TRANSFI_BASE_URL
         sync: false
+      # ── Auth & admin ────────────────────────────────────────────────────────
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_MINUTES
+        value: "60"
+      - key: ADMIN_USER_PASSWORD
+        sync: false
+      # ── Application ─────────────────────────────────────────────────────────
+      - key: ENVIRONMENT
+        value: production
+      - key: ALLOWED_ORIGINS
+        sync: false
+      # ── Database (auto-injected from the managed PostgreSQL below) ──────────
+      - key: DATABASE_URL
+        fromDatabase:
+          name: paybot-db
+          property: connectionString
 
 databases:
+  # Managed PostgreSQL database.
+  # Free plan: suitable for testing; expires after 90 days — upgrade to "starter"
+  # in the Render dashboard once you are ready for production.
   - name: paybot-db
     plan: free
     databaseName: paybot
