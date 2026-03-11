@@ -4,17 +4,21 @@
 
 import asyncio
 import importlib
+import logging
 import os
 import pkgutil
 import ssl as _ssl_module
 from logging.config import fileConfig
 
+import asyncpg.exceptions as _asyncpg_exc
 import models
 from alembic import context
 from core.database import Base
 from sqlalchemy import pool
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import create_async_engine
+
+_logger = logging.getLogger(__name__)
 
 # Automatically import all ORM models under Models
 for _, module_name, _ in pkgutil.iter_modules(models.__path__):
@@ -33,16 +37,12 @@ if not database_url:
         from core.config import settings as _settings
         database_url = _settings.database_url
     except (ImportError, AttributeError, Exception) as _e:
-        import logging as _logging
-        _logging.getLogger(__name__).warning("Could not load settings for database URL: %s", _e)
+        _logger.warning("Could not load settings for database URL: %s", _e)
 
 # connect_args to pass to create_async_engine (used for SSL on PostgreSQL)
 _engine_connect_args: dict = {}
 
 if database_url:
-    import logging as _log
-    _alembic_logger = _log.getLogger(__name__)
-
     # Strip stray whitespace / newlines that can appear in Railway/Render env vars.
     database_url = database_url.strip()
 
@@ -52,13 +52,13 @@ if database_url:
 
     # Log the URL scheme for diagnostics without exposing credentials.
     _scheme = database_url.split("://")[0] if "://" in database_url else "<no-scheme>"
-    _alembic_logger.info("Alembic database URL scheme: %s", _scheme)
+    _logger.info("Alembic database URL scheme: %s", _scheme)
 
     # Normalize to async driver.
     try:
         url = make_url(database_url)
     except Exception as _e:
-        _alembic_logger.error(
+        _logger.error(
             "Cannot parse DATABASE_URL (scheme=%s, length=%d, prefix=%r): %s",
             _scheme,
             len(database_url),
@@ -73,9 +73,9 @@ if database_url:
             try:
                 url = make_url(_fallback)
                 database_url = _fallback
-                _alembic_logger.warning("Fell back to DATABASE_PUBLIC_URL for Alembic migrations")
+                _logger.warning("Fell back to DATABASE_PUBLIC_URL for Alembic migrations")
             except Exception as _fe:
-                _alembic_logger.error("DATABASE_PUBLIC_URL is also unparseable: %s", _fe)
+                _logger.error("DATABASE_PUBLIC_URL is also unparseable: %s", _fe)
                 raise _e
         else:
             raise
@@ -107,7 +107,7 @@ if database_url:
             _ssl_ctx.check_hostname = False
             _ssl_ctx.verify_mode = _ssl_module.CERT_NONE
             _engine_connect_args["ssl"] = _ssl_ctx
-            _alembic_logger.info(
+            _logger.info(
                 "asyncpg: enabling SSL for host=%s (sslmode=%s)", _host, _sslmode or "not-set"
             )
     elif url.drivername == "sqlite":
@@ -144,9 +144,24 @@ async def run_migrations_online():
         poolclass=pool.NullPool,
         connect_args=_engine_connect_args,
     )
-    async with connectable.connect() as connection:
-        await connection.run_sync(do_run_migrations)
-    await connectable.dispose()
+    try:
+        async with connectable.connect() as connection:
+            await connection.run_sync(do_run_migrations)
+    except _asyncpg_exc.InvalidPasswordError as _exc:
+        _logger.error(
+            "DATABASE AUTHENTICATION FAILED — the credentials in DATABASE_URL are rejected by "
+            "the PostgreSQL server. Common causes on Render:\n"
+            "  1. The free-plan PostgreSQL database (90-day expiry) has expired and been "
+            "deleted. Upgrade to a paid plan (starter or higher) in the Render dashboard.\n"
+            "  2. The database was manually recreated but DATABASE_URL was not updated.\n"
+            "  3. The database password was rotated. Verify the DATABASE_URL env var in the "
+            "Render service settings matches the current database credentials.\n"
+            "Original error: %s",
+            _exc,
+        )
+        raise
+    finally:
+        await connectable.dispose()
 
 
 def run_migrations():
