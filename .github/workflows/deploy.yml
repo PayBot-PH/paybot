@@ -124,11 +124,76 @@ jobs:
           else
             echo "has_hook=true" >> "$GITHUB_OUTPUT"
           fi
+          if [ -n "$RENDER_API_KEY" ]; then
+            echo "has_api_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_api_key=false" >> "$GITHUB_OUTPUT"
+          fi
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
 
-      - name: Trigger Render deploy
+      - name: Trigger Render deploy and monitor
         if: steps.validate.outputs.has_hook == 'true'
-        run: curl -s --fail-with-body -X POST "$RENDER_DEPLOY_HOOK_URL"
+        run: |
+          set -euo pipefail
+
+          # Trigger the deploy and capture the response
+          RESPONSE=$(curl -s --fail-with-body -X POST "$RENDER_DEPLOY_HOOK_URL")
+          echo "Deploy triggered: $RESPONSE"
+
+          # Extract deploy ID from response if Render API key is available for monitoring
+          if [ "$HAS_API_KEY" = "true" ] && command -v python3 &>/dev/null; then
+            DEPLOY_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('deploy',{}).get('id',''))" 2>/dev/null || echo "")
+            SERVICE_ID=$(echo "$RENDER_DEPLOY_HOOK_URL" | sed -n 's|.*/deploy/\([^?]*\).*|\1|p' || echo "")
+
+            if [ -n "$DEPLOY_ID" ] && [ -n "$SERVICE_ID" ]; then
+              echo "Monitoring deploy $DEPLOY_ID on service $SERVICE_ID..."
+              MAX_WAIT=600  # 10 minutes
+              ELAPSED=0
+              INTERVAL=15
+              while [ $ELAPSED -lt $MAX_WAIT ]; do
+                sleep $INTERVAL
+                ELAPSED=$((ELAPSED + INTERVAL))
+                STATUS_RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+                  "https://api.render.com/v1/deploys/$DEPLOY_ID" 2>/dev/null || echo '{"status":"unknown"}')
+                STATUS=$(echo "$STATUS_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
+                echo "[$ELAPSED s] Deploy status: $STATUS"
+                if [ "$STATUS" = "live" ]; then
+                  echo "✅ Render deployment succeeded (status: live)"
+                  break
+                elif [ "$STATUS" = "deactivated" ] || [ "$STATUS" = "build_failed" ] || [ "$STATUS" = "update_failed" ] || [ "$STATUS" = "canceled" ]; then
+                  echo "❌ Render deployment failed (status: $STATUS)"
+                  # Fetch last 100 lines of deploy logs
+                  LOGS=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+                    "https://api.render.com/v1/services/$SERVICE_ID/deploys/$DEPLOY_ID/logs?limit=100" 2>/dev/null || echo "[]")
+                  echo "--- Deploy logs ---"
+                  echo "$LOGS" | python3 -c "
+          import sys, json
+          raw = sys.stdin.read()
+          try:
+              logs = json.loads(raw)
+              if isinstance(logs, list):
+                  for entry in logs:
+                      print(entry.get('text', entry))
+              else:
+                  print(raw)
+          except json.JSONDecodeError:
+              print('(raw log response):', raw[:2000])
+          " 2>&1
+                  exit 1
+                fi
+              done
+              if [ $ELAPSED -ge $MAX_WAIT ]; then
+                echo "⚠️ Timed out waiting for Render deployment after ${MAX_WAIT}s (last status: $STATUS)"
+              fi
+            else
+              echo "ℹ️ Could not extract deploy/service ID — skipping status monitoring"
+            fi
+          else
+            echo "ℹ️ RENDER_API_KEY not set — deploy triggered but not monitored. Set RENDER_API_KEY secret for status monitoring."
+          fi
         env:
           RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          HAS_API_KEY: ${{ steps.validate.outputs.has_api_key }}
