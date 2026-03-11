@@ -182,9 +182,9 @@ def extract_ids(payload):
     return deploy_id, service_id
 
 deploy_id, service_id = extract_ids(data)
-if deploy_id and not str(deploy_id).startswith("dep-"):
+if deploy_id and not deploy_id_pattern.fullmatch(str(deploy_id)):
     deploy_id = ""
-if service_id and not str(service_id).startswith("srv-"):
+if service_id and not service_id_pattern.fullmatch(str(service_id)):
     service_id = ""
 
 if not service_id:
