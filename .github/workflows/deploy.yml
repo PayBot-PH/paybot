@@ -150,28 +150,33 @@ import re
 import sys
 
 raw = sys.stdin.read().strip()
-deploy_id = ""
-service_id = ""
 
 try:
     data = json.loads(raw) if raw else {}
 except json.JSONDecodeError:
     data = {}
 
-def extract_ids(payload):
-    global deploy_id, service_id
-    if not isinstance(payload, dict):
-        return
-    deploy = payload.get("deploy")
-    if isinstance(deploy, dict):
-        deploy_id = deploy_id or deploy.get("id") or deploy.get("deployId") or deploy.get("deploy_id")
-        service = deploy.get("service")
-        if isinstance(service, dict):
-            service_id = service_id or service.get("id") or service.get("serviceId") or service.get("service_id")
-    deploy_id = deploy_id or payload.get("deployId") or payload.get("deploy_id") or payload.get("id")
-    service_id = service_id or payload.get("serviceId") or payload.get("service_id")
+def pick(mapping, *keys):
+    if not isinstance(mapping, dict):
+        return ""
+    for key in keys:
+        value = mapping.get(key)
+        if value:
+            return value
+    return ""
 
-extract_ids(data)
+def extract_ids(payload):
+    if not isinstance(payload, dict):
+        return "", ""
+    deploy = payload.get("deploy")
+    deploy_id = pick(deploy, "id", "deployId", "deploy_id")
+    service = deploy.get("service") if isinstance(deploy, dict) else {}
+    service_id = pick(service, "id", "serviceId", "service_id")
+    deploy_id = deploy_id or pick(payload, "deployId", "deploy_id", "id")
+    service_id = service_id or pick(payload, "serviceId", "service_id")
+    return deploy_id, service_id
+
+deploy_id, service_id = extract_ids(data)
 
 if not service_id:
     match = re.search(r"srv-[A-Za-z0-9]+", raw)
