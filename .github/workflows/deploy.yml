@@ -150,8 +150,8 @@ import re
 import sys
 
 raw = sys.stdin.read().strip()
-# Render IDs are typically longer than a handful of characters; use a small
-# minimum length heuristic to reduce accidental matches in log text while
+# Render IDs are typically longer than a handful of characters; use a minimum
+# length heuristic (6+) to avoid short accidental matches in log text while
 # remaining flexible if Render adjusts their ID format.
 MIN_ID_LENGTH = 6
 service_id_pattern = re.compile(rf"srv-[A-Za-z0-9]{{{MIN_ID_LENGTH},}}")
@@ -215,9 +215,21 @@ PY
             if [ -n "$DEPLOY_ID" ] && [ -n "$SERVICE_ID" ]; then
               echo "Monitoring deploy $DEPLOY_ID on service $SERVICE_ID..."
               parse_status() {
-                # Return "unknown" when JSON parsing fails to keep status checks resilient
-                # without flooding the polling loop with parse errors.
-                python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown"
+                python3 - <<'PY'
+import json
+import sys
+
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    print("unknown")
+    raise SystemExit(0)
+
+if isinstance(payload, dict):
+    print(payload.get("status", "unknown"))
+else:
+    print("unknown")
+PY
               }
               MAX_WAIT=600  # 10 minutes
               ELAPSED=0
