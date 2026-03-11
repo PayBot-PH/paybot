@@ -150,6 +150,8 @@ import re
 import sys
 
 raw = sys.stdin.read().strip()
+# Render IDs are at least 6 characters long after the prefix; keep a minimum
+# length to reduce accidental matches in log text while remaining flexible.
 service_id_pattern = re.compile(r"srv-[A-Za-z0-9]{6,}")
 deploy_id_pattern = re.compile(r"dep-[A-Za-z0-9]{6,}")
 
@@ -162,13 +164,19 @@ def first_value(mapping, *keys):
     if not isinstance(mapping, dict):
         return ""
     for key in keys:
-        if key in mapping and mapping[key] is not None:
-            raw_value = mapping[key]
-            if isinstance(raw_value, (str, int)):
-                value = str(raw_value).strip()
-                if value:
-                    return value
+        if key not in mapping or mapping[key] is None:
+            continue
+        raw_value = mapping[key]
+        if isinstance(raw_value, (str, int)):
+            value = str(raw_value).strip()
+            if value:
+                return value
     return ""
+
+def validate_id(value, pattern):
+    if not value:
+        return ""
+    return value if pattern.fullmatch(str(value)) else ""
 
 def extract_ids(payload):
     if not isinstance(payload, dict):
@@ -182,10 +190,8 @@ def extract_ids(payload):
     return deploy_id, service_id
 
 deploy_id, service_id = extract_ids(data)
-if deploy_id and not deploy_id_pattern.fullmatch(str(deploy_id)):
-    deploy_id = ""
-if service_id and not service_id_pattern.fullmatch(str(service_id)):
-    service_id = ""
+deploy_id = validate_id(deploy_id, deploy_id_pattern)
+service_id = validate_id(service_id, service_id_pattern)
 
 if not service_id:
     match = service_id_pattern.search(raw)
