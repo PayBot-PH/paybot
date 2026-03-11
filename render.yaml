@@ -103,9 +103,8 @@ services:
 
 databases:
   # Managed PostgreSQL database.
-  # Free plan: suitable for testing; expires after 90 days — upgrade to "starter"
-  # in the Render dashboard once you are ready for production.
+  # Starter plan: persistent (no expiry), suitable for production.
   - name: paybot-db
-    plan: free
+    plan: starter
     databaseName: paybot
     user: paybot
