@@ -190,12 +190,24 @@ Pushing to `main` automatically triggers a Render rebuild (configured via `autoD
 2. Go to **Settings → Deploy Hook**
 3. Copy the URL (looks like `https://api.render.com/deploy/srv-<id>?key=<key>`)
 
-### 4.2 Add as a GitHub Secret
+### 4.2 Get the Render API Key (for deployment monitoring)
+
+1. Open the Render [dashboard](https://dashboard.render.com)
+2. Go to **Account Settings → API Keys**
+3. Click **"Create API Key"** and copy the key
+
+### 4.3 Add as GitHub Secrets
 
 1. GitHub repository → **Settings → Environments → production**
-2. Add secret: `RENDER_DEPLOY_HOOK_URL` = the URL copied above
+2. Add secret: `RENDER_DEPLOY_HOOK_URL` = the deploy hook URL from step 4.1
+3. Add secret: `RENDER_API_KEY` = the API key from step 4.2 *(optional — enables live deployment monitoring)*
 
-The `deploy.yml` workflow will POST to this URL after every successful test run on `main`.
+When `RENDER_API_KEY` is set, the `deploy.yml` workflow will:
+- POST to the deploy hook to trigger a deployment
+- Poll the Render API every 15 seconds (up to 10 minutes) to track the deployment status
+- Print deployment logs and fail the CI run if the Render deploy fails
+
+When only `RENDER_DEPLOY_HOOK_URL` is set (no `RENDER_API_KEY`), the workflow triggers the deploy but does not monitor its outcome.
 
 ---
 
@@ -316,6 +328,7 @@ The workflow uses the `production` environment in GitHub Actions. You can add se
 | `RAILWAY_TOKEN` | Railway project token (see [step 7.1](#71-generate-a-railway-project-token)) |
 | `RAILWAY_SERVICE` | Exact name of the Railway service to deploy (e.g. `backend`) |
 | `RENDER_DEPLOY_HOOK_URL` | Render deploy hook URL (see [Section 4](#4-render-github-actions-integration)) |
+| `RENDER_API_KEY` | Render API key for deployment monitoring — enables live status polling and log retrieval on failure (see [Section 4.2](#42-get-the-render-api-key-for-deployment-monitoring)) |
 
 > **Note:** If either `RAILWAY_TOKEN` or `RAILWAY_SERVICE` is missing or empty, the deployment step will be skipped with a warning message pointing to this guide. To find your service name, open your Railway project dashboard and note the name shown on the service card.
 
@@ -324,6 +337,8 @@ The workflow uses the `production` environment in GitHub Actions. You can add se
 ### 7.3 Render Deploy Hook (optional)
 
 If you also want GitHub Actions to automatically redeploy your Render service on every push to `main`, see [Section 4](#4-render-github-actions-integration) for instructions on getting the deploy hook URL and adding `RENDER_DEPLOY_HOOK_URL` as a GitHub secret.
+
+For live deployment monitoring (status polling and log retrieval on failure), also add the `RENDER_API_KEY` secret (see [Section 4.2](#42-get-the-render-api-key-for-deployment-monitoring)).
 
 > **Note:** If `RENDER_DEPLOY_HOOK_URL` is not set, the Render deploy step is silently skipped — no errors, just a warning. This lets you use Railway-only or Render-only without changing the workflow.
 
