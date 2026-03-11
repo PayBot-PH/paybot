@@ -142,13 +142,95 @@ jobs:
           RESPONSE=$(curl -s --fail-with-body -X POST "$RENDER_DEPLOY_HOOK_URL")
           echo "Deploy triggered: $RESPONSE"
 
-          # Extract deploy ID from response if Render API key is available for monitoring
+          # Extract deploy/service IDs from the response if Render API key is available for monitoring
           if [ "$HAS_API_KEY" = "true" ] && command -v python3 &>/dev/null; then
-            DEPLOY_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('deploy',{}).get('id',''))" 2>/dev/null || echo "")
-            SERVICE_ID=$(echo "$RENDER_DEPLOY_HOOK_URL" | sed -n 's|.*/deploy/\([^?]*\).*|\1|p' || echo "")
+            read -r DEPLOY_ID SERVICE_ID <<< "$(echo "$RESPONSE" | python3 - <<'PY'
+import json
+import re
+import sys
+
+raw = sys.stdin.read().strip()
+# Render IDs are typically longer than a handful of characters; use a minimum
+# length heuristic (6+) to avoid short accidental matches in log text while
+# remaining flexible if Render adjusts their ID format.
+MIN_ID_LENGTH = 6
+service_id_pattern = re.compile(rf"srv-[A-Za-z0-9]{{{MIN_ID_LENGTH},}}")
+deploy_id_pattern = re.compile(rf"dep-[A-Za-z0-9]{{{MIN_ID_LENGTH},}}")
+
+try:
+    data = json.loads(raw) if raw else {}
+except json.JSONDecodeError:
+    data = {}
+
+def first_value(mapping, *keys):
+    # Expects flat string/int values; nested dictionaries are ignored.
+    if not isinstance(mapping, dict):
+        return ""
+    for key in keys:
+        if key not in mapping or mapping[key] is None:
+            continue
+        raw_value = mapping[key]
+        if isinstance(raw_value, (str, int)):
+            value = str(raw_value).strip()
+            if value:
+                return value
+    return ""
+
+def validate_id(value, pattern):
+    if not value:
+        return ""
+    return value if pattern.fullmatch(str(value)) else ""
+
+def extract_ids(payload):
+    if not isinstance(payload, dict):
+        return "", ""
+    deploy = payload.get("deploy")
+    deploy_id = first_value(deploy, "id", "deployId", "deploy_id")
+    service = deploy.get("service") if isinstance(deploy, dict) else {}
+    service_id = first_value(service, "id", "serviceId", "service_id")
+    deploy_id = deploy_id or first_value(payload, "deployId", "deploy_id", "id")
+    service_id = service_id or first_value(payload, "serviceId", "service_id")
+    return deploy_id, service_id
+
+deploy_id, service_id = extract_ids(data)
+deploy_id = validate_id(deploy_id, deploy_id_pattern)
+service_id = validate_id(service_id, service_id_pattern)
+
+if not service_id:
+    match = service_id_pattern.search(raw)
+    if match:
+        service_id = match.group(0)
+if not deploy_id:
+    match = deploy_id_pattern.search(raw)
+    if match:
+        deploy_id = match.group(0)
+
+print(deploy_id, service_id)
+PY
+)"
+            if [ -z "$SERVICE_ID" ]; then
+              SERVICE_ID=$(echo "$RENDER_DEPLOY_HOOK_URL" | sed -n 's|.*/deploy/\([^?]*\).*|\1|p' || echo "")
+            fi
 
             if [ -n "$DEPLOY_ID" ] && [ -n "$SERVICE_ID" ]; then
               echo "Monitoring deploy $DEPLOY_ID on service $SERVICE_ID..."
+              parse_status() {
+                python3 - <<'PY'
+import json
+import sys
+
+try:
+    payload = json.load(sys.stdin)
+except Exception:
+    print("unknown")
+    raise SystemExit(0)
+
+if isinstance(payload, dict):
+    print(payload.get("status", "unknown"))
+else:
+    print("unknown")
+PY
+              }
               MAX_WAIT=600  # 10 minutes
               ELAPSED=0
               INTERVAL=15
@@ -156,8 +238,13 @@ jobs:
                 sleep $INTERVAL
                 ELAPSED=$((ELAPSED + INTERVAL))
                 STATUS_RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
-                  "https://api.render.com/v1/deploys/$DEPLOY_ID" 2>/dev/null || echo '{"status":"unknown"}')
-                STATUS=$(echo "$STATUS_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
+                  "https://api.render.com/v1/services/$SERVICE_ID/deploys/$DEPLOY_ID" 2>/dev/null || echo '{"status":"unknown"}')
+                STATUS=$(echo "$STATUS_RESPONSE" | parse_status)
+                if [ "$STATUS" = "unknown" ]; then
+                  STATUS_RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
+                    "https://api.render.com/v1/deploys/$DEPLOY_ID" 2>/dev/null || echo '{"status":"unknown"}')
+                  STATUS=$(echo "$STATUS_RESPONSE" | parse_status)
+                fi
                 echo "[$ELAPSED s] Deploy status: $STATUS"
                 if [ "$STATUS" = "live" ]; then
                   echo "✅ Render deployment succeeded (status: live)"
