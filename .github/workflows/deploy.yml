@@ -152,8 +152,9 @@ import sys
 raw = sys.stdin.read().strip()
 # Render IDs are at least 6 characters long after the prefix; keep a minimum
 # length to reduce accidental matches in log text while remaining flexible.
-service_id_pattern = re.compile(r"srv-[A-Za-z0-9]{6,}")
-deploy_id_pattern = re.compile(r"dep-[A-Za-z0-9]{6,}")
+MIN_ID_LENGTH = 6
+service_id_pattern = re.compile(rf"srv-[A-Za-z0-9]{{{MIN_ID_LENGTH},}}")
+deploy_id_pattern = re.compile(rf"dep-[A-Za-z0-9]{{{MIN_ID_LENGTH},}}")
 
 try:
     data = json.loads(raw) if raw else {}
@@ -161,6 +162,7 @@ except json.JSONDecodeError:
     data = {}
 
 def first_value(mapping, *keys):
+    # Expects flat string/int values; nested dictionaries are ignored.
     if not isinstance(mapping, dict):
         return ""
     for key in keys:
@@ -212,6 +214,7 @@ PY
             if [ -n "$DEPLOY_ID" ] && [ -n "$SERVICE_ID" ]; then
               echo "Monitoring deploy $DEPLOY_ID on service $SERVICE_ID..."
               parse_status() {
+                # Return "unknown" when JSON parsing fails to keep status checks resilient.
                 python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown"
               }
               MAX_WAIT=600  # 10 minutes
