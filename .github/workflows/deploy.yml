@@ -156,7 +156,7 @@ try:
 except json.JSONDecodeError:
     data = {}
 
-def pick(mapping, *keys):
+def first_value(mapping, *keys):
     if not isinstance(mapping, dict):
         return ""
     for key in keys:
@@ -169,11 +169,11 @@ def extract_ids(payload):
     if not isinstance(payload, dict):
         return "", ""
     deploy = payload.get("deploy")
-    deploy_id = pick(deploy, "id", "deployId", "deploy_id")
+    deploy_id = first_value(deploy, "id", "deployId", "deploy_id")
     service = deploy.get("service") if isinstance(deploy, dict) else {}
-    service_id = pick(service, "id", "serviceId", "service_id")
-    deploy_id = deploy_id or pick(payload, "deployId", "deploy_id", "id")
-    service_id = service_id or pick(payload, "serviceId", "service_id")
+    service_id = first_value(service, "id", "serviceId", "service_id")
+    deploy_id = deploy_id or first_value(payload, "deployId", "deploy_id", "id")
+    service_id = service_id or first_value(payload, "serviceId", "service_id")
     return deploy_id, service_id
 
 deploy_id, service_id = extract_ids(data)
@@ -196,6 +196,9 @@ PY
 
             if [ -n "$DEPLOY_ID" ] && [ -n "$SERVICE_ID" ]; then
               echo "Monitoring deploy $DEPLOY_ID on service $SERVICE_ID..."
+              parse_status() {
+                python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown"
+              }
               MAX_WAIT=600  # 10 minutes
               ELAPSED=0
               INTERVAL=15
@@ -204,11 +207,11 @@ PY
                 ELAPSED=$((ELAPSED + INTERVAL))
                 STATUS_RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
                   "https://api.render.com/v1/services/$SERVICE_ID/deploys/$DEPLOY_ID" 2>/dev/null || echo '{"status":"unknown"}')
-                STATUS=$(echo "$STATUS_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
+                STATUS=$(echo "$STATUS_RESPONSE" | parse_status)
                 if [ "$STATUS" = "unknown" ]; then
                   STATUS_RESPONSE=$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" \
                     "https://api.render.com/v1/deploys/$DEPLOY_ID" 2>/dev/null || echo '{"status":"unknown"}')
-                  STATUS=$(echo "$STATUS_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('status','unknown'))" 2>/dev/null || echo "unknown")
+                  STATUS=$(echo "$STATUS_RESPONSE" | parse_status)
                 fi
                 echo "[$ELAPSED s] Deploy status: $STATUS"
                 if [ "$STATUS" = "live" ]; then
