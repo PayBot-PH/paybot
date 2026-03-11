@@ -136,7 +136,6 @@ def _seed_transaction(user_id: str, external_id: str, amount: float = 500.0) -> 
 
     asyncio.get_event_loop().run_until_complete(_do())
 
-
 def _get_wallet_balance(user_id: str) -> float:
     """Read the PHP wallet balance for *user_id* from the test DB."""
     from core.database import db_manager

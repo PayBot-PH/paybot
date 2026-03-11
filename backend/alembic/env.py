@@ -150,12 +150,7 @@ async def run_migrations_online():
 
 
 def run_migrations():
-    try:
-        # If there is no event loop currently, use asyncio.run directly
-        loop = asyncio.get_running_loop()
-        loop.create_task(run_migrations_online())
-    except RuntimeError:
-        asyncio.run(run_migrations_online())
+    asyncio.run(run_migrations_online())
 
 
 run_migrations()
