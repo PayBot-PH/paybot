@@ -253,14 +253,18 @@ def _make_noop_async_client():
     return client
 
 
-def _make_full_service(app_id: str = "test-app", app_secret: str = "test-secret") -> PhotonPayService:
+def _make_full_service(
+    app_id: str = "test-app",
+    app_secret: str = "test-secret",
+    site_id: str = "test-site",
+) -> PhotonPayService:
     """Return a PhotonPayService instance with minimal credentials set."""
     svc = PhotonPayService.__new__(PhotonPayService)
     svc.app_id = app_id
     svc.app_secret = app_secret
     svc.rsa_private_key_pem = ""
     svc.rsa_public_key_pem = ""
-    svc.site_id = ""
+    svc.site_id = site_id
     svc.alipay_method = "Alipay"
     svc.wechat_method = "WeChat"
     svc.mode = "production"
@@ -669,9 +673,19 @@ class TestPhotonPayMissingCredentials:
         svc = _make_full_service(app_id="app-id", app_secret="")
         assert svc.is_configured is False
 
-    def test_is_configured_true_when_both_present(self):
-        """is_configured returns True when both app_id and app_secret are set."""
-        svc = _make_full_service(app_id="app-id", app_secret="secret")
+    def test_is_configured_false_when_site_id_missing(self):
+        """is_configured returns False when site_id is empty.
+
+        PHOTONPAY_SITE_ID is required for the cashier session API.  Without it the
+        gateway rejects every payment request, so PhotonPay should be considered
+        unconfigured and the cascade should skip to the next provider.
+        """
+        svc = _make_full_service(app_id="app-id", app_secret="secret", site_id="")
+        assert svc.is_configured is False
+
+    def test_is_configured_true_when_all_required_fields_present(self):
+        """is_configured returns True when app_id, app_secret, and site_id are all set."""
+        svc = _make_full_service(app_id="app-id", app_secret="secret", site_id="site-123")
         assert svc.is_configured is True
 
 
@@ -746,7 +760,7 @@ class TestPhotonPayConfiguredButFailing:
         """is_configured returns True for wrong-but-set credentials (fallback triggered on failure)."""
         # Credentials are set (non-empty) but wrong — is_configured must be True
         # so the code attempts PhotonPay first and falls back on failure.
-        svc = _make_full_service(app_id="invalid-app-id", app_secret="invalid-secret")
+        svc = _make_full_service(app_id="invalid-app-id", app_secret="invalid-secret", site_id="invalid-site")
         assert svc.is_configured is True, (
             "is_configured must be True when credentials are set even if they are wrong; "
             "the fallback is triggered by the failure result, not by is_configured=False."

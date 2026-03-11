@@ -51,7 +51,6 @@ from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
 from services.photonpay_service import PhotonPayService
 from services.transfi_service import TransFiService
-from services.xendit_service import XenditService
 
 logger = logging.getLogger(__name__)
 
@@ -298,61 +297,21 @@ async def create_alipay_session(
                     "message": "Alipay session created via PayMongo. Open the URL and scan QR to pay — wallet credited automatically.",
                 }
             else:
-                logger.warning("PayMongo Alipay failed (%s), trying Xendit fallback", pm_result.get("error", ""))
+                logger.warning("PayMongo Alipay failed (%s)", pm_result.get("error", ""))
 
-        # Final fallback: Xendit Alipay QR
-        xendit_svc = XenditService()
-        if not xendit_svc.secret_key:
-            raise HTTPException(
-                status_code=503,
-                detail="Alipay payments are not available: no payment provider (PhotonPay, PayMongo, Xendit) is configured. Contact the administrator.",
-            )
-        xendit_result = await xendit_svc.create_alipay_qr(
-            amount=req.amount,
-            description=req.description,
+        # No provider could handle Alipay.  Xendit creates Philippine QRIS (QR Ph) codes
+        # which are incompatible with the Chinese Alipay app, so it is not a valid fallback.
+        # Real Alipay support requires PhotonPay (PHOTONPAY_APP_ID + PHOTONPAY_APP_SECRET +
+        # PHOTONPAY_SITE_ID + PHOTONPAY_RSA_PRIVATE_KEY) or TransFi (TRANSFI_API_KEY).
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Alipay payments are not available. "
+                "Configure PhotonPay (PHOTONPAY_APP_ID, PHOTONPAY_APP_SECRET, PHOTONPAY_SITE_ID, "
+                "PHOTONPAY_RSA_PRIVATE_KEY) or TransFi (TRANSFI_API_KEY) to enable real Alipay QR payments. "
+                "Contact the administrator."
+            ),
         )
-        if not xendit_result.get("success"):
-            raise HTTPException(status_code=502, detail=xendit_result.get("error", "Xendit error"))
-        xendit_external_id = xendit_result.get("external_id", "")
-        xendit_qr_string = xendit_result.get("qr_string", "")
-        now = datetime.now()
-        topup = WalletTopup(
-            user_id=str(current_user.id),
-            amount=req.amount,
-            currency="PHP",
-            reference_number=xendit_external_id,
-            payment_method="alipay",
-            status="pending",
-            description=req.description,
-            checkout_url=xendit_qr_string,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(topup)
-        txn = Transactions(
-            user_id=str(current_user.id),
-            transaction_type="alipay_qr",
-            external_id=xendit_external_id,
-            xendit_id=xendit_result.get("qr_id", ""),
-            amount=req.amount,
-            currency="PHP",
-            status="pending",
-            description=req.description,
-            qr_code_url=xendit_qr_string,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(txn)
-        await db.commit()
-        return {
-            "success": True,
-            "checkout_url": xendit_qr_string,
-            "req_id": xendit_external_id,
-            "amount": req.amount,
-            "currency": req.currency,
-            "pay_method": "Alipay",
-            "message": "Alipay QR created via Xendit. Scan QR to pay — wallet credited automatically.",
-        }
 
     # PhotonPay success path — persist pending transaction
     now = datetime.now()
@@ -474,7 +433,12 @@ async def create_wechat_session(
         if not pm_svc.secret_key:
             raise HTTPException(
                 status_code=503,
-                detail="WeChat Pay is not available: neither PhotonPay nor PayMongo is configured. Contact the administrator.",
+                detail=(
+                    "WeChat Pay is not available. "
+                    "Configure PhotonPay (PHOTONPAY_APP_ID, PHOTONPAY_APP_SECRET, PHOTONPAY_SITE_ID, "
+                    "PHOTONPAY_RSA_PRIVATE_KEY) or TransFi (TRANSFI_API_KEY) to enable WeChat Pay. "
+                    "Contact the administrator."
+                ),
             )
         result = await pm_svc.create_wechat_qr(
             amount=req.amount,
@@ -483,7 +447,17 @@ async def create_wechat_session(
             failed_url=f"{backend_url}/api/v1/paymongo/redirect/failed",
         )
         if not result.get("success"):
-            raise HTTPException(status_code=502, detail=result.get("error", "PayMongo error"))
+            # PayMongo may not support WeChat as a source type for all merchants.
+            logger.warning("PayMongo WeChat failed: %s", result.get("error", ""))
+            raise HTTPException(
+                status_code=503,
+                detail=(
+                    "WeChat Pay is not available. "
+                    "Configure PhotonPay (PHOTONPAY_APP_ID, PHOTONPAY_APP_SECRET, PHOTONPAY_SITE_ID, "
+                    "PHOTONPAY_RSA_PRIVATE_KEY) or TransFi (TRANSFI_API_KEY) to enable WeChat Pay. "
+                    "Contact the administrator."
+                ),
+            )
 
         source_id = result.get("source_id", "")
         reference_number = result.get("reference_number", "")

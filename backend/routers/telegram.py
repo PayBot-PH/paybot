@@ -1557,34 +1557,39 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             else:
                                 logger.warning("PayMongo Alipay failed (%s), trying Xendit fallback", pm_result.get("error", ""))
 
-                    # 4. Final fallback: Xendit
+                    # 4. No more fallbacks: Xendit creates Philippine QRIS (QR Ph) codes
+                    # which are NOT compatible with the Chinese Alipay app.  Showing
+                    # a QRIS QR while telling users to "scan with Alipay" is misleading.
+                    # Real Alipay support requires TransFi or PhotonPay.
                     if result is None:
-                        xendit_svc = XenditService()
-                        if not xendit_svc.secret_key:
-                            await tg.send_message(
-                                chat_id,
-                                "❌ <b>Alipay payments are not available at this time.</b>\n\n"
-                                "Please contact the bot administrator to enable this payment method.",
-                            )
-                            await _safe_log(db, chat_id, username, text)
-                            return {"status": "ok"}
-                        result = await xendit_svc.create_alipay_qr(
-                            amount=amount,
-                            description=description,
+                        await tg.send_message(
+                            chat_id,
+                            "❌ <b>Alipay payments are not available at this time.</b>\n\n"
+                            "Real Alipay QR payments require PhotonPay or TransFi to be configured.\n"
+                            "Please contact the bot administrator.",
                         )
-                        ref_num = result.get("external_id", "")
-                        xendit_id = result.get("qr_id", "")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
                         qr_content = checkout_url or result.get("qr_string", "")
                         qr_img_url = _make_qr_url(qr_content) if qr_content else ""
+                        # Provider-specific messaging so users get accurate instructions.
+                        if checkout_url:
+                            # TransFi / PhotonPay / PayMongo: checkout page hosts the actual Alipay QR.
+                            pay_instructions = (
+                                "📱 Tap <b>Pay via Alipay</b> to open the payment page and scan the\n"
+                                "   QR code shown there with your Alipay app."
+                            )
+                        else:
+                            pay_instructions = "📱 Scan the QR code with your Alipay app."
                         caption = (
                             f"✅ <b>Alipay Payment Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
                             f"🆔 <code>{ref_num}</code>\n\n"
-                            f"📱 Scan the QR code with your Alipay app, or tap the button below.\n"
+                            f"{pay_instructions}\n"
                             f"💳 Your PHP wallet will be credited automatically once paid."
                         )
                         keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay", "url": checkout_url}]]} if checkout_url else None
@@ -1674,7 +1679,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             await tg.send_message(
                                 chat_id,
                                 "❌ <b>WeChat Pay is not available at this time.</b>\n\n"
-                                "Please contact the bot administrator to enable this payment method.",
+                                "WeChat Pay requires PhotonPay or TransFi to be configured.\n"
+                                "Please contact the bot administrator.",
                             )
                             await _safe_log(db, chat_id, username, text)
                             return {"status": "ok"}
@@ -1684,18 +1690,38 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             success_url=f"{settings.backend_url}/api/v1/paymongo/redirect/success",
                             failed_url=f"{settings.backend_url}/api/v1/paymongo/redirect/failed",
                         )
+                        if not result.get("success"):
+                            # PayMongo does not support WeChat as a source type for all merchants.
+                            # Show a friendly error rather than leaking raw API response JSON.
+                            logger.warning("PayMongo WeChat failed: %s", result.get("error", ""))
+                            await tg.send_message(
+                                chat_id,
+                                "❌ <b>WeChat Pay is not available at this time.</b>\n\n"
+                                "WeChat Pay requires PhotonPay or TransFi to be configured.\n"
+                                "Please contact the bot administrator.",
+                            )
+                            await _safe_log(db, chat_id, username, text)
+                            return {"status": "ok"}
                         ref_num = result.get("reference_number", "")
                         xendit_id = result.get("source_id", "")
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
                         qr_img_url = _make_qr_url(checkout_url) if checkout_url else ""
+                        # Provider-specific messaging.
+                        if checkout_url:
+                            pay_instructions = (
+                                "📱 Tap <b>Pay via WeChat</b> to open the payment page and scan\n"
+                                "   the QR code shown there with your WeChat app."
+                            )
+                        else:
+                            pay_instructions = "📱 Scan the QR code with your WeChat app."
                         caption = (
                             f"✅ <b>WeChat Pay Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
                             f"🆔 <code>{ref_num}</code>\n\n"
-                            f"📱 Scan the QR code with WeChat, or tap the button below.\n"
+                            f"{pay_instructions}\n"
                             f"💳 Your PHP wallet will be credited automatically once paid."
                         )
                         keyboard = {"inline_keyboard": [[{"text": "💚 Pay via WeChat", "url": checkout_url}]]} if checkout_url else None
@@ -1721,8 +1747,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 await db.rollback()
                             except Exception:
                                 pass
-                    else:
-                        await tg.send_message(chat_id, f"❌ WeChat Pay failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
