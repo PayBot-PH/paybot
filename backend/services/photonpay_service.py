@@ -118,8 +118,14 @@ class PhotonPayService:
 
     @property
     def is_configured(self) -> bool:
-        """Return True when the minimum required credentials (app_id + app_secret) are present."""
-        return bool(self.app_id and self.app_secret)
+        """Return True when all credentials required for a cashier session are present.
+
+        PHOTONPAY_SITE_ID is mandatory for the ``/txncore/openApi/v4/cashierSession``
+        request (``siteId`` field).  Without it, the API rejects the session creation
+        even when a valid access token is obtained, causing silent fall-through to the
+        next payment provider.
+        """
+        return bool(self.app_id and self.app_secret and self.site_id)
 
     @property
     def base_url(self) -> str:

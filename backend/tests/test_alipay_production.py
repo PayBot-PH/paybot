@@ -136,7 +136,6 @@ def _seed_transaction(user_id: str, external_id: str, amount: float = 500.0) -> 
 
     asyncio.get_event_loop().run_until_complete(_do())
 
-
 def _get_wallet_balance(user_id: str) -> float:
     """Read the PHP wallet balance for *user_id* from the test DB."""
     from core.database import db_manager
@@ -323,21 +322,15 @@ class TestAlipayBotCommand:
 
     # ── Xendit final fallback ─────────────────────────────────────────────
 
-    def test_xendit_final_fallback_success(self, client):
-        """When all other providers are unavailable, Xendit is the final fallback."""
+    def test_no_real_alipay_provider_returns_ok_with_error_message(self, client):
+        """When no real Alipay provider is configured, /alipay sends a message and returns ok.
+
+        Xendit creates Philippine QRIS codes (incompatible with Chinese Alipay), so it is NOT
+        used as a fallback any more.  Without TransFi, PhotonPay, or PayMongo the bot must
+        send a message (not crash) and return {"status": "ok"}.
+        """
         for k in ("TRANSFI_API_KEY", "PHOTONPAY_APP_ID", "PHOTONPAY_APP_SECRET", "PAYMONGO_SECRET_KEY"):
             os.environ.pop(k, None)
-        os.environ["XENDIT_SECRET_KEY"] = "xnd_test_key"
-
-        xendit_mock = AsyncMock()
-        xendit_mock.secret_key = "xnd_test_key"
-        xendit_mock.create_alipay_qr = AsyncMock(return_value={
-            "success": True,
-            "qr_string": "https://qr.xendit.co/alipay/xnd-alipay-001",
-            "qr_id": "qr-001",
-            "external_id": "alipay-xnd-001",
-            "amount": 500.0,
-        })
 
         transfi_mock = MagicMock()
         transfi_mock.is_configured = False
@@ -350,14 +343,13 @@ class TestAlipayBotCommand:
         with patch("routers.telegram.TransFiService", return_value=transfi_mock), \
              patch("routers.telegram.PhotonPayService", return_value=photonpay_mock), \
              patch("routers.telegram.PayMongoService", return_value=pm_mock), \
-             patch("routers.telegram.XenditService", return_value=xendit_mock), \
              patch("routers.telegram.TelegramService", return_value=mock_tg):
             r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/alipay 500 prod test"))
         assert r.status_code == 200
         assert r.json()["status"] == "ok"
-        all_calls = mock_tg.send_message.call_args_list + mock_tg.send_photo.call_args_list
-        assert len(all_calls) >= 1
-        os.environ.pop("XENDIT_SECRET_KEY", None)
+        # Bot must have sent some message (not a photo, not a crash).
+        mock_tg.send_message.assert_called()
+        mock_tg.send_photo.assert_not_called()
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -454,35 +446,28 @@ class TestAlipaySessionEndpoint:
         assert data["success"] is True
         assert "checkout_url" in data
 
-    def test_xendit_final_fallback_returns_checkout_url(self, client, auth_headers):
-        """Xendit (final fallback) path returns success=True with a checkout_url."""
+    def test_no_real_alipay_provider_returns_503(self, client, auth_headers):
+        """When TransFi, PhotonPay, and PayMongo are all absent, the endpoint returns HTTP 503.
+
+        Xendit QRIS is NOT used as a fallback because it creates Philippine QR Ph codes that
+        are incompatible with the Chinese Alipay app.
+        """
         transfi_mock = MagicMock()
         transfi_mock.is_configured = False
         photonpay_mock = MagicMock()
         photonpay_mock.is_configured = False
         pm_mock = MagicMock()
         pm_mock.secret_key = ""
-        xendit_mock = AsyncMock()
-        xendit_mock.secret_key = "xnd_test_key"
-        xendit_mock.create_alipay_qr = AsyncMock(return_value={
-            "success": True,
-            "qr_string": "https://qr.xendit.co/xnd-test",
-            "qr_id": "qr-xnd-test",
-            "external_id": "alipay-xnd-test",
-            "amount": 500.0,
-        })
         with patch("routers.photonpay.TransFiService", return_value=transfi_mock), \
              patch("routers.photonpay.PhotonPayService", return_value=photonpay_mock), \
-             patch("routers.photonpay.PayMongoService", return_value=pm_mock), \
-             patch("routers.photonpay.XenditService", return_value=xendit_mock):
+             patch("routers.photonpay.PayMongoService", return_value=pm_mock):
             r = client.post(
                 "/api/v1/photonpay/alipay-session",
                 json={"amount": 500.0, "currency": "PHP"},
                 headers=auth_headers,
             )
-        assert r.status_code == 200
-        data = r.json()
-        assert data["success"] is True
+        assert r.status_code == 503
+        assert "PhotonPay" in r.json().get("detail", "") or "TransFi" in r.json().get("detail", "")
 
     def test_no_provider_configured_returns_503(self, client, auth_headers):
         """When all providers fail, the endpoint returns HTTP 503."""
@@ -492,12 +477,9 @@ class TestAlipaySessionEndpoint:
         photonpay_mock.is_configured = False
         pm_mock = MagicMock()
         pm_mock.secret_key = ""
-        xendit_mock = MagicMock()
-        xendit_mock.secret_key = ""
         with patch("routers.photonpay.TransFiService", return_value=transfi_mock), \
              patch("routers.photonpay.PhotonPayService", return_value=photonpay_mock), \
-             patch("routers.photonpay.PayMongoService", return_value=pm_mock), \
-             patch("routers.photonpay.XenditService", return_value=xendit_mock):
+             patch("routers.photonpay.PayMongoService", return_value=pm_mock):
             r = client.post(
                 "/api/v1/photonpay/alipay-session",
                 json={"amount": 500.0, "currency": "PHP"},
@@ -815,12 +797,160 @@ class TestTransFiAlipayWebhook:
         os.environ.pop("TRANSFI_WEBHOOK_VERIFY_REQUIRED", None)
 
 
+
+# ════════════════════════════════════════════════════════════════════════════
+# WeChat bot command tests
+# ════════════════════════════════════════════════════════════════════════════
+
+class TestWeChatBotCommand:
+    """Validate the /wechat Telegram bot command across all provider paths."""
+
+    def test_missing_amount_returns_ok(self, client):
+        """/wechat with no arguments shows a wizard prompt and returns ok."""
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_negative_amount_returns_ok(self, client):
+        """/wechat -100 desc should be rejected gracefully."""
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat -100 test"))
+        assert r.status_code == 200
+
+    def test_zero_amount_returns_ok(self, client):
+        """/wechat 0 desc should be rejected gracefully."""
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat 0 test"))
+        assert r.status_code == 200
+
+    def test_invalid_amount_returns_ok(self, client):
+        """/wechat abc desc should be rejected gracefully (no crash)."""
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat abc test"))
+        assert r.status_code == 200
+
+    def test_no_provider_configured_sends_some_message(self, client):
+        """When no WeChat provider is configured, bot sends some message (no crash)."""
+        for k in ("TRANSFI_API_KEY", "PHOTONPAY_APP_ID", "PHOTONPAY_APP_SECRET",
+                  "PHOTONPAY_SITE_ID", "PAYMONGO_SECRET_KEY"):
+            os.environ.pop(k, None)
+
+        transfi_mock = MagicMock()
+        transfi_mock.is_configured = False
+        photonpay_mock = MagicMock()
+        photonpay_mock.is_configured = False
+        pm_mock = MagicMock()
+        pm_mock.secret_key = ""
+
+        mock_tg = _build_mock_tg()
+        with patch("routers.telegram.TransFiService", return_value=transfi_mock), \
+             patch("routers.telegram.PhotonPayService", return_value=photonpay_mock), \
+             patch("routers.telegram.PayMongoService", return_value=pm_mock), \
+             patch("routers.telegram.TelegramService", return_value=mock_tg):
+            r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat 500 test"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        mock_tg.send_message.assert_called()
+
+    def test_transfi_provider_success(self, client):
+        """When TransFi is configured, /wechat bot command completes without error."""
+        os.environ["TRANSFI_API_KEY"] = "test-transfi-key"
+        try:
+            transfi_mock = AsyncMock()
+            transfi_mock.is_configured = True
+            transfi_mock.create_wechat_invoice = AsyncMock(return_value={
+                "success": True,
+                "checkout_url": "https://checkout.transfi.com/tf-wechat-test",
+                "req_id": "tf-wechat-test",
+                "invoice_id": "inv-tf-wechat-001",
+            })
+            mock_tg = _build_mock_tg()
+            with patch("routers.telegram.TransFiService", return_value=transfi_mock), \
+                 patch("routers.telegram.TelegramService", return_value=mock_tg):
+                r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat 500 wechat test"))
+            assert r.status_code == 200
+            assert r.json()["status"] == "ok"
+            all_calls = mock_tg.send_photo.call_args_list + mock_tg.send_message.call_args_list
+            assert len(all_calls) >= 1
+        finally:
+            os.environ.pop("TRANSFI_API_KEY", None)
+
+    def test_photonpay_provider_success(self, client):
+        """When PhotonPay is configured (TransFi not), /wechat bot command completes without error."""
+        transfi_mock = MagicMock()
+        transfi_mock.is_configured = False
+        photonpay_mock = AsyncMock()
+        photonpay_mock.is_configured = True
+        photonpay_mock.create_wechat_session = AsyncMock(return_value={
+            "success": True,
+            "checkout_url": "https://cashier.photonpay.com/?code=wechat-auth",
+            "req_id": "pp-wechat-test",
+            "pay_id": "pay-wechat-001",
+            "auth_code": "wechat-auth",
+        })
+        mock_tg = _build_mock_tg()
+        with patch("routers.telegram.TransFiService", return_value=transfi_mock), \
+             patch("routers.telegram.PhotonPayService", return_value=photonpay_mock), \
+             patch("routers.telegram.TelegramService", return_value=mock_tg):
+            r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat 500 wechat test"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        all_calls = mock_tg.send_photo.call_args_list + mock_tg.send_message.call_args_list
+        assert len(all_calls) >= 1
+
+    def test_paymongo_fallback_success(self, client):
+        """When TransFi/PhotonPay are absent, /wechat falls back to PayMongo without crashing."""
+        transfi_mock = MagicMock()
+        transfi_mock.is_configured = False
+        photonpay_mock = MagicMock()
+        photonpay_mock.is_configured = False
+        pm_mock = AsyncMock()
+        pm_mock.secret_key = "pm_test_key"
+        pm_mock.create_wechat_qr = AsyncMock(return_value={
+            "success": True,
+            "reference_number": "pm-wechat-test001",
+            "source_id": "src-wechat-001",
+            "checkout_url": "https://pm-redirect.com/wechat/pm-wechat-test",
+        })
+        mock_tg = _build_mock_tg()
+        with patch("routers.telegram.TransFiService", return_value=transfi_mock), \
+             patch("routers.telegram.PhotonPayService", return_value=photonpay_mock), \
+             patch("routers.telegram.PayMongoService", return_value=pm_mock), \
+             patch("routers.telegram.TelegramService", return_value=mock_tg):
+            r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat 500 wechat test"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        all_calls = mock_tg.send_photo.call_args_list + mock_tg.send_message.call_args_list
+        assert len(all_calls) >= 1
+
+    def test_paymongo_failure_returns_ok_without_crash(self, client):
+        """When PayMongo fails for WeChat, the bot returns 200 (no crash, no raw API error leaked)."""
+        transfi_mock = MagicMock()
+        transfi_mock.is_configured = False
+        photonpay_mock = MagicMock()
+        photonpay_mock.is_configured = False
+        pm_mock = AsyncMock()
+        pm_mock.secret_key = "pm_test_key"
+        pm_mock.create_wechat_qr = AsyncMock(return_value={
+            "success": False,
+            "error": '[{"source":{"pointer":"/data/attributes/type"},"code":"parameter_format_invalid",'
+                     '"detail":"type is required and must be one of gcash, grab_pay, paymaya"}]',
+        })
+        mock_tg = _build_mock_tg()
+        with patch("routers.telegram.TransFiService", return_value=transfi_mock), \
+             patch("routers.telegram.PhotonPayService", return_value=photonpay_mock), \
+             patch("routers.telegram.PayMongoService", return_value=pm_mock), \
+             patch("routers.telegram.TelegramService", return_value=mock_tg):
+            r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat 500 wechat test"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Must NOT crash; a message must have been sent.
+        mock_tg.send_message.assert_called()
+
+
 # ════════════════════════════════════════════════════════════════════════════
 # 5. Provider fallback chain validation
 # ════════════════════════════════════════════════════════════════════════════
 
 class TestAlipayProviderFallbackChain:
-    """Verify the TransFi → PhotonPay → PayMongo → Xendit priority chain."""
+    """Verify the TransFi → PhotonPay → PayMongo priority chain."""
 
     def test_transfi_failure_triggers_photonpay_fallback(self, client, auth_headers):
         """When TransFi returns success=False, PhotonPay must be tried next."""
@@ -892,12 +1022,9 @@ class TestAlipayProviderFallbackChain:
         photonpay_mock.is_configured = False
         pm_mock = MagicMock()
         pm_mock.secret_key = ""
-        xendit_mock = MagicMock()
-        xendit_mock.secret_key = ""
         with patch("routers.photonpay.TransFiService", return_value=transfi_mock), \
              patch("routers.photonpay.PhotonPayService", return_value=photonpay_mock), \
-             patch("routers.photonpay.PayMongoService", return_value=pm_mock), \
-             patch("routers.photonpay.XenditService", return_value=xendit_mock):
+             patch("routers.photonpay.PayMongoService", return_value=pm_mock):
             r = client.post(
                 "/api/v1/photonpay/alipay-session",
                 json={"amount": 500.0, "currency": "PHP"},
