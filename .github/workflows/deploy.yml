@@ -150,6 +150,8 @@ import re
 import sys
 
 raw = sys.stdin.read().strip()
+service_id_pattern = re.compile(r"srv-[A-Za-z0-9]+")
+deploy_id_pattern = re.compile(r"dep-[A-Za-z0-9]+")
 
 try:
     data = json.loads(raw) if raw else {}
@@ -160,9 +162,10 @@ def first_value(mapping, *keys):
     if not isinstance(mapping, dict):
         return ""
     for key in keys:
-        value = mapping.get(key)
-        if value:
-            return value
+        if key in mapping and mapping[key] is not None:
+            value = str(mapping[key]).strip()
+            if value:
+                return value
     return ""
 
 def extract_ids(payload):
@@ -179,11 +182,11 @@ def extract_ids(payload):
 deploy_id, service_id = extract_ids(data)
 
 if not service_id:
-    match = re.search(r"srv-[A-Za-z0-9]+", raw)
+    match = service_id_pattern.search(raw)
     if match:
         service_id = match.group(0)
 if not deploy_id:
-    match = re.search(r"dep-[A-Za-z0-9]+", raw)
+    match = deploy_id_pattern.search(raw)
     if match:
         deploy_id = match.group(0)
 
