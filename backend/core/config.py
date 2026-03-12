@@ -22,7 +22,6 @@ class Settings(BaseSettings):
     # Deployment platform detection (set automatically by hosting providers)
     railway_environment: str = ""
     railway_project_id: str = ""
-    render: str = ""  # Render sets RENDER=true
 
     # Server
     host: str = "0.0.0.0"
@@ -149,14 +148,7 @@ class Settings(BaseSettings):
             railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
             if railway_domain:
                 return f"https://{railway_domain}"
-            # 3. Render auto-provided public URL (set automatically by Render)
-            render_external_url = os.environ.get("RENDER_EXTERNAL_URL", "")
-            if render_external_url:
-                return render_external_url
-            render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "")
-            if render_hostname:
-                return f"https://{render_hostname}"
-            # 4. Fallback to local address
+            # 3. Fallback to local address
             display_host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
             return f"http://{display_host}:{self.port}"
 
