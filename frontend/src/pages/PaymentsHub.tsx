@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePaymentEvents } from '@/hooks/usePaymentEvents';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,15 +73,22 @@ export default function PaymentsHub() {
           break;
       }
 
-      const res = await client.apiCall.invoke({ url: endpoint, method: 'POST', data: payload });
-      if (res.data?.success) {
-        setResult(res.data.data || res.data);
-        toast.success(res.data.message || 'Payment created!');
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data?.detail || data?.message || `Error ${res.status}`);
+      } else if (data?.success) {
+        setResult(data.data || data);
+        toast.success(data.message || 'Payment created!');
       } else {
-        toast.error(res.data?.message || 'Failed');
+        toast.error(data?.message || 'Failed');
       }
     } catch (err: unknown) {
-      toast.error((err as { data?: { detail?: string } })?.data?.detail || 'Failed');
+      toast.error((err as Error)?.message || 'Failed');
     } finally {
       setLoading(false);
     }
