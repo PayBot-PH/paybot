@@ -2,7 +2,6 @@ import asyncio
 import logging
 import os
 import re
-import ssl as _ssl_module
 import time
 from pathlib import Path
 
@@ -80,10 +79,24 @@ class DatabaseManager:
 
     @staticmethod
     def _get_pg_connect_args(database_url: str) -> dict:
-        """Return connect_args with SSL context for non-local PostgreSQL connections.
+        """Return connect_args with SSL for non-local PostgreSQL connections.
 
-        Render and other managed PG hosts require SSL even when the connection
-        string has no sslmode parameter. Enable SSL for any non-localhost host.
+        Uses asyncpg's built-in ``ssl='prefer'`` mode (available in asyncpg
+        >= 0.29.0) so that:
+
+        * SSL is **attempted** for every remote host (Render, Railway-external,
+          etc.) and the certificate is not verified (no CERT_NONE footgun).
+        * If the server responds "N" to the SSLRequest — as Railway's internal
+          PostgreSQL does — asyncpg gracefully falls back to an unencrypted
+          connection instead of raising an error.  This removes the need for a
+          special ``.railway.internal`` carve-out.
+        * Render's internal PostgreSQL (which supports but does not require SSL)
+          and external connections (which require SSL) both work correctly.
+
+        Using a custom ``ssl.SSLContext(CERT_NONE)`` in asyncpg >= 0.30 sets
+        ``ssl_is_advisory = False`` (SSL mandatory), which causes connection
+        failures when the server's SSL response is unexpected.  ``ssl='prefer'``
+        keeps ``ssl_is_advisory = True``, making SSL optional.
         """
         try:
             url = make_url(database_url)
@@ -92,13 +105,12 @@ class DatabaseManager:
         if "+asyncpg" not in (url.drivername or ""):
             return {}
         host = str(url.host or "")
-        is_local = host in ("localhost", "127.0.0.1", "::1", "") or host.endswith(".local") or host.endswith(".railway.internal")
+        is_local = host in ("localhost", "127.0.0.1", "::1", "") or host.endswith(".local")
         if is_local:
             return {}
-        ssl_ctx = _ssl_module.create_default_context()
-        ssl_ctx.check_hostname = False
-        ssl_ctx.verify_mode = _ssl_module.CERT_NONE
-        return {"ssl": ssl_ctx}
+        # ssl='prefer': attempt SSL (no cert verification); fall back to
+        # unencrypted if the server declines — works for both Render and Railway.
+        return {"ssl": "prefer"}
 
     @staticmethod
     def _check_db_exist(raw_url: str) -> bool:

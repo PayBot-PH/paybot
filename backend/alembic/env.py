@@ -6,7 +6,6 @@ import asyncio
 import importlib
 import os
 import pkgutil
-import ssl as _ssl_module
 from logging.config import fileConfig
 
 import models
@@ -82,12 +81,8 @@ if database_url:
     if url.drivername in ("postgresql", "postgres"):
         url = url.set(drivername="postgresql+asyncpg")
 
-        # asyncpg does not accept sslmode as a query parameter (that is a
-        # libpq/psycopg2 concept). Strip it from the URL and convert to an
-        # ssl.SSLContext passed via connect_args so the connection succeeds on
-        # hosts that enforce TLS (e.g. Render, Railway, Heroku Postgres).
-        # asyncpg does not accept libpq query parameters — strip them all and
-        # convert sslmode into a proper ssl.SSLContext via connect_args.
+        # asyncpg does not accept libpq query parameters — strip them all.
+        # sslmode is captured so we can honour an explicit 'disable' request.
         _query = dict(url.query)
         _sslmode = _query.pop("sslmode", None)
         for _libpq_param in ("sslcert", "sslkey", "sslrootcert", "sslcrl", "gssencmode", "channel_binding"):
@@ -96,19 +91,21 @@ if database_url:
         database_url = str(url)
 
         # Determine whether to use SSL.
-        # Render (and most managed PG hosts) require SSL even when the conn
-        # string has no sslmode param. Use SSL for any non-local host.
+        # Use asyncpg's built-in ssl='prefer' mode for all non-local, non-disabled
+        # connections.  This attempts TLS but gracefully falls back to an
+        # unencrypted connection when the server declines (e.g. Railway internal),
+        # avoiding the ssl_is_advisory=False trap from passing a custom SSLContext
+        # in asyncpg >= 0.30 which made SSL mandatory and broke Render deploys.
         _host = str(url.host or "")
         _is_local = _host in ("localhost", "127.0.0.1", "::1", "") or _host.endswith(".local")
-        _wants_ssl = _sslmode in ("require", "verify-ca", "verify-full", "prefer") or not _is_local
+        _wants_ssl = not _is_local and _sslmode != "disable"
 
         if _wants_ssl:
-            _ssl_ctx = _ssl_module.create_default_context()
-            _ssl_ctx.check_hostname = False
-            _ssl_ctx.verify_mode = _ssl_module.CERT_NONE
-            _engine_connect_args["ssl"] = _ssl_ctx
+            # ssl='prefer': attempt TLS (no cert verification), fall back to
+            # plaintext if the server declines — works for Render, Railway, etc.
+            _engine_connect_args["ssl"] = "prefer"
             _alembic_logger.info(
-                "asyncpg: enabling SSL for host=%s (sslmode=%s)", _host, _sslmode or "not-set"
+                "asyncpg: ssl=prefer for host=%s (sslmode=%s)", _host, _sslmode or "not-set"
             )
     elif url.drivername == "sqlite":
         url = url.set(drivername="sqlite+aiosqlite")
