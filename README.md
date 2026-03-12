@@ -114,12 +114,12 @@ Open your browser to the URL that matches your environment:
 |-------|-----------|
 | **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui |
 | **Backend** | Python 3.11, FastAPI, SQLAlchemy (async), Alembic |
-| **Database** | PostgreSQL (via Atoms Cloud / Supabase) |
-| **Payments** | Xendit API (Philippines) |
+| **Database** | PostgreSQL (production) / SQLite (local dev) |
+| **Payments** | Xendit, PayMongo, PhotonPay, TransFi |
 | **Bot** | Telegram Bot API |
-| **Auth** | Atoms Cloud OIDC / Supabase Auth |
+| **Auth** | JWT (Telegram Login Widget) |
 | **Real-time** | Server-Sent Events (SSE) |
-| **SDK** | @metagptx/web-sdk |
+| **Deployment** | Railway (Docker multi-stage build) |
 
 ---
 
@@ -268,19 +268,59 @@ curl https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/debug
 
 ## 🔑 Environment Variables Reference
 
+### Required Variables
+
 | Variable | Description | Required | Default |
 |----------|-------------|----------|---------|
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather | ✅ | — |
 | `XENDIT_SECRET_KEY` | Xendit API secret key | ✅ | — |
-| `DATABASE_URL` | PostgreSQL connection string | ✅ | — |
-| `PAYMONGO_SECRET_KEY` | PayMongo secret API key | ❌ | — |
-| `PAYMONGO_PUBLIC_KEY` | PayMongo public API key | ❌ | — |
-| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret (`whsk_…`) | ❌ | — |
-| `PAYMONGO_MODE` | `test` (sandbox) or `live` (production) | ❌ | `test` |
-| `PORT` | Server port | ❌ | `8000` |
-| `DEBUG` | Enable debug mode | ❌ | `false` |
-| `SUPABASE_URL` | Supabase project URL (if using Supabase) | ❌ | — |
-| `SUPABASE_ANON_KEY` | Supabase anonymous key (if using Supabase) | ❌ | — |
+| `DATABASE_URL` | PostgreSQL connection string | ✅ | SQLite (local dev) |
+| `JWT_SECRET_KEY` | Secret key for signing admin JWT tokens | ✅ | — |
+| `ADMIN_USER_PASSWORD` | Password for admin dashboard login | ✅ | — |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram user IDs (or `@usernames`) with admin access | ✅ | — |
+
+### Optional Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TELEGRAM_BOT_USERNAME` | Bot username without `@` — required for the Telegram Login Widget | — |
+| `TELEGRAM_BOT_OWNER_ID` | Super-admin Telegram user ID (approves KYB registrations) | — |
+| `PYTHON_BACKEND_URL` | Public backend URL — used for Telegram webhook auto-registration | Auto-detected |
+| `ENVIRONMENT` | Application environment (`production` / `development`) | `development` |
+| `PORT` | Server port | `8000` |
+| `DEBUG` | Enable debug mode | `false` |
+| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins | Empty (allows all) |
+| `JWT_ALGORITHM` | JWT signing algorithm | `HS256` |
+| `JWT_EXPIRE_MINUTES` | JWT token expiry in minutes | `60` |
+
+### PayMongo Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PAYMONGO_SECRET_KEY` | PayMongo secret API key | — |
+| `PAYMONGO_PUBLIC_KEY` | PayMongo public API key | — |
+| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret (`whsk_…`) | — |
+| `PAYMONGO_MODE` | `test` (sandbox) or `live` (production) | `test` |
+
+### PhotonPay Variables (Alipay / WeChat Pay)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PHOTONPAY_APP_ID` | PhotonPay App ID | — |
+| `PHOTONPAY_APP_SECRET` | PhotonPay App Secret | — |
+| `PHOTONPAY_SITE_ID` | PhotonPay Site ID (Collection → Site Management) | — |
+| `PHOTONPAY_RSA_PRIVATE_KEY` | Merchant RSA private key (PKCS#8 PEM) for signing requests | — |
+| `PHOTONPAY_RSA_PUBLIC_KEY` | PhotonPay platform RSA public key for webhook verification | — |
+| `PHOTONPAY_MODE` | `production` or `sandbox` | `production` |
+
+### TransFi Variables (Alipay / WeChat Pay)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `TRANSFI_API_KEY` | TransFi Checkout API key | — |
+| `TRANSFI_WEBHOOK_SECRET` | TransFi HMAC-SHA256 webhook secret | — |
+| `TRANSFI_BASE_URL` | TransFi API base URL override | Auto (by mode) |
+| `TRANSFI_MODE` | `production` or `sandbox` | `production` |
 
 ---
 
