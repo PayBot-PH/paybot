@@ -202,24 +202,40 @@ class PhotonPayService:
         logger.debug("PhotonPay: requesting access token from %s", token_url)
 
         # PhotonPay OAuth2 client_credentials flow.
-        # The Authorization header uses the standard colon-separated
-        # appId:appSecret encoded as Base64 (RFC 7617 Basic auth).
         # Endpoint: POST /oauth2/token/accessToken
-        # PhotonPay expects credentials as form body params (appId, appSecret)
-        # in addition to standard Basic auth header.
+        # Try multiple auth formats since PhotonPay's expected format varies.
+        # Format 1: JSON body + Basic auth header
+        # Format 2: form-encoded body + Basic auth header  
+        # Format 3: form-encoded body with credentials only (no Basic auth)
+        _gateway_error = lambda d: (
+            "path" in d and "method" in d
+            and not any(k in d for k in ("access_token", "accessToken", "token", "data", "code"))
+        )
         try:
+            # Attempt 1: JSON body
             r = await self._http.post(
                 token_url,
-                headers={
-                    "Authorization": self._basic_auth_header(),
-                    "Content-Type": "application/x-www-form-urlencoded",
-                },
-                data={
-                    "grant_type": "client_credentials",
-                    "appId": self.app_id,
-                    "appSecret": self.app_secret,
-                },
+                headers={"Authorization": self._basic_auth_header()},
+                json={"grant_type": "client_credentials", "appId": self.app_id, "appSecret": self.app_secret},
             )
+            _data = r.json() if r.content else {}
+            if _gateway_error(_data):
+                logger.debug("PhotonPay: JSON body attempt rejected, trying form-encoded")
+                # Attempt 2: form-encoded + Basic auth
+                r = await self._http.post(
+                    token_url,
+                    headers={"Authorization": self._basic_auth_header(), "Content-Type": "application/x-www-form-urlencoded"},
+                    data={"grant_type": "client_credentials", "appId": self.app_id, "appSecret": self.app_secret},
+                )
+                _data = r.json() if r.content else {}
+            if _gateway_error(_data):
+                logger.debug("PhotonPay: form-encoded + Basic auth rejected, trying credentials-only form")
+                # Attempt 3: form-encoded body only, no Basic auth
+                r = await self._http.post(
+                    token_url,
+                    headers={"Content-Type": "application/x-www-form-urlencoded"},
+                    data={"grant_type": "client_credentials", "appId": self.app_id, "appSecret": self.app_secret},
+                )
         except httpx.RequestError as exc:
             raise ValueError(
                 f"PhotonPay token request failed (network error) — "
@@ -237,24 +253,6 @@ class PhotonPayService:
 
         data = r.json()
         logger.info("PhotonPay token response: %s", data)
-
-        # Detect API gateway routing/auth error responses.
-        # PhotonPay returns {"path": "<route>", "method": "POST"} (with no
-        # other fields) when the request is rejected at the gateway level —
-        # typically due to wrong APP_ID / APP_SECRET credentials or a
-        # malformed Authorization header.
-        if (
-            "path" in data
-            and "method" in data
-            and "code" not in data
-            and "data" not in data
-            and not any(k in data for k in ("access_token", "accessToken", "token"))
-        ):
-            raise ValueError(
-                f"PhotonPay token endpoint rejected the request — "
-                f"verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET "
-                f"(endpoint: {token_url}, response: {data})"
-            )
 
         # Fail fast if the API returned an error code in the body
         code = str(data.get("code", ""))
