@@ -199,7 +199,12 @@ class PhotonPayService:
             )
 
         token_url = f"{self.base_url}{_TOKEN_PATH}"
-        logger.debug("PhotonPay: requesting access token from %s", token_url)
+        logger.info(
+            "PhotonPay: requesting access token — app_id starts with '%s...', len=%d, secret len=%d",
+            self.app_id[:4] if self.app_id else "EMPTY",
+            len(self.app_id),
+            len(self.app_secret),
+        )
 
         # PhotonPay OAuth2 client_credentials flow.
         # Endpoint: POST /oauth2/token/accessToken
