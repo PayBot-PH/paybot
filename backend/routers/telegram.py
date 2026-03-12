@@ -1542,8 +1542,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     # 3. Fall back to PayMongo
                     if result is None:
                         pm_svc = PayMongoService()
-                        if pm_svc.secret_key:
-                            # Fallback: use PayMongo Alipay source
+                        if pm_svc.public_key:
+                            # Fallback: use PayMongo Alipay source (Sources API requires public key)
                             pm_result = await pm_svc.create_alipay_qr(
                                 amount=amount,
                                 description=description,
@@ -1675,7 +1675,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     # 3. Fall back to PayMongo
                     if result is None:
                         pm_svc = PayMongoService()
-                        if not pm_svc.secret_key:
+                        if not pm_svc.public_key:
                             await tg.send_message(
                                 chat_id,
                                 "❌ <b>WeChat Pay is not available at this time.</b>\n\n"

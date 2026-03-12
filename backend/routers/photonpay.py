@@ -244,9 +244,9 @@ async def create_alipay_session(
             photonpay_result = None  # fall through to PayMongo fallback
 
     if photonpay_result is None:
-        # Fallback: try PayMongo Alipay source
+        # Fallback: try PayMongo Alipay source (Sources API requires public key)
         pm_svc = PayMongoService()
-        if pm_svc.secret_key:
+        if pm_svc.public_key:
             pm_result = await pm_svc.create_alipay_qr(
                 amount=req.amount,
                 description=req.description,
@@ -428,9 +428,9 @@ async def create_wechat_session(
             photonpay_result = None  # fall through to PayMongo fallback
 
     if photonpay_result is None:
-        # Fallback: use PayMongo WeChat source
+        # Fallback: use PayMongo WeChat source (Sources API requires public key)
         pm_svc = PayMongoService()
-        if not pm_svc.secret_key:
+        if not pm_svc.public_key:
             raise HTTPException(
                 status_code=503,
                 detail=(
