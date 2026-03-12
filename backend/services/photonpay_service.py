@@ -205,6 +205,8 @@ class PhotonPayService:
         # The Authorization header uses the standard colon-separated
         # appId:appSecret encoded as Base64 (RFC 7617 Basic auth).
         # Endpoint: POST /oauth2/token/accessToken
+        # PhotonPay expects credentials as form body params (appId, appSecret)
+        # in addition to standard Basic auth header.
         try:
             r = await self._http.post(
                 token_url,
@@ -212,7 +214,11 @@ class PhotonPayService:
                     "Authorization": self._basic_auth_header(),
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
-                data={"grant_type": "client_credentials"},
+                data={
+                    "grant_type": "client_credentials",
+                    "appId": self.app_id,
+                    "appSecret": self.app_secret,
+                },
             )
         except httpx.RequestError as exc:
             raise ValueError(
