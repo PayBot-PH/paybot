@@ -28,7 +28,6 @@ import {
   Bitcoin,
   AlertCircle,
   ShieldAlert,
-  QrCode,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -180,7 +179,7 @@ export default function Wallet() {
   const [dLoading, setDLoading] = useState(false);
 
   // Top Up: method toggle
-  const [topupMethod, setTopupMethod] = useState<'xendit' | 'crypto' | 'paymongo'>('xendit');
+  const [topupMethod, setTopupMethod] = useState<'xendit' | 'crypto'>('xendit');
 
   // Invoice Top Up state
   const [topupAmount, setTopupAmount] = useState('');
@@ -196,13 +195,6 @@ export default function Wallet() {
   const [cryptoLoading, setCryptoLoading] = useState(false);
   const [cryptoRequests, setCryptoRequests] = useState<CryptoTopupRequest[]>([]);
   const [addressCopied, setAddressCopied] = useState(false);
-
-  // PayMongo Claim Deposit state
-  const [pmAmount, setPmAmount] = useState('');
-  const [pmChannel, setPmChannel] = useState('');
-  const [pmAccount, setPmAccount] = useState('');
-  const [pmLoading, setPmLoading] = useState(false);
-  const [pmClaimResult, setPmClaimResult] = useState<{ amount: number; payment_id: string } | null>(null);
 
   // Send USDT state
   const [sendUsdtAddress, setSendUsdtAddress] = useState('');
@@ -462,32 +454,6 @@ export default function Wallet() {
     } finally { setSendUsdLoading(false); }
   };
 
-  const handlePaymongoClaimDeposit = async () => {
-    const amount = parseFloat(pmAmount);
-    if (!amount || amount <= 0) { toast.error('Please enter an amount greater than 0'); return; }
-    if (!pmChannel) { toast.error('Please select your payment channel'); return; }
-    if (!pmAccount.trim()) { toast.error('Please enter the account/mobile number used'); return; }
-    setPmLoading(true);
-    setPmClaimResult(null);
-    try {
-      const res = await fetch('/api/v1/paymongo/claim-deposit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payment_channel: pmChannel, account_number: pmAccount.trim(), amount }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setPmClaimResult({ amount, payment_id: data.payment_id || '' });
-        toast.success('Deposit verified! Your PHP wallet has been credited.');
-        await fetchWalletData();
-      } else {
-        toast.error(data.detail || data.message || 'No matching payment found');
-      }
-    } catch {
-      toast.error('Network error. Please try again.');
-    } finally { setPmLoading(false); }
-  };
-
   const handleCopyAddress = () => {
     if (cryptoDepositInfo?.address) {
       navigator.clipboard.writeText(cryptoDepositInfo.address).then(() => {
@@ -731,17 +697,6 @@ export default function Wallet() {
                     Invoice (PHP)
                   </button>
                   <button
-                    onClick={() => { setTopupMethod('paymongo'); setPmClaimResult(null); }}
-                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                      topupMethod === 'paymongo'
-                        ? 'text-red-400 border-b-2 border-red-400 bg-red-500/5'
-                        : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    <QrCode className="h-4 w-4" />
-                    PayMongo (PHP)
-                  </button>
-                  <button
                     onClick={() => setTopupMethod('crypto')}
                     className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
                       topupMethod === 'crypto'
@@ -811,90 +766,6 @@ export default function Wallet() {
                             : <><PlusCircle className="h-4 w-4 mr-2" />Generate Top Up Invoice</>}
                         </Button>
                       </>
-                    )}
-                  </div>
-                ) : topupMethod === 'paymongo' ? (
-                  /* PayMongo Manual Deposit Claim Panel */
-                  <div className="p-4 sm:p-6 space-y-4">
-                    {pmClaimResult ? (
-                      /* Success state */
-                      <div className="space-y-4">
-                        <div className="bg-emerald-900/20 border border-emerald-500/30 rounded-xl p-4 text-center space-y-3">
-                          <CheckCircle className="h-8 w-8 text-emerald-400 mx-auto" />
-                          <p className="text-emerald-300 font-semibold">Deposit verified!</p>
-                          <p className="text-slate-300 text-sm">
-                            ₱{pmClaimResult.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })} has been credited to your PHP wallet.
-                          </p>
-                          {pmClaimResult.payment_id && (
-                            <p className="text-slate-500 text-xs font-mono">Ref: {pmClaimResult.payment_id}</p>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full text-slate-400 hover:text-white"
-                          onClick={() => { setPmClaimResult(null); setPmAmount(''); setPmChannel(''); setPmAccount(''); }}
-                        >
-                          Claim another deposit
-                        </Button>
-                      </div>
-                    ) : (
-                      /* Claim form */
-                      <div className="space-y-4">
-                        <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400">
-                          Already sent money to the PayMongo merchant account? Enter your payment details below to verify and credit your PHP wallet automatically.
-                        </div>
-                        <div className="space-y-3">
-                          <div>
-                            <Label className="text-slate-400 text-xs">Payment Channel</Label>
-                            <Select value={pmChannel} onValueChange={setPmChannel}>
-                              <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
-                                <SelectValue placeholder="Select channel used to send" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="gcash">GCash</SelectItem>
-                                <SelectItem value="maya">Maya</SelectItem>
-                                <SelectItem value="bdo">BDO</SelectItem>
-                                <SelectItem value="bpi">BPI</SelectItem>
-                                <SelectItem value="metrobank">Metrobank</SelectItem>
-                                <SelectItem value="unionbank">UnionBank</SelectItem>
-                                <SelectItem value="landbank">Landbank</SelectItem>
-                                <SelectItem value="card">Credit / Debit Card</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <Label className="text-slate-400 text-xs">Account / Mobile Number Used</Label>
-                            <Input
-                              placeholder="e.g. 09171234567 or account number"
-                              value={pmAccount}
-                              onChange={e => setPmAccount(e.target.value)}
-                              className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-slate-400 text-xs">Amount Sent (PHP)</Label>
-                            <Input
-                              type="number"
-                              placeholder="e.g. 500.00"
-                              value={pmAmount}
-                              onChange={e => setPmAmount(e.target.value)}
-                              min="1"
-                              step="0.01"
-                              className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-                            />
-                          </div>
-                        </div>
-                        <Button
-                          onClick={handlePaymongoClaimDeposit}
-                          disabled={pmLoading || !pmAmount || !pmChannel || !pmAccount.trim() || parseFloat(pmAmount) <= 0}
-                          className="w-full bg-red-600 hover:bg-red-700 text-white"
-                        >
-                          {pmLoading
-                            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Verifying payment...</>
-                            : <><CheckCircle className="h-4 w-4 mr-2" />Verify &amp; Credit Wallet</>}
-                        </Button>
-                      </div>
                     )}
                   </div>
                 ) : (

@@ -231,32 +231,32 @@ class TestWebhookIdempotency:
         from sqlalchemy import select
         from models.wallets import Wallets
 
-        # Create a wallet_topup record first so the webhook has something to credit
+        # Create a Transactions record so the webhook has something to credit
         user_id = "123456789"
         ref = f"pm-alipay-{uuid.uuid4().hex[:12]}"
         source_id = f"src_{uuid.uuid4().hex[:16]}"
         event_id = f"evt_{uuid.uuid4().hex[:16]}"
 
-        async def seed_topup():
-            from models.wallet_topups import WalletTopup
+        async def seed_transaction():
+            from models.transactions import Transactions
             from datetime import datetime
             async with db_manager.async_session_maker() as db:
-                topup = WalletTopup(
+                txn = Transactions(
                     user_id=user_id,
+                    transaction_type="alipay_qr",
+                    external_id=ref,
+                    xendit_id=source_id,
                     amount=500.0,
                     currency="PHP",
-                    paymongo_source_id=source_id,
-                    reference_number=ref,
-                    payment_method="alipay",
                     status="pending",
                     description="Test top-up",
                     created_at=datetime.now(),
                     updated_at=datetime.now(),
                 )
-                db.add(topup)
+                db.add(txn)
                 await db.commit()
 
-        asyncio.get_event_loop().run_until_complete(seed_topup())
+        asyncio.get_event_loop().run_until_complete(seed_transaction())
 
         body = _source_chargeable_body(
             source_id=source_id,
@@ -303,12 +303,12 @@ class TestWebhookIdempotency:
 
 class TestWalletCrediting:
     def test_source_chargeable_credits_wallet(self, client, auth_headers):
-        """source.chargeable webhook credits the PHP wallet correctly."""
+        """source.chargeable webhook credits the PHP wallet correctly via Transactions lookup."""
         import asyncio
         from core.database import db_manager
         from datetime import datetime
         from sqlalchemy import select
-        from models.wallet_topups import WalletTopup
+        from models.transactions import Transactions
         from models.wallets import Wallets
         from models.wallet_transactions import Wallet_transactions
 
@@ -320,19 +320,19 @@ class TestWalletCrediting:
 
         async def seed_and_get_before():
             async with db_manager.async_session_maker() as db:
-                topup = WalletTopup(
+                txn = Transactions(
                     user_id=user_id,
+                    transaction_type="alipay_qr",
+                    external_id=ref,
+                    xendit_id=source_id,
                     amount=amount,
                     currency="PHP",
-                    paymongo_source_id=source_id,
-                    reference_number=ref,
-                    payment_method="alipay",
                     status="pending",
                     description="Credit test top-up",
                     created_at=datetime.now(),
                     updated_at=datetime.now(),
                 )
-                db.add(topup)
+                db.add(txn)
                 await db.commit()
 
                 res = await db.execute(
@@ -376,22 +376,14 @@ class TestWalletCrediting:
                 )
                 ledger_entry = txn_res.scalar_one_or_none()
 
-                # Verify topup record is marked paid
-                topup_res = await db.execute(
-                    select(WalletTopup).where(WalletTopup.reference_number == ref)
-                )
-                topup = topup_res.scalar_one_or_none()
+                return balance_after, ledger_entry
 
-                return balance_after, ledger_entry, topup
-
-        bal, ledger, topup = asyncio.get_event_loop().run_until_complete(check_after())
+        bal, ledger = asyncio.get_event_loop().run_until_complete(check_after())
 
         assert bal == pytest.approx(balance_before + amount, abs=0.01)
         assert ledger is not None, "Ledger entry was not created"
         assert ledger.amount == pytest.approx(amount, abs=0.01)
         assert ledger.status == "completed"
-        assert topup is not None
-        assert topup.status == "paid"
 
     def test_unknown_event_type_ignored(self, client):
         """Unrecognised event types return ok without side effects."""
@@ -409,12 +401,12 @@ class TestWalletCrediting:
         assert r.json()["status"] == "ok"
 
     def test_topup_initiation_requires_auth(self, client):
-        """The /topup endpoint requires authentication."""
+        """The PayMongo /topup endpoint has been removed — expect 404 or 405."""
         r = client.post(
             "/api/v1/paymongo/topup",
             json={"amount": 100.0, "payment_method": "checkout"},
         )
-        assert r.status_code in (401, 403)
+        assert r.status_code in (401, 403, 404, 405)
 
 
 # ---------------------------------------------------------------------------

@@ -23,11 +23,6 @@ router = APIRouter(prefix="/api/v1/topup", tags=["topup"])
 # ---------- Constants ----------
 USDT_TRC20_ADDRESS = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
 
-# PayMongo bank transfer details for PHP top-up
-PHP_BANK_NAME = "PayMongo Payments, Inc."
-PHP_ACCOUNT_NAME = "DRL TECHS. COMPUTER SOFTWARE TRADING"
-PHP_ACCOUNT_NUMBER = "655716460543"
-
 
 
 # ---------- Schemas ----------
@@ -71,32 +66,8 @@ async def _get_or_create_usd_wallet(db: AsyncSession, user_id: str) -> Wallets:
         await db.flush()
     return wallet
 
-async def _get_or_create_php_wallet(db: AsyncSession, user_id: str) -> Wallets:
-    result = await db.execute(
-        select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == "PHP")
-    )
-    wallet = result.scalar_one_or_none()
-    if not wallet:
-        now = datetime.now()
-        wallet = Wallets(user_id=user_id, balance=0.0, currency="PHP", created_at=now, updated_at=now)
-        db.add(wallet)
-        await db.flush()
-    return wallet
-
 
 # ---------- Endpoints ----------
-@router.get("/bank-details")
-async def get_bank_details():
-    """Public endpoint — returns the platform PHP bank transfer details for top-up."""
-    return {
-        "bank_name": PHP_BANK_NAME,
-        "account_name": PHP_ACCOUNT_NAME,
-        "account_number": PHP_ACCOUNT_NUMBER,
-        "currency": "PHP",
-        "instructions": "Transfer your desired amount via InstaPay or PESONet, then upload your receipt to the bot.",
-    }
-
-
 @router.get("", response_model=TopupListResponse)
 async def list_topup_requests(
     status: Optional[str] = None,
@@ -132,7 +103,7 @@ async def approve_topup_request(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Approve a topup request and credit the user's wallet (USD or PHP)."""
+    """Approve a USDT topup request and credit the user's USD wallet."""
     result = await db.execute(select(TopupRequest).where(TopupRequest.id == topup_id))
     req = result.scalar_one_or_none()
     if not req:
@@ -141,48 +112,26 @@ async def approve_topup_request(
         raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
 
     user_wallet_id = f"tg-{req.chat_id}"
-    amount = req.amount_usdt  # field reused for PHP too
-    currency = getattr(req, "currency", "USD") or "USD"
+    amount = req.amount_usdt
 
     now = datetime.now()
 
-    if currency == "PHP":
-        wallet = await _get_or_create_php_wallet(db, user_wallet_id)
-        balance_before = wallet.balance
-        wallet.balance = round(wallet.balance + amount, 2)
-        wallet.updated_at = now
-        ref = getattr(req, "reference_code", "") or f"#{topup_id}"
-        txn = Wallet_transactions(
-            user_id=user_wallet_id,
-            wallet_id=wallet.id,
-            transaction_type="top_up",
-            amount=amount,
-            balance_before=balance_before,
-            balance_after=wallet.balance,
-            note=f"PHP bank transfer top-up approved (ref {ref})" + (f" — {body.note}" if body.note else ""),
-            status="completed",
-            reference_id=str(topup_id),
-            created_at=now,
-        )
-        event_currency = "PHP"
-    else:
-        wallet = await _get_or_create_usd_wallet(db, user_wallet_id)
-        balance_before = wallet.balance
-        wallet.balance += amount
-        wallet.updated_at = now
-        txn = Wallet_transactions(
-            user_id=user_wallet_id,
-            wallet_id=wallet.id,
-            transaction_type="topup",
-            amount=amount,
-            balance_before=balance_before,
-            balance_after=wallet.balance,
-            note=f"USDT TRC20 topup approved (request #{topup_id})" + (f" — {body.note}" if body.note else ""),
-            status="completed",
-            reference_id=str(topup_id),
-            created_at=now,
-        )
-        event_currency = "USD"
+    wallet = await _get_or_create_usd_wallet(db, user_wallet_id)
+    balance_before = wallet.balance
+    wallet.balance += amount
+    wallet.updated_at = now
+    txn = Wallet_transactions(
+        user_id=user_wallet_id,
+        wallet_id=wallet.id,
+        transaction_type="topup",
+        amount=amount,
+        balance_before=balance_before,
+        balance_after=wallet.balance,
+        note=f"USDT TRC20 topup approved (request #{topup_id})" + (f" — {body.note}" if body.note else ""),
+        status="completed",
+        reference_id=str(topup_id),
+        created_at=now,
+    )
 
     db.add(txn)
 
@@ -201,12 +150,12 @@ async def approve_topup_request(
             "type": "wallet_update",
             "user_id": user_wallet_id,
             "balance": wallet.balance,
-            "currency": event_currency,
+            "currency": "USD",
         })
     except Exception:
         pass
 
-    logger.info(f"Topup #{topup_id} approved — credited {amount} {currency} to {user_wallet_id}")
+    logger.info(f"Topup #{topup_id} approved — credited {amount} USD to {user_wallet_id}")
     return req
 
 
