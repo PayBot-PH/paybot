@@ -2136,14 +2136,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
-                    # Create pending send request and deduct balance atomically
+                    # Create pending send request; balance is deducted only when approved
                     now = datetime.now()
-                    wallet_id = usd_wallet.id if usd_wallet else 0
-                    bal_before = usd_wallet.balance if usd_wallet else 0.0
-                    bal_after = bal_before - amount
                     send_req = UsdtSendRequest(
                         user_id=tg_user_id,
-                        wallet_id=wallet_id,
+                        wallet_id=usd_wallet.id,
                         to_address=addr,
                         amount=amount,
                         note=f"Submitted via Telegram by @{username}" if username and username != "unknown" else f"Submitted via Telegram (chat {chat_id})",
@@ -2152,19 +2149,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         updated_at=now,
                     )
                     db.add(send_req)
-                    # Deduct immediately to prevent double-spend; admin rejection credits it back
-                    if usd_wallet:
-                        usd_wallet.balance = bal_after
-                        usd_wallet.updated_at = now
-                        wtxn = Wallet_transactions(
-                            user_id=tg_user_id, wallet_id=wallet_id,
-                            transaction_type="usdt_send_pending", amount=amount,
-                            balance_before=bal_before, balance_after=bal_after,
-                            note=f"USDT send pending to {addr}", status="pending",
-                            reference_id=f"tg-sendusdt-{wallet_id}-{int(now.timestamp())}",
-                            created_at=now,
-                        )
-                        db.add(wtxn)
                     await db.commit()
                     await db.refresh(send_req)
 
@@ -2175,7 +2159,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"💵 Amount: <b>${amount:,.2f} USDT</b>\n"
                         f"📬 To: <code>{short_addr}</code>\n"
                         f"🆔 Request ID: <code>{send_req.id}</code>\n"
-                        f"💰 Remaining balance: <b>${bal_after:,.2f} USDT</b>\n\n"
+                        f"💰 Available balance: <b>${usd_balance:,.2f} USDT</b>\n\n"
                         f"⏳ Pending admin approval. You'll be notified once processed.",
                         reply_markup=_wallet_kb(),
                     )

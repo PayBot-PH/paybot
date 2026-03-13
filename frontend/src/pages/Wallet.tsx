@@ -32,6 +32,16 @@ import {
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
 
+/** Extract a user-readable error message from a non-ok fetch Response. */
+async function getResponseError(res: Response, fallback: string): Promise<string> {
+  try {
+    const e = await res.json();
+    return (e.detail as string) || (e.message as string) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 interface WalletBalance {
   wallet_id: number;
   balance: number;
@@ -309,13 +319,17 @@ export default function Wallet() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount, bank_name: withdrawBank, account_number: withdrawAccount, note: withdrawNote }),
       });
+      if (!res.ok) {
+        toast.error(await getResponseError(res, 'Failed to withdraw'));
+        return;
+      }
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         toast.success(data.message || 'Withdrawal submitted');
         setWithdrawAmount(''); setWithdrawBank(''); setWithdrawAccount(''); setWithdrawNote('');
         await fetchWalletData();
       } else {
-        toast.error(data.detail || data.message || 'Failed to withdraw');
+        toast.error(data.message || 'Failed to withdraw');
       }
     } catch {
       toast.error('Failed to withdraw');
@@ -333,13 +347,17 @@ export default function Wallet() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount, bank_code: dBank, account_number: dAccount, account_name: dName, description: dDesc }),
       });
+      if (!res.ok) {
+        toast.error(await getResponseError(res, 'Disbursement failed'));
+        return;
+      }
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         toast.success(data.message || 'Disbursement sent');
         setDAmount(''); setDAccount(''); setDName(''); setDDesc('');
         await fetchWalletData();
       } else {
-        toast.error(data.detail || data.message || 'Disbursement failed');
+        toast.error(data.message || 'Disbursement failed');
       }
     } catch {
       toast.error('Disbursement failed');
@@ -357,12 +375,16 @@ export default function Wallet() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount, description: topupDesc || 'Wallet Top Up', customer_email: topupEmail }),
       });
+      if (!res.ok) {
+        toast.error(await getResponseError(res, 'Failed to create top-up invoice'));
+        return;
+      }
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         setTopupResult({ invoice_url: data.invoice_url, amount });
         toast.success('Invoice created! Complete payment to credit your wallet.');
       } else {
-        toast.error(data.detail || data.message || 'Failed to create top-up invoice');
+        toast.error(data.message || 'Failed to create top-up invoice');
       }
     } catch {
       toast.error('Top-up failed');
@@ -380,14 +402,18 @@ export default function Wallet() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount_usdt: amount, tx_hash: cryptoTxHash.trim(), network: 'TRC20' }),
       });
+      if (!res.ok) {
+        toast.error(await getResponseError(res, 'Submission failed'));
+        return;
+      }
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         toast.success('Request submitted! An admin will review and credit your USD wallet shortly.');
         setCryptoAmount('');
         setCryptoTxHash('');
         await fetchCryptoRequests();
       } else {
-        toast.error(data.detail || data.message || 'Submission failed');
+        toast.error(data.message || 'Submission failed');
       }
     } catch {
       toast.error('Network error. Please try again.');
@@ -411,16 +437,15 @@ export default function Wallet() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ to_address: addr, amount, note: sendUsdtNote }),
       });
-      const data = await res.json();
-      if (res.ok) {
-        toast.success('Send request submitted! Awaiting super admin approval.');
-        setSendUsdtAddress('');
-        setSendUsdtAmount('');
-        setSendUsdtNote('');
-        await fetchSendUsdtRequests();
-      } else {
-        toast.error(data.detail || data.message || 'Failed to submit send request');
+      if (!res.ok) {
+        toast.error(await getResponseError(res, 'Failed to submit send request'));
+        return;
       }
+      toast.success('Send request submitted! Awaiting super admin approval.');
+      setSendUsdtAddress('');
+      setSendUsdtAmount('');
+      setSendUsdtNote('');
+      await fetchSendUsdtRequests();
     } catch {
       toast.error('Network error. Please try again.');
     } finally { setSendUsdtLoading(false); }
@@ -439,15 +464,19 @@ export default function Wallet() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ recipient_username: uname, amount, note: sendUsdNote }),
       });
+      if (!res.ok) {
+        toast.error(await getResponseError(res, 'Failed to send USD'));
+        return;
+      }
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (data.success) {
         toast.success(data.message || `Sent $${amount.toFixed(2)} USD to @${uname}`);
         setSendUsdUsername('');
         setSendUsdAmount('');
         setSendUsdNote('');
         await fetchWalletData();
       } else {
-        toast.error(data.detail || data.message || 'Failed to send USD');
+        toast.error(data.message || 'Failed to send USD');
       }
     } catch {
       toast.error('Network error. Please try again.');
