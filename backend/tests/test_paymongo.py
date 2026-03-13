@@ -484,10 +484,10 @@ class TestPayMongoGetBalance:
 # ---------------------------------------------------------------------------
 
 class TestSuperAdminWalletBalance:
-    """Test that the super admin's PHP wallet balance is synced from PayMongo."""
+    """Test that the super admin's PHP wallet balance is synced from Xendit."""
 
-    def test_super_admin_balance_synced_from_paymongo(self, client, auth_headers):
-        """Super admin's PHP wallet balance is updated from PayMongo realtime balance."""
+    def test_super_admin_balance_synced_from_xendit(self, client, auth_headers):
+        """Super admin's PHP wallet balance is updated from Xendit realtime balance."""
         import asyncio
         from unittest.mock import AsyncMock, patch, MagicMock
         from core.database import db_manager
@@ -495,17 +495,9 @@ class TestSuperAdminWalletBalance:
         from models.wallets import Wallets
 
         live_php_balance = 9876.50
-        live_centavos = int(live_php_balance * 100)
 
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "data": {
-                "attributes": {
-                    "available": [{"amount": live_centavos, "currency": "PHP"}],
-                    "pending": [],
-                }
-            }
-        }
+        mock_response.json.return_value = {"balance": live_php_balance}
         mock_response.raise_for_status = MagicMock()
 
         with patch("httpx.AsyncClient") as mock_client_cls:
@@ -518,11 +510,11 @@ class TestSuperAdminWalletBalance:
             r = client.get("/api/v1/wallet/balance?currency=PHP", headers=auth_headers)
 
         # The test user (123456789) is added as a super admin in TELEGRAM_ADMIN_IDS
-        # so the endpoint should attempt to sync from PayMongo.
+        # so the endpoint should attempt to sync from Xendit.
         assert r.status_code == 200
         data = r.json()
         assert data["currency"] == "PHP"
-        # Balance should reflect the mocked PayMongo live balance
+        # Balance should reflect the mocked Xendit live balance
         assert data["balance"] == pytest.approx(live_php_balance, abs=0.01)
 
     def test_wallet_balance_endpoint_requires_auth(self, client):

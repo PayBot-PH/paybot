@@ -354,12 +354,12 @@ export default function Dashboard() {
           WALLET CARDS + STAT CARDS ROW
       ═══════════════════════════════════════════════ */}
       <div className="grid grid-cols-2 xl:grid-cols-6 gap-3 mb-6">
-        {/* PHP Wallet */}
+        {/* Wallet Balance */}
         <Link to="/wallet" className="col-span-1 block group">
           <Card className="h-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 border-0 shadow-lg shadow-blue-900/30 hover:shadow-blue-700/40 hover:scale-[1.02] transition-all duration-200 cursor-pointer">
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium text-blue-200">PHP Wallet</p>
+                <p className="text-sm font-medium text-blue-200">Wallet Balance</p>
                 <div className="h-9 w-9 bg-white/15 rounded-xl flex items-center justify-center">
                   <Wallet className="h-4 w-4 text-white" />
                 </div>
@@ -371,7 +371,7 @@ export default function Dashboard() {
                 }
               </p>
               <div className="flex items-center gap-1 mt-2 text-blue-200 text-xs group-hover:text-white transition-colors">
-                <span>PHP Balance</span>
+                <span>Wallet Balance</span>
                 <ArrowUpRight className="h-3 w-3" />
               </div>
             </CardContent>
