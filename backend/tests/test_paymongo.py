@@ -488,11 +488,7 @@ class TestSuperAdminWalletBalance:
 
     def test_super_admin_balance_synced_from_xendit(self, client, auth_headers):
         """Super admin's PHP wallet balance is updated from Xendit realtime balance."""
-        import asyncio
         from unittest.mock import AsyncMock, patch, MagicMock
-        from core.database import db_manager
-        from sqlalchemy import select
-        from models.wallets import Wallets
 
         live_php_balance = 9876.50
 

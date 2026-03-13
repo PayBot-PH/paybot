@@ -246,6 +246,7 @@ async def get_balance(
     - PHP (other users): returns the stored wallet balance.
     - USD: always computed from wallet transaction history (credits minus
       debits) so the balance can never be stuck at 0 due to a stale row.
+    - Other currencies: returns the stored balance as-is.
     """
     user_id = str(current_user.id)
     currency_upper = currency.upper()

@@ -43,7 +43,7 @@ def format_traceback() -> str:
 
 def initialize_dynamic_routes():
     """Initialize dynamic routes by scanning frontend dist directory"""
-    global dynamic_routes_initialized, seo_paths
+    global dynamic_routes_initialized
     
     if dynamic_routes_initialized:
         return

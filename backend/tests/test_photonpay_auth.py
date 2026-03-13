@@ -2,8 +2,6 @@
 import base64
 import os
 
-import pytest
-
 # Ensure required env vars are present before importing the service
 os.environ.setdefault("PHOTONPAY_APP_ID", "test_app_id")
 os.environ.setdefault("PHOTONPAY_APP_SECRET", "test_app_secret")
