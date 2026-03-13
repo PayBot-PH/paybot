@@ -795,7 +795,7 @@ function RequestCard({
           </div>
 
           {isPending && canApproveTopups && (
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 shrink-0">
+            <div className="flex flex-row items-center gap-1.5 shrink-0">
               <Button
                 size="sm"
                 disabled={!!actionId}
@@ -1065,39 +1065,43 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
             </div>
 
             {/* Adjust form */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="Amount"
-                value={adjustAmount[w.user_id] || ''}
-                onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
-              />
-              <input
-                type="text"
-                placeholder="Note (optional)"
-                value={adjustNote[w.user_id] || ''}
-                onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
-              />
-              <Button
-                size="sm"
-                onClick={() => handleAdjust(w.user_id, true)}
-                disabled={adjusting === w.user_id}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3"
-              >
-                {adjusting === w.user_id ? '...' : '+ Credit'}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleAdjust(w.user_id, false)}
-                disabled={adjusting === w.user_id}
-                className="bg-red-700 hover:bg-red-800 text-white text-xs px-3"
-              >
-                {adjusting === w.user_id ? '...' : '− Debit'}
-              </Button>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="Amount"
+                  value={adjustAmount[w.user_id] || ''}
+                  onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
+                  className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+                />
+                <input
+                  type="text"
+                  placeholder="Note (optional)"
+                  value={adjustNote[w.user_id] || ''}
+                  onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
+                  className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleAdjust(w.user_id, true)}
+                  disabled={adjusting === w.user_id}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3"
+                >
+                  {adjusting === w.user_id ? '...' : '+ Credit'}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleAdjust(w.user_id, false)}
+                  disabled={adjusting === w.user_id}
+                  className="flex-1 bg-red-700 hover:bg-red-800 text-white text-xs px-3"
+                >
+                  {adjusting === w.user_id ? '...' : '− Debit'}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -1290,7 +1294,7 @@ export default function AdminManagement() {
             <Button
               onClick={() => setShowAdd(!showAdd)}
               size="sm"
-              className={`gap-1.5 text-xs ${showAdd ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              className={`gap-1.5 text-xs shrink-0 ${showAdd ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
             >
               {showAdd ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
               {showAdd ? 'Cancel' : 'Add Admin'}
@@ -1355,9 +1359,9 @@ export default function AdminManagement() {
                   {maintenanceUpdating ? (
                     <div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
                   ) : maintenanceMode ? (
-                    <><Power className="h-3.5 w-3.5" /><span className="hidden sm:inline">Disable </span>Maintenance</>
+                    <><Power className="h-3.5 w-3.5" />Disable Maintenance</>
                   ) : (
-                    <><WrenchIcon className="h-3.5 w-3.5" /><span className="hidden sm:inline">Enable </span>Maintenance</>
+                    <><WrenchIcon className="h-3.5 w-3.5" />Enable Maintenance</>
                   )}
                 </Button>
               </div>
