@@ -1,10 +1,14 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, Index, Integer, String
 
 
 class Bot_logs(Base):
     __tablename__ = "bot_logs"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        # Index for per-user list queries
+        Index("idx_bot_logs_user_id", "user_id"),
+        {"extend_existing": True},
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
     user_id = Column(String, nullable=False)

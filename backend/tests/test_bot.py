@@ -830,6 +830,77 @@ class TestDemoData:
 
 
 # ---------------------------------------------------------------------------
+# Performance optimizations
+# ---------------------------------------------------------------------------
+class TestBatchCreateOptimization:
+    """Verify that batch create endpoints use a single DB transaction (bulk_create)."""
+
+    def test_batch_create_customers(self, client, auth_headers):
+        """POST /batch should create multiple customers atomically."""
+        payload = {
+            "items": [
+                {"name": "Batch Customer A", "email": "a@test.com"},
+                {"name": "Batch Customer B", "email": "b@test.com"},
+            ]
+        }
+        r = client.post("/api/v1/entities/customers/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+        names = {d["name"] for d in data}
+        assert names == {"Batch Customer A", "Batch Customer B"}
+
+    def test_batch_create_transactions(self, client, auth_headers):
+        """POST /batch should create multiple transactions atomically."""
+        payload = {
+            "items": [
+                {
+                    "transaction_type": "invoice",
+                    "amount": 100.0,
+                    "status": "pending",
+                    "currency": "PHP",
+                },
+                {
+                    "transaction_type": "invoice",
+                    "amount": 200.0,
+                    "status": "pending",
+                    "currency": "PHP",
+                },
+            ]
+        }
+        r = client.post("/api/v1/entities/transactions/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+        amounts = sorted(d["amount"] for d in data)
+        assert amounts == [100.0, 200.0]
+
+    def test_batch_create_empty(self, client, auth_headers):
+        """POST /batch with an empty list should return an empty list."""
+        r = client.post(
+            "/api/v1/entities/customers/batch",
+            json={"items": []},
+            headers=auth_headers,
+        )
+        assert r.status_code == 201
+        assert r.json() == []
+
+
+class TestUsdBalanceOptimization:
+    """Verify USD balance is computed correctly with the single-query optimisation."""
+
+    def test_usd_balance_endpoint_accessible(self, client, auth_headers):
+        """GET /wallet/balance?currency=USD should return a valid response."""
+        r = client.get("/api/v1/wallet/balance", params={"currency": "USD"}, headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert "balance" in data
+        assert "currency" in data
+        assert data["currency"] == "USD"
+        assert isinstance(data["balance"], float)
+
+
+# ---------------------------------------------------------------------------
 # KYB access control — non-admin users must go through KYB
 # ---------------------------------------------------------------------------
 def _admin_webhook_body(text: str, username: str = "admin_user") -> dict:

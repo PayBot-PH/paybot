@@ -1,10 +1,16 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Float, Integer, String
+from sqlalchemy import Column, DateTime, Float, Index, Integer, String
 
 
 class Subscriptions(Base):
     __tablename__ = "subscriptions"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        # Index for per-user list queries
+        Index("idx_subscriptions_user_id", "user_id"),
+        # Index for status-based filtering
+        Index("idx_subscriptions_status", "status"),
+        {"extend_existing": True},
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
     user_id = Column(String, nullable=False)
