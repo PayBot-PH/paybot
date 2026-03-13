@@ -716,8 +716,60 @@ class TestXenditEwalletChannelProperties:
 
 
 # ---------------------------------------------------------------------------
-# Events / simulate
+# Xendit QR code payload validation
 # ---------------------------------------------------------------------------
+class TestXenditQrCodePayload:
+    """Verify that create_qr_code sends required fields (external_id + callback_url)."""
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def _make_mock_client(self, captured: dict):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": "qr-test-123",
+            "qr_string": "00020101...",
+            "status": "ACTIVE",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        async def mock_post(url, **kwargs):
+            captured.update(kwargs.get("json", {}))
+            return mock_response
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = mock_post
+        return mock_client
+
+    def test_qr_code_sends_external_id(self):
+        """Xendit /qr_codes requires external_id (not reference_id)."""
+        captured: dict = {}
+        mock_client = self._make_mock_client(captured)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            svc = XenditService()
+            svc.secret_key = "test-key"
+            result = self._run(svc.create_qr_code(amount=500, description="Test"))
+
+        assert result["success"] is True
+        assert "external_id" in captured, "Payload must contain external_id"
+        assert "reference_id" not in captured, "Payload must not contain reference_id"
+
+    def test_qr_code_sends_callback_url(self):
+        """Xendit /qr_codes requires callback_url in the request body."""
+        captured: dict = {}
+        mock_client = self._make_mock_client(captured)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            svc = XenditService()
+            svc.secret_key = "test-key"
+            result = self._run(svc.create_qr_code(amount=500))
+
+        assert result["success"] is True
+        assert "callback_url" in captured, "Payload must contain callback_url"
+        assert captured["callback_url"], "callback_url must not be empty"
 class TestEvents:
     def test_simulate_requires_auth(self, client):
         r = client.post(

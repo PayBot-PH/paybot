@@ -1654,7 +1654,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     channel_map = {
                         "GCASH": "PH_GCASH", "GRABPAY": "PH_GRABPAY",
                         "PH_GCASH": "PH_GCASH", "PH_GRABPAY": "PH_GRABPAY",
-                        "MAYA": "PAYMAYA", "PAYMAYA": "PAYMAYA",
+                        "MAYA": "PH_MAYA", "PAYMAYA": "PH_MAYA", "PH_MAYA": "PH_MAYA",
                     }
                     channel = channel_map.get(provider, f"PH_{provider}")
                     xendit = XenditService()
