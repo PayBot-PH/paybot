@@ -1435,6 +1435,102 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
+        # ==================== /scanqr (QRPH scan — paste QR string) ====================
+        elif text.startswith("/scanqr"):
+            parts = text.split(maxsplit=2)
+            if len(parts) < 2:
+                await tg.send_message(
+                    chat_id,
+                    "📲 <b>Scan QRPH</b>\n\n"
+                    "Paste the raw QRPH/QR string followed by the amount:\n\n"
+                    "<code>/scanqr &lt;qr_string&gt; &lt;amount&gt;</code>\n\n"
+                    "Example:\n"
+                    "<code>/scanqr 00020101021226... 500</code>\n\n"
+                    "💡 <i>Scan the merchant's QRPH with your phone camera, copy the decoded text, "
+                    "then paste it here with the amount.</i>",
+                )
+            else:
+                qr_data = parts[1].strip()
+                try:
+                    amount = float(parts[2]) if len(parts) > 2 else 0.0
+                    if amount <= 0:
+                        await tg.send_message(chat_id, "❌ Please include the amount.\nUsage: /scanqr &lt;qr_string&gt; &lt;amount&gt;")
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
+
+                    # Parse basic EMVCo / QRPH fields from the QR string.
+                    # Tag reference: 53=Currency (608=PHP), 58=Country, 59=Merchant Name,
+                    # 60=City, 62=Additional Data (sub-tag 05=Reference Label, 01=Bill Number).
+                    # NOTE: The equivalent parser exists in ScanQRPH.tsx (frontend).
+                    def _parse_tlv(s: str) -> dict:
+                        result: dict = {}
+                        i = 0
+                        while i + 4 <= len(s):
+                            tag = s[i:i+2]
+                            try:
+                                length = int(s[i+2:i+4])
+                            except ValueError:
+                                break
+                            if i + 4 + length > len(s):
+                                break
+                            result[tag] = s[i+4:i+4+length]
+                            i += 4 + length
+                        return result
+
+                    tlv = _parse_tlv(qr_data)
+                    merchant_name = tlv.get("59", "")
+                    merchant_city = tlv.get("60", "")
+                    currency_code = tlv.get("53", "")
+                    currency = "PHP" if currency_code == "608" else currency_code or "PHP"
+                    ref_num = ""
+                    add_data = tlv.get("62", "")
+                    if add_data:
+                        sub = _parse_tlv(add_data)
+                        ref_num = sub.get("05", sub.get("01", ""))
+
+                    external_id = f"qrph-{uuid.uuid4().hex[:12]}"
+                    reply_lines = [
+                        f"✅ <b>QRPH Payment Recorded</b>",
+                        f"━━━━━━━━━━━━━━━━━━━━",
+                        f"💰 Amount: <b>₱{amount:,.2f} PHP</b>",
+                    ]
+                    if merchant_name:
+                        reply_lines.append(f"🏪 Merchant: <b>{merchant_name}</b>")
+                    if merchant_city:
+                        reply_lines.append(f"📍 City: {merchant_city}")
+                    if ref_num:
+                        reply_lines.append(f"🆔 Reference: <code>{ref_num}</code>")
+                    reply_lines += [
+                        f"",
+                        f"⏳ Status: <b>Pending</b>",
+                        f"💳 Complete the payment via your bank or e-wallet app.",
+                    ]
+                    await tg.send_message(chat_id, "\n".join(reply_lines), reply_markup=_pay_kb())
+
+                    try:
+                        now = datetime.now()
+                        txn = Transactions(
+                            user_id=f"tg-{chat_id}", transaction_type="qrph_payment",
+                            external_id=external_id, xendit_id="",
+                            amount=amount, currency=currency, status="pending",
+                            description=f"QRPH payment{f' to {merchant_name}' if merchant_name else ''}",
+                            customer_name=merchant_name,
+                            # Reuse qr_code_url to store the raw QRPH/EMVCo string (existing schema
+                            # field; capped at 500 chars to fit the column).
+                            qr_code_url=qr_data[:500], telegram_chat_id=chat_id,
+                            created_at=now, updated_at=now,
+                        )
+                        db.add(txn)
+                        await db.commit()
+                    except Exception as e:
+                        logger.error(f"DB save failed for /scanqr: {e}", exc_info=True)
+                        try:
+                            await db.rollback()
+                        except Exception:
+                            pass
+                except (ValueError, IndexError):
+                    await tg.send_message(chat_id, "❌ Invalid amount. Usage: /scanqr &lt;qr_string&gt; &lt;amount&gt;")
+
         # ==================== /alipay (PhotonPay → Alipay QR) ====================
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
@@ -2683,7 +2779,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "🏦 /va [amt] [bank] — Virtual Account\n"
                 "📲 /ewallet [amt] [provider] — E-Wallet\n"
                 "🔴 /alipay [amt] [desc] — Alipay QR (PhotonPay)\n"
-                "🟢 /wechat [amt] [desc] — WeChat QR (PhotonPay)\n\n"
+                "🟢 /wechat [amt] [desc] — WeChat QR (PhotonPay)\n"
+                "📷 /scanqr [qr_string] [amt] — Pay via QRPH scan\n\n"
                 "💡 Example: /invoice 500 Coffee order"
             )
             await tg.send_message(chat_id, menu, reply_markup=_start_kb())
@@ -2702,6 +2799,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /link [amt] [desc] — Shareable payment link\n"
                 "  /va [amt] [bank] — Virtual bank account\n"
                 "  /ewallet [amt] [provider] — GCash / Maya / GrabPay\n\n"
+                "📷 <b>Pay via QRPH</b>\n"
+                "  /scanqr [qr_string] [amt] — Scan &amp; pay a merchant QRPH\n\n"
                 "💸 <b>Send Money</b>\n"
                 "  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
                 "  /refund [id] [amt] — Full or partial refund\n\n"

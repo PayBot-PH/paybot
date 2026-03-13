@@ -4,7 +4,7 @@ import {
   Bot, BarChart3, Wallet, CreditCard, FileText, Building2, PieChart,
   WifiOff, LogOut, ShieldCheck, MessageSquare, ScrollText, Crown, User,
   Menu, X, Activity, Send, ClipboardList, DollarSign, ChevronDown,
-  MessageCircle, UserCheck, Sun, Moon,
+  MessageCircle, UserCheck, Sun, Moon, ScanLine,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -52,6 +52,7 @@ export default function Layout({ children, connected }: LayoutProps) {
       label: 'Payments',
       items: [
         { to: '/payments', icon: CreditCard, label: 'Payments Hub' },
+        { to: '/scan-qrph', icon: ScanLine, label: 'Scan QRPH' },
         { to: '/transactions', icon: FileText, label: 'Transactions' },
         { to: '/disbursements', icon: Building2, label: 'Disbursements' },
         { to: '/reports', icon: PieChart, label: 'Reports' },
