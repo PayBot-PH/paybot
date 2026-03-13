@@ -3,7 +3,7 @@ import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   ArrowRight, ChevronRight, CheckCircle2, Zap, Shield,
-  Bell, UserPlus, Bot, Menu, X, Lock,
+  Bell, UserPlus, Menu, X, Lock,
 } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
 import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
@@ -225,9 +225,7 @@ export default function Login() {
 
           {/* Brand */}
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 sm:h-9 sm:w-9 bg-blue-600 rounded-xl flex items-center justify-center shrink-0">
-              <Bot className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-            </div>
+            <img src="/logo.svg" alt={APP_NAME} className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-xl" />
             <span className="font-bold text-base sm:text-lg text-white tracking-tight">{APP_NAME}</span>
           </div>
 
@@ -692,7 +690,7 @@ export default function Login() {
         </div>
         <div className="relative max-w-md mx-auto px-4 sm:px-6 text-center">
           <div className="inline-flex items-center gap-2 bg-blue-600/10 border border-blue-500/25 rounded-full px-3 sm:px-4 py-1.5 mb-4 sm:mb-5">
-            <Bot className="h-3.5 w-3.5 text-blue-400" />
+            <img src="/logo.svg" alt="" className="h-3.5 w-3.5 rounded" />
             <span className="text-blue-300 text-xs font-semibold tracking-wide uppercase">Telegram Authentication</span>
           </div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3">Ready to get started?</h2>
@@ -746,9 +744,7 @@ export default function Login() {
 
             {/* Brand */}
             <div className="flex items-center gap-2.5">
-              <div className="h-7 w-7 sm:h-8 sm:w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
-              </div>
+              <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg" />
               <div>
                 <p className="text-white font-bold text-sm leading-tight">{APP_NAME}</p>
                 <p className="text-slate-500 text-xs">by {COMPANY_NAME}</p>

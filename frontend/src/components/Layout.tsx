@@ -92,7 +92,7 @@ export default function Layout({ children, connected }: LayoutProps) {
     <nav className="flex-1 overflow-y-auto py-3">
       {navSections.map((section) => (
         <div key={section.label} className="mb-1">
-          <p className="px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+          <p className="px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             {section.label}
           </p>
           {section.items.map(({ to, icon: Icon, label, badge }) => {
@@ -105,7 +105,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                 className={`flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
                   active
                     ? 'bg-blue-600 text-white'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-700/60'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" />
@@ -121,12 +121,12 @@ export default function Layout({ children, connected }: LayoutProps) {
         </div>
       ))}
       <div className="mb-1">
-        <p className="px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">Help</p>
+        <p className="px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Help</p>
         <a
           href={SUPPORT_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium text-slate-400 hover:text-white hover:bg-slate-700/60 transition-all duration-150"
+          className="flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150"
         >
           <MessageCircle className="h-4 w-4 shrink-0" />
           <span>Contact Support</span>
@@ -136,36 +136,34 @@ export default function Layout({ children, connected }: LayoutProps) {
   );
 
   return (
-    <div className="min-h-screen bg-[#0D1117] text-slate-100 flex">
+    <div className="min-h-screen bg-background text-foreground flex">
 
       {/* ─── Desktop Sidebar ─── */}
-      <aside className="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 z-40 bg-[#0D1117] border-r border-slate-800">
+      <aside className="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 z-40 bg-background border-r border-border">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2.5 px-4 h-14 border-b border-slate-800 shrink-0">
-          <div className="h-7 w-7 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
-            <Bot className="h-4 w-4 text-white" />
-          </div>
+        <Link to="/" className="flex items-center gap-2.5 px-4 h-14 border-b border-border shrink-0">
+          <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 shrink-0 rounded-lg" />
           <div>
-            <p className="text-sm font-bold text-white leading-tight">{APP_NAME}</p>
-            <p className="text-[10px] text-slate-500 leading-tight">{APP_SUBTITLE}</p>
+            <p className="text-sm font-bold leading-tight">{APP_NAME}</p>
+            <p className="text-[10px] text-muted-foreground leading-tight">{APP_SUBTITLE}</p>
           </div>
         </Link>
 
         <NavLinks />
 
         {/* User */}
-        <div className="shrink-0 border-t border-slate-800 p-3">
-          <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-slate-800/60">
+        <div className="shrink-0 border-t border-border p-3">
+          <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-muted">
             <div className="h-7 w-7 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center shrink-0">
               {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-400" /> : <User className="h-3.5 w-3.5 text-blue-400" />}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-white truncate">{userName}</p>
-              <p className="text-[10px] text-slate-500">{isSuperAdmin ? 'Super Admin' : 'Admin'}</p>
+              <p className="text-xs font-medium truncate">{userName}</p>
+              <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? 'Super Admin' : 'Admin'}</p>
             </div>
             <button
               onClick={() => logout()}
-              className="p-1 rounded text-slate-500 hover:text-red-400 transition-colors"
+              className="p-1 rounded text-muted-foreground hover:text-red-400 transition-colors"
               title="Sign out"
             >
               <LogOut className="h-3.5 w-3.5" />
@@ -178,23 +176,21 @@ export default function Layout({ children, connected }: LayoutProps) {
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative z-10 w-64 h-full bg-[#0D1117] border-r border-slate-800 flex flex-col">
-            <div className="flex items-center justify-between px-4 h-14 border-b border-slate-800 shrink-0">
+          <aside className="relative z-10 w-64 h-full bg-background border-r border-border flex flex-col">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0">
               <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-2.5">
-                <div className="h-7 w-7 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
-                <p className="text-sm font-bold text-white">{APP_NAME}</p>
+                <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 rounded-lg" />
+                <p className="text-sm font-bold">{APP_NAME}</p>
               </Link>
-              <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded text-slate-400 hover:text-white">
+              <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded text-muted-foreground hover:text-foreground">
                 <X className="h-4 w-4" />
               </button>
             </div>
             <NavLinks onNav={() => setSidebarOpen(false)} />
-            <div className="shrink-0 border-t border-slate-800 p-3">
+            <div className="shrink-0 border-t border-border p-3">
               <button
                 onClick={() => logout()}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
                 Sign Out
@@ -208,9 +204,9 @@ export default function Layout({ children, connected }: LayoutProps) {
       <div className="flex-1 flex flex-col min-h-screen md:ml-56">
 
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-[#0D1117] border-b border-slate-800 shrink-0">
+        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-background border-b border-border shrink-0">
           <button
-            className="md:hidden p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-5 w-5" />
@@ -218,10 +214,8 @@ export default function Layout({ children, connected }: LayoutProps) {
 
           {/* Page title from path */}
           <div className="md:hidden flex items-center gap-2">
-            <div className="h-6 w-6 bg-blue-600 rounded flex items-center justify-center">
-              <Bot className="h-3.5 w-3.5 text-white" />
-            </div>
-            <span className="text-sm font-bold text-white">{APP_NAME}</span>
+            <img src="/logo.svg" alt={APP_NAME} className="h-6 w-6 rounded" />
+            <span className="text-sm font-bold">{APP_NAME}</span>
           </div>
 
           <div className="flex-1" />
@@ -229,7 +223,7 @@ export default function Layout({ children, connected }: LayoutProps) {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -247,7 +241,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                 <span className="hidden sm:inline">Live</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
+              <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
                 <WifiOff className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Offline</span>
               </div>
@@ -259,23 +253,23 @@ export default function Layout({ children, connected }: LayoutProps) {
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen((v) => !v)}
-                className="hidden md:flex items-center gap-2 pl-3 border-l border-slate-800 text-slate-400 hover:text-white transition-colors"
+                className="hidden md:flex items-center gap-2 pl-3 border-l border-border text-muted-foreground hover:text-foreground transition-colors"
               >
-                <div className="h-7 w-7 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
+                <div className="h-7 w-7 rounded-full bg-muted border border-border flex items-center justify-center">
                   {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-400" /> : <User className="h-3.5 w-3.5 text-blue-400" />}
                 </div>
                 <span className="text-xs font-medium max-w-[100px] truncate">{userName}</span>
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-44 bg-[#161B22] border border-slate-700 rounded-lg shadow-xl py-1 z-50">
-                  <div className="px-3 py-2 border-b border-slate-700">
-                    <p className="text-xs font-medium text-white truncate">{userName}</p>
-                    <p className="text-[10px] text-slate-500">{isSuperAdmin ? 'Super Administrator' : 'Administrator'}</p>
+                <div className="absolute right-0 mt-2 w-44 bg-card border border-border rounded-lg shadow-xl py-1 z-50">
+                  <div className="px-3 py-2 border-b border-border">
+                    <p className="text-xs font-medium truncate">{userName}</p>
+                    <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? 'Super Administrator' : 'Administrator'}</p>
                   </div>
                   <button
                     onClick={() => { setUserMenuOpen(false); logout(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
                   >
                     <LogOut className="h-4 w-4" />
                     Sign Out
@@ -291,8 +285,8 @@ export default function Layout({ children, connected }: LayoutProps) {
           {children}
         </main>
 
-        <footer className="px-6 py-4 border-t border-slate-800 text-center text-[11px] text-slate-600">
-          © {new Date().getFullYear()} {APP_NAME} · <Link to="/policies" className="hover:text-slate-400 transition-colors">Policies</Link>
+        <footer className="px-6 py-4 border-t border-border text-center text-[11px] text-muted-foreground">
+          © {new Date().getFullYear()} {APP_NAME} · <Link to="/policies" className="hover:text-foreground transition-colors">Policies</Link>
         </footer>
       </div>
     </div>
