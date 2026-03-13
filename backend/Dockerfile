@@ -1,4 +1,20 @@
-# Single-stage build — frontend is pre-built and committed to backend/static/
+# ── Stage 1: Build the React frontend ───────────────────────────────────────
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app/frontend
+
+# Enable and pin the exact pnpm version declared in package.json
+RUN corepack enable && corepack prepare pnpm@8.10.0 --activate
+
+# Install dependencies first (cached layer)
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+
+# Copy the rest of the frontend source and build
+COPY frontend/ .
+RUN pnpm build
+
+# ── Stage 2: Python backend ──────────────────────────────────────────────────
 FROM python:3.11-slim
 
 WORKDIR /app/backend
@@ -13,8 +29,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy all backend source files (includes pre-built frontend in static/)
+# Copy all backend source files
 COPY backend/ .
+
+# Copy the freshly built frontend assets into the static directory
+COPY --from=frontend-builder /app/frontend/dist/ ./static/
 
 # Expose port 8000 (Railway will use $PORT environment variable)
 EXPOSE 8000
