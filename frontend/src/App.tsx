@@ -32,6 +32,7 @@ import LogoutCallbackPage from './pages/LogoutCallbackPage';
 import NotFound from './pages/NotFound';
 import MaintenancePage from './pages/MaintenancePage';
 import BotIntro from './pages/BotIntro';
+import ScanQRPH from './pages/ScanQRPH';
 
 const queryClient = new QueryClient();
 
@@ -91,6 +92,7 @@ const App = () => (
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/create-payment" element={<CreatePayment />} />
               <Route path="/payments" element={<PaymentsHub />} />
+              <Route path="/scan-qrph" element={<ScanQRPH />} />
               <Route path="/disbursements" element={<DisbursementsPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/bot-settings" element={<BotSettings />} />
