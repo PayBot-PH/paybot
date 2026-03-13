@@ -1,5 +1,5 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, Integer, String, Text
 
 
 class Bot_settings(Base):
@@ -18,5 +18,15 @@ class Bot_settings(Base):
     custom_bot_id       = Column(String, nullable=True)
     custom_webhook_url  = Column(String, nullable=True)
     webhook_secret      = Column(String, nullable=True)
+    # Message templates
+    welcome_message_en          = Column(Text, nullable=True)
+    welcome_message_zh          = Column(Text, nullable=True)
+    payment_success_message     = Column(Text, nullable=True)
+    payment_failed_message      = Column(Text, nullable=True)
+    payment_pending_message     = Column(Text, nullable=True)
+    maintenance_message         = Column(Text, nullable=True)
+    # Bot behaviour
+    maintenance_mode            = Column(String, nullable=True, default='off')
+    commands_enabled            = Column(Text, nullable=True)   # JSON array of command names
     created_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), nullable=True)

@@ -251,6 +251,17 @@ class TelegramResponse(BaseModel):
     message: str = ""
     data: dict = {}
 
+class BotConfigUpdate(BaseModel):
+    bot_status: Optional[str] = None
+    maintenance_mode: Optional[str] = None
+    welcome_message_en: Optional[str] = None
+    welcome_message_zh: Optional[str] = None
+    payment_success_message: Optional[str] = None
+    payment_failed_message: Optional[str] = None
+    payment_pending_message: Optional[str] = None
+    maintenance_message: Optional[str] = None
+    commands_enabled: Optional[str] = None
+
 
 # ---------- KYB constants ----------
 _PH_BANKS = [
@@ -838,6 +849,73 @@ async def _safe_db_op(db: AsyncSession, operation_name: str, coro):
 
 
 # ---------- Routes ----------
+
+@router.get("/bot-config")
+async def get_bot_config(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get (or create) the bot configuration for the current user."""
+    from services.bot_settings import Bot_settingsService
+    from datetime import datetime as _dt
+    service = Bot_settingsService(db)
+    result = await service.get_list(skip=0, limit=1, user_id=str(current_user.id))
+    if result["total"] == 0:
+        obj = await service.create(
+            {"bot_status": "inactive", "maintenance_mode": "off", "created_at": _dt.utcnow(), "updated_at": _dt.utcnow()},
+            user_id=str(current_user.id),
+        )
+    else:
+        obj = result["items"][0]
+    return {
+        "success": True,
+        "id": obj.id,
+        "bot_status": obj.bot_status or "inactive",
+        "maintenance_mode": obj.maintenance_mode or "off",
+        "welcome_message_en": obj.welcome_message_en or "",
+        "welcome_message_zh": obj.welcome_message_zh or "",
+        "payment_success_message": obj.payment_success_message or "",
+        "payment_failed_message": obj.payment_failed_message or "",
+        "payment_pending_message": obj.payment_pending_message or "",
+        "maintenance_message": obj.maintenance_message or "",
+        "commands_enabled": obj.commands_enabled or "",
+    }
+
+
+@router.put("/bot-config")
+async def update_bot_config(
+    data: BotConfigUpdate,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update bot configuration for the current user."""
+    from services.bot_settings import Bot_settingsService
+    from datetime import datetime as _dt
+    service = Bot_settingsService(db)
+    result = await service.get_list(skip=0, limit=1, user_id=str(current_user.id))
+    update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
+    update_dict["updated_at"] = _dt.utcnow()
+    if result["total"] == 0:
+        update_dict["created_at"] = _dt.utcnow()
+        obj = await service.create(update_dict, user_id=str(current_user.id))
+    else:
+        obj = result["items"][0]
+        obj = await service.update(obj.id, update_dict, user_id=str(current_user.id))
+    return {
+        "success": True,
+        "id": obj.id,
+        "bot_status": obj.bot_status or "inactive",
+        "maintenance_mode": obj.maintenance_mode or "off",
+        "welcome_message_en": obj.welcome_message_en or "",
+        "welcome_message_zh": obj.welcome_message_zh or "",
+        "payment_success_message": obj.payment_success_message or "",
+        "payment_failed_message": obj.payment_failed_message or "",
+        "payment_pending_message": obj.payment_pending_message or "",
+        "maintenance_message": obj.maintenance_message or "",
+        "commands_enabled": obj.commands_enabled or "",
+    }
+
+
 @router.post("/setup-webhook", response_model=TelegramResponse)
 async def setup_webhook(
     data: SetupWebhookRequest,
@@ -3109,4 +3187,109 @@ async def test_bot():
         "success": all_passed,
         "checks": checks,
         "bot": bot_data,
+    }
+
+
+# ---------- Clone-bot endpoints ----------
+
+class CloneBotTokenRequest(BaseModel):
+    bot_token: str
+
+
+@router.post("/clone-bot/validate")
+async def clone_bot_validate(data: CloneBotTokenRequest):
+    """Validate a BotFather token by calling Telegram getMe — no auth required."""
+    token = data.bot_token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="bot_token is required")
+    service = TelegramService(token=token)
+    result = await service.get_bot_info()
+    if not result.get("success"):
+        return {"success": False, "message": result.get("error", "Invalid token or Telegram API error")}
+    bot = result.get("bot", {})
+    return {"success": True, "bot": bot, "message": f"Token valid! Bot: @{bot.get('username', '')}"}
+
+
+@router.post("/clone-bot/save")
+async def clone_bot_save(
+    data: CloneBotTokenRequest,
+    request: Request,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Save a custom bot token for the current user and register its webhook."""
+    from services.bot_settings import Bot_settingsService
+    from datetime import datetime as _dt
+
+    token = data.bot_token.strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="bot_token is required")
+
+    # Validate token first
+    service = TelegramService(token=token)
+    info = await service.get_bot_info()
+    if not info.get("success"):
+        return {"success": False, "message": info.get("error", "Invalid bot token")}
+    bot = info.get("bot", {})
+
+    # Build webhook URL from request host
+    scheme = request.headers.get("x-forwarded-proto", "https")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+    webhook_url = f"{scheme}://{host}/api/v1/telegram/webhook" if host else ""
+
+    # Register webhook with the custom bot
+    if webhook_url:
+        wh_result = await service.set_webhook(webhook_url)
+        if not wh_result.get("success"):
+            logger.warning(f"Webhook registration failed for clone bot: {wh_result.get('error')}")
+    else:
+        webhook_url = ""
+
+    # Persist to bot_settings
+    db_service = Bot_settingsService(db)
+    result = await db_service.get_list(skip=0, limit=1, user_id=str(current_user.id))
+    now = _dt.utcnow()
+    update_dict = {
+        "custom_bot_token": token,
+        "custom_bot_name": bot.get("first_name", ""),
+        "custom_bot_username": bot.get("username", ""),
+        "custom_bot_id": str(bot.get("id", "")),
+        "custom_webhook_url": webhook_url,
+        "updated_at": now,
+    }
+    if result["total"] == 0:
+        update_dict["created_at"] = now
+        await db_service.create(update_dict, user_id=str(current_user.id))
+    else:
+        await db_service.update(result["items"][0].id, update_dict, user_id=str(current_user.id))
+
+    return {
+        "success": True,
+        "message": "Bot saved and webhook registered!",
+        "bot": bot,
+        "webhook_url": webhook_url,
+    }
+
+
+@router.get("/clone-bot/info")
+async def clone_bot_info(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the custom bot info for the current user."""
+    from services.bot_settings import Bot_settingsService
+    db_service = Bot_settingsService(db)
+    result = await db_service.get_list(skip=0, limit=1, user_id=str(current_user.id))
+    if result["total"] == 0:
+        return {"configured": False}
+    obj = result["items"][0]
+    if not obj.custom_bot_token:
+        return {"configured": False}
+    return {
+        "configured": True,
+        "bot_name": obj.custom_bot_name,
+        "bot_username": obj.custom_bot_username,
+        "bot_id": obj.custom_bot_id,
+        "webhook_url": obj.custom_webhook_url,
+        "webhook_secret": obj.webhook_secret,
     }
