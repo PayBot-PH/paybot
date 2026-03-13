@@ -265,12 +265,12 @@ class PayMongoService:
         Create a PayMongo Source for Alipay or WeChat Pay.
 
         Args:
-            amount: Amount in PHP (e.g. 500.00)
+            amount: Amount in the specified currency (e.g. 500.00)
             payment_type: "alipay" or "wechat"
             description: Payment description
             success_url: Redirect URL on success
             failed_url: Redirect URL on failure/cancel
-            currency: Currency code (default PHP)
+            currency: Currency code (e.g. "HKD" for Alipay, "CNY" for WeChat Pay)
 
         Returns:
             dict with success, source_id, checkout_url, reference_number
@@ -335,10 +335,17 @@ class PayMongoService:
     async def create_alipay_qr(
         self, amount: float, description: str = "",
         success_url: str = "", failed_url: str = "",
+        currency: str = "HKD",
     ) -> Dict[str, Any]:
+        """Create an Alipay QR source via PayMongo.
+
+        Alipay does not support PHP; use HKD (Hong Kong Dollar) or CNY (Chinese Yuan).
+        Defaults to HKD.
+        """
         return await self.create_source(
             amount=amount, payment_type="alipay",
             description=description, success_url=success_url, failed_url=failed_url,
+            currency=currency,
         )
 
     async def create_wechat_qr(
