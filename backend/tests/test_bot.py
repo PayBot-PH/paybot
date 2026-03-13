@@ -1,9 +1,11 @@
 """Tests for PayBot — bot command handlers, health endpoints, and core API flows."""
+import asyncio
 import os
 import copy
 import hashlib
 import hmac
 import time
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:////tmp/test_paybot_{os.getpid()}.db")
@@ -13,6 +15,7 @@ os.environ.setdefault("TELEGRAM_ADMIN_IDS", "123456789")
 
 from fastapi.testclient import TestClient
 from main import app  # noqa: E402
+from services.xendit_service import XenditService  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -634,6 +637,82 @@ class TestXenditWebhook:
         )
         assert r.status_code == 200
         assert r.json()["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# Xendit e-wallet channel_properties
+# ---------------------------------------------------------------------------
+class TestXenditEwalletChannelProperties:
+    """Verify that create_ewallet_charge always sends required channel_properties."""
+
+    def test_gcash_charge_includes_success_redirect_url(self):
+        """PH_GCASH requires success_redirect_url in channel_properties (API_VALIDATION_ERROR fix)."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": "ewc-test-123",
+            "status": "PENDING",
+            "actions": {"desktop_web_checkout_url": "https://gcash.example.com/pay"},
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        captured_payload: dict = {}
+
+        async def mock_post(url, **kwargs):
+            captured_payload.update(kwargs.get("json", {}))
+            return mock_response
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = mock_post
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            svc = XenditService()
+            svc.secret_key = "test-key"
+            result = asyncio.get_event_loop().run_until_complete(
+                svc.create_ewallet_charge(amount=100, channel_code="PH_GCASH")
+            )
+
+        assert result["success"] is True
+        props = captured_payload.get("channel_properties", {})
+        assert "success_redirect_url" in props, (
+            "PH_GCASH channel_properties must include success_redirect_url"
+        )
+        assert props["success_redirect_url"], "success_redirect_url must not be empty"
+
+    def test_custom_redirect_url_is_used(self):
+        """Caller-supplied success_redirect_url takes precedence over the default."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"id": "ewc-test-456", "status": "PENDING", "actions": {}}
+        mock_response.raise_for_status = MagicMock()
+
+        captured_payload: dict = {}
+
+        async def mock_post(url, **kwargs):
+            captured_payload.update(kwargs.get("json", {}))
+            return mock_response
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = mock_post
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            svc = XenditService()
+            svc.secret_key = "test-key"
+            result = asyncio.get_event_loop().run_until_complete(
+                svc.create_ewallet_charge(
+                    amount=200,
+                    channel_code="PH_GRABPAY",
+                    success_redirect_url="https://myapp.com/success",
+                    failure_redirect_url="https://myapp.com/failed",
+                )
+            )
+
+        assert result["success"] is True
+        props = captured_payload.get("channel_properties", {})
+        assert props["success_redirect_url"] == "https://myapp.com/success"
+        assert props["failure_redirect_url"] == "https://myapp.com/failed"
 
 
 # ---------------------------------------------------------------------------
