@@ -34,6 +34,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 PAYMONGO_BASE_URL = "https://api.paymongo.com/v1"
+WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = 300  # 5-minute replay-protection window
 
 # Default payment method types for checkout sessions.
 # Covers the most common PayMongo-supported methods; can be overridden per request.
@@ -106,6 +107,60 @@ class PayMongoService:
     def _get_public_auth(self):
         """Public key auth — required by the Sources API."""
         return (self.public_key, "")
+
+    def verify_webhook_signature(self, raw_body: bytes, header_value: str) -> bool:
+        """Verify a PayMongo webhook signature.
+
+        The ``Paymongo-Signature`` header has the format::
+
+            t=<unix_timestamp>,te=<test_sig>,li=<live_sig>
+
+        Raises:
+            ValueError: if ``PAYMONGO_WEBHOOK_SECRET`` is not configured.
+
+        Returns:
+            True if the signature is valid and the timestamp is within 5 minutes,
+            False otherwise.
+        """
+        if not self.webhook_secret:
+            raise ValueError(
+                "PAYMONGO_WEBHOOK_SECRET is not configured — "
+                "set it in your environment to enable webhook signature verification."
+            )
+
+        # Parse header fields
+        fields: dict = {}
+        for part in header_value.split(","):
+            part = part.strip()
+            if "=" in part:
+                k, _, v = part.partition("=")
+                fields[k.strip()] = v.strip()
+
+        timestamp_str = fields.get("t", "")
+        # Accept either "te" (test) or "li" (live) signature
+        sig = fields.get("te") or fields.get("li") or ""
+
+        if not timestamp_str or not sig:
+            return False
+
+        try:
+            timestamp = int(timestamp_str)
+        except ValueError:
+            return False
+
+        # Reject stale timestamps (replay protection: 5 minute window)
+        if abs(time.time() - timestamp) > WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS:
+            return False
+
+        # Recompute expected HMAC-SHA256
+        signed_payload = f"{timestamp}.{raw_body.decode('utf-8')}"
+        expected = hmac.new(
+            self.webhook_secret.encode("utf-8"),
+            signed_payload.encode("utf-8"),
+            hashlib.sha256,
+        ).hexdigest()
+
+        return hmac.compare_digest(expected, sig)
 
     async def create_source(
         self,

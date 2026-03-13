@@ -337,7 +337,7 @@ class TestAlipayBotCommand:
         photonpay_mock = MagicMock()
         photonpay_mock.is_configured = False
         pm_mock = MagicMock()
-        pm_mock.secret_key = ""
+        pm_mock.public_key = ""
 
         mock_tg = _build_mock_tg()
         with patch("routers.telegram.TransFiService", return_value=transfi_mock), \
@@ -457,7 +457,7 @@ class TestAlipaySessionEndpoint:
         photonpay_mock = MagicMock()
         photonpay_mock.is_configured = False
         pm_mock = MagicMock()
-        pm_mock.secret_key = ""
+        pm_mock.public_key = ""
         with patch("routers.photonpay.TransFiService", return_value=transfi_mock), \
              patch("routers.photonpay.PhotonPayService", return_value=photonpay_mock), \
              patch("routers.photonpay.PayMongoService", return_value=pm_mock):
@@ -476,7 +476,7 @@ class TestAlipaySessionEndpoint:
         photonpay_mock = MagicMock()
         photonpay_mock.is_configured = False
         pm_mock = MagicMock()
-        pm_mock.secret_key = ""
+        pm_mock.public_key = ""
         with patch("routers.photonpay.TransFiService", return_value=transfi_mock), \
              patch("routers.photonpay.PhotonPayService", return_value=photonpay_mock), \
              patch("routers.photonpay.PayMongoService", return_value=pm_mock):
@@ -837,7 +837,7 @@ class TestWeChatBotCommand:
         photonpay_mock = MagicMock()
         photonpay_mock.is_configured = False
         pm_mock = MagicMock()
-        pm_mock.secret_key = ""
+        pm_mock.public_key = ""
 
         mock_tg = _build_mock_tg()
         with patch("routers.telegram.TransFiService", return_value=transfi_mock), \
@@ -1021,7 +1021,7 @@ class TestAlipayProviderFallbackChain:
         photonpay_mock = MagicMock()
         photonpay_mock.is_configured = False
         pm_mock = MagicMock()
-        pm_mock.secret_key = ""
+        pm_mock.public_key = ""
         with patch("routers.photonpay.TransFiService", return_value=transfi_mock), \
              patch("routers.photonpay.PhotonPayService", return_value=photonpay_mock), \
              patch("routers.photonpay.PayMongoService", return_value=pm_mock):

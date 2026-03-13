@@ -223,8 +223,8 @@ class PhotonPayService:
                 headers={"Authorization": self._basic_auth_header()},
                 json={"grant_type": "client_credentials", "appId": self.app_id, "appSecret": self.app_secret},
             )
-            _data = r.json() if r.content else {}
-            if _gateway_error(_data):
+            last_data = r.json() if r.content else {}
+            if _gateway_error(last_data):
                 logger.debug("PhotonPay: JSON body attempt rejected, trying form-encoded")
                 # Attempt 2: form-encoded + Basic auth
                 r = await self._http.post(
@@ -232,14 +232,21 @@ class PhotonPayService:
                     headers={"Authorization": self._basic_auth_header(), "Content-Type": "application/x-www-form-urlencoded"},
                     data={"grant_type": "client_credentials", "appId": self.app_id, "appSecret": self.app_secret},
                 )
-                _data = r.json() if r.content else {}
-            if _gateway_error(_data):
+                last_data = r.json() if r.content else {}
+            if _gateway_error(last_data):
                 logger.debug("PhotonPay: form-encoded + Basic auth rejected, trying credentials-only form")
                 # Attempt 3: form-encoded body only, no Basic auth
                 r = await self._http.post(
                     token_url,
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
                     data={"grant_type": "client_credentials", "appId": self.app_id, "appSecret": self.app_secret},
+                )
+                last_data = r.json() if r.content else {}
+            if _gateway_error(last_data):
+                raise ValueError(
+                    f"PhotonPay rejected all authentication attempts — "
+                    f"verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET are correct "
+                    f"(endpoint: {token_url}, response: {last_data})"
                 )
         except httpx.RequestError as exc:
             raise ValueError(
