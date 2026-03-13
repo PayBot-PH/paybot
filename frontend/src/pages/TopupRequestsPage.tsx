@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
-import { CheckCircle, XCircle, Clock, Eye, RefreshCw, DollarSign } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Eye, RefreshCw, DollarSign, TrendingUp } from 'lucide-react';
 
 interface TopupRequest {
   id: number;
@@ -31,6 +31,44 @@ export default function TopupRequestsPage() {
   const [note, setNote] = useState('');
   const [activeId, setActiveId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [usdtPhpRate, setUsdtPhpRate] = useState<number>(58.0);
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateInput, setRateInput] = useState('');
+  const [rateEditMode, setRateEditMode] = useState(false);
+
+  const fetchRate = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/app-settings/usdt-php-rate');
+      if (res.ok) {
+        const d = await res.json();
+        setUsdtPhpRate(d.rate);
+        setRateInput(String(d.rate));
+      }
+    } catch (e) { console.error(e); }
+  }, []);
+
+  const saveRate = async () => {
+    const parsed = parseFloat(rateInput);
+    if (!parsed || parsed <= 0) { setError('Rate must be a positive number.'); return; }
+    setRateLoading(true); setError('');
+    try {
+      const res = await fetch('/api/v1/app-settings/usdt-php-rate', {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rate: parsed }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setUsdtPhpRate(d.rate);
+        setRateInput(String(d.rate));
+        setRateEditMode(false);
+      } else {
+        const d = await res.json();
+        setError(d.detail || 'Failed to update rate');
+      }
+    } catch (e: any) { setError(e.message); }
+    setRateLoading(false);
+  };
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -43,10 +81,11 @@ export default function TopupRequestsPage() {
   }, [filter]);
 
   useEffect(() => {
+    fetchRate();
     fetchRequests();
     const id = setInterval(fetchRequests, 30000);
     return () => clearInterval(id);
-  }, [fetchRequests]);
+  }, [fetchRate, fetchRequests]);
 
   const doAction = async (id: number, action: 'approve' | 'reject') => {
     setActionLoading(id); setError('');
@@ -80,12 +119,65 @@ export default function TopupRequestsPage() {
                 <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending_count}</span>
               )}
             </h1>
-            <p className="text-slate-500 text-sm mt-0.5">Review and approve USDT TRC20 wallet topups</p>
+            <p className="text-slate-500 text-sm mt-0.5">Review and approve USDT TRC20 → PHP wallet top-ups</p>
           </div>
           <button onClick={fetchRequests}
             className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
+        </div>
+
+        {/* Exchange rate card */}
+        <div className="bg-[#0F172A] border border-blue-500/20 rounded-2xl p-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-slate-400 text-xs">USDT → PHP Exchange Rate</p>
+                {rateEditMode ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-slate-400 text-sm">₱</span>
+                    <input
+                      type="number"
+                      value={rateInput}
+                      onChange={e => setRateInput(e.target.value)}
+                      step="0.01"
+                      min="0.01"
+                      className="w-28 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500/50"
+                    />
+                    <span className="text-slate-400 text-xs">PHP per USDT</span>
+                  </div>
+                ) : (
+                  <p className="text-white font-bold text-lg">₱{usdtPhpRate.toFixed(2)} <span className="text-slate-400 text-sm font-normal">per USDT</span></p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {rateEditMode ? (
+                <>
+                  <button
+                    onClick={saveRate}
+                    disabled={rateLoading}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors">
+                    {rateLoading ? 'Saving…' : 'Save Rate'}
+                  </button>
+                  <button
+                    onClick={() => { setRateEditMode(false); setRateInput(String(usdtPhpRate)); }}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:text-white transition-colors">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setRateEditMode(true)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:text-white transition-colors">
+                  Edit Rate
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Filter tabs */}
@@ -130,6 +222,7 @@ export default function TopupRequestsPage() {
             {requests.map(req => {
               const sc = statusConfig[req.status] || statusConfig.pending;
               const isActive = activeId === req.id;
+              const phpEquivalent = (req.amount_usdt * usdtPhpRate).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               return (
                 <div key={req.id} className="bg-[#0F172A] border border-slate-700/40 rounded-2xl overflow-hidden">
                   <div className="p-4 flex items-start gap-4">
@@ -147,6 +240,8 @@ export default function TopupRequestsPage() {
                       </div>
                       <p className="text-slate-400 text-sm mt-0.5">
                         <span className="text-emerald-400 font-bold">${req.amount_usdt.toFixed(2)} USDT</span>
+                        <span className="text-slate-500 mx-1">→</span>
+                        <span className="text-blue-400 font-semibold">₱{phpEquivalent} PHP</span>
                         {' · '}Request #{req.id}
                         {' · '}{fmt_time(req.created_at)}
                       </p>
@@ -177,6 +272,10 @@ export default function TopupRequestsPage() {
                   {/* Action panel */}
                   {isActive && req.status === 'pending' && (
                     <div className="px-4 pb-4 border-t border-slate-700/40 pt-3">
+                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2 mb-3 text-xs text-blue-300">
+                        💱 Approving will credit <strong>₱{phpEquivalent} PHP</strong> to the user's wallet
+                        {' '}(${req.amount_usdt.toFixed(2)} USDT × ₱{usdtPhpRate.toFixed(2)} rate)
+                      </div>
                       <p className="text-slate-400 text-xs mb-2">Add a note (optional):</p>
                       <input
                         value={note} onChange={e => setNote(e.target.value)}
@@ -188,7 +287,7 @@ export default function TopupRequestsPage() {
                           disabled={actionLoading === req.id}
                           className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold py-2 rounded-xl transition-colors text-sm">
                           {actionLoading === req.id ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                          Approve & Credit Wallet
+                          Approve & Credit ₱{phpEquivalent} PHP
                         </button>
                         <button onClick={() => doAction(req.id, 'reject')}
                           disabled={actionLoading === req.id}

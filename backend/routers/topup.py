@@ -15,6 +15,7 @@ from models.wallet_transactions import Wallet_transactions
 from models.admin_users import AdminUser
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
+from routers.app_settings import get_usdt_php_rate
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +32,7 @@ class TopupRequestResponse(BaseModel):
     chat_id: str
     telegram_username: Optional[str] = None
     amount_usdt: float
-    currency: str = "USD"
+    currency: str = "PHP"
     reference_code: Optional[str] = None
     receipt_file_id: Optional[str] = None
     status: str
@@ -54,20 +55,28 @@ class RejectTopupRequest(BaseModel):
 
 
 # ---------- Helpers ----------
-async def _get_or_create_usd_wallet(db: AsyncSession, user_id: str) -> Wallets:
+async def _get_or_create_php_wallet(db: AsyncSession, user_id: str) -> Wallets:
     result = await db.execute(
-        select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == "USD")
+        select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == "PHP")
     )
     wallet = result.scalar_one_or_none()
     if not wallet:
         now = datetime.now()
-        wallet = Wallets(user_id=user_id, balance=0.0, currency="USD", created_at=now, updated_at=now)
+        wallet = Wallets(user_id=user_id, balance=0.0, currency="PHP", created_at=now, updated_at=now)
         db.add(wallet)
         await db.flush()
     return wallet
 
 
 # ---------- Endpoints ----------
+
+@router.get("/rate")
+async def get_conversion_rate(db: AsyncSession = Depends(get_db)):
+    """Return the current USDT→PHP exchange rate used for topup conversion. Publicly accessible."""
+    rate = await get_usdt_php_rate(db)
+    return {"usdt_php_rate": rate}
+
+
 @router.get("", response_model=TopupListResponse)
 async def list_topup_requests(
     status: Optional[str] = None,
@@ -103,7 +112,7 @@ async def approve_topup_request(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Approve a USDT topup request and credit the user's USD wallet."""
+    """Approve a USDT topup request: convert USDT→PHP at the configured rate and credit the PHP wallet."""
     result = await db.execute(select(TopupRequest).where(TopupRequest.id == topup_id))
     req = result.scalar_one_or_none()
     if not req:
@@ -112,22 +121,30 @@ async def approve_topup_request(
         raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
 
     user_wallet_id = f"tg-{req.chat_id}"
-    amount = req.amount_usdt
+    amount_usdt = req.amount_usdt
+
+    # Fetch the current USDT→PHP exchange rate
+    rate = await get_usdt_php_rate(db)
+    amount_php = round(amount_usdt * rate, 2)
 
     now = datetime.now()
 
-    wallet = await _get_or_create_usd_wallet(db, user_wallet_id)
+    wallet = await _get_or_create_php_wallet(db, user_wallet_id)
     balance_before = wallet.balance
-    wallet.balance += amount
+    wallet.balance = round(wallet.balance + amount_php, 2)
     wallet.updated_at = now
     txn = Wallet_transactions(
         user_id=user_wallet_id,
         wallet_id=wallet.id,
-        transaction_type="topup",
-        amount=amount,
+        transaction_type="top_up",
+        amount=amount_php,
         balance_before=balance_before,
         balance_after=wallet.balance,
-        note=f"USDT TRC20 topup approved (request #{topup_id})" + (f" — {body.note}" if body.note else ""),
+        note=(
+            f"USDT→PHP topup: ${amount_usdt:.2f} USDT × ₱{rate:.2f} = ₱{amount_php:,.2f}"
+            f" (request #{topup_id})"
+            + (f" — {body.note}" if body.note else "")
+        ),
         status="completed",
         reference_id=str(topup_id),
         created_at=now,
@@ -137,7 +154,7 @@ async def approve_topup_request(
 
     # Update topup request status
     req.status = "approved"
-    req.note = body.note or "Approved"
+    req.note = body.note or f"Approved: ${amount_usdt:.2f} USDT → ₱{amount_php:,.2f} PHP (rate: {rate:.2f})"
     req.approved_by = getattr(current_user, "telegram_id", str(current_user.id))
     req.updated_at = now
 
@@ -146,16 +163,21 @@ async def approve_topup_request(
 
     # Fire wallet update event
     try:
-        await payment_event_bus.publish({
-            "type": "wallet_update",
+        payment_event_bus.publish({
+            "event_type": "wallet_update",
             "user_id": user_wallet_id,
+            "wallet_id": wallet.id,
             "balance": wallet.balance,
-            "currency": "USD",
+            "transaction_type": "top_up",
+            "amount": amount_php,
         })
     except Exception:
         pass
 
-    logger.info(f"Topup #{topup_id} approved — credited {amount} USD to {user_wallet_id}")
+    logger.info(
+        "Topup #%s approved — $%.2f USDT → ₱%.2f PHP (rate %.2f) credited to %s",
+        topup_id, amount_usdt, amount_php, rate, user_wallet_id,
+    )
     return req
 
 

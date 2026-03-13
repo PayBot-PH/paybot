@@ -33,6 +33,7 @@ from models.topup_requests import TopupRequest
 from models.usdt_send_requests import UsdtSendRequest
 from models.kyb_registrations import KybRegistration
 from models.admin_users import AdminUser
+from routers.app_settings import get_usdt_php_rate
 
 logger = logging.getLogger(__name__)
 
@@ -276,11 +277,11 @@ def _welcome_en() -> str:
         "  /refund [id] [amt] — Refund a payment\n\n"
         "💰 <b>PHP Wallet</b>\n"
         "  /balance — View balances &amp; history\n"
+        "  /topup [amt] — Top up PHP wallet via USDT (auto-converted)\n"
         "  /send [amt] [to] — Send funds\n"
         "  /withdraw [amt] — Withdraw\n\n"
         "💵 <b>USD Wallet (USDT TRC20)</b>\n"
         "  /usdbalance — USD balance &amp; history\n"
-        "  /topup [amt] — Top up via USDT\n"
         "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
         "  /sendusd [amt] [@username] — Send USD to another user\n\n"
         "📊 <b>Reports &amp; Tools</b>\n"
@@ -312,11 +313,11 @@ def _welcome_zh() -> str:
         "  /refund [ID] [金额] — 退款\n\n"
         "💰 <b>PHP 钱包</b>\n"
         "  /balance — 查看余额及历史\n"
+        "  /topup [金额] — 通过 USDT 充值至 PHP 钱包（自动换汇）\n"
         "  /send [金额] [接收方] — 转账\n"
         "  /withdraw [金额] — 提现\n\n"
         "💵 <b>USD 钱包（USDT TRC20）</b>\n"
         "  /usdbalance — USD 余额及历史\n"
-        "  /topup [金额] — 通过 USDT 充值\n"
         "  /sendusdt [金额] [地址] — 发送 USDT 至 TRC20 地址\n"
         "  /sendusd [金额] [@用户名] — 向用户转账 USD\n\n"
         "📊 <b>报表与工具</b>\n"
@@ -963,7 +964,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 amount = pending_topup.amount_usdt
                 now = datetime.now()
 
-                # USD: still requires manual admin approval
+                # Fetch the current exchange rate to show expected PHP amount
+                rate = await get_usdt_php_rate(db)
+                amount_php = round(amount * rate, 2)
+
                 pending_topup.updated_at = now
                 await db.commit()
                 await tg.send_message(
@@ -971,8 +975,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     f"✅ <b>Receipt received!</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n"
                     f"💵 Amount: <b>${amount:.2f} USDT</b>\n"
+                    f"💱 Rate: <b>₱{rate:.2f}</b> per USDT\n"
+                    f"💰 Expected credit: <b>₱{amount_php:,.2f} PHP</b>\n"
                     f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
-                    f"⏳ Under review by admin. Your USD wallet will be credited once approved.",
+                    f"⏳ Under review by admin. Your PHP wallet will be credited once approved.",
                 )
             else:
                 await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /topup [amount] for USDT.")
@@ -2695,11 +2701,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /refund [id] [amt]\n\n"
                 "💰 <b>PHP Wallet:</b>\n"
                 "  /balance — PHP & USD balances\n"
+                "  /topup [amt] — Top up PHP wallet via USDT (auto-converted)\n"
                 "  /send [amt] [to]\n"
                 "  /withdraw [amt]\n\n"
                 "💵 <b>USD Wallet (USDT TRC20):</b>\n"
                 "  /usdbalance — USD balance & history\n"
-                "  /topup [amt] — Top up USD wallet via USDT\n"
                 "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
                 "  /sendusd [amt] [@username] — Send USD to another user\n\n"
                 "📊 <b>Tools:</b>\n"
@@ -2717,14 +2723,16 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # ==================== /topup ====================
         elif text.startswith("/topup"):
             parts = text.split(maxsplit=1)
+            rate = await get_usdt_php_rate(db)
             if len(parts) < 2:
                 qr_url = _usdt_static_qr_url()
                 caption = (
-                    f"💵 <b>Top Up USD Wallet via USDT TRC20</b>\n"
+                    f"💵 <b>Top Up PHP Wallet via USDT TRC20</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n"
                     f"Send USDT (TRC20) to:\n\n"
                     f"<code>{USDT_TRC20_ADDRESS}</code>\n\n"
                     f"⚠️ <b>Network:</b> TRC20 (TRON) only — do NOT use ERC20 or BEP20\n\n"
+                    f"💱 <b>Exchange Rate:</b> $1 USDT = ₱{rate:.2f} PHP\n\n"
                     f"Then run:\n"
                     f"  <b>/topup [amount]</b>  — to submit your request\n\n"
                     f"Example: /topup 50\n\n"
@@ -2737,11 +2745,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     if amount <= 0:
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
                     else:
+                        amount_php = round(amount * rate, 2)
                         now = datetime.now()
                         req = TopupRequest(
                             chat_id=chat_id,
                             telegram_username=username,
                             amount_usdt=amount,
+                            currency="PHP",
                             status="pending",
                             created_at=now,
                         )
@@ -2750,14 +2760,16 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await db.refresh(req)
                         qr_url = _usdt_static_qr_url()
                         caption = (
-                            f"💵 <b>Top Up via USDT TRC20</b>\n"
+                            f"💵 <b>Top Up PHP Wallet via USDT TRC20</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"📤 Send exactly <b>${amount:.2f} USDT</b> to:\n\n"
                             f"<code>{USDT_TRC20_ADDRESS}</code>\n\n"
                             f"⚠️ <b>Network:</b> TRC20 (TRON) only — do NOT use ERC20\n"
                             f"🆔 Request ID: <code>#{req.id}</code>\n\n"
+                            f"💱 <b>Exchange Rate:</b> $1 USDT = ₱{rate:.2f} PHP\n"
+                            f"💰 <b>You will receive:</b> ₱{amount_php:,.2f} PHP\n\n"
                             f"✅ After sending, <b>reply with a screenshot</b> of your transaction as a photo.\n"
-                            f"The admin will verify and credit your USD wallet within minutes."
+                            f"The admin will verify and credit your PHP wallet within minutes."
                         )
                         await tg.send_photo(chat_id, qr_url, caption=caption)
                 except ValueError:
