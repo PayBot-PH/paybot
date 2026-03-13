@@ -152,7 +152,7 @@ async def _process_scanqr(
         "⏳ Status: <b>Pending</b>",
         "💳 Complete the payment via your bank or e-wallet app.",
     ]
-    await tg.send_message(chat_id, "\n".join(reply_lines), reply_markup=_pay_kb())
+    await tg.send_message(chat_id, "\n".join(reply_lines))
 
     try:
         now = datetime.now()
@@ -420,7 +420,7 @@ def _welcome_en(name: str = "") -> str:
         f"  /fees [amt] [method] — Fee calculator\n"
         f"  /cancel [id] — Cancel pending payment\n"
         f"  /remind [id] — Send payment reminder\n\n"
-        f"💡 <b>Tip:</b> Use the quick-action buttons below or type /help anytime!"
+        f"💡 <b>Tip:</b> Type any command or /help to see everything you can do!"
     )
 
 
@@ -457,7 +457,7 @@ def _welcome_zh(name: str = "") -> str:
         f"  /fees [金额] [方式] — 费用计算\n"
         f"  /cancel [ID] — 取消待付款项\n"
         f"  /remind [ID] — 发送付款提醒\n\n"
-        f"💡 <b>提示：</b>使用下方快捷按钮，或随时输入 /help 查看帮助！"
+        f"💡 <b>提示：</b>输入任意命令或 /help 查看全部功能！"
     )
 
 
@@ -522,6 +522,29 @@ _PIN_SESSIONS: dict[str, datetime] = {}
 _PIN_SESSION_TTL = timedelta(hours=2)
 _PIN_LOCK_MINUTES = 5
 _PIN_MAX_ATTEMPTS = 3
+
+# ---------- Language preference store ----------
+# chat_id → "en" or "zh". Persists until the user runs /start again.
+# Note: This is intentionally in-memory. Language preferences are lightweight
+# UX state that does not need to survive server restarts — the user will simply
+# be prompted to choose their language again on the next /start.
+_user_lang: dict[str, str] = {}
+
+
+def _lang(chat_id: str) -> str:
+    """Return the stored language for a chat, defaulting to English."""
+    return _user_lang.get(chat_id, "en")
+
+
+def _t(chat_id: str, en: str, zh: str = "") -> str:
+    """Pick the localised string based on the user's stored language."""
+    if _lang(chat_id) == "zh" and zh:
+        return zh
+    return en
+
+
+# Sentinel dict to remove any active ReplyKeyboard without sending one.
+_REMOVE_KB: dict = {"remove_keyboard": True}
 
 
 def _is_pin_session_active(chat_id: str) -> bool:
@@ -1051,6 +1074,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 await tg.answer_callback_query(cq_id)
                 lang = cq_data.split(":")[1]
 
+                # Persist the language choice for this user.
+                _user_lang[cq_chat_id] = lang
+
                 # Check whether this chat belongs to a registered admin
                 is_registered = False
                 try:
@@ -1061,7 +1087,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
                 if is_registered:
                     welcome = _welcome_en(cq_first_name) if lang == "en" else _welcome_zh(cq_first_name)
-                    await tg.send_message(cq_chat_id, welcome, reply_markup=_start_kb())
+                    await tg.send_message(cq_chat_id, welcome)
                 else:
                     if lang == "en":
                         greeting = f"Hi {cq_first_name}! 👋" if cq_first_name else "👋 Hello!"
@@ -1072,7 +1098,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"This bot is currently available to <b>registered merchants</b> only.\n\n"
                             f"📋 <b>To get started:</b>\n"
                             f"Complete a quick KYB (Know Your Business) registration so we can verify your account and unlock all payment features.\n\n"
-                            f"👉 Tap /register to begin — it only takes a few minutes!"
+                            f"👉 Type /register to begin — it only takes a few minutes!"
                         )
                     else:
                         greeting = f"嗨 {cq_first_name}！👋" if cq_first_name else "👋 你好！"
@@ -1083,7 +1109,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"本机器人目前仅对<b>已注册商户</b>开放。\n\n"
                             f"📋 <b>如何开始：</b>\n"
                             f"完成快速 KYB（了解您的业务）注册，我们将验证您的账户并开放所有支付功能。\n\n"
-                            f"👉 点击 /register 开始注册，只需几分钟！"
+                            f"👉 输入 /register 开始注册，只需几分钟！"
                         )
                     await tg.send_message(cq_chat_id, msg)
 
@@ -1141,10 +1167,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"🔐 <b>Session Expired</b>\n\n"
                         f"Hey{name_display}! Your session has timed out for security. No worries — just log back in:\n\n"
                         f"<code>/login [your PIN]</code>",
-                        reply_markup={
-                            "keyboard": [[{"text": "🔑 /login"}]],
-                            "resize_keyboard": True, "one_time_keyboard": True,
-                        },
                     )
                     return {"status": "ok"}
                 elif _adm and not _adm.pin_hash:
@@ -1252,10 +1274,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.rollback()
                 await tg.send_message(
                     chat_id,
-                    f"✅ <b>Welcome back, {_adm.name or username}!</b> 👋\n\n"
-                    f"You're all set — your session is active for 2 hours. Let's get to work! 💪\n\n"
-                    f"Tap a button below or type /help to explore all commands.",
-                    reply_markup=_start_kb(),
+                    _t(chat_id,
+                       f"✅ <b>Welcome back, {_adm.name or username}!</b> 👋\n\n"
+                       f"You're all set — your session is active for 2 hours. Let's get to work! 💪\n\n"
+                       f"Type /help to explore all commands.",
+                       f"✅ <b>欢迎回来，{_adm.name or username}！</b> 👋\n\n"
+                       f"登录成功，会话有效期 2 小时。开始吧！💪\n\n"
+                       f"输入 /help 查看所有命令。"),
                 )
             else:
                 # Wrong PIN
@@ -1318,11 +1343,15 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             _start_pin_session(chat_id)
             await tg.send_message(
                 chat_id,
-                "✅ <b>PIN set successfully!</b>\n\n"
-                "🔐 Your account is now PIN-protected.\n"
-                "Use <code>/login [PIN]</code> to authenticate next time.\n\n"
-                "You are now logged in for this session.",
-                reply_markup=_start_kb(),
+                _t(chat_id,
+                   "✅ <b>PIN set successfully!</b>\n\n"
+                   "🔐 Your account is now PIN-protected.\n"
+                   "Use <code>/login [PIN]</code> to authenticate next time.\n\n"
+                   "You are now logged in for this session.",
+                   "✅ <b>PIN 设置成功！</b>\n\n"
+                   "🔐 您的账户已受 PIN 保护。\n"
+                   "下次使用 <code>/login [PIN]</code> 登录。\n\n"
+                   "当前会话已激活。"),
             )
             return {"status": "ok"}
 
@@ -1331,11 +1360,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             _end_pin_session(chat_id)
             await tg.send_message(
                 chat_id,
-                "👋 <b>You've been signed out.</b>\n\nStay safe! When you're ready to continue, just log back in:\n\n<code>/login [your PIN]</code>",
-                reply_markup={
-                    "keyboard": [[{"text": "🔑 /login"}]],
-                    "resize_keyboard": True, "one_time_keyboard": True,
-                },
+                _t(chat_id,
+                   "👋 <b>You've been signed out.</b>\n\nStay safe! When you're ready to continue, just log back in:\n\n<code>/login [your PIN]</code>",
+                   "👋 <b>已退出登录。</b>\n\n注意安全！准备好后，重新登录：\n\n<code>/login [PIN]</code>"),
             )
             return {"status": "ok"}
 
@@ -1432,13 +1459,15 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             if text.startswith("/cancel"):
                 # /cancel always aborts the current wizard
                 del _pending[chat_id]
-                await tg.send_message(chat_id, "❌ Wizard cancelled.", reply_markup=_start_kb())
+                await tg.send_message(chat_id, _t(chat_id, "❌ Wizard cancelled.", "❌ 已取消。"))
                 return {"status": "ok"}
             # Any other new command: silently cancel wizard and process normally
             del _pending[chat_id]
 
         # ==================== /start ====================
         if text.startswith("/start"):
+            # Clear stored language so the user is prompted to pick again.
+            _user_lang.pop(chat_id, None)
             greeting = f"Hi {first_name}! 👋" if first_name else "👋 Hello!"
             await tg.send_message(
                 chat_id,
@@ -1525,10 +1554,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 "Set a PIN to protect your account before you start:\n\n"
                                 "<code>/setpin [4–6 digit PIN]</code>\n\nExample: <code>/setpin 1234</code>\n\n"
                                 "Welcome aboard! 🚀",
-                                reply_markup={
-                                    "keyboard": [[{"text": "🔑 /setpin"}]],
-                                    "resize_keyboard": True, "one_time_keyboard": True,
-                                },
                             )
                     except Exception as e:
                         logger.error("kyb_approve error: %s", e)
@@ -1606,7 +1631,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         } if invoice_url else None
                         # Send reply FIRST
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
-                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         # Then try DB save
                         try:
                             now = datetime.now()
@@ -1651,7 +1675,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"📱 QR: <code>{result.get('qr_string', '')}</code>\n"
                             f"🆔 <code>{result.get('external_id', '')}</code>"
                         )
-                        await tg.send_message(chat_id, reply, reply_markup=_pay_kb())
+                        await tg.send_message(chat_id, reply)
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -1719,7 +1743,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         )
                         keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay", "url": checkout_url}]]} if checkout_url else None
                         await tg.send_message(chat_id, caption, reply_markup=keyboard)
-                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -1783,7 +1806,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         )
                         keyboard = {"inline_keyboard": [[{"text": "💚 Pay via WeChat", "url": checkout_url}]]} if checkout_url else None
                         await tg.send_message(chat_id, caption, reply_markup=keyboard)
-                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -1836,7 +1858,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             "inline_keyboard": [[{"text": "🔗 Pay Now", "url": link_url}]]
                         } if link_url else None
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
-                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -1880,7 +1901,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"🔢 Account: <code>{result.get('account_number', '')}</code>\n"
                             f"🆔 <code>{result.get('external_id', '')}</code>"
                         )
-                        await tg.send_message(chat_id, reply, reply_markup=_pay_kb())
+                        await tg.send_message(chat_id, reply)
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -1933,7 +1954,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         )
                         ewallet_keyboard = {"inline_keyboard": [[{"text": "📱 Pay Now", "url": checkout}]]} if checkout else None
                         await tg.send_message(chat_id, reply, reply_markup=ewallet_keyboard)
-                        await tg.send_message(chat_id, "💡 <b>What's next?</b> Use the quick buttons below.", reply_markup=_pay_kb())
                         try:
                             now = datetime.now()
                             txn = Transactions(
@@ -1978,7 +1998,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             "Your PHP wallet balance is <b>₱0.00</b>.\n"
                             "Please top up first using /alipay or /wechat.\n\n"
                             "💡 Use /balance to check your balance.",
-                            reply_markup=_wallet_kb(),
                         )
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
@@ -1989,7 +2008,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"Available: <b>₱{php_bal:,.2f}</b>\n"
                             f"Required: <b>₱{amount:,.2f}</b>\n\n"
                             f"Please top up the difference using /alipay or /wechat.",
-                            reply_markup=_wallet_kb(),
                         )
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
@@ -2013,7 +2031,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"🆔 <code>{result.get('external_id', '')}</code>\n\n"
                             f"Use /status {result.get('external_id', '')} to track."
                         )
-                        await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
+                        await tg.send_message(chat_id, reply)
                         try:
                             now = datetime.now()
                             disb = Disbursements(
@@ -2102,7 +2120,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         else:
                             reply = f"❌ Refund failed: {ref_result.get('error', 'Unknown')}"
                         # Send reply FIRST
-                        await tg.send_message(chat_id, reply, reply_markup=_info_kb())
+                        await tg.send_message(chat_id, reply)
                         # Then try DB save
                         try:
                             now = datetime.now()
@@ -2148,7 +2166,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         em = s_map.get(t.status, "❓")
                         lines.append(f"{em} ₱{t.amount:,.2f} — {t.transaction_type} — <code>{t.external_id}</code>")
                     lines.append("\nUse /status [id] for details.")
-                    await tg.send_message(chat_id, "\n".join(lines), reply_markup=_info_kb())
+                    await tg.send_message(chat_id, "\n".join(lines))
             else:
                 ext_id = parts[1].strip()
                 try:
@@ -2176,9 +2194,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     if txn.payment_url and txn.status == "pending":
                         keyboard = {"inline_keyboard": [[{"text": "💳 Pay Now", "url": txn.payment_url}]]}
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
-                        await tg.send_message(chat_id, "💡 <b>Quick actions:</b>", reply_markup=_info_kb())
                     else:
-                        await tg.send_message(chat_id, reply, reply_markup=_info_kb())
+                        await tg.send_message(chat_id, reply)
                 else:
                     await tg.send_message(chat_id, f"❌ Not found: <code>{ext_id}</code>")
 
@@ -2257,7 +2274,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
                 "  /sendusd [amt] [@username] — Send USD to a user\n"
             )
-            await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
+            await tg.send_message(chat_id, reply)
 
         # ==================== /usdbalance ====================
         elif text.startswith("/usdbalance"):
@@ -2319,7 +2336,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "📤 /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
                 "💸 /sendusd [amt] [@username] — Send USD to a user"
             )
-            await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
+            await tg.send_message(chat_id, reply)
 
         # ==================== /sendusdt ====================
         elif text.startswith("/sendusdt"):
@@ -2403,8 +2420,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"📬 To: <code>{short_addr}</code>\n"
                         f"🆔 Request ID: <code>{send_req.id}</code>\n"
                         f"💰 Available balance: <b>${usd_balance:,.2f} USDT</b>\n\n"
-                        f"⏳ Pending admin approval. You'll be notified once processed.",
-                        reply_markup=_wallet_kb(),
+                        f"⏳ Pending admin approval. You'll be notified once processed."
                     )
                     logger.info("USDT send via bot: user=%s amount=%s to=%s req=%s", tg_user_id, amount, addr, send_req.id)
                 except ValueError:
@@ -2620,7 +2636,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             new_balance = bb - amount
                             # Send reply FIRST
                             reply = f"✅ <b>Sent!</b>\n\n💸 ₱{amount:,.2f} → {recipient}\n💰 Balance: <b>₱{new_balance:,.2f}</b>"
-                            await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
+                            await tg.send_message(chat_id, reply)
                             # Then DB
                             try:
                                 wallet.balance = new_balance
@@ -2684,7 +2700,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             new_balance = bb - amount
                             # Send reply FIRST
                             reply = f"✅ <b>Withdrawn!</b>\n\n💸 ₱{amount:,.2f}\n💰 Balance: <b>₱{new_balance:,.2f}</b>"
-                            await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
+                            await tg.send_message(chat_id, reply)
                             # Then DB
                             try:
                                 wallet.balance = new_balance
@@ -2753,7 +2769,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.rollback()
                 except Exception:
                     pass
-            await tg.send_message(chat_id, reply, reply_markup=_info_kb())
+            await tg.send_message(chat_id, reply)
 
         # ==================== /fees ====================
         elif text.startswith("/fees"):
@@ -2770,7 +2786,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"💱 <b>Fee Calculation</b>\n\n💰 Amount: ₱{amount:,.2f}\n📋 Method: {method}\n"
                         f"💸 Fee: ₱{fees['fee']:,.2f}\n💵 Net: <b>₱{fees['net_amount']:,.2f}</b>"
                     )
-                    await tg.send_message(chat_id, reply, reply_markup=_info_kb())
+                    await tg.send_message(chat_id, reply)
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
@@ -2790,7 +2806,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"✅ <b>Subscription Created!</b>\n\n📋 {plan_name}\n"
                         f"💰 ₱{amount:,.2f}/month\n📅 Next billing: {next_billing}"
                     )
-                    await tg.send_message(chat_id, reply, reply_markup=_info_kb())
+                    await tg.send_message(chat_id, reply)
                     # Then DB
                     try:
                         sub = Subscriptions(
@@ -2844,7 +2860,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     reply = f"ℹ️ Transaction <code>{ext_id}</code> is already <b>{txn.status}</b>"
                 else:
                     reply = f"❌ Not found: <code>{ext_id}</code>"
-                await tg.send_message(chat_id, reply, reply_markup=_info_kb())
+                await tg.send_message(chat_id, reply)
 
         # ==================== /list ====================
         elif text.startswith("/list"):
@@ -2930,11 +2946,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "📷 /scanqr [qr_string] [amt] — Pay via QRPH scan\n\n"
                 "💡 Example: /invoice 500 Coffee order"
             )
-            await tg.send_message(chat_id, menu, reply_markup=_start_kb())
+            await tg.send_message(chat_id, menu)
 
         # ==================== /help ====================
         elif text.startswith("/help"):
-            help_text = (
+            help_en = (
                 "📋 <b>PayBot Commands — Quick Reference</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━\n\n"
                 "💳 <b>Accept Payments</b>\n"
@@ -2971,7 +2987,44 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /help — Show this message 😊\n\n"
                 "💡 <b>Tip:</b> Most commands work step-by-step — just type the command and follow the prompts!"
             )
-            await tg.send_message(chat_id, help_text, reply_markup=_start_kb())
+            help_zh = (
+                "📋 <b>PayBot 命令 — 快速参考</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━\n\n"
+                "💳 <b>收款</b>\n"
+                "  /pay — 打开收款菜单\n"
+                "  /invoice [金额] [说明] — 创建账单\n"
+                "  /qr [金额] [说明] — 动态二维码\n"
+                "  /alipay [金额] [说明] — 支付宝 QR（PhotonPay）\n"
+                "  /wechat [金额] [说明] — 微信支付 QR（PhotonPay）\n"
+                "  /link [金额] [说明] — 可分享付款链接\n"
+                "  /va [金额] [银行] — 虚拟银行账户\n"
+                "  /ewallet [金额] [提供商] — GCash / Maya / GrabPay\n\n"
+                "📷 <b>QRPH 付款</b>\n"
+                "  /scanqr [qr字符串] [金额] — 扫描并支付商户 QRPH\n\n"
+                "💸 <b>转账</b>\n"
+                "  /disburse [金额] [银行] [账号] [姓名] — 银行转账\n"
+                "  /refund [ID] [金额] — 全额或部分退款\n\n"
+                "💰 <b>PHP 钱包</b>\n"
+                "  /balance — PHP 和 USD 余额及历史\n"
+                "  /topup [金额] — 通过 USDT 充值（自动换汇）\n"
+                "  /send [金额] [接收方] — 向用户转账 PHP\n"
+                "  /withdraw [金额] — 提现 PHP\n\n"
+                "💵 <b>USD 钱包（USDT TRC20）</b>\n"
+                "  /usdbalance — USD 余额及历史\n"
+                "  /sendusdt [金额] [地址] — 发送 USDT 至 TRC20 地址\n"
+                "  /sendusd [金额] [@用户名] — 向用户转账 USD\n\n"
+                "📊 <b>报表与工具</b>\n"
+                "  /status [ID] — 查询付款状态\n"
+                "  /list — 最近 5 笔交易\n"
+                "  /cancel [ID] — 取消待处理付款\n"
+                "  /report [daily|weekly|monthly] — 生成报表\n"
+                "  /fees [金额] [方式] — 费用计算\n"
+                "  /subscribe [金额] [套餐] — 订阅管理\n"
+                "  /remind [ID] — 发送付款提醒\n"
+                "  /help — 显示本帮助 😊\n\n"
+                "💡 <b>提示：</b>大多数命令支持逐步引导 — 输入命令后按提示操作即可！"
+            )
+            await tg.send_message(chat_id, _t(chat_id, help_en, help_zh))
 
         # ==================== /topup ====================
         elif text.startswith("/topup"):
@@ -3034,8 +3087,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         else:
             await tg.send_message(
                 chat_id,
-                "🤔 Hmm, I don't recognise that command.\n\nType /help to see everything I can do, or tap one of the buttons below! 😊",
-                reply_markup=_start_kb(),
+                _t(chat_id,
+                   "🤔 Hmm, I don't recognise that command.\n\nType /help to see everything I can do! 😊",
+                   "🤔 没有找到该命令。\n\n输入 /help 查看所有可用命令！😊")
             )
 
         # Log the interaction (safe — won't break if DB fails)
