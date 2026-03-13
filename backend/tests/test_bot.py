@@ -1,7 +1,6 @@
 """Tests for PayBot — bot command handlers, health endpoints, and core API flows."""
 import asyncio
 import os
-import copy
 import hashlib
 import hmac
 import time
@@ -1511,7 +1510,6 @@ class TestUsdtPhpConversion:
         """The approval note on the request includes the conversion rate and PHP amount."""
         import asyncio
         from core.database import db_manager
-        from sqlalchemy import select
         from models.topup_requests import TopupRequest
         from datetime import datetime
 

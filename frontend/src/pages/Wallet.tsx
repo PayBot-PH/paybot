@@ -527,13 +527,13 @@ export default function Wallet() {
 
         {/* Dual Wallet Balance Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          {/* PHP Wallet */}
+          {/* Wallet Balance */}
           <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 border-0 overflow-hidden relative">
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_80%_20%,white,transparent)]" />
             <CardContent className="p-5 sm:p-6 relative">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-200 text-xs font-medium mb-1">PHP Wallet</p>
+                  <p className="text-blue-200 text-xs font-medium mb-1">Wallet Balance</p>
                   <p className="text-3xl font-bold text-white tracking-tight">
                     {loading ? <Loader2 className="h-7 w-7 animate-spin" /> : `₱${phpBal.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`}
                   </p>

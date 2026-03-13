@@ -28,8 +28,6 @@ Configure the webhook in the PayMongo dashboard:
   Events : source.chargeable, checkout_session.payment.paid,
            checkout_session.payment.failed, payment.paid, payment.failed
 """
-import hashlib
-import hmac as _hmac
 import logging
 from datetime import datetime
 from typing import Optional
@@ -399,7 +397,7 @@ async def _handle_source_chargeable(
 
         if old_status != "paid" and txn.user_id:
             await _credit_wallet(
-                db, txn.user_id, txn.amount,
+                db, txn.user_id, txn.amount if txn.amount is not None else amount,
                 note=f"PayMongo payment received: {txn.description or txn.external_id}",
                 reference_id=txn.external_id or source_id,
             )

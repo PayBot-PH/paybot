@@ -1,6 +1,5 @@
 import logging
 from html import escape as _escape_html
-import io
 import hashlib
 import os
 import re
@@ -17,7 +16,6 @@ from core.config import settings
 from core.database import get_db
 from dependencies.auth import get_current_user
 from models.bot_logs import Bot_logs
-from models.bot_settings import Bot_settings
 from models.transactions import Transactions
 from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions

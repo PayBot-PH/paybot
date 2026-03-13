@@ -312,7 +312,6 @@ async def photonpay_webhook(
         or ""
     ).lower()
     amount_raw = payload.get("amount") or payload.get("payAmount") or 0
-    currency = payload.get("currency") or payload.get("payCurrency") or "PHP"
     pay_method = payload.get("payMethod") or payload.get("pay_method") or "unknown"
 
     try:

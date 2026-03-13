@@ -12,7 +12,6 @@ from dependencies.auth import get_current_user
 from models.topup_requests import TopupRequest
 from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
-from models.admin_users import AdminUser
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
 from routers.app_settings import get_usdt_php_rate

@@ -1,8 +1,7 @@
 import logging
 import os
 import uuid
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import httpx
 from core.config import settings
