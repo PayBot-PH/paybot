@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import ComplianceBar from '@/components/ComplianceBar';
 import {
   Bot,
   BarChart3,
@@ -359,16 +358,20 @@ export default function Features() {
       {/* Nav */}
       <header className="sticky top-0 z-50 bg-[#0A0F1E]/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <Link to="/login" className="flex items-center gap-2.5">
             <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Bot className="h-4.5 w-4.5 text-white" />
+              <Bot className="h-4 w-4 text-white" />
             </div>
             <div>
               <span className="font-bold text-white text-sm">{APP_NAME}</span>
-            <span className="text-slate-500 text-xs ml-1.5">by {COMPANY_NAME}</span>
+              <span className="text-slate-500 text-xs ml-1.5">by {COMPANY_NAME}</span>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-2">
+            <Link to="/features"
+              className="hidden sm:flex items-center gap-1.5 text-white text-sm font-medium transition-colors px-3 py-1.5 rounded-lg bg-white/5">
+              Features
+            </Link>
             <Link to="/pricing"
               className="hidden sm:flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">
               Pricing
@@ -581,8 +584,6 @@ export default function Features() {
         <Link to="/policies" className="hover:text-sky-400 transition-colors">Policies</Link>
         <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="hover:text-sky-400 transition-colors">Support</a>
       </footer>
-
-      <ComplianceBar />
 
     </div>
   );

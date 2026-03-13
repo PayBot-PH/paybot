@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  ArrowRight, ChevronRight, CheckCircle2, Zap, Shield,
-  Bell, UserPlus, Menu, X, Lock,
+  ArrowRight, ChevronRight, CheckCircle2,
+  UserPlus, Menu, X, Lock,
 } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
 import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
-import ComplianceBar from '@/components/ComplianceBar';
 
 declare global {
   interface Window { onTelegramAuth?: (user: TelegramWidgetUser) => void; }
@@ -72,45 +71,6 @@ const Logo = {
 };
 
 /* ─── Marquee ─────────────────────────────────────────────────── */
-type MItem = { icon: React.ReactNode; name: string };
-
-function Marquee({ items, reverse = false }: { items: MItem[]; reverse?: boolean }) {
-  const doubled = [...items, ...items];
-  return (
-    <div className="overflow-hidden w-full py-1">
-      <div
-        className={reverse ? 'animate-marquee-reverse' : 'animate-marquee'}
-        style={{ display: 'flex', gap: 12, width: 'max-content' }}
-      >
-        {doubled.map((item, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2 bg-white/[0.05] border border-white/[0.08] rounded-full px-3 py-1.5 whitespace-nowrap"
-          >
-            {item.icon}
-            <span className="text-slate-300 text-xs font-medium">{item.name}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-const MARQUEE: MItem[] = [
-  { icon: Logo.Alipay(18),    name: 'Alipay' },
-  { icon: Logo.WeChat(18),    name: 'WeChat Pay' },
-  { icon: Logo.GCash(18),     name: 'GCash' },
-  { icon: Logo.Maya(18),      name: 'Maya' },
-  { icon: Logo.GrabPay(18),   name: 'GrabPay' },
-  { icon: Logo.BPI(18),       name: 'BPI' },
-  { icon: Logo.BDO(18),       name: 'BDO' },
-  { icon: Logo.UnionBank(18), name: 'UnionBank' },
-  { icon: Logo.Metrobank(18), name: 'Metrobank' },
-  { icon: Logo.RCBC(18),      name: 'RCBC' },
-  { icon: Logo.PSBank(18),    name: 'PSBank' },
-  { icon: Logo.USDT(18),      name: 'USDT T+0' },
-];
-
 /* ─── Hero payment card ───────────────────────────────────────── */
 function HeroCard({
   icon, name, amount, statusLabel, statusCls,
@@ -231,16 +191,9 @@ export default function Login() {
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6 lg:gap-8">
-            {[
-              { label: 'Payments', id: 'payments' },
-              { label: 'Banks',    id: 'banks' },
-              { label: 'Settlement', id: 'settlement' },
-            ].map(({ label, id }) => (
-              <a key={id} href={`#${id}`}
-                className="text-slate-400 hover:text-white text-sm transition-colors"
-                onClick={e => { e.preventDefault(); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }}
-              >{label}</a>
-            ))}
+            <Link to="/features" className="text-slate-400 hover:text-white text-sm transition-colors">Features</Link>
+            <Link to="/pricing" className="text-slate-400 hover:text-white text-sm transition-colors">Pricing</Link>
+            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white text-sm transition-colors">Support</a>
           </nav>
 
           <div className="flex items-center gap-2">
@@ -264,16 +217,9 @@ export default function Login() {
         {/* Mobile nav drawer */}
         {mobileNavOpen && (
           <div className="md:hidden border-t border-white/[0.06] bg-[#040C18]/95 px-4 py-4 space-y-1">
-            {[
-              { label: 'Payments',   id: 'payments' },
-              { label: 'Banks',      id: 'banks' },
-              { label: 'Settlement', id: 'settlement' },
-            ].map(({ label, id }) => (
-              <a key={id} href={`#${id}`}
-                className="block py-2.5 text-slate-300 hover:text-white text-sm font-medium transition-colors"
-                onClick={e => { e.preventDefault(); setMobileNavOpen(false); document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' }); }}
-              >{label}</a>
-            ))}
+            <Link to="/features" className="block py-2.5 text-slate-300 hover:text-white text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Features</Link>
+            <Link to="/pricing" className="block py-2.5 text-slate-300 hover:text-white text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Pricing</Link>
+            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="block py-2.5 text-slate-300 hover:text-white text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Support</a>
           </div>
         )}
       </header>
@@ -404,14 +350,6 @@ export default function Login() {
             </div>
           </div>
         </div>
-      </section>
-
-      {/* ── MARQUEE ─────────────────────────────────────────────── */}
-      <section className="py-6 sm:py-8 border-y border-white/[0.05] bg-white/[0.01]">
-        <p className="text-center text-slate-500 text-[10px] sm:text-xs font-semibold tracking-widest uppercase mb-4">
-          Supported Payment Networks
-        </p>
-        <Marquee items={MARQUEE} />
       </section>
 
       {/* ── STATS ───────────────────────────────────────────────── */}
@@ -757,8 +695,6 @@ export default function Login() {
           </div>
         </div>
       </footer>
-
-      <ComplianceBar />
 
     </div>
   );

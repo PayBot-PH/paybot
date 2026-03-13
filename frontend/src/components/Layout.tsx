@@ -137,7 +137,7 @@ export default function Layout({ children, connected }: LayoutProps) {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex">
+    <div className="h-screen overflow-hidden bg-background text-foreground flex">
 
       {/* ─── Desktop Sidebar ─── */}
       <aside className="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 z-40 bg-background border-r border-border">
@@ -202,7 +202,7 @@ export default function Layout({ children, connected }: LayoutProps) {
       )}
 
       {/* ─── Main Content ─── */}
-      <div className="flex-1 flex flex-col min-h-screen md:ml-56">
+      <div className="flex-1 flex flex-col min-h-0 md:ml-56">
 
         {/* Top Bar */}
         <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-background border-b border-border shrink-0">
@@ -282,13 +282,11 @@ export default function Layout({ children, connected }: LayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto overflow-x-hidden max-w-7xl w-full mx-auto">
-          {children}
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto overflow-x-hidden min-h-0">
+          <div className="max-w-7xl w-full mx-auto">
+            {children}
+          </div>
         </main>
-
-        <footer className="px-6 py-4 border-t border-border text-center text-[11px] text-muted-foreground">
-          © {new Date().getFullYear()} {APP_NAME} · <Link to="/policies" className="hover:text-foreground transition-colors">Policies</Link>
-        </footer>
       </div>
     </div>
   );

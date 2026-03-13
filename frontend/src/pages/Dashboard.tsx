@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Layout from '@/components/Layout';
-import { APP_NAME, APP_TAGLINE, APP_DESCRIPTION, COMPANY_NAME } from '@/lib/brand';
+import { APP_NAME, APP_DESCRIPTION } from '@/lib/brand';
 import {
   FileText,
   QrCode,
@@ -36,13 +36,6 @@ import {
   Sun,
   Sunset,
   Moon,
-  Globe,
-  Smartphone,
-  Lock,
-  BarChart2,
-  ChevronRight,
-  Layers,
-  Star,
 } from 'lucide-react';
 
 interface Stats {
@@ -271,7 +264,7 @@ export default function Dashboard() {
         <div className="absolute inset-0 opacity-[0.04]"
           style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.5) 1px,transparent 1px)', backgroundSize: '40px 40px' }} />
 
-        <div className="relative px-6 py-7 sm:py-9">
+        <div className="relative px-6 py-5 sm:py-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
             {/* Left: Brand + greeting */}
             <div className="space-y-3">
@@ -459,117 +452,6 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════
-          PAYMENT SOLUTIONS SHOWCASE
-      ═══════════════════════════════════════════════ */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-white font-bold text-base flex items-center gap-2">
-              <Layers className="h-4 w-4 text-blue-400" />
-              Payment Solutions
-            </h2>
-            <p className="text-slate-500 text-xs mt-0.5">All-in-one platform for every payment scenario</p>
-          </div>
-          <Link to="/payments" className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors">
-            Explore <ChevronRight className="h-3.5 w-3.5" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          {[
-            {
-              icon: <FileText className="h-5 w-5 text-blue-400" />,
-              bg: 'bg-blue-500/10 border-blue-500/20',
-              label: 'Invoice Payments',
-              desc: 'Send professional invoices',
-              to: '/payments',
-            },
-            {
-              icon: <QrCode className="h-5 w-5 text-purple-400" />,
-              bg: 'bg-purple-500/10 border-purple-500/20',
-              label: 'QR Code Pay',
-              desc: 'Scan-to-pay instantly',
-              to: '/payments',
-            },
-            {
-              icon: <LinkIcon className="h-5 w-5 text-cyan-400" />,
-              bg: 'bg-cyan-500/10 border-cyan-500/20',
-              label: 'Payment Links',
-              desc: 'Share via Telegram or web',
-              to: '/payments',
-            },
-            {
-              icon: <Send className="h-5 w-5 text-emerald-400" />,
-              bg: 'bg-emerald-500/10 border-emerald-500/20',
-              label: 'Disbursements',
-              desc: 'Instant fund transfers',
-              to: '/disbursements',
-            },
-            {
-              icon: <Globe className="h-5 w-5 text-orange-400" />,
-              bg: 'bg-orange-500/10 border-orange-500/20',
-              label: 'Cross-border',
-              desc: 'Alipay & WeChat QR',
-              to: '/payments',
-            },
-            {
-              icon: <Smartphone className="h-5 w-5 text-indigo-400" />,
-              bg: 'bg-indigo-500/10 border-indigo-500/20',
-              label: 'E-Wallets',
-              desc: 'GCash, Maya & more',
-              to: '/payments',
-            },
-          ].map(({ icon, bg, label, desc, to }) => (
-            <Link key={label} to={to} className="block group">
-              <div className={`flex flex-col items-center text-center p-4 rounded-xl border ${bg} hover:scale-[1.03] hover:brightness-110 transition-all duration-200 h-full`}>
-                <div className="h-10 w-10 rounded-xl bg-slate-800/60 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
-                  {icon}
-                </div>
-                <p className="text-white text-xs font-semibold leading-tight mb-1">{label}</p>
-                <p className="text-slate-500 text-[10px] leading-tight">{desc}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════
-          PLATFORM FEATURES STRIP
-      ═══════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-        {[
-          {
-            icon: <Lock className="h-5 w-5 text-emerald-400" />,
-            bg: 'bg-emerald-500/10 border-emerald-500/20',
-            title: 'Bank-grade Security',
-            body: 'Every transaction is encrypted end-to-end. Role-based access and KYC/KYB verification keep your platform safe.',
-          },
-          {
-            icon: <BarChart2 className="h-5 w-5 text-blue-400" />,
-            bg: 'bg-blue-500/10 border-blue-500/20',
-            title: 'Real-time Analytics',
-            body: 'Live dashboards track revenue, success rates, and transaction volume so you always know how your business is performing.',
-          },
-          {
-            icon: <Bot className="h-5 w-5 text-violet-400" />,
-            bg: 'bg-violet-500/10 border-violet-500/20',
-            title: 'Telegram-native Bot',
-            body: 'Create payments, receive instant alerts, and manage disbursements — all inside Telegram without switching apps.',
-          },
-        ].map(({ icon, bg, title, body }) => (
-          <div key={title} className={`flex gap-4 p-4 rounded-xl border ${bg} bg-[#1E293B]/60`}>
-            <div className="h-10 w-10 rounded-xl bg-slate-800/70 flex items-center justify-center shrink-0">
-              {icon}
-            </div>
-            <div>
-              <p className="text-white font-semibold text-sm mb-1">{title}</p>
-              <p className="text-slate-400 text-xs leading-relaxed">{body}</p>
-            </div>
-          </div>
-        ))}
       </div>
 
       {/* ═══════════════════════════════════════════════
@@ -777,32 +659,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-
-      {/* ═══════════════════════════════════════════════
-          WHY CHOOSE US  —  trust/credibility strip
-      ═══════════════════════════════════════════════ */}
-      <div className="mt-6 rounded-2xl border border-slate-700/40 bg-gradient-to-r from-[#0F2547]/60 to-[#1a3a6b]/40 p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <Star className="h-4 w-4 text-amber-400" />
-          <h2 className="text-white font-semibold text-sm">Why {APP_NAME}?</h2>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { value: '99.9%', label: 'Platform Uptime',    color: 'text-emerald-400' },
-            { value: '<2s',   label: 'Payment Processing', color: 'text-blue-400' },
-            { value: '6+',    label: 'Payment Methods',    color: 'text-purple-400' },
-            { value: '24/7',  label: 'Bot Monitoring',     color: 'text-amber-400' },
-          ].map(({ value, label, color }) => (
-            <div key={label} className="text-center">
-              <p className={`text-2xl font-bold ${color}`}>{value}</p>
-              <p className="text-slate-500 text-xs mt-1">{label}</p>
-            </div>
-          ))}
-        </div>
-        <p className="text-slate-600 text-[10px] text-center mt-4">
-          Powered by {COMPANY_NAME} · {APP_TAGLINE}
-        </p>
-      </div>
 
     </Layout>
   );
