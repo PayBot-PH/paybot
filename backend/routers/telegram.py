@@ -30,6 +30,7 @@ from services.xendit_service import XenditService
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
 from services.photonpay_service import PhotonPayService
+from services.bot_settings import Bot_settingsService
 from models.topup_requests import TopupRequest
 from models.usdt_send_requests import UsdtSendRequest
 from models.kyb_registrations import KybRegistration
@@ -856,13 +857,11 @@ async def get_bot_config(
     db: AsyncSession = Depends(get_db),
 ):
     """Get (or create) the bot configuration for the current user."""
-    from services.bot_settings import Bot_settingsService
-    from datetime import datetime as _dt
     service = Bot_settingsService(db)
     result = await service.get_list(skip=0, limit=1, user_id=str(current_user.id))
     if result["total"] == 0:
         obj = await service.create(
-            {"bot_status": "inactive", "maintenance_mode": "off", "created_at": _dt.utcnow(), "updated_at": _dt.utcnow()},
+            {"bot_status": "inactive", "maintenance_mode": "off", "created_at": datetime.utcnow(), "updated_at": datetime.utcnow()},
             user_id=str(current_user.id),
         )
     else:
@@ -889,14 +888,12 @@ async def update_bot_config(
     db: AsyncSession = Depends(get_db),
 ):
     """Update bot configuration for the current user."""
-    from services.bot_settings import Bot_settingsService
-    from datetime import datetime as _dt
     service = Bot_settingsService(db)
     result = await service.get_list(skip=0, limit=1, user_id=str(current_user.id))
     update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
-    update_dict["updated_at"] = _dt.utcnow()
+    update_dict["updated_at"] = datetime.utcnow()
     if result["total"] == 0:
-        update_dict["created_at"] = _dt.utcnow()
+        update_dict["created_at"] = datetime.utcnow()
         obj = await service.create(update_dict, user_id=str(current_user.id))
     else:
         obj = result["items"][0]
@@ -3218,9 +3215,6 @@ async def clone_bot_save(
     db: AsyncSession = Depends(get_db),
 ):
     """Save a custom bot token for the current user and register its webhook."""
-    from services.bot_settings import Bot_settingsService
-    from datetime import datetime as _dt
-
     token = data.bot_token.strip()
     if not token:
         raise HTTPException(status_code=400, detail="bot_token is required")
@@ -3248,7 +3242,7 @@ async def clone_bot_save(
     # Persist to bot_settings
     db_service = Bot_settingsService(db)
     result = await db_service.get_list(skip=0, limit=1, user_id=str(current_user.id))
-    now = _dt.utcnow()
+    now = datetime.utcnow()
     update_dict = {
         "custom_bot_token": token,
         "custom_bot_name": bot.get("first_name", ""),
@@ -3277,7 +3271,6 @@ async def clone_bot_info(
     db: AsyncSession = Depends(get_db),
 ):
     """Return the custom bot info for the current user."""
-    from services.bot_settings import Bot_settingsService
     db_service = Bot_settingsService(db)
     result = await db_service.get_list(skip=0, limit=1, user_id=str(current_user.id))
     if result["total"] == 0:
