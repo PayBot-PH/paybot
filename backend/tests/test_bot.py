@@ -604,6 +604,172 @@ class TestTelegramWebhook:
 
 
 # ---------------------------------------------------------------------------
+# /scanqr wizard (photo upload flow)
+# ---------------------------------------------------------------------------
+def _photo_webhook_body(
+    chat_id: int = 99999,
+    username: str = "testuser",
+    caption: str = "",
+    file_id: str = "fake_file_id",
+) -> dict:
+    """Build a webhook body that simulates a user uploading a photo."""
+    return {
+        "message": {
+            "chat": {"id": chat_id},
+            "caption": caption,
+            "from": {"username": username},
+            "message_id": 2,
+            "photo": [
+                {"file_id": f"{file_id}_small", "file_unique_id": "s1", "width": 90,  "height": 90},
+                {"file_id": file_id,             "file_unique_id": "s2", "width": 800, "height": 800},
+            ],
+        }
+    }
+
+
+class TestScanQrWizard:
+    """Tests for the /scanqr wizard that asks for amount then a QR photo."""
+
+    # Must be a recognized admin ID so the webhook routes through the admin path
+    CHAT_ID = 123456789
+
+    def _body(self, text: str) -> dict:
+        return _webhook_body(text, chat_id=self.CHAT_ID)
+
+    def _photo_body(self, file_id: str = "fake_file_id") -> dict:
+        return _photo_webhook_body(chat_id=self.CHAT_ID, file_id=file_id)
+
+    def test_scanqr_command_starts_wizard(self, client):
+        """/scanqr should prompt the user for an amount (wizard step 1)."""
+        # Clear any existing wizard state for this chat
+        from routers.telegram import _pending
+        _pending.pop(str(self.CHAT_ID), None)
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("/scanqr"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Wizard state should now be set for this chat
+        assert str(self.CHAT_ID) in _pending
+        assert _pending[str(self.CHAT_ID)]["cmd"] == "/scanqr"
+        assert _pending[str(self.CHAT_ID)]["step"] == 0
+
+    def test_scanqr_wizard_invalid_amount(self, client):
+        """Sending a non-numeric amount should keep the wizard at step 0."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {"cmd": "/scanqr", "step": 0, "data": {}}
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("notanumber"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Should still be at step 0 (amount not accepted)
+        assert _pending.get(str(self.CHAT_ID), {}).get("step") == 0
+
+    def test_scanqr_wizard_negative_amount(self, client):
+        """A negative amount should be rejected and wizard stays at step 0."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {"cmd": "/scanqr", "step": 0, "data": {}}
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("-500"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        assert _pending.get(str(self.CHAT_ID), {}).get("step") == 0
+
+    def test_scanqr_wizard_valid_amount_advances_to_photo_step(self, client):
+        """Entering a valid amount should advance wizard to step 1 (photo)."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {"cmd": "/scanqr", "step": 0, "data": {}}
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("500"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Should now be at step 1 (photo step), still in _pending
+        assert _pending.get(str(self.CHAT_ID), {}).get("step") == 1
+        assert _pending.get(str(self.CHAT_ID), {}).get("data", {}).get("amount") == "500.0"
+
+    def test_scanqr_wizard_text_on_photo_step_rejected(self, client):
+        """Sending plain text instead of a photo when a photo is expected should prompt again."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {
+            "cmd": "/scanqr", "step": 1, "data": {"amount": "500.0"},
+        }
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("some text instead of photo"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Should still be at step 1 (photo not provided)
+        assert _pending.get(str(self.CHAT_ID), {}).get("step") == 1
+
+    def test_scanqr_wizard_photo_with_no_qr_rejected(self, client):
+        """Uploading a photo with no decodable QR should prompt again."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {
+            "cmd": "/scanqr", "step": 1, "data": {"amount": "500.0"},
+        }
+
+        # Mock _decode_qr_from_telegram_photo to return None (no QR found)
+        with patch("routers.telegram._decode_qr_from_telegram_photo", new=AsyncMock(return_value=None)):
+            r = client.post("/api/v1/telegram/webhook", json=self._photo_body())
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Still waiting for a valid QR photo
+        assert _pending.get(str(self.CHAT_ID), {}).get("step") == 1
+
+    def test_scanqr_wizard_valid_photo_completes_payment(self, client):
+        """Uploading a photo with a valid QR code should complete the wizard and record payment."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {
+            "cmd": "/scanqr", "step": 1, "data": {"amount": "250.0"},
+        }
+
+        sample_qr = "5303608591255555559999996011MANILA CITY"
+
+        with patch(
+            "routers.telegram._decode_qr_from_telegram_photo",
+            new=AsyncMock(return_value=sample_qr),
+        ):
+            r = client.post("/api/v1/telegram/webhook", json=self._photo_body())
+
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Wizard state should be cleared after successful completion
+        assert str(self.CHAT_ID) not in _pending
+
+    def test_scanqr_wizard_cancel_clears_state(self, client):
+        """/cancel during the wizard should clear wizard state."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {"cmd": "/scanqr", "step": 1, "data": {"amount": "500.0"}}
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("/cancel"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        assert str(self.CHAT_ID) not in _pending
+
+
+# ---------------------------------------------------------------------------
+# Helper: _parse_tlv
+# ---------------------------------------------------------------------------
+class TestParseTlv:
+    def test_parse_basic_fields(self):
+        from routers.telegram import _parse_tlv
+        # Hand-crafted TLV: tag 59 (merchant name) and tag 60 (city) and tag 53 (currency)
+        sample = "5905STORE6006MANILA5303608"
+        result = _parse_tlv(sample)
+        assert result.get("59") == "STORE"
+        assert result.get("60") == "MANILA"
+        assert result.get("53") == "608"
+
+    def test_parse_empty_string(self):
+        from routers.telegram import _parse_tlv
+        assert _parse_tlv("") == {}
+
+    def test_parse_invalid_length(self):
+        from routers.telegram import _parse_tlv
+        # Should stop gracefully on malformed input and return empty dict
+        result = _parse_tlv("00ZZBAD")
+        assert result == {}
+
+
+# ---------------------------------------------------------------------------
 # USDT TRC20 static QR image
 # ---------------------------------------------------------------------------
 class TestUsdtQrImage:

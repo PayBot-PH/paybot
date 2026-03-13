@@ -65,6 +65,119 @@ def _usdt_static_qr_url() -> str:
     return f"{settings.backend_url.rstrip('/')}/images/usdt_trc20_qr.png"
 
 
+def _parse_tlv(s: str) -> dict:
+    """Parse an EMVCo/QRPH TLV-encoded string into a tag→value dict.
+
+    Tag reference: 53=Currency (608=PHP), 58=Country, 59=Merchant Name,
+    60=City, 62=Additional Data (sub-tag 05=Reference Label, 01=Bill Number).
+    The equivalent parser exists in ScanQRPH.tsx (frontend).
+    """
+    result: dict = {}
+    i = 0
+    while i + 4 <= len(s):
+        tag = s[i:i+2]
+        try:
+            length = int(s[i+2:i+4])
+        except ValueError:
+            break
+        if i + 4 + length > len(s):
+            break
+        result[tag] = s[i+4:i+4+length]
+        i += 4 + length
+    return result
+
+
+async def _decode_qr_from_telegram_photo(tg: "TelegramService", file_id: str) -> Optional[str]:
+    """Download a Telegram photo by file_id and decode the first QR code found.
+
+    Returns the decoded string, or None if no QR code could be detected.
+    """
+    file_info = await tg.get_file(file_id)
+    if not file_info.get("success"):
+        logger.warning(f"getFile failed for file_id={file_id}: {file_info.get('error')}")
+        return None
+
+    image_bytes = await tg.download_file_bytes(file_info["file_path"])
+    if not image_bytes:
+        return None
+
+    try:
+        from pyzbar import pyzbar
+        from PIL import Image
+        import io as _io
+
+        img = Image.open(_io.BytesIO(image_bytes))
+        decoded_objects = pyzbar.decode(img)
+        if decoded_objects:
+            return decoded_objects[0].data.decode("utf-8", errors="replace")
+        return None
+    except Exception as e:
+        logger.error(f"QR decode error: {e}", exc_info=True)
+        return None
+
+
+async def _process_scanqr(
+    tg: "TelegramService",
+    db: "AsyncSession",
+    chat_id: str,
+    username: str,
+    amount: float,
+    qr_data: str,
+) -> None:
+    """Process a QRPH payment after the amount and QR data have been collected."""
+    tlv = _parse_tlv(qr_data)
+    merchant_name = tlv.get("59", "")
+    merchant_city = tlv.get("60", "")
+    currency_code = tlv.get("53", "")
+    currency = "PHP" if currency_code == "608" else currency_code or "PHP"
+    ref_num = ""
+    add_data = tlv.get("62", "")
+    if add_data:
+        sub = _parse_tlv(add_data)
+        ref_num = sub.get("05", sub.get("01", ""))
+
+    external_id = f"qrph-{uuid.uuid4().hex[:12]}"
+    reply_lines = [
+        "✅ <b>QRPH Payment Recorded</b>",
+        "━━━━━━━━━━━━━━━━━━━━",
+        f"💰 Amount: <b>₱{amount:,.2f} PHP</b>",
+    ]
+    if merchant_name:
+        reply_lines.append(f"🏪 Merchant: <b>{merchant_name}</b>")
+    if merchant_city:
+        reply_lines.append(f"📍 City: {merchant_city}")
+    if ref_num:
+        reply_lines.append(f"🆔 Reference: <code>{ref_num}</code>")
+    reply_lines += [
+        "",
+        "⏳ Status: <b>Pending</b>",
+        "💳 Complete the payment via your bank or e-wallet app.",
+    ]
+    await tg.send_message(chat_id, "\n".join(reply_lines), reply_markup=_pay_kb())
+
+    try:
+        now = datetime.now()
+        txn = Transactions(
+            user_id=f"tg-{chat_id}", transaction_type="qrph_payment",
+            external_id=external_id, xendit_id="",
+            amount=amount, currency=currency, status="pending",
+            description=f"QRPH payment{f' to {merchant_name}' if merchant_name else ''}",
+            customer_name=merchant_name,
+            # Reuse qr_code_url to store the raw QRPH/EMVCo string (existing schema
+            # field; capped at 500 chars to fit the column).
+            qr_code_url=qr_data[:500], telegram_chat_id=chat_id,
+            created_at=now, updated_at=now,
+        )
+        db.add(txn)
+        await db.commit()
+    except Exception as e:
+        logger.error(f"DB save failed for /scanqr: {e}", exc_info=True)
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+
+
 async def _get_usd_balance(db: AsyncSession, chat_id: str) -> float:
     """Return USD wallet balance for a Telegram user, computed from transaction history."""
     return await _compute_usd_balance_for_wallet(db, f"tg-{chat_id}")
@@ -224,6 +337,10 @@ _CMD_STEPS: Dict[str, List[Dict]] = {
         {"key": "channel", "type": "str",   "prompt": "💳 Enter the <b>payment channel</b> used to send the money:\n<i>GCASH · MAYA · BDO · BPI · METROBANK · UNIONBANK · LANDBANK</i>"},
         {"key": "account", "type": "str",   "prompt": "🔢 Enter the <b>account / mobile number</b> used to make the transfer:\n<i>e.g. 09XXXXXXXXX or your bank account number</i>"},
         {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>exact amount</b> sent in PHP:\n<i>e.g. 500.00</i>"},
+    ],
+    "/scanqr": [
+        {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>amount</b> to pay in PHP:\n<i>e.g. 500</i>"},
+        {"key": "qr_data", "type": "photo", "prompt": "📷 Now upload a photo of the <b>QRPH QR code</b>.\n<i>Make sure the QR code is clearly visible and well-lit.</i>"},
     ],
 }
 
@@ -966,43 +1083,52 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     )
                     return {"status": "ok"}
 
-        # ==================== Photo message → receipt upload ====================
+        # ==================== Photo message → receipt upload or wizard photo step ====================
         if photos and not text:
-            # Check if this user has a pending topup request awaiting receipt
-            result = await db.execute(
-                select(TopupRequest)
-                .where(TopupRequest.chat_id == chat_id, TopupRequest.status == "pending", TopupRequest.receipt_file_id.is_(None))
-                .order_by(TopupRequest.created_at.desc())
+            # If the user is mid-wizard on a photo step, let the wizard handler process the photo.
+            _wizard_state = _pending.get(chat_id)
+            _wizard_photo_step = (
+                _wizard_state is not None
+                and _wizard_state["step"] < len(_CMD_STEPS.get(_wizard_state["cmd"], []))
+                and _CMD_STEPS.get(_wizard_state["cmd"], [])[_wizard_state["step"]].get("type") == "photo"
             )
-            pending_topup = result.scalar_one_or_none()
-            if pending_topup:
-                # Save the highest-resolution photo file_id
-                best_photo = max(photos, key=lambda p: p.get("file_size", 0))
-                pending_topup.receipt_file_id = best_photo["file_id"]
-                amount = pending_topup.amount_usdt
-                now = datetime.now()
-
-                # Fetch the current exchange rate to show expected PHP amount
-                rate = await get_usdt_php_rate(db)
-                amount_php = round(amount * rate, 2)
-
-                pending_topup.updated_at = now
-                await db.commit()
-                await tg.send_message(
-                    chat_id,
-                    f"✅ <b>Receipt received!</b>\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"💵 Amount: <b>${amount:.2f} USDT</b>\n"
-                    f"💱 Rate: <b>₱{rate:.2f}</b> per USDT\n"
-                    f"💰 Expected credit: <b>₱{amount_php:,.2f} PHP</b>\n"
-                    f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
-                    f"⏳ Under review by admin. Your PHP wallet will be credited once approved.",
+            if not _wizard_photo_step:
+                # Check if this user has a pending topup request awaiting receipt
+                result = await db.execute(
+                    select(TopupRequest)
+                    .where(TopupRequest.chat_id == chat_id, TopupRequest.status == "pending", TopupRequest.receipt_file_id.is_(None))
+                    .order_by(TopupRequest.created_at.desc())
                 )
-            else:
-                await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /topup [amount] for USDT.")
-            return {"status": "ok"}
+                pending_topup = result.scalar_one_or_none()
+                if pending_topup:
+                    # Save the highest-resolution photo file_id
+                    best_photo = max(photos, key=lambda p: p.get("file_size", 0))
+                    pending_topup.receipt_file_id = best_photo["file_id"]
+                    amount = pending_topup.amount_usdt
+                    now = datetime.now()
 
-        if not text:
+                    # Fetch the current exchange rate to show expected PHP amount
+                    rate = await get_usdt_php_rate(db)
+                    amount_php = round(amount * rate, 2)
+
+                    pending_topup.updated_at = now
+                    await db.commit()
+                    await tg.send_message(
+                        chat_id,
+                        f"✅ <b>Receipt received!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"💵 Amount: <b>${amount:.2f} USDT</b>\n"
+                        f"💱 Rate: <b>₱{rate:.2f}</b> per USDT\n"
+                        f"💰 Expected credit: <b>₱{amount_php:,.2f} PHP</b>\n"
+                        f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
+                        f"⏳ Under review by admin. Your PHP wallet will be credited once approved.",
+                    )
+                else:
+                    await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /topup [amount] for USDT.")
+                return {"status": "ok"}
+            # Fall through to the wizard handler below (photo step is active)
+
+        if not text and not photos:
             return {"status": "ok"}
 
         # ==================== /login ====================
@@ -1141,7 +1267,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             return {"status": "ok"}
 
         # ==================== Wizard handler ====================
-        # If a user is mid-wizard and sends plain text, collect the next value.
+        # If a user is mid-wizard and sends plain text or a photo (for photo steps),
+        # collect the next value.
         # A new /command cancels the wizard and falls through to normal routing.
         if chat_id in _pending and not (text and text.startswith("/")):
             state = _pending[chat_id]
@@ -1151,29 +1278,50 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
             if step < len(steps):
                 param = steps[step]
-                raw   = (text or "").strip()
 
-                # "skip" is allowed for optional steps
-                if raw.lower() == "skip" and param.get("optional"):
-                    raw = param["default"]
-
-                if param["type"] == "float":
-                    try:
-                        fval = float(raw)
-                        if fval <= 0:
-                            raise ValueError("Must be > 0")
-                        state["data"][param["key"]] = str(fval)
-                    except ValueError:
+                if param["type"] == "photo":
+                    # Expect an uploaded photo for this step
+                    if not photos:
                         await tg.send_message(
                             chat_id,
-                            "❌ Please enter a valid positive number.\n\n" + param["prompt"],
+                            "❌ Please upload a photo of the QR code.\n\n" + param["prompt"],
                         )
                         return {"status": "ok"}
-                else:
-                    if not raw:
-                        await tg.send_message(chat_id, "❌ Value cannot be empty.\n\n" + param["prompt"])
+                    # Use the largest resolution photo (last in list)
+                    photo_file_id = photos[-1].get("file_id", "")
+                    qr_decoded = await _decode_qr_from_telegram_photo(tg, photo_file_id)
+                    if not qr_decoded:
+                        await tg.send_message(
+                            chat_id,
+                            "❌ Could not detect a QR code in the photo. "
+                            "Please try again with a clearer, well-lit image.\n\n" + param["prompt"],
+                        )
                         return {"status": "ok"}
-                    state["data"][param["key"]] = raw
+                    state["data"][param["key"]] = qr_decoded
+                else:
+                    raw = (text or "").strip()
+
+                    # "skip" is allowed for optional steps
+                    if raw.lower() == "skip" and param.get("optional"):
+                        raw = param["default"]
+
+                    if param["type"] == "float":
+                        try:
+                            fval = float(raw)
+                            if fval <= 0:
+                                raise ValueError("Must be > 0")
+                            state["data"][param["key"]] = str(fval)
+                        except ValueError:
+                            await tg.send_message(
+                                chat_id,
+                                "❌ Please enter a valid positive number.\n\n" + param["prompt"],
+                            )
+                            return {"status": "ok"}
+                    else:
+                        if not raw:
+                            await tg.send_message(chat_id, "❌ Value cannot be empty.\n\n" + param["prompt"])
+                            return {"status": "ok"}
+                        state["data"][param["key"]] = raw
 
                 state["step"] += 1
 
@@ -1183,9 +1331,27 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 await tg.send_message(chat_id, next_param["prompt"])
                 return {"status": "ok"}
 
-            # All values collected — rebuild command text and fall through
+            # All values collected
+            collected = state["data"]
             del _pending[chat_id]
-            parts = [cmd] + [state["data"].get(s["key"], s.get("default", "")) for s in steps]
+
+            # /scanqr is handled inline: QR data may contain spaces and cannot be
+            # safely round-tripped through a space-delimited command string.
+            if cmd == "/scanqr":
+                try:
+                    amount = float(collected.get("amount", 0))
+                    qr_data = collected.get("qr_data", "")
+                    if amount <= 0 or not qr_data:
+                        await tg.send_message(chat_id, "❌ Invalid amount or missing QR data.")
+                        return {"status": "ok"}
+                    await _process_scanqr(tg, db, chat_id, username, amount, qr_data)
+                except Exception as exc:
+                    logger.error(f"/scanqr wizard completion error: {exc}", exc_info=True)
+                    await tg.send_message(chat_id, "❌ An error occurred processing your QRPH payment. Please try again.")
+                return {"status": "ok"}
+
+            # Other commands: rebuild command text and fall through to routing
+            parts = [cmd] + [collected.get(s["key"], s.get("default", "")) for s in steps]
             text = " ".join(str(p) for p in parts)
             # fall through to command routing below
 
@@ -1435,101 +1601,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /scanqr (QRPH scan — paste QR string) ====================
+        # ==================== /scanqr (QRPH scan — upload QR image) ====================
         elif text.startswith("/scanqr"):
-            parts = text.split(maxsplit=2)
-            if len(parts) < 2:
-                await tg.send_message(
-                    chat_id,
-                    "📲 <b>Scan QRPH</b>\n\n"
-                    "Paste the raw QRPH/QR string followed by the amount:\n\n"
-                    "<code>/scanqr &lt;qr_string&gt; &lt;amount&gt;</code>\n\n"
-                    "Example:\n"
-                    "<code>/scanqr 00020101021226... 500</code>\n\n"
-                    "💡 <i>Scan the merchant's QRPH with your phone camera, copy the decoded text, "
-                    "then paste it here with the amount.</i>",
-                )
-            else:
-                qr_data = parts[1].strip()
-                try:
-                    amount = float(parts[2]) if len(parts) > 2 else 0.0
-                    if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Please include the amount.\nUsage: /scanqr &lt;qr_string&gt; &lt;amount&gt;")
-                        await _safe_log(db, chat_id, username, text)
-                        return {"status": "ok"}
-
-                    # Parse basic EMVCo / QRPH fields from the QR string.
-                    # Tag reference: 53=Currency (608=PHP), 58=Country, 59=Merchant Name,
-                    # 60=City, 62=Additional Data (sub-tag 05=Reference Label, 01=Bill Number).
-                    # NOTE: The equivalent parser exists in ScanQRPH.tsx (frontend).
-                    def _parse_tlv(s: str) -> dict:
-                        result: dict = {}
-                        i = 0
-                        while i + 4 <= len(s):
-                            tag = s[i:i+2]
-                            try:
-                                length = int(s[i+2:i+4])
-                            except ValueError:
-                                break
-                            if i + 4 + length > len(s):
-                                break
-                            result[tag] = s[i+4:i+4+length]
-                            i += 4 + length
-                        return result
-
-                    tlv = _parse_tlv(qr_data)
-                    merchant_name = tlv.get("59", "")
-                    merchant_city = tlv.get("60", "")
-                    currency_code = tlv.get("53", "")
-                    currency = "PHP" if currency_code == "608" else currency_code or "PHP"
-                    ref_num = ""
-                    add_data = tlv.get("62", "")
-                    if add_data:
-                        sub = _parse_tlv(add_data)
-                        ref_num = sub.get("05", sub.get("01", ""))
-
-                    external_id = f"qrph-{uuid.uuid4().hex[:12]}"
-                    reply_lines = [
-                        f"✅ <b>QRPH Payment Recorded</b>",
-                        f"━━━━━━━━━━━━━━━━━━━━",
-                        f"💰 Amount: <b>₱{amount:,.2f} PHP</b>",
-                    ]
-                    if merchant_name:
-                        reply_lines.append(f"🏪 Merchant: <b>{merchant_name}</b>")
-                    if merchant_city:
-                        reply_lines.append(f"📍 City: {merchant_city}")
-                    if ref_num:
-                        reply_lines.append(f"🆔 Reference: <code>{ref_num}</code>")
-                    reply_lines += [
-                        f"",
-                        f"⏳ Status: <b>Pending</b>",
-                        f"💳 Complete the payment via your bank or e-wallet app.",
-                    ]
-                    await tg.send_message(chat_id, "\n".join(reply_lines), reply_markup=_pay_kb())
-
-                    try:
-                        now = datetime.now()
-                        txn = Transactions(
-                            user_id=f"tg-{chat_id}", transaction_type="qrph_payment",
-                            external_id=external_id, xendit_id="",
-                            amount=amount, currency=currency, status="pending",
-                            description=f"QRPH payment{f' to {merchant_name}' if merchant_name else ''}",
-                            customer_name=merchant_name,
-                            # Reuse qr_code_url to store the raw QRPH/EMVCo string (existing schema
-                            # field; capped at 500 chars to fit the column).
-                            qr_code_url=qr_data[:500], telegram_chat_id=chat_id,
-                            created_at=now, updated_at=now,
-                        )
-                        db.add(txn)
-                        await db.commit()
-                    except Exception as e:
-                        logger.error(f"DB save failed for /scanqr: {e}", exc_info=True)
-                        try:
-                            await db.rollback()
-                        except Exception:
-                            pass
-                except (ValueError, IndexError):
-                    await tg.send_message(chat_id, "❌ Invalid amount. Usage: /scanqr &lt;qr_string&gt; &lt;amount&gt;")
+            await tg.send_message(chat_id, _wizard_start(chat_id, "/scanqr"))
 
         # ==================== /alipay (PhotonPay → Alipay QR) ====================
         elif text.startswith("/alipay"):

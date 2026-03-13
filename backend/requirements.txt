@@ -34,3 +34,6 @@ sse-starlette>=1.6.0
 
 # QR code generation
 qrcode[pil]>=7.4.2
+
+# QR code decoding (requires libzbar0 system library)
+pyzbar>=0.1.9
