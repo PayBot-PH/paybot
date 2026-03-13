@@ -236,29 +236,56 @@ function TabBar({
   onChange: (id: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto mb-6 [overflow-scrolling:touch]">
-      <div className="flex items-center gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1 min-w-max">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap
-            ${active === tab.id
-              ? 'bg-slate-700 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
-            }`}
-        >
-          {tab.icon}
-          <span>{tab.label}</span>
-          {tab.count !== undefined && (
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-              active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-slate-700/60 text-slate-400'
-            }`}>
-              {tab.count}
-            </span>
-          )}
-        </button>
-      ))}
+    <div className="mb-6">
+      {/* Mobile: 2-column grid — all tabs visible at a glance, no horizontal scroll */}
+      <div className="sm:hidden grid grid-cols-2 gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1">
+        {tabs.map((tab, idx) => (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-all duration-150
+              ${tabs.length % 2 !== 0 && idx === tabs.length - 1 ? 'col-span-2' : ''}
+              ${active === tab.id
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+              }`}
+          >
+            {tab.icon}
+            <span className="truncate">{tab.label}</span>
+            {tab.count !== undefined && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
+                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-slate-700/60 text-slate-400'
+              }`}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Desktop: horizontal scrollable row with hidden scrollbar */}
+      <div className="hidden sm:flex items-center gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap shrink-0
+              ${active === tab.id
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+              }`}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+            {tab.count !== undefined && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-slate-700/60 text-slate-400'
+              }`}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -480,7 +507,7 @@ function UserManagementTab({
               </div>
 
               {/* Meta + Role */}
-              <div className="flex items-center gap-4 shrink-0">
+              <div className="flex items-center gap-3 shrink-0">
                 <div className="hidden sm:flex flex-col items-end gap-0.5">
                   <div className="flex items-center gap-1 text-[11px] text-slate-500">
                     <Clock className="h-3 w-3" />
@@ -703,6 +730,105 @@ function RoleManagementTab({
 
 // ── Crypto Requests Tab ───────────────────────────────────────────────────────
 
+function RequestCard({
+  req,
+  canApproveTopups,
+  actionId,
+  onAction,
+}: {
+  req: CryptoTopupRequest;
+  canApproveTopups: boolean;
+  actionId: number | null;
+  onAction: (id: number, action: 'approve' | 'reject') => void;
+}) {
+  const isPending = req.status === 'pending';
+  const isProcessing = actionId === req.id;
+  return (
+    <Card className={`border transition-colors duration-150 ${
+      isPending
+        ? 'bg-[#1E293B] border-slate-700/50 hover:border-teal-500/30'
+        : 'bg-slate-900/40 border-slate-700/30'
+    }`}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
+              req.status === 'approved'
+                ? 'bg-emerald-500/15 border-emerald-500/25'
+                : req.status === 'rejected'
+                ? 'bg-red-500/10 border-red-500/20'
+                : 'bg-teal-500/10 border-teal-500/20'
+            }`}>
+              {req.status === 'approved'
+                ? <CheckCircle className="h-4 w-4 text-emerald-400" />
+                : req.status === 'rejected'
+                ? <XCircle className="h-4 w-4 text-red-400" />
+                : <Clock className="h-4 w-4 text-amber-400" />
+              }
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-sm text-white">${req.amount_usdt.toFixed(2)} USDT</span>
+                <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
+                  req.status === 'approved'
+                    ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
+                    : req.status === 'rejected'
+                    ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                }`}>
+                  {req.status.toUpperCase()}
+                </Badge>
+                <Badge className="bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[9px] px-1.5 py-0 h-4">
+                  {req.network}
+                </Badge>
+              </div>
+              <p className="text-[10px] text-slate-500 font-mono truncate mt-0.5" title={req.tx_hash}>
+                TX: {req.tx_hash}
+              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-[10px] text-slate-600">User: {req.user_id}</span>
+                {req.created_at && (
+                  <span className="text-[10px] text-slate-600">{formatDate(req.created_at)}</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {isPending && canApproveTopups && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 shrink-0">
+              <Button
+                size="sm"
+                disabled={!!actionId}
+                onClick={() => onAction(req.id, 'approve')}
+                className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {isProcessing
+                  ? <div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  : <><CheckCircle className="h-3.5 w-3.5 mr-1" />Approve</>}
+              </Button>
+              <Button
+                size="sm"
+                disabled={!!actionId}
+                onClick={() => onAction(req.id, 'reject')}
+                className="h-7 px-2.5 text-xs bg-slate-700 hover:bg-red-600/80 text-slate-300 hover:text-white"
+              >
+                <XCircle className="h-3.5 w-3.5 mr-1" />Reject
+              </Button>
+            </div>
+          )}
+
+          {!isPending && req.reviewed_by && (
+            <div className="text-right shrink-0 text-[10px] text-slate-600">
+              <p>By: {req.reviewed_by}</p>
+              {req.reviewed_at && <p>{formatDate(req.reviewed_at)}</p>}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function CryptoRequestsTab({
   canApproveTopups,
   onError,
@@ -781,95 +907,6 @@ function CryptoRequestsTab({
     );
   }
 
-  function RequestCard({ req }: { req: CryptoTopupRequest }) {
-    const isPending = req.status === 'pending';
-    const isProcessing = actionId === req.id;
-    return (
-      <Card className={`border transition-colors duration-150 ${
-        isPending
-          ? 'bg-[#1E293B] border-slate-700/50 hover:border-teal-500/30'
-          : 'bg-slate-900/40 border-slate-700/30'
-      }`}>
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                req.status === 'approved'
-                  ? 'bg-emerald-500/15 border-emerald-500/25'
-                  : req.status === 'rejected'
-                  ? 'bg-red-500/10 border-red-500/20'
-                  : 'bg-teal-500/10 border-teal-500/20'
-              }`}>
-                {req.status === 'approved'
-                  ? <CheckCircle className="h-4 w-4 text-emerald-400" />
-                  : req.status === 'rejected'
-                  ? <XCircle className="h-4 w-4 text-red-400" />
-                  : <Clock className="h-4 w-4 text-amber-400" />
-                }
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-sm text-white">${req.amount_usdt.toFixed(2)} USDT</span>
-                  <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
-                    req.status === 'approved'
-                      ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
-                      : req.status === 'rejected'
-                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                      : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                  }`}>
-                    {req.status.toUpperCase()}
-                  </Badge>
-                  <Badge className="bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[9px] px-1.5 py-0 h-4">
-                    {req.network}
-                  </Badge>
-                </div>
-                <p className="text-[10px] text-slate-500 font-mono truncate mt-0.5" title={req.tx_hash}>
-                  TX: {req.tx_hash}
-                </p>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-[10px] text-slate-600">User: {req.user_id}</span>
-                  {req.created_at && (
-                    <span className="text-[10px] text-slate-600">{formatDate(req.created_at)}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {isPending && canApproveTopups && (
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Button
-                  size="sm"
-                  disabled={!!actionId}
-                  onClick={() => handleAction(req.id, 'approve')}
-                  className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {isProcessing
-                    ? <div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    : <><CheckCircle className="h-3.5 w-3.5 mr-1" />Approve</>}
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={!!actionId}
-                  onClick={() => handleAction(req.id, 'reject')}
-                  className="h-7 px-2.5 text-xs bg-slate-700 hover:bg-red-600/80 text-slate-300 hover:text-white"
-                >
-                  <XCircle className="h-3.5 w-3.5 mr-1" />Reject
-                </Button>
-              </div>
-            )}
-
-            {!isPending && req.reviewed_by && (
-              <div className="text-right shrink-0 text-[10px] text-slate-600">
-                <p>By: {req.reviewed_by}</p>
-                {req.reviewed_at && <p>{formatDate(req.reviewed_at)}</p>}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-4">
       {!canApproveTopups && (
@@ -886,7 +923,15 @@ function CryptoRequestsTab({
             Pending ({pending.length})
           </p>
           <div className="space-y-2">
-            {pending.map(req => <RequestCard key={req.id} req={req} />)}
+            {pending.map(req => (
+              <RequestCard
+                key={req.id}
+                req={req}
+                canApproveTopups={canApproveTopups}
+                actionId={actionId}
+                onAction={handleAction}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -897,7 +942,15 @@ function CryptoRequestsTab({
             Reviewed ({reviewed.length})
           </p>
           <div className="space-y-2">
-            {reviewed.slice(0, 20).map(req => <RequestCard key={req.id} req={req} />)}
+            {reviewed.slice(0, 20).map(req => (
+              <RequestCard
+                key={req.id}
+                req={req}
+                canApproveTopups={canApproveTopups}
+                actionId={actionId}
+                onAction={handleAction}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -1219,16 +1272,16 @@ export default function AdminManagement() {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto w-full min-w-0">
         {/* Page Header */}
-        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-10 w-10 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="h-10 w-10 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center shrink-0">
               <ShieldCheck className="h-5 w-5 text-purple-400" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-white">Admin Management</h1>
-              <p className="text-slate-500 text-xs mt-0.5">
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-white truncate">Admin Management</h1>
+              <p className="text-slate-500 text-xs mt-0.5 truncate">
                 {admins.length} admin{admins.length !== 1 ? 's' : ''} — {activeAdmins.length} active
               </p>
             </div>
@@ -1302,9 +1355,9 @@ export default function AdminManagement() {
                   {maintenanceUpdating ? (
                     <div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
                   ) : maintenanceMode ? (
-                    <><Power className="h-3.5 w-3.5" />Disable Maintenance</>
+                    <><Power className="h-3.5 w-3.5" /><span className="hidden sm:inline">Disable </span>Maintenance</>
                   ) : (
-                    <><WrenchIcon className="h-3.5 w-3.5" />Enable Maintenance</>
+                    <><WrenchIcon className="h-3.5 w-3.5" /><span className="hidden sm:inline">Enable </span>Maintenance</>
                   )}
                 </Button>
               </div>

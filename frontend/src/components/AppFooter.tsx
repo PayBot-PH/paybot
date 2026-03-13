@@ -3,8 +3,9 @@ import { Bot, MessageCircle, Shield, FileText, ExternalLink } from 'lucide-react
 import { APP_NAME, COMPANY_NAME, SUPPORT_URL, APP_TAGLINE } from '@/lib/brand';
 
 /* ─── Logo helpers ─────────────────────────────────────────────── */
-function SiIcon({ src, alt, bg, size = 32 }: { src: string; alt: string; bg: string; size?: number }) {
-  const r = Math.round(size * 0.25);
+// All logo containers are a fixed square so every pill has the same icon footprint.
+function SiIcon({ src, alt, bg, size = 24 }: { src: string; alt: string; bg: string; size?: number }) {
+  const r = Math.round(size * 0.28);
   const p = Math.round(size * 0.18);
   return (
     <div style={{ width: size, height: size, background: bg, borderRadius: r, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: p, flexShrink: 0 }}>
@@ -12,23 +13,28 @@ function SiIcon({ src, alt, bg, size = 32 }: { src: string; alt: string; bg: str
     </div>
   );
 }
-function ImgIcon({ src, alt, size = 32 }: { src: string; alt: string; size?: number }) {
-  return <img src={src} alt={alt} style={{ height: size, width: 'auto', objectFit: 'contain', borderRadius: 6, flexShrink: 0 }} />;
+function ImgIcon({ src, alt, size = 24 }: { src: string; alt: string; size?: number }) {
+  // Fixed bounding box keeps every logo the same footprint regardless of natural aspect ratio.
+  return (
+    <div style={{ width: size, height: size, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <img src={src} alt={alt} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
+    </div>
+  );
 }
 
 const PAYMENT_BRANDS = [
-  { el: <SiIcon src="/logos/alipay.svg"    alt="Alipay"     bg="#1677FF" size={28} />, name: 'Alipay' },
-  { el: <SiIcon src="/logos/wechat.svg"    alt="WeChat Pay" bg="#07C160" size={28} />, name: 'WeChat Pay' },
-  { el: <ImgIcon src="/logos/gcash.svg"    alt="GCash"      size={28} />,              name: 'GCash' },
-  { el: <ImgIcon src="/logos/maya.svg"     alt="Maya"       size={28} />,              name: 'Maya' },
-  { el: <SiIcon src="/logos/grab.svg"      alt="GrabPay"    bg="#00B14F" size={28} />, name: 'GrabPay' },
-  { el: <ImgIcon src="/logos/bpi.svg"      alt="BPI"        size={28} />,              name: 'BPI' },
-  { el: <ImgIcon src="/logos/bdo.svg"      alt="BDO"        size={28} />,              name: 'BDO' },
-  { el: <ImgIcon src="/logos/unionbank.svg" alt="UnionBank" size={28} />,              name: 'UnionBank' },
-  { el: <ImgIcon src="/logos/metrobank.svg" alt="Metrobank" size={28} />,              name: 'Metrobank' },
-  { el: <ImgIcon src="/logos/rcbc.svg"     alt="RCBC"       size={28} />,              name: 'RCBC' },
-  { el: <ImgIcon src="/logos/psbank.svg"   alt="PSBank"     size={28} />,              name: 'PSBank' },
-  { el: <SiIcon src="/logos/tether.svg"    alt="USDT"       bg="#26A17B" size={28} />, name: 'USDT' },
+  { el: <SiIcon src="/logos/alipay.svg"    alt="Alipay"     bg="#1677FF" size={24} />, name: 'Alipay' },
+  { el: <SiIcon src="/logos/wechat.svg"    alt="WeChat Pay" bg="#07C160" size={24} />, name: 'WeChat Pay' },
+  { el: <ImgIcon src="/logos/gcash.svg"    alt="GCash"      size={24} />,              name: 'GCash' },
+  { el: <ImgIcon src="/logos/maya.svg"     alt="Maya"       size={24} />,              name: 'Maya' },
+  { el: <SiIcon src="/logos/grab.svg"      alt="GrabPay"    bg="#00B14F" size={24} />, name: 'GrabPay' },
+  { el: <ImgIcon src="/logos/bpi.svg"      alt="BPI"        size={24} />,              name: 'BPI' },
+  { el: <ImgIcon src="/logos/bdo.svg"      alt="BDO"        size={24} />,              name: 'BDO' },
+  { el: <ImgIcon src="/logos/unionbank.svg" alt="UnionBank" size={24} />,              name: 'UnionBank' },
+  { el: <ImgIcon src="/logos/metrobank.svg" alt="Metrobank" size={24} />,              name: 'Metrobank' },
+  { el: <ImgIcon src="/logos/rcbc.svg"     alt="RCBC"       size={24} />,              name: 'RCBC' },
+  { el: <ImgIcon src="/logos/psbank.svg"   alt="PSBank"     size={24} />,              name: 'PSBank' },
+  { el: <SiIcon src="/logos/tether.svg"    alt="USDT"       bg="#26A17B" size={24} />, name: 'USDT' },
 ];
 
 const NAV_LINKS = [
@@ -139,19 +145,19 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
           <p className="text-slate-600 text-[10px] font-semibold uppercase tracking-widest text-center mb-4">
             Accepted payment networks
           </p>
-          <div className="flex flex-wrap items-center justify-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2">
             {PAYMENT_BRANDS.map(({ el, name }) => (
               <div
                 key={name}
-                className="flex items-center gap-1.5 bg-white/[0.03] border border-white/[0.06] rounded-lg px-2.5 py-1.5 hover:bg-white/[0.06] hover:border-white/[0.10] transition-all"
+                className="flex items-center gap-1.5 bg-white/[0.03] border border-white/[0.06] rounded-md px-2 py-1 hover:bg-white/[0.06] hover:border-white/[0.10] transition-all"
                 title={name}
               >
                 {el}
-                <span className="text-slate-400 text-[11px] font-medium whitespace-nowrap">{name}</span>
+                <span className="text-slate-400 text-[10px] font-medium whitespace-nowrap">{name}</span>
               </div>
             ))}
-            <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.05] rounded-lg px-2.5 py-1.5">
-              <span className="text-slate-600 text-[11px]">+100 PH banks</span>
+            <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.05] rounded-md px-2 py-1">
+              <span className="text-slate-600 text-[10px]">+100 PH banks</span>
             </div>
           </div>
         </div>
