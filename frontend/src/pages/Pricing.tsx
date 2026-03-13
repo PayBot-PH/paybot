@@ -126,9 +126,8 @@ const PLANS: Plan[] = [
   },
   {
     name: 'Merchant',
-    price: '₱2,499',
-    period: '/month',
-    desc: 'For active merchants who need full local and cross-border coverage.',
+    price: 'No monthly fee',
+    desc: 'For active merchants who need full local and cross-border coverage. Pay only per transaction at Xendit rates.',
     badge: 'Most Popular',
     badgeCls: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
     borderCls: 'border-blue-500/40',
@@ -139,6 +138,8 @@ const PLANS: Plan[] = [
     ctaCls: 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-600/25',
     features: [
       'Everything in Starter',
+      'Opening deposit: 600 USDT or ₱30,000',
+      'Xendit transaction fees apply (see table below)',
       'Alipay QR collection',
       'WeChat Pay QR collection',
       'All PH banks via InstaPay / PESONet',
@@ -176,10 +177,33 @@ const PLANS: Plan[] = [
   },
 ];
 
+/* ─── Xendit fee schedule ────────────────────────────────────── */
+const XENDIT_FEES = [
+  { method: 'GCash', fee: '2.3%', note: '' },
+  { method: 'Maya', fee: '1.8%', note: '' },
+  { method: 'GrabPay', fee: '2.0%', note: '' },
+  { method: 'ShopeePay', fee: '2.0%', note: '' },
+  { method: 'QRPH (QR code payments)', fee: '1.4%', note: 'Min. ₱15 per transaction' },
+  { method: 'Local credit / debit cards', fee: '3.2% + ₱10', note: '' },
+  { method: 'International cards (PHP)', fee: '4.2% + ₱10', note: '' },
+  { method: 'Bank direct debit (BPI, UBP, RCBC, etc.)', fee: '1.0%', note: 'Min. ₱15 per transaction' },
+  { method: 'Over-the-counter (7-Eleven, ECPay)', fee: '1.5%', note: 'Min. ₱15 per transaction' },
+  { method: 'Over-the-counter (Cebuana, LBC, SM)', fee: '₱25', note: 'Fixed per transaction' },
+  { method: 'BillEase (BNPL)', fee: '1.5%', note: '' },
+];
+
 const FAQS = [
   {
-    q: 'Is there a transaction fee on top of the monthly plan?',
-    a: 'Transaction fees from payment gateways (PayMongo, Xendit) are passed through at cost. There are no additional PayBot Philippines platform markup fees on top of your plan.',
+    q: 'What is the opening account deposit?',
+    a: 'To activate a Merchant account, a one-time opening deposit of 600 USDT or ₱30,000 is required. This deposit is held as a security float and applied to your transaction balance — it is not a fee.',
+  },
+  {
+    q: 'Are there any monthly subscription fees?',
+    a: 'No. PayBot Philippines uses Xendit\'s pay-as-you-go pricing — there are no monthly subscription fees. You only pay the standard Xendit transaction fee per successful payment collected.',
+  },
+  {
+    q: 'What are the transaction fees?',
+    a: 'Transaction fees follow Xendit\'s published rates: GCash 2.3%, Maya 1.8%, GrabPay 2.0%, QRPH 1.4% (min ₱15), local cards 3.2% + ₱10, international cards 4.2% + ₱10, bank direct debit 1.0% (min ₱15). See the full fee table on this page. All fees are exclusive of VAT.',
   },
   {
     q: 'How does USDT T+0 settlement work?',
@@ -196,10 +220,6 @@ const FAQS = [
   {
     q: 'Can I accept Chinese tourist payments (Alipay / WeChat Pay)?',
     a: 'Yes — this is a core feature of the Merchant and Enterprise plans. You generate a dynamic QR code via the bot or dashboard, the Chinese customer scans it with their Alipay or WeChat Pay app, and the payment is credited instantly.',
-  },
-  {
-    q: 'Can I upgrade or downgrade my plan?',
-    a: 'Yes, you can upgrade at any time and the remaining balance is prorated. Downgrades take effect on the next billing cycle. Contact @traxionpay on Telegram to manage your plan.',
   },
 ];
 
@@ -246,7 +266,7 @@ export default function Pricing() {
             </span>
           </h1>
           <p className="text-slate-400 text-base sm:text-lg max-w-xl mx-auto mb-6">
-            Start free. Unlock Alipay, WeChat Pay, all PH banks, and USDT settlement when you're ready.
+            No monthly fees. Pay only per transaction at Xendit rates. Unlock Alipay, WeChat Pay, all PH banks, and USDT settlement when you're ready.
           </p>
 
           {/* Accepted payment logos */}
@@ -268,6 +288,21 @@ export default function Pricing() {
         </div>
       </section>
 
+      {/* ── OPENING DEPOSIT BANNER ───────────────────────────────── */}
+      <section className="max-w-3xl mx-auto px-4 sm:px-6 pb-6">
+        <div className="flex flex-col sm:flex-row items-center gap-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl px-5 sm:px-7 py-4 sm:py-5">
+          <div className="flex-shrink-0 h-10 w-10 bg-amber-500/20 rounded-xl flex items-center justify-center">
+            <Building2 className="h-5 w-5 text-amber-400" />
+          </div>
+          <div className="text-center sm:text-left">
+            <p className="text-amber-300 font-bold text-sm">Opening Account Deposit Required</p>
+            <p className="text-slate-400 text-xs mt-0.5">
+              A one-time security deposit of <span className="text-white font-semibold">600 USDT</span> or <span className="text-white font-semibold">₱30,000</span> is required to activate a Merchant account. This is applied to your transaction balance — not a fee.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* ── PLANS ───────────────────────────────────────────────── */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 pb-16 sm:pb-20">
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6">
@@ -275,7 +310,31 @@ export default function Pricing() {
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-6">
-          All prices in Philippine Peso (PHP). Payment gateway fees (PayMongo / Xendit) are additional and charged at cost.
+          All prices in Philippine Peso (PHP). Xendit transaction fees are exclusive of VAT. Opening deposit (600 USDT or ₱30,000) required for Merchant accounts.
+        </p>
+      </section>
+
+      {/* ── XENDIT FEE SCHEDULE ─────────────────────────────────── */}
+      <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-16 sm:pb-20">
+        <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-2">Xendit transaction fees</h2>
+        <p className="text-slate-400 text-sm text-center mb-8 sm:mb-10">Pay only per successful transaction. No monthly fees, no hidden charges. All fees exclusive of VAT.</p>
+        <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
+          <div className="grid grid-cols-3 bg-white/[0.03] border-b border-white/[0.08]">
+            <div className="px-4 sm:px-6 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider col-span-2">Payment Method</div>
+            <div className="px-4 sm:px-6 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Fee</div>
+          </div>
+          {XENDIT_FEES.map(({ method, fee, note }, i) => (
+            <div key={method} className={`grid grid-cols-3 border-b border-white/[0.05] last:border-0 ${i % 2 === 0 ? '' : 'bg-white/[0.01]'}`}>
+              <div className="px-4 sm:px-6 py-3 col-span-2">
+                <span className="text-slate-300 text-xs sm:text-sm">{method}</span>
+                {note && <span className="ml-2 text-slate-500 text-xs">{note}</span>}
+              </div>
+              <div className="px-4 sm:px-6 py-3 text-blue-300 font-semibold text-xs sm:text-sm">{fee}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-slate-500 text-xs mt-4 text-center">
+          Source: <a href="https://www.xendit.co/en-ph/pricing/" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-400 transition-colors">xendit.co/en-ph/pricing</a>. Rates may change; confirm current rates with Xendit directly.
         </p>
       </section>
 
@@ -334,8 +393,8 @@ export default function Pricing() {
             {
               icon: <Shield className="h-5 w-5 text-blue-400" />,
               bg: 'bg-blue-500/10 border-blue-500/20',
-              title: 'No hidden fees',
-              desc: 'Monthly plan price is fixed. Gateway transaction fees (PayMongo / Xendit standard rates) are the only additions.',
+              title: 'No monthly fees',
+              desc: 'Pay only per successful transaction at Xendit\'s published rates. No subscription, no platform markup.',
             },
             {
               icon: <Zap className="h-5 w-5 text-emerald-400" />,
