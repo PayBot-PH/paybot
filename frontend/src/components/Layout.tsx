@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { APP_NAME, APP_SUBTITLE, SUPPORT_URL } from '@/lib/brand';
 import AppFooter from '@/components/AppFooter';
 
@@ -46,6 +47,7 @@ export default function Layout({ children, connected }: LayoutProps) {
   const path = location.pathname;
   const { user, logout, isAdmin, isSuperAdmin, permissions } = useAuth();
   const { theme, toggleTheme } = useTheme();
+  const { language, setLanguage, t } = useLanguage();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
@@ -82,32 +84,32 @@ export default function Layout({ children, connected }: LayoutProps) {
   /* ─── Navigation structure ──────────────────────────────────── */
   const navSections: NavSection[] = [
     {
-      label: 'Overview',
+      label: t('nav_overview'),
       items: [
-        { to: '/', icon: BarChart3, label: 'Dashboard' },
-        { to: '/wallet', icon: Wallet, label: 'Wallet' },
+        { to: '/', icon: BarChart3, label: t('nav_dashboard') },
+        { to: '/wallet', icon: Wallet, label: t('nav_wallet') },
       ],
     },
     {
-      label: 'Payments',
+      label: t('nav_payments'),
       items: [
-        { to: '/payments', icon: CreditCard, label: 'Payments Hub' },
-        { to: '/scan-qrph', icon: ScanLine, label: 'Scan QRPH' },
-        { to: '/transactions', icon: FileText, label: 'Transactions' },
-        { to: '/disbursements', icon: Building2, label: 'Disbursements' },
-        { to: '/reports', icon: PieChart, label: 'Reports' },
+        { to: '/payments', icon: CreditCard, label: t('nav_payments_hub') },
+        { to: '/scan-qrph', icon: ScanLine, label: t('nav_scan_qrph') },
+        { to: '/transactions', icon: FileText, label: t('nav_transactions') },
+        { to: '/disbursements', icon: Building2, label: t('nav_disbursements') },
+        { to: '/reports', icon: PieChart, label: t('nav_reports') },
       ],
     },
     /* Bot section — shown to admins / can_manage_bot users */
     ...(isAdmin || permissions?.can_manage_bot || isSuperAdmin
       ? [{
-          label: 'Bot',
+          label: t('nav_bot'),
           items: [
             ...(isAdmin || isSuperAdmin
-              ? [{ to: '/bot-messages', icon: MessageSquare, label: 'Bot Messages' }]
+              ? [{ to: '/bot-messages', icon: MessageSquare, label: t('nav_bot_messages') }]
               : []),
             ...(permissions?.can_manage_bot || isSuperAdmin
-              ? [{ to: '/bot-settings', icon: Bot, label: 'Bot Settings' }]
+              ? [{ to: '/bot-settings', icon: Bot, label: t('nav_bot_settings') }]
               : []),
           ] as NavEntry[],
         }]
@@ -115,38 +117,38 @@ export default function Layout({ children, connected }: LayoutProps) {
     /* Administration — super admin only, with collapsible sub-groups */
     ...(isSuperAdmin
       ? [{
-          label: 'Administration',
+          label: t('nav_administration'),
           items: [
-            { to: '/admin-management', icon: ShieldCheck, label: 'Admin Management', badge: 'Super' },
+            { to: '/admin-management', icon: ShieldCheck, label: t('nav_admin_management'), badge: 'Super' },
             {
               type: 'group' as const,
               key: 'requests',
               icon: Layers,
-              label: 'Requests',
+              label: t('nav_requests'),
               badge: 'Super',
               children: [
-                { to: '/usdt-send-requests', icon: Send, label: 'USDT Requests', badge: 'Super' },
-                { to: '/topup-requests', icon: DollarSign, label: 'Top-up Requests', badge: 'Super' },
+                { to: '/usdt-send-requests', icon: Send, label: t('nav_usdt_requests'), badge: 'Super' },
+                { to: '/topup-requests', icon: DollarSign, label: t('nav_topup_requests'), badge: 'Super' },
               ],
             },
             {
               type: 'group' as const,
               key: 'compliance',
               icon: Settings2,
-              label: 'Compliance',
+              label: t('nav_compliance'),
               badge: 'Super',
               children: [
-                { to: '/kyb-registrations', icon: ClipboardList, label: 'KYB Registrations', badge: 'Super' },
-                { to: '/kyc-verifications', icon: UserCheck, label: 'KYC Verifications', badge: 'Super' },
+                { to: '/kyb-registrations', icon: ClipboardList, label: t('nav_kyb_registrations'), badge: 'Super' },
+                { to: '/kyc-verifications', icon: UserCheck, label: t('nav_kyc_verifications'), badge: 'Super' },
               ],
             },
           ] as NavEntry[],
         }]
       : []),
     {
-      label: 'Help & Legal',
+      label: t('nav_help'),
       items: [
-        { to: '/policies', icon: ScrollText, label: 'Policies' },
+        { to: '/policies', icon: ScrollText, label: t('nav_policies') },
       ],
     },
   ];
@@ -254,7 +256,7 @@ export default function Layout({ children, connected }: LayoutProps) {
           className="flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150"
         >
           <MessageCircle className="h-4 w-4 shrink-0" />
-          <span>Contact Support</span>
+          <span>{t('nav_contact_support')}</span>
         </a>
       </div>
     </nav>
@@ -284,7 +286,7 @@ export default function Layout({ children, connected }: LayoutProps) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium truncate">{userName}</p>
-              <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? 'Super Admin' : 'Admin'}</p>
+              <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? t('super_admin') : t('admin')}</p>
             </div>
             <button
               onClick={() => logout()}
@@ -318,7 +320,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
-                Sign Out
+                {t('sign_out')}
               </button>
             </div>
           </aside>
@@ -349,9 +351,18 @@ export default function Layout({ children, connected }: LayoutProps) {
           <button
             onClick={toggleTheme}
             className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={theme === 'dark' ? t('switch_light') : t('switch_dark')}
           >
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+
+          {/* Language toggle */}
+          <button
+            onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
+            className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs font-semibold w-8 h-8 flex items-center justify-center"
+            title={language === 'en' ? t('switch_chinese') : t('switch_english')}
+          >
+            {language === 'en' ? '中' : 'EN'}
           </button>
 
           {/* Live indicator */}
@@ -363,12 +374,12 @@ export default function Layout({ children, connected }: LayoutProps) {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
                 <Activity className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Live</span>
+                <span className="hidden sm:inline">{t('live')}</span>
               </div>
             ) : (
               <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
                 <WifiOff className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Offline</span>
+                <span className="hidden sm:inline">{t('offline')}</span>
               </div>
             )
           )}
@@ -390,14 +401,14 @@ export default function Layout({ children, connected }: LayoutProps) {
                 <div className="absolute right-0 mt-2 w-44 bg-card border border-border rounded-lg shadow-xl py-1 z-50">
                   <div className="px-3 py-2 border-b border-border">
                     <p className="text-xs font-medium truncate">{userName}</p>
-                    <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? 'Super Administrator' : 'Administrator'}</p>
+                    <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? t('super_administrator') : t('administrator')}</p>
                   </div>
                   <button
                     onClick={() => { setUserMenuOpen(false); logout(); }}
                     className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
                   >
                     <LogOut className="h-4 w-4" />
-                    Sign Out
+                    {t('sign_out')}
                   </button>
                 </div>
               )}
