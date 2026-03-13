@@ -71,6 +71,7 @@ class TopupRequest(BaseModel):
 
 class AlipayQRRequest(BaseModel):
     amount: float
+    currency: str = "HKD"
     description: str = "Alipay payment"
     success_url: Optional[str] = None
     failed_url: Optional[str] = None
@@ -398,7 +399,7 @@ async def create_alipay_qr(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate an Alipay QR checkout via PayMongo. On payment, PHP wallet is credited automatically."""
+    """Generate an Alipay QR checkout via PayMongo. Alipay does not support PHP; use HKD or CNY."""
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero")
 
@@ -408,6 +409,7 @@ async def create_alipay_qr(
         description=req.description,
         success_url=req.success_url or "",
         failed_url=req.failed_url or "",
+        currency=req.currency,
     )
 
     if not result.get("success"):
@@ -417,7 +419,7 @@ async def create_alipay_qr(
     topup = WalletTopup(
         user_id=str(current_user.id),
         amount=req.amount,
-        currency="PHP",
+        currency=result.get("currency", req.currency),
         paymongo_source_id=result.get("source_id", ""),
         reference_number=result.get("reference_number", ""),
         payment_method="alipay",
