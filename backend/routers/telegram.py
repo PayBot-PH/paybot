@@ -259,75 +259,77 @@ def _lang_kb() -> dict:
     }
 
 
-def _welcome_en() -> str:
+def _welcome_en(name: str = "") -> str:
+    greeting = f"Hi {name}! 🎉" if name else "🎉 You're in!"
     return (
-        "👋 <b>Welcome to PayBot Philippines!</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "Your all-in-one Philippine payment gateway bot.\n\n"
-        "💳 <b>Accept Payments</b>\n"
-        "  /invoice [amt] [desc] — Create an invoice\n"
-        "  /qr [amt] [desc] — Generate QR code\n"
-        "  /link [amt] [desc] — Payment link\n"
-        "  /va [amt] [bank] — Virtual account\n"
-        "  /ewallet [amt] [provider] — E-wallet\n"
-        "  /alipay [amt] [desc] — Alipay QR (via PhotonPay)\n"
-        "  /wechat [amt] [desc] — WeChat QR (via PhotonPay)\n\n"
-        "💸 <b>Send Money</b>\n"
-        "  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
-        "  /refund [id] [amt] — Refund a payment\n\n"
-        "💰 <b>PHP Wallet</b>\n"
-        "  /balance — View balances &amp; history\n"
-        "  /topup [amt] — Top up PHP wallet via USDT (auto-converted)\n"
-        "  /send [amt] [to] — Send funds\n"
-        "  /withdraw [amt] — Withdraw\n\n"
-        "💵 <b>USD Wallet (USDT TRC20)</b>\n"
-        "  /usdbalance — USD balance &amp; history\n"
-        "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
-        "  /sendusd [amt] [@username] — Send USD to another user\n\n"
-        "📊 <b>Reports &amp; Tools</b>\n"
-        "  /status [id] — Payment status\n"
-        "  /list — Recent transactions\n"
-        "  /report [daily|weekly|monthly]\n"
-        "  /fees [amt] [method] — Fee calculator\n"
-        "  /cancel [id] — Cancel pending payment\n"
-        "  /remind [id] — Send payment reminder\n\n"
-        "ℹ️ Type /help for the full command reference."
+        f"👋 <b>Welcome to PayBot Philippines!</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"{greeting} Your all-in-one Philippine payment gateway is ready to go.\n\n"
+        f"💳 <b>Accept Payments</b>\n"
+        f"  /invoice [amt] [desc] — Create an invoice\n"
+        f"  /qr [amt] [desc] — Generate QR code\n"
+        f"  /link [amt] [desc] — Payment link\n"
+        f"  /va [amt] [bank] — Virtual account\n"
+        f"  /ewallet [amt] [provider] — E-wallet (GCash, Maya, GrabPay)\n"
+        f"  /alipay [amt] [desc] — Alipay QR (via PhotonPay)\n"
+        f"  /wechat [amt] [desc] — WeChat QR (via PhotonPay)\n\n"
+        f"💸 <b>Send Money</b>\n"
+        f"  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
+        f"  /refund [id] [amt] — Refund a payment\n\n"
+        f"💰 <b>PHP Wallet</b>\n"
+        f"  /balance — View balances &amp; history\n"
+        f"  /topup [amt] — Top up PHP wallet via USDT (auto-converted)\n"
+        f"  /send [amt] [to] — Send funds to another user\n"
+        f"  /withdraw [amt] — Withdraw\n\n"
+        f"💵 <b>USD Wallet (USDT TRC20)</b>\n"
+        f"  /usdbalance — USD balance &amp; history\n"
+        f"  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
+        f"  /sendusd [amt] [@username] — Send USD to another user\n\n"
+        f"📊 <b>Reports &amp; Tools</b>\n"
+        f"  /status [id] — Payment status\n"
+        f"  /list — Recent transactions\n"
+        f"  /report [daily|weekly|monthly]\n"
+        f"  /fees [amt] [method] — Fee calculator\n"
+        f"  /cancel [id] — Cancel pending payment\n"
+        f"  /remind [id] — Send payment reminder\n\n"
+        f"💡 <b>Tip:</b> Use the quick-action buttons below or type /help anytime!"
     )
 
 
-def _welcome_zh() -> str:
+def _welcome_zh(name: str = "") -> str:
+    greeting = f"嗨 {name}！🎉" if name else "🎉 欢迎回来！"
     return (
-        "👋 <b>欢迎使用 PayBot Philippines！</b>\n"
-        "━━━━━━━━━━━━━━━━━━━━\n"
-        "您的一站式菲律宾支付机器人。\n\n"
-        "💳 <b>收款</b>\n"
-        "  /invoice [金额] [说明] — 创建账单\n"
-        "  /qr [金额] [说明] — 生成二维码\n"
-        "  /link [金额] [说明] — 付款链接\n"
-        "  /va [金额] [银行] — 虚拟账户\n"
-        "  /ewallet [金额] [提供商] — 电子钱包\n"
-        "  /alipay [金额] [说明] — 支付宝收款\n"
-        "  /wechat [金额] [说明] — 微信支付收款\n\n"
-        "💸 <b>转账</b>\n"
-        "  /disburse [金额] [银行] [账号] [姓名] — 银行转账\n"
-        "  /refund [ID] [金额] — 退款\n\n"
-        "💰 <b>PHP 钱包</b>\n"
-        "  /balance — 查看余额及历史\n"
-        "  /topup [金额] — 通过 USDT 充值至 PHP 钱包（自动换汇）\n"
-        "  /send [金额] [接收方] — 转账\n"
-        "  /withdraw [金额] — 提现\n\n"
-        "💵 <b>USD 钱包（USDT TRC20）</b>\n"
-        "  /usdbalance — USD 余额及历史\n"
-        "  /sendusdt [金额] [地址] — 发送 USDT 至 TRC20 地址\n"
-        "  /sendusd [金额] [@用户名] — 向用户转账 USD\n\n"
-        "📊 <b>报表与工具</b>\n"
-        "  /status [ID] — 付款状态\n"
-        "  /list — 近期交易记录\n"
-        "  /report [daily|weekly|monthly]\n"
-        "  /fees [金额] [方式] — 费用计算\n"
-        "  /cancel [ID] — 取消待付款项\n"
-        "  /remind [ID] — 发送付款提醒\n\n"
-        "ℹ️ 输入 /help 查看完整命令列表。"
+        f"👋 <b>欢迎使用 PayBot Philippines！</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"{greeting} 您的一站式菲律宾支付机器人已就绪。\n\n"
+        f"💳 <b>收款</b>\n"
+        f"  /invoice [金额] [说明] — 创建账单\n"
+        f"  /qr [金额] [说明] — 生成二维码\n"
+        f"  /link [金额] [说明] — 付款链接\n"
+        f"  /va [金额] [银行] — 虚拟账户\n"
+        f"  /ewallet [金额] [提供商] — 电子钱包（GCash、Maya、GrabPay）\n"
+        f"  /alipay [金额] [说明] — 支付宝收款\n"
+        f"  /wechat [金额] [说明] — 微信支付收款\n\n"
+        f"💸 <b>转账</b>\n"
+        f"  /disburse [金额] [银行] [账号] [姓名] — 银行转账\n"
+        f"  /refund [ID] [金额] — 退款\n\n"
+        f"💰 <b>PHP 钱包</b>\n"
+        f"  /balance — 查看余额及历史\n"
+        f"  /topup [金额] — 通过 USDT 充值至 PHP 钱包（自动换汇）\n"
+        f"  /send [金额] [接收方] — 向用户转账\n"
+        f"  /withdraw [金额] — 提现\n\n"
+        f"💵 <b>USD 钱包（USDT TRC20）</b>\n"
+        f"  /usdbalance — USD 余额及历史\n"
+        f"  /sendusdt [金额] [地址] — 发送 USDT 至 TRC20 地址\n"
+        f"  /sendusd [金额] [@用户名] — 向用户转账 USD\n\n"
+        f"📊 <b>报表与工具</b>\n"
+        f"  /status [ID] — 付款状态\n"
+        f"  /list — 近期交易记录\n"
+        f"  /report [daily|weekly|monthly]\n"
+        f"  /fees [金额] [方式] — 费用计算\n"
+        f"  /cancel [ID] — 取消待付款项\n"
+        f"  /remind [ID] — 发送付款提醒\n\n"
+        f"💡 <b>提示：</b>使用下方快捷按钮，或随时输入 /help 查看帮助！"
     )
 
 
@@ -518,19 +520,20 @@ async def _handle_kyb_flow(
                 return True
             await tg.send_message(
                 chat_id,
-                "📋 <b>KYB Registration Started</b>\n"
+                "🎉 <b>KYB Registration Started!</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
-                "Please answer the following questions to complete your registration.\n"
-                "Your information will be reviewed by the bot administrator.\n\n"
+                "Great! Let's get you set up. Please answer a few quick questions so our team can verify your account.\n"
+                "Your information is kept safe and reviewed only by the bot administrator.\n\n"
                 + _KYB_PROMPTS["full_name"],
             )
         else:
             await tg.send_message(
                 chat_id,
-                "🔒 <b>Access Restricted</b>\n"
+                "👋 <b>Welcome to PayBot Philippines!</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
-                "You are not registered to use this bot.\n\n"
-                "Type /register to begin your KYB registration, or /start for more information.",
+                "This bot is available to registered merchants only.\n\n"
+                "📋 To get started, complete a quick KYB (Know Your Business) registration — it only takes a few minutes!\n\n"
+                "👉 Type /register to begin, or /start to learn more.",
             )
         return True
 
@@ -544,10 +547,11 @@ async def _handle_kyb_flow(
         reason = kyb.rejection_reason or "No reason provided."
         await tg.send_message(
             chat_id,
-            f"❌ <b>KYB Registration Rejected</b>\n"
+            f"😔 <b>KYB Registration Not Approved</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"Reason: {reason}\n\n"
-            f"Please contact the bot administrator for more information.",
+            f"Unfortunately, your registration was not approved.\n"
+            f"<b>Reason:</b> {reason}\n\n"
+            f"Please contact the bot administrator for assistance or to re-apply.",
         )
         return True
 
@@ -557,8 +561,9 @@ async def _handle_kyb_flow(
             chat_id,
             "⏳ <b>Registration Under Review</b>\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
-            "Your KYB registration has been submitted and is awaiting approval.\n"
-            "You will be notified once a decision is made.",
+            "We've received your KYB registration — thank you! 🙏\n"
+            "Our team is reviewing your details and will notify you once a decision is made.\n"
+            "This usually takes a short while.",
         )
         return True
 
@@ -848,6 +853,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             cq_data    = callback_query.get("data", "")
             cq_from    = callback_query.get("from", {})
             cq_chat_id = str(cq_from.get("id", ""))
+            cq_first_name = cq_from.get("first_name", "") or ""
             tg = TelegramService()
 
             if cq_data in ("lang:en", "lang:zh"):
@@ -863,24 +869,30 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     pass
 
                 if is_registered:
-                    welcome = _welcome_en() if lang == "en" else _welcome_zh()
+                    welcome = _welcome_en(cq_first_name) if lang == "en" else _welcome_zh(cq_first_name)
                     await tg.send_message(cq_chat_id, welcome, reply_markup=_start_kb())
                 else:
                     if lang == "en":
+                        greeting = f"Hi {cq_first_name}! 👋" if cq_first_name else "👋 Hello!"
                         msg = (
-                            "👋 <b>Welcome to PayBot!</b>\n"
-                            "━━━━━━━━━━━━━━━━━━━━\n"
-                            "This bot is restricted to registered admins only.\n\n"
-                            "To request access, please complete the KYB (Know Your Business) registration.\n\n"
-                            "Type /register to begin your registration."
+                            f"🌟 <b>Welcome to PayBot Philippines!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"{greeting} Great to have you here! 😊\n\n"
+                            f"This bot is currently available to <b>registered merchants</b> only.\n\n"
+                            f"📋 <b>To get started:</b>\n"
+                            f"Complete a quick KYB (Know Your Business) registration so we can verify your account and unlock all payment features.\n\n"
+                            f"👉 Tap /register to begin — it only takes a few minutes!"
                         )
                     else:
+                        greeting = f"嗨 {cq_first_name}！👋" if cq_first_name else "👋 你好！"
                         msg = (
-                            "👋 <b>欢迎使用 PayBot！</b>\n"
-                            "━━━━━━━━━━━━━━━━━━━━\n"
-                            "本机器人仅限已注册管理员使用。\n\n"
-                            "如需申请访问权限，请完成 KYB（了解您的业务）注册。\n\n"
-                            "输入 /register 开始注册。"
+                            f"🌟 <b>欢迎使用 PayBot Philippines！</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"{greeting} 很高兴认识你！😊\n\n"
+                            f"本机器人目前仅对<b>已注册商户</b>开放。\n\n"
+                            f"📋 <b>如何开始：</b>\n"
+                            f"完成快速 KYB（了解您的业务）注册，我们将验证您的账户并开放所有支付功能。\n\n"
+                            f"👉 点击 /register 开始注册，只需几分钟！"
                         )
                     await tg.send_message(cq_chat_id, msg)
 
@@ -896,6 +908,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         if text and "/" in text and not text.startswith("/"):
             text = text[text.index("/"):]
         username = message.get("from", {}).get("username", "unknown")
+        first_name = message.get("from", {}).get("first_name", "") or ""
         photos = message.get("photo", [])
 
         if not chat_id:
@@ -931,9 +944,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except Exception:
                     _adm = None
                 if _adm and _adm.pin_hash:
+                    name_display = f" {first_name}" if first_name else ""
                     await tg.send_message(
                         chat_id,
-                        "🔐 <b>Session expired</b>\n\nPlease log in with your PIN:\n\n<code>/login [your PIN]</code>",
+                        f"🔐 <b>Session Expired</b>\n\n"
+                        f"Hey{name_display}! Your session has timed out for security. No worries — just log back in:\n\n"
+                        f"<code>/login [your PIN]</code>",
                         reply_markup={
                             "keyboard": [[{"text": "🔑 /login"}]],
                             "resize_keyboard": True, "one_time_keyboard": True,
@@ -943,8 +959,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 elif _adm and not _adm.pin_hash:
                     await tg.send_message(
                         chat_id,
-                        "🔒 <b>Set your PIN to secure your account</b>\n\n"
-                        "Use <code>/setpin [4–6 digit PIN]</code> to activate bot access.\n\nExample: <code>/setpin 1234</code>",
+                        "🔒 <b>Secure Your Account</b>\n\n"
+                        "You're almost ready! Set a PIN to protect your account and unlock bot access:\n\n"
+                        "<code>/setpin [4–6 digit PIN]</code>\n\nExample: <code>/setpin 1234</code>",
                     )
                     return {"status": "ok"}
 
@@ -1035,8 +1052,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.rollback()
                 await tg.send_message(
                     chat_id,
-                    f"✅ <b>Logged in!</b>\n\nWelcome back, <b>{_adm.name or username}</b> 👋\n"
-                    f"Your session is active for 2 hours.\n\nType /start to see the full menu.",
+                    f"✅ <b>Welcome back, {_adm.name or username}!</b> 👋\n\n"
+                    f"You're all set — your session is active for 2 hours. Let's get to work! 💪\n\n"
+                    f"Tap a button below or type /help to explore all commands.",
                     reply_markup=_start_kb(),
                 )
             else:
@@ -1055,13 +1073,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 if locked_until:
                     await tg.send_message(
                         chat_id,
-                        f"🔒 Too many failed attempts. Account locked for {_PIN_LOCK_MINUTES} minutes.",
+                        f"🔒 <b>Account Temporarily Locked</b>\n\nToo many incorrect PIN attempts. Please wait {_PIN_LOCK_MINUTES} minutes before trying again.",
                     )
                 else:
                     remaining_attempts = _PIN_MAX_ATTEMPTS - failed
                     await tg.send_message(
                         chat_id,
-                        f"❌ Incorrect PIN. {remaining_attempts} attempt(s) remaining.",
+                        f"❌ Incorrect PIN. You have {remaining_attempts} attempt(s) remaining.\n\nIf you've forgotten your PIN, please contact the administrator.",
                     )
             return {"status": "ok"}
 
@@ -1113,7 +1131,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             _end_pin_session(chat_id)
             await tg.send_message(
                 chat_id,
-                "👋 <b>Logged out.</b>\n\nUse <code>/login [PIN]</code> to log back in.",
+                "👋 <b>You've been signed out.</b>\n\nStay safe! When you're ready to continue, just log back in:\n\n<code>/login [your PIN]</code>",
                 reply_markup={
                     "keyboard": [[{"text": "🔑 /login"}]],
                     "resize_keyboard": True, "one_time_keyboard": True,
@@ -1181,9 +1199,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /start ====================
         if text.startswith("/start"):
+            greeting = f"Hi {first_name}! 👋" if first_name else "👋 Hello!"
             await tg.send_message(
                 chat_id,
-                "🌐 <b>Select Language / 请选择语言</b>",
+                f"🌐 {greeting}\n\n<b>Select your language / 请选择语言</b>",
                 reply_markup=_lang_kb(),
             )
 
@@ -1256,14 +1275,16 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             await db.commit()
                             await tg.send_message(chat_id, f"✅ KYB approved for {target_chat_id} ({kyb.full_name}). Admin access granted.")
                             # Notify the approved user — prompt them to set PIN
+                            user_name_display = kyb.full_name or "there"
                             await tg.send_message(
                                 target_chat_id,
-                                "🎉 <b>KYB Registration Approved!</b>\n"
+                                f"🎉 <b>Congratulations, {user_name_display}!</b>\n"
                                 "━━━━━━━━━━━━━━━━━━━━\n"
-                                "Your registration has been approved! You now have access to the bot.\n\n"
-                                "🔐 <b>Security step required:</b>\n"
-                                "Please set a PIN to protect your account:\n\n"
-                                "<code>/setpin [4–6 digit PIN]</code>\n\nExample: <code>/setpin 1234</code>",
+                                "Your KYB registration has been <b>approved</b>! 🥳 You now have full access to PayBot Philippines.\n\n"
+                                "🔐 <b>One last step — secure your account:</b>\n"
+                                "Set a PIN to protect your account before you start:\n\n"
+                                "<code>/setpin [4–6 digit PIN]</code>\n\nExample: <code>/setpin 1234</code>\n\n"
+                                "Welcome aboard! 🚀",
                                 reply_markup={
                                     "keyboard": [[{"text": "🔑 /setpin"}]],
                                     "resize_keyboard": True, "one_time_keyboard": True,
@@ -2685,38 +2706,39 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # ==================== /help ====================
         elif text.startswith("/help"):
             help_text = (
-                "📋 <b>PayBot Commands</b>\n"
-                "━━━━━━━━━━━━━━━━━━━━\n"
-                "💳 <b>Accept Payments:</b>\n"
-                "  /pay — Payment menu\n"
-                "  /invoice [amt] [desc]\n"
-                "  /qr [amt] [desc]\n"
+                "📋 <b>PayBot Commands — Quick Reference</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━\n\n"
+                "💳 <b>Accept Payments</b>\n"
+                "  /pay — Open payment menu\n"
+                "  /invoice [amt] [desc] — Invoice with payment link\n"
+                "  /qr [amt] [desc] — Dynamic QR code\n"
                 "  /alipay [amt] [desc] — Alipay QR (PhotonPay)\n"
                 "  /wechat [amt] [desc] — WeChat QR (PhotonPay)\n"
-                "  /link [amt] [desc]\n"
-                "  /va [amt] [bank]\n"
-                "  /ewallet [amt] [provider]\n\n"
-                "💸 <b>Send Money:</b>\n"
-                "  /disburse [amt] [bank] [acct] [name]\n"
-                "  /refund [id] [amt]\n\n"
-                "💰 <b>PHP Wallet:</b>\n"
-                "  /balance — PHP & USD balances\n"
-                "  /topup [amt] — Top up PHP wallet via USDT (auto-converted)\n"
-                "  /send [amt] [to]\n"
-                "  /withdraw [amt]\n\n"
-                "💵 <b>USD Wallet (USDT TRC20):</b>\n"
-                "  /usdbalance — USD balance & history\n"
+                "  /link [amt] [desc] — Shareable payment link\n"
+                "  /va [amt] [bank] — Virtual bank account\n"
+                "  /ewallet [amt] [provider] — GCash / Maya / GrabPay\n\n"
+                "💸 <b>Send Money</b>\n"
+                "  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
+                "  /refund [id] [amt] — Full or partial refund\n\n"
+                "💰 <b>PHP Wallet</b>\n"
+                "  /balance — PHP &amp; USD balances + history\n"
+                "  /topup [amt] — Top up via USDT (auto-converted)\n"
+                "  /send [amt] [to] — Send PHP to another user\n"
+                "  /withdraw [amt] — Withdraw PHP\n\n"
+                "💵 <b>USD Wallet (USDT TRC20)</b>\n"
+                "  /usdbalance — USD balance &amp; history\n"
                 "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
-                "  /sendusd [amt] [@username] — Send USD to another user\n\n"
-                "📊 <b>Tools:</b>\n"
-                "  /status [id] — Details (or list recent)\n"
+                "  /sendusd [amt] [@username] — Send USD to a user\n\n"
+                "📊 <b>Reports &amp; Tools</b>\n"
+                "  /status [id] — Check payment status (or list recent)\n"
                 "  /list — Last 5 transactions\n"
-                "  /cancel [id] — Cancel pending\n"
-                "  /report [daily|weekly|monthly]\n"
-                "  /fees [amt] [method]\n"
-                "  /subscribe [amt] [plan]\n"
-                "  /remind [id] — Send reminder\n"
-                "  /help — This message"
+                "  /cancel [id] — Cancel a pending payment\n"
+                "  /report [daily|weekly|monthly] — Generate report\n"
+                "  /fees [amt] [method] — Fee calculator\n"
+                "  /subscribe [amt] [plan] — Subscription management\n"
+                "  /remind [id] — Send payment reminder\n"
+                "  /help — Show this message 😊\n\n"
+                "💡 <b>Tip:</b> Most commands work step-by-step — just type the command and follow the prompts!"
             )
             await tg.send_message(chat_id, help_text, reply_markup=_start_kb())
 
@@ -2779,7 +2801,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await tg.send_message(chat_id, "❌ Failed to create topup request. Please try again.")
 
         else:
-            await tg.send_message(chat_id, "🤖 Unknown command. Type /help for all commands.", reply_markup=_start_kb())
+            await tg.send_message(
+                chat_id,
+                "🤔 Hmm, I don't recognise that command.\n\nType /help to see everything I can do, or tap one of the buttons below! 😊",
+                reply_markup=_start_kb(),
+            )
 
         # Log the interaction (safe — won't break if DB fails)
         await _safe_log(db, chat_id, username, text)
