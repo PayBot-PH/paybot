@@ -1,5 +1,6 @@
 import logging
 import os
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -101,6 +102,24 @@ class Settings(BaseSettings):
     jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
+
+    @model_validator(mode="after")
+    def generate_jwt_secret_if_missing(self) -> "Settings":
+        """Auto-generate a random JWT secret when JWT_SECRET_KEY is not configured.
+
+        The generated key is ephemeral — it changes on every restart, which means
+        all active sessions will be invalidated when the server restarts.  Set
+        JWT_SECRET_KEY explicitly in your environment variables (or .env file) for
+        persistent authentication across restarts.
+        """
+        if not self.jwt_secret_key:
+            self.jwt_secret_key = secrets.token_hex(32)
+            logger.warning(
+                "JWT_SECRET_KEY is not configured. A temporary random secret has been "
+                "generated for this session. Tokens will be invalidated on restart. "
+                "Set JWT_SECRET_KEY in your environment variables for persistent authentication."
+            )
+        return self
 
     @property
     def backend_url(self) -> str:
