@@ -6,7 +6,7 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import ConfigDict, BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
@@ -183,23 +183,40 @@ async def _compute_usd_balance(db: AsyncSession, user_id: str) -> float:
     Filters by user_id (not wallet_id) so the balance survives wallet row
     recreation after redeployment — even if the wallet.id changes, the
     transaction history is still found via the stable user_id.
+
+    Uses a single query with conditional aggregation instead of two separate
+    queries to halve the number of database round-trips.
     """
-    credit_res = await db.execute(
-        select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
+    row = await db.execute(
+        select(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Wallet_transactions.transaction_type.in_(_USD_CREDIT_TYPES),
+                         Wallet_transactions.amount),
+                        else_=0.0,
+                    )
+                ),
+                0.0,
+            ).label("credits"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Wallet_transactions.transaction_type.in_(_USD_DEBIT_TYPES),
+                         Wallet_transactions.amount),
+                        else_=0.0,
+                    )
+                ),
+                0.0,
+            ).label("debits"),
+        ).where(
             Wallet_transactions.user_id == user_id,
-            Wallet_transactions.transaction_type.in_(_USD_CREDIT_TYPES),
             Wallet_transactions.status == "completed",
         )
     )
-    debit_res = await db.execute(
-        select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
-            Wallet_transactions.user_id == user_id,
-            Wallet_transactions.transaction_type.in_(_USD_DEBIT_TYPES),
-            Wallet_transactions.status == "completed",
-        )
-    )
-    credits = float(credit_res.scalar() or 0.0)
-    debits = float(debit_res.scalar() or 0.0)
+    result = row.one()
+    credits = float(result.credits or 0.0)
+    debits = float(result.debits or 0.0)
     return max(0.0, credits - debits)
 
 
