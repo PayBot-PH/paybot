@@ -102,9 +102,9 @@ export default function KybRegistrationsPage() {
   return (
     <Layout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold text-white flex items-center gap-2 flex-wrap">
               KYB Registrations
               {pending_count > 0 && (
                 <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending_count}</span>
@@ -114,7 +114,7 @@ export default function KybRegistrationsPage() {
           </div>
           <button
             onClick={fetchRegistrations}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>

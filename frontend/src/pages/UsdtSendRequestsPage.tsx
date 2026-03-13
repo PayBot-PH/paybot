@@ -109,11 +109,11 @@ export default function UsdtSendRequestsPage() {
   return (
     <Layout>
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
-              <Send className="h-5 w-5 text-teal-400" />
-              USDT Send Requests
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold text-white flex items-center gap-2 flex-wrap">
+              <Send className="h-5 w-5 text-teal-400 shrink-0" />
+              <span>USDT Send Requests</span>
               {pendingCount > 0 && (
                 <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pendingCount}</span>
               )}
@@ -121,7 +121,7 @@ export default function UsdtSendRequestsPage() {
             <p className="text-slate-500 text-sm mt-0.5">Approve or deny USDT TRC20 outgoing transfer requests</p>
           </div>
           <button onClick={fetchRequests}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors">
+            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
         </div>
@@ -199,7 +199,7 @@ export default function UsdtSendRequestsPage() {
                       )}
                     </div>
                     {req.status === 'pending' && (
-                      <div className="flex flex-col xs:flex-row items-stretch xs:items-center gap-2 shrink-0">
+                      <div className="flex flex-row items-center gap-2 shrink-0">
                         {!isActive ? (
                           <>
                             <button onClick={() => openReview(req.id, false)}
