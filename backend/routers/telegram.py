@@ -33,7 +33,7 @@ from models.topup_requests import TopupRequest
 from models.usdt_send_requests import UsdtSendRequest
 from models.kyb_registrations import KybRegistration
 from models.admin_users import AdminUser
-from models.wallet_topups import WalletTopup
+from routers.app_settings import get_usdt_php_rate
 
 logger = logging.getLogger(__name__)
 
@@ -191,9 +191,6 @@ _CMD_STEPS: Dict[str, List[Dict]] = {
         {"key": "id",     "type": "str",   "prompt": "🆔 Enter the <b>transaction ID</b> to refund:\n<i>e.g. INV-xxx</i>"},
         {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>refund amount</b> in PHP:\n<i>e.g. 500</i>"},
     ],
-    "/phptopup": [
-        {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>top-up amount</b> in PHP:\n<i>e.g. 1000</i>"},
-    ],
     "/send": [
         {"key": "amount",    "type": "float", "prompt": "💰 Enter the <b>amount</b> in PHP:\n<i>e.g. 500</i>"},
         {"key": "recipient", "type": "str",   "prompt": "👤 Enter the <b>recipient</b> (username or Telegram ID):\n<i>e.g. @username</i>"},
@@ -280,12 +277,11 @@ def _welcome_en() -> str:
         "  /refund [id] [amt] — Refund a payment\n\n"
         "💰 <b>PHP Wallet</b>\n"
         "  /balance — View balances &amp; history\n"
-        "  /phptopup [amt] — Top up via payment invoice\n"
+        "  /topup [amt] — Top up PHP wallet via USDT (auto-converted)\n"
         "  /send [amt] [to] — Send funds\n"
         "  /withdraw [amt] — Withdraw\n\n"
         "💵 <b>USD Wallet (USDT TRC20)</b>\n"
         "  /usdbalance — USD balance &amp; history\n"
-        "  /topup [amt] — Top up via USDT\n"
         "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
         "  /sendusd [amt] [@username] — Send USD to another user\n\n"
         "📊 <b>Reports &amp; Tools</b>\n"
@@ -317,12 +313,11 @@ def _welcome_zh() -> str:
         "  /refund [ID] [金额] — 退款\n\n"
         "💰 <b>PHP 钱包</b>\n"
         "  /balance — 查看余额及历史\n"
-        "  /phptopup [金额] — 通过账单充值\n"
+        "  /topup [金额] — 通过 USDT 充值至 PHP 钱包（自动换汇）\n"
         "  /send [金额] [接收方] — 转账\n"
         "  /withdraw [金额] — 提现\n\n"
         "💵 <b>USD 钱包（USDT TRC20）</b>\n"
         "  /usdbalance — USD 余额及历史\n"
-        "  /topup [金额] — 通过 USDT 充值\n"
         "  /sendusdt [金额] [地址] — 发送 USDT 至 TRC20 地址\n"
         "  /sendusd [金额] [@用户名] — 向用户转账 USD\n\n"
         "📊 <b>报表与工具</b>\n"
@@ -966,79 +961,27 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 # Save the highest-resolution photo file_id
                 best_photo = max(photos, key=lambda p: p.get("file_size", 0))
                 pending_topup.receipt_file_id = best_photo["file_id"]
-                currency = getattr(pending_topup, "currency", "USD") or "USD"
-                ref = getattr(pending_topup, "reference_code", None) or f"#{pending_topup.id}"
                 amount = pending_topup.amount_usdt
                 now = datetime.now()
 
-                if currency == "PHP":
-                    # Auto-credit PHP wallet immediately on receipt upload
-                    try:
-                        w_res = await db.execute(
-                            select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP")
-                        )
-                        wallet = w_res.scalar_one_or_none()
-                        if not wallet:
-                            wallet = Wallets(user_id=tg_user_id, balance=0.0, currency="PHP", created_at=now, updated_at=now)
-                            db.add(wallet)
-                            await db.flush()
-                        balance_before = wallet.balance
-                        wallet.balance = round(wallet.balance + amount, 2)
-                        wallet.updated_at = now
-                        db.add(Wallet_transactions(
-                            user_id=tg_user_id, wallet_id=wallet.id,
-                            transaction_type="top_up", amount=amount,
-                            balance_before=balance_before, balance_after=wallet.balance,
-                            note=f"PHP bank transfer top-up (ref {ref})",
-                            status="completed", reference_id=ref, created_at=now,
-                        ))
-                        pending_topup.status = "approved"
-                        pending_topup.approved_by = "auto"
-                        pending_topup.updated_at = now
-                        await db.commit()
-                        payment_event_bus.publish({
-                            "event_type": "wallet_update",
-                            "user_id": tg_user_id,
-                            "wallet_id": wallet.id,
-                            "balance": wallet.balance,
-                            "transaction_type": "top_up",
-                            "amount": amount,
-                        })
-                        await tg.send_message(
-                            chat_id,
-                            f"✅ <b>PHP Wallet Credited!</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
-                            f"🔑 Reference: <code>{ref}</code>\n"
-                            f"💳 New Balance: <b>₱{wallet.balance:,.2f}</b>\n\n"
-                            f"Your PHP wallet has been credited instantly. Use /balance to confirm.",
-                            reply_markup=_wallet_kb(),
-                        )
-                    except Exception as e:
-                        logger.error(f"Auto-credit PHP wallet failed: {e}", exc_info=True)
-                        try:
-                            await db.rollback()
-                        except Exception:
-                            pass
-                        await tg.send_message(
-                            chat_id,
-                            "⚠️ Receipt received but wallet credit failed. Please contact support with your reference code: "
-                            f"<code>{ref}</code>",
-                        )
-                else:
-                    # USD: still requires manual admin approval
-                    pending_topup.updated_at = now
-                    await db.commit()
-                    await tg.send_message(
-                        chat_id,
-                        f"✅ <b>Receipt received!</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💵 Amount: <b>${amount:.2f} USDT</b>\n"
-                        f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
-                        f"⏳ Under review by admin. Your USD wallet will be credited once approved.",
-                    )
+                # Fetch the current exchange rate to show expected PHP amount
+                rate = await get_usdt_php_rate(db)
+                amount_php = round(amount * rate, 2)
+
+                pending_topup.updated_at = now
+                await db.commit()
+                await tg.send_message(
+                    chat_id,
+                    f"✅ <b>Receipt received!</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"💵 Amount: <b>${amount:.2f} USDT</b>\n"
+                    f"💱 Rate: <b>₱{rate:.2f}</b> per USDT\n"
+                    f"💰 Expected credit: <b>₱{amount_php:,.2f} PHP</b>\n"
+                    f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
+                    f"⏳ Under review by admin. Your PHP wallet will be credited once approved.",
+                )
             else:
-                await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /phptopup [amount] for PHP or /topup [amount] for USDT.")
+                await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /topup [amount] for USDT.")
             return {"status": "ok"}
 
         if not text:
@@ -2758,13 +2701,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /refund [id] [amt]\n\n"
                 "💰 <b>PHP Wallet:</b>\n"
                 "  /balance — PHP & USD balances\n"
-                "  /deposit [channel] [account] [amt] — Claim a bank/e-wallet deposit\n"
-                "  /phptopup [amt] — Top up via payment invoice\n"
+                "  /topup [amt] — Top up PHP wallet via USDT (auto-converted)\n"
                 "  /send [amt] [to]\n"
                 "  /withdraw [amt]\n\n"
                 "💵 <b>USD Wallet (USDT TRC20):</b>\n"
                 "  /usdbalance — USD balance & history\n"
-                "  /topup [amt] — Top up USD wallet via USDT\n"
                 "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
                 "  /sendusd [amt] [@username] — Send USD to another user\n\n"
                 "📊 <b>Tools:</b>\n"
@@ -2779,237 +2720,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             )
             await tg.send_message(chat_id, help_text, reply_markup=_start_kb())
 
-        # ==================== /phptopup ====================
-        elif text.startswith("/phptopup"):
-            parts = text.split(maxsplit=1)
-            # Bank transfer details
-            _PHP_BANK = "PayMongo Payments, Inc."
-            _PHP_ACCT_NAME = "DRL TECHS. COMPUTER SOFTWARE TRADING"
-            _PHP_ACCT_NUM = "655716460543"
-
-            if len(parts) < 2:
-                instructions = (
-                    f"💰 <b>Top Up PHP Wallet</b>\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"Transfer any amount via <b>InstaPay</b> or <b>PESONet</b> to:\n\n"
-                    f"🏦 <b>Bank:</b> {_PHP_BANK}\n"
-                    f"👤 <b>Account Name:</b> {_PHP_ACCT_NAME}\n"
-                    f"🔢 <b>Account Number:</b> <code>{_PHP_ACCT_NUM}</code>\n\n"
-                    f"▶️ To request a top-up:\n"
-                    f"  <b>/phptopup [amount]</b>\n\n"
-                    f"Example: <code>/phptopup 500</code>\n\n"
-                    f"After sending, a reference code will be shown.\n"
-                    f"Upload your <b>payment receipt</b> as a photo to this chat — admin will verify and credit your wallet."
-                )
-                await tg.send_message(chat_id, instructions, reply_markup=_wallet_kb())
-            else:
-                try:
-                    amount = float(parts[1])
-                    if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
-                    elif amount < 50:
-                        await tg.send_message(chat_id, "❌ Minimum top-up is ₱50.00.")
-                    else:
-                        import random, string
-                        ref_code = "PHP-" + "".join(random.choices(string.ascii_uppercase + string.digits, k=8))
-                        try:
-                            now = datetime.now()
-                            topup_req = TopupRequest(
-                                chat_id=str(chat_id),
-                                telegram_username=username or "",
-                                amount_usdt=amount,
-                                currency="PHP",
-                                reference_code=ref_code,
-                                status="pending",
-                                created_at=now,
-                                updated_at=now,
-                            )
-                            db.add(topup_req)
-                            await db.commit()
-                            await db.refresh(topup_req)
-                            req_id = topup_req.id
-                        except Exception as e:
-                            logger.error(f"DB save failed for /phptopup: {e}", exc_info=True)
-                            try:
-                                await db.rollback()
-                            except Exception:
-                                pass
-                            await tg.send_message(chat_id, "❌ Failed to create top-up request. Please try again.")
-                            await _safe_log(db, chat_id, username, text)
-                            return {"status": "ok"}
-
-                        reply = (
-                            f"✅ <b>PHP Wallet Top-Up Request Created!</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
-                            f"🆔 Reference: <code>{ref_code}</code>\n"
-                            f"📋 Request ID: <b>#{req_id}</b>\n\n"
-                            f"<b>Transfer to:</b>\n"
-                            f"🏦 Bank: {_PHP_BANK}\n"
-                            f"👤 Account: {_PHP_ACCT_NAME}\n"
-                            f"🔢 Number: <code>{_PHP_ACCT_NUM}</code>\n\n"
-                            f"📸 <b>After transferring</b>, send a photo of your receipt to this chat.\n"
-                            f"⏳ Admin will verify and credit ₱{amount:,.2f} to your wallet within a few minutes."
-                        )
-                        await tg.send_message(chat_id, reply, reply_markup=_wallet_kb())
-                except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount. Example: /phptopup 500")
-                except Exception as e:
-                    logger.error(f"PHP topup error: {e}", exc_info=True)
-                    await tg.send_message(chat_id, "❌ Failed to create top-up request. Please try again.")
-
-        # ==================== /deposit ====================
-        elif text.startswith("/deposit"):
-            _DEPOSIT_CHANNEL_TYPES = {
-                "gcash":     ["gcash"],
-                "maya":      ["paymaya"],
-                "paymaya":   ["paymaya"],
-                "bdo":       ["dob", "brankas_bdo"],
-                "bpi":       ["dob", "brankas_bpi"],
-                "metrobank": ["dob", "brankas_metrobank"],
-                "landbank":  ["dob", "brankas_landbank"],
-                "unionbank": ["dob"],
-                "card":      ["card"],
-            }
-            parts = text.split(maxsplit=3)
-            if len(parts) < 4:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/deposit"))
-            else:
-                try:
-                    dep_channel = parts[1].strip().lower()
-                    dep_account = parts[2].strip()
-                    dep_amount  = float(parts[3])
-                    if dep_amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
-                    elif dep_amount < 1:
-                        await tg.send_message(chat_id, "❌ Minimum deposit is ₱1.00.")
-                    else:
-                        dep_centavos = int(round(dep_amount * 100))
-                        allowed_types = _DEPOSIT_CHANNEL_TYPES.get(dep_channel, [dep_channel])
-                        # Fetch recent PayMongo payments
-                        pm_svc = PayMongoService()
-                        pm_result = await pm_svc.list_payments(limit=50)
-                        if not pm_result.get("success"):
-                            await tg.send_message(chat_id, "❌ Could not reach payment provider. Please try again later.")
-                        else:
-                            matched = None
-                            for pay in pm_result.get("data", []):
-                                p_attrs = pay.get("attributes", {})
-                                if p_attrs.get("status") != "paid":
-                                    continue
-                                if p_attrs.get("amount", 0) != dep_centavos:
-                                    continue
-                                src_type = (p_attrs.get("source") or {}).get("type", "")
-                                if src_type not in allowed_types:
-                                    continue
-                                pay_id = pay.get("id", "")
-                                # Check not already claimed
-                                ex = await db.execute(
-                                    select(WalletTopup).where(WalletTopup.reference_number == pay_id)
-                                )
-                                if ex.scalar_one_or_none():
-                                    continue
-                                matched = pay
-                                break
-
-                            if not matched:
-                                await tg.send_message(
-                                    chat_id,
-                                    "❌ <b>No matching payment found.</b>\n\n"
-                                    "Please verify:\n"
-                                    "• Payment channel is correct\n"
-                                    "• Account/mobile number is correct\n"
-                                    "• Amount matches exactly\n"
-                                    "• Payment was sent to the PayMongo merchant account\n\n"
-                                    "If your payment was recent, wait a few minutes and try again.",
-                                )
-                            else:
-                                matched_pay_id = matched.get("id", "")
-                                now_dep = datetime.now()
-                                # Record claim
-                                dep_topup = WalletTopup(
-                                    user_id=tg_user_id,
-                                    amount=dep_amount,
-                                    currency="PHP",
-                                    reference_number=matched_pay_id,
-                                    payment_method=dep_channel,
-                                    status="paid",
-                                    description=f"Telegram deposit via {dep_channel.upper()}",
-                                    created_at=now_dep,
-                                    updated_at=now_dep,
-                                )
-                                db.add(dep_topup)
-                                await db.flush()
-                                # Credit PHP wallet
-                                dep_wallet_res = await db.execute(
-                                    select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP")
-                                )
-                                dep_wallet = dep_wallet_res.scalar_one_or_none()
-                                if not dep_wallet:
-                                    dep_wallet = Wallets(
-                                        user_id=tg_user_id, balance=0.0, currency="PHP",
-                                        created_at=now_dep, updated_at=now_dep,
-                                    )
-                                    db.add(dep_wallet)
-                                    await db.flush()
-                                dep_bb = dep_wallet.balance
-                                dep_wallet.balance += dep_amount
-                                dep_wallet.updated_at = now_dep
-                                dep_wtxn = Wallet_transactions(
-                                    user_id=tg_user_id,
-                                    wallet_id=dep_wallet.id,
-                                    transaction_type="top_up",
-                                    amount=dep_amount,
-                                    balance_before=dep_bb,
-                                    balance_after=dep_wallet.balance,
-                                    note=f"Deposit via {dep_channel.upper()} account {dep_account}",
-                                    status="completed",
-                                    reference_id=matched_pay_id,
-                                    created_at=now_dep,
-                                )
-                                db.add(dep_wtxn)
-                                await db.commit()
-                                payment_event_bus.publish({
-                                    "event_type": "wallet_update",
-                                    "user_id": tg_user_id,
-                                    "wallet_id": dep_wallet.id,
-                                    "balance": dep_wallet.balance,
-                                    "transaction_type": "top_up",
-                                    "amount": dep_amount,
-                                    "transaction_id": dep_wtxn.id,
-                                })
-                                await tg.send_message(
-                                    chat_id,
-                                    f"✅ <b>Deposit Verified &amp; Wallet Credited!</b>\n"
-                                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                                    f"💰 Amount: <b>₱{dep_amount:,.2f}</b>\n"
-                                    f"💳 Channel: <b>{dep_channel.upper()}</b>\n"
-                                    f"🔢 Account: <b>{dep_account}</b>\n"
-                                    f"🔖 Payment ID: <code>{matched_pay_id}</code>\n\n"
-                                    f"📊 New PHP Balance: <b>₱{dep_wallet.balance:,.2f}</b>",
-                                    reply_markup=_wallet_kb(),
-                                )
-                except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount. Example: /deposit gcash 09171234567 500")
-                except Exception as e:
-                    logger.error(f"/deposit error: {e}", exc_info=True)
-                    try:
-                        await db.rollback()
-                    except Exception:
-                        pass
-                    await tg.send_message(chat_id, "❌ Failed to process deposit. Please try again.")
-
         # ==================== /topup ====================
         elif text.startswith("/topup"):
             parts = text.split(maxsplit=1)
+            rate = await get_usdt_php_rate(db)
             if len(parts) < 2:
                 qr_url = _usdt_static_qr_url()
                 caption = (
-                    f"💵 <b>Top Up USD Wallet via USDT TRC20</b>\n"
+                    f"💵 <b>Top Up PHP Wallet via USDT TRC20</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n"
                     f"Send USDT (TRC20) to:\n\n"
                     f"<code>{USDT_TRC20_ADDRESS}</code>\n\n"
                     f"⚠️ <b>Network:</b> TRC20 (TRON) only — do NOT use ERC20 or BEP20\n\n"
+                    f"💱 <b>Exchange Rate:</b> $1 USDT = ₱{rate:.2f} PHP\n\n"
                     f"Then run:\n"
                     f"  <b>/topup [amount]</b>  — to submit your request\n\n"
                     f"Example: /topup 50\n\n"
@@ -3022,11 +2745,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     if amount <= 0:
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
                     else:
+                        amount_php = round(amount * rate, 2)
                         now = datetime.now()
                         req = TopupRequest(
                             chat_id=chat_id,
                             telegram_username=username,
                             amount_usdt=amount,
+                            currency="PHP",
                             status="pending",
                             created_at=now,
                         )
@@ -3035,14 +2760,16 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await db.refresh(req)
                         qr_url = _usdt_static_qr_url()
                         caption = (
-                            f"💵 <b>Top Up via USDT TRC20</b>\n"
+                            f"💵 <b>Top Up PHP Wallet via USDT TRC20</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"📤 Send exactly <b>${amount:.2f} USDT</b> to:\n\n"
                             f"<code>{USDT_TRC20_ADDRESS}</code>\n\n"
                             f"⚠️ <b>Network:</b> TRC20 (TRON) only — do NOT use ERC20\n"
                             f"🆔 Request ID: <code>#{req.id}</code>\n\n"
+                            f"💱 <b>Exchange Rate:</b> $1 USDT = ₱{rate:.2f} PHP\n"
+                            f"💰 <b>You will receive:</b> ₱{amount_php:,.2f} PHP\n\n"
                             f"✅ After sending, <b>reply with a screenshot</b> of your transaction as a photo.\n"
-                            f"The admin will verify and credit your USD wallet within minutes."
+                            f"The admin will verify and credit your PHP wallet within minutes."
                         )
                         await tg.send_photo(chat_id, qr_url, caption=caption)
                 except ValueError:

@@ -154,20 +154,34 @@ class XenditService:
             return {"success": False, "error": str(e)}
 
     # ==================== E-WALLET CHARGES ====================
-    async def create_ewallet_charge(self, amount: float, channel_code: str,
-                                     mobile_number: str = "", external_id: str = "") -> Dict[str, Any]:
+    async def create_ewallet_charge(
+        self,
+        amount: float,
+        channel_code: str,
+        mobile_number: str = "",
+        external_id: str = "",
+        success_redirect_url: str = "",
+        failure_redirect_url: str = "",
+        cancel_redirect_url: str = "",
+    ) -> Dict[str, Any]:
         if not external_id:
             external_id = f"ew-{uuid.uuid4().hex[:12]}"
         callback_url = f"{settings.backend_url}/api/v1/xendit/webhook"
+        base_url = settings.backend_url
+        channel_properties: Dict[str, Any] = {
+            "success_redirect_url": success_redirect_url or f"{base_url}/payment/success",
+            "failure_redirect_url": failure_redirect_url or f"{base_url}/payment/failed",
+            "cancel_redirect_url": cancel_redirect_url or f"{base_url}/payment/cancelled",
+        }
+        if mobile_number:
+            channel_properties["mobile_number"] = mobile_number
         payload: Dict[str, Any] = {
             "reference_id": external_id, "currency": "PHP", "amount": amount,
             "checkout_method": "ONE_TIME_PAYMENT",
             "channel_code": channel_code,
-            "channel_properties": {},
+            "channel_properties": channel_properties,
             "callback_url": callback_url,
         }
-        if mobile_number:
-            payload["channel_properties"]["mobile_number"] = mobile_number
         try:
             async with httpx.AsyncClient() as c:
                 r = await c.post(f"{XENDIT_BASE_URL}/ewallets/charges", json=payload, auth=self._get_auth(), timeout=30.0)

@@ -1,9 +1,11 @@
 """Tests for PayBot — bot command handlers, health endpoints, and core API flows."""
+import asyncio
 import os
 import copy
 import hashlib
 import hmac
 import time
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:////tmp/test_paybot_{os.getpid()}.db")
@@ -13,6 +15,7 @@ os.environ.setdefault("TELEGRAM_ADMIN_IDS", "123456789")
 
 from fastapi.testclient import TestClient
 from main import app  # noqa: E402
+from services.xendit_service import XenditService  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -637,6 +640,82 @@ class TestXenditWebhook:
 
 
 # ---------------------------------------------------------------------------
+# Xendit e-wallet channel_properties
+# ---------------------------------------------------------------------------
+class TestXenditEwalletChannelProperties:
+    """Verify that create_ewallet_charge always sends required channel_properties."""
+
+    def test_gcash_charge_includes_success_redirect_url(self):
+        """PH_GCASH requires success_redirect_url in channel_properties (API_VALIDATION_ERROR fix)."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": "ewc-test-123",
+            "status": "PENDING",
+            "actions": {"desktop_web_checkout_url": "https://gcash.example.com/pay"},
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        captured_payload: dict = {}
+
+        async def mock_post(url, **kwargs):
+            captured_payload.update(kwargs.get("json", {}))
+            return mock_response
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = mock_post
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            svc = XenditService()
+            svc.secret_key = "test-key"
+            result = asyncio.get_event_loop().run_until_complete(
+                svc.create_ewallet_charge(amount=100, channel_code="PH_GCASH")
+            )
+
+        assert result["success"] is True
+        props = captured_payload.get("channel_properties", {})
+        assert "success_redirect_url" in props, (
+            "PH_GCASH channel_properties must include success_redirect_url"
+        )
+        assert props["success_redirect_url"], "success_redirect_url must not be empty"
+
+    def test_custom_redirect_url_is_used(self):
+        """Caller-supplied success_redirect_url takes precedence over the default."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"id": "ewc-test-456", "status": "PENDING", "actions": {}}
+        mock_response.raise_for_status = MagicMock()
+
+        captured_payload: dict = {}
+
+        async def mock_post(url, **kwargs):
+            captured_payload.update(kwargs.get("json", {}))
+            return mock_response
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = mock_post
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            svc = XenditService()
+            svc.secret_key = "test-key"
+            result = asyncio.get_event_loop().run_until_complete(
+                svc.create_ewallet_charge(
+                    amount=200,
+                    channel_code="PH_GRABPAY",
+                    success_redirect_url="https://myapp.com/success",
+                    failure_redirect_url="https://myapp.com/failed",
+                )
+            )
+
+        assert result["success"] is True
+        props = captured_payload.get("channel_properties", {})
+        assert props["success_redirect_url"] == "https://myapp.com/success"
+        assert props["failure_redirect_url"] == "https://myapp.com/failed"
+
+
+# ---------------------------------------------------------------------------
 # Events / simulate
 # ---------------------------------------------------------------------------
 class TestEvents:
@@ -930,3 +1009,174 @@ class TestKybAccessControl:
         assert admin.is_active is True
         assert admin.is_super_admin is False  # KYB users are regular admins, not super admin
 
+
+
+# ---------------------------------------------------------------------------
+# USDT→PHP conversion: exchange rate endpoint and topup approval
+# ---------------------------------------------------------------------------
+class TestUsdtPhpConversion:
+    def test_rate_endpoint_returns_default(self, client):
+        """GET /api/v1/app-settings/usdt-php-rate returns a positive rate."""
+        r = client.get("/api/v1/app-settings/usdt-php-rate")
+        assert r.status_code == 200
+        data = r.json()
+        assert "rate" in data
+        assert data["rate"] > 0
+
+    def test_rate_update_requires_auth(self, client):
+        """PUT /api/v1/app-settings/usdt-php-rate requires authentication."""
+        r = client.put("/api/v1/app-settings/usdt-php-rate", json={"rate": 62.0})
+        assert r.status_code in (401, 403)
+
+    def test_rate_update_as_super_admin(self, client, auth_headers):
+        """Super admin can update the USDT→PHP rate."""
+        r = client.put(
+            "/api/v1/app-settings/usdt-php-rate",
+            json={"rate": 60.5},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["rate"] == pytest.approx(60.5)
+
+        # Verify it persisted
+        r2 = client.get("/api/v1/app-settings/usdt-php-rate")
+        assert r2.json()["rate"] == pytest.approx(60.5)
+
+    def test_rate_invalid_zero_rejected(self, client, auth_headers):
+        """Rate of zero or negative is rejected."""
+        r = client.put(
+            "/api/v1/app-settings/usdt-php-rate",
+            json={"rate": 0},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
+
+    def test_topup_rate_endpoint(self, client):
+        """GET /api/v1/topup/rate returns the current USDT→PHP rate."""
+        r = client.get("/api/v1/topup/rate")
+        assert r.status_code == 200
+        assert "usdt_php_rate" in r.json()
+        assert r.json()["usdt_php_rate"] > 0
+
+    def test_topup_approve_credits_php_wallet(self, client, auth_headers):
+        """Approving a topup request credits the PHP wallet at the configured rate."""
+        import asyncio
+        from core.database import db_manager
+        from sqlalchemy import select
+        from models.topup_requests import TopupRequest
+        from models.wallets import Wallets
+        from models.wallet_transactions import Wallet_transactions
+        from datetime import datetime
+
+        chat_id = "999001"
+        amount_usdt = 10.0
+
+        # Set a known exchange rate
+        client.put(
+            "/api/v1/app-settings/usdt-php-rate",
+            json={"rate": 60.0},
+            headers=auth_headers,
+        )
+
+        # Seed a pending topup request
+        async def seed_request():
+            async with db_manager.async_session_maker() as db:
+                req = TopupRequest(
+                    chat_id=chat_id,
+                    telegram_username="testuser",
+                    amount_usdt=amount_usdt,
+                    currency="PHP",
+                    status="pending",
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                )
+                db.add(req)
+                await db.commit()
+                await db.refresh(req)
+                return req.id
+
+        req_id = asyncio.get_event_loop().run_until_complete(seed_request())
+
+        # Approve the request
+        r = client.post(
+            f"/api/v1/topup/{req_id}/approve",
+            json={"note": "Test approval"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["status"] == "approved"
+
+        # Verify PHP wallet was credited with converted amount (10 USDT × 60 = 600 PHP)
+        async def verify():
+            async with db_manager.async_session_maker() as db:
+                wallet_res = await db.execute(
+                    select(Wallets).where(
+                        Wallets.user_id == f"tg-{chat_id}",
+                        Wallets.currency == "PHP",
+                    )
+                )
+                wallet = wallet_res.scalar_one_or_none()
+
+                txn_res = await db.execute(
+                    select(Wallet_transactions).where(
+                        Wallet_transactions.reference_id == str(req_id),
+                        Wallet_transactions.user_id == f"tg-{chat_id}",
+                    )
+                )
+                txn = txn_res.scalar_one_or_none()
+                return wallet, txn
+
+        wallet, txn = asyncio.get_event_loop().run_until_complete(verify())
+
+        assert wallet is not None, "PHP wallet was not created"
+        assert wallet.currency == "PHP"
+        assert wallet.balance == pytest.approx(600.0, abs=0.01), "Expected 10 USDT × 60 = 600 PHP"
+
+        assert txn is not None, "Wallet transaction was not recorded"
+        assert txn.amount == pytest.approx(600.0, abs=0.01)
+        assert txn.transaction_type == "top_up"
+        assert txn.status == "completed"
+        # Note should include conversion info
+        assert "USDT" in txn.note or "PHP" in txn.note
+
+    def test_topup_approve_note_contains_conversion_info(self, client, auth_headers):
+        """The approval note on the request includes the conversion rate and PHP amount."""
+        import asyncio
+        from core.database import db_manager
+        from sqlalchemy import select
+        from models.topup_requests import TopupRequest
+        from datetime import datetime
+
+        chat_id = "999002"
+
+        # Set rate
+        client.put(
+            "/api/v1/app-settings/usdt-php-rate",
+            json={"rate": 58.0},
+            headers=auth_headers,
+        )
+
+        async def seed():
+            async with db_manager.async_session_maker() as db:
+                req = TopupRequest(
+                    chat_id=chat_id,
+                    telegram_username="notetest",
+                    amount_usdt=5.0,
+                    currency="PHP",
+                    status="pending",
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                )
+                db.add(req)
+                await db.commit()
+                await db.refresh(req)
+                return req.id
+
+        req_id = asyncio.get_event_loop().run_until_complete(seed())
+        r = client.post(f"/api/v1/topup/{req_id}/approve", json={}, headers=auth_headers)
+        assert r.status_code == 200
+        note = r.json().get("note", "")
+        # note should contain "USDT" and "PHP" conversion info
+        assert "PHP" in note or "USDT" in note
