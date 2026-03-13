@@ -885,9 +885,86 @@ class TestBatchCreateOptimization:
         assert r.status_code == 201
         assert r.json() == []
 
+    def test_batch_create_disbursements(self, client, auth_headers):
+        """POST /batch should create multiple disbursements atomically."""
+        payload = {
+            "items": [
+                {"amount": 500.0, "currency": "PHP", "bank_code": "BDO"},
+                {"amount": 750.0, "currency": "PHP", "bank_code": "BPI"},
+            ]
+        }
+        r = client.post("/api/v1/entities/disbursements/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+        amounts = sorted(d["amount"] for d in data)
+        assert amounts == [500.0, 750.0]
+
+    def test_batch_create_refunds(self, client, auth_headers):
+        """POST /batch should create multiple refunds atomically."""
+        payload = {
+            "items": [
+                {"amount": 50.0, "reason": "test refund 1"},
+                {"amount": 75.0, "reason": "test refund 2"},
+            ]
+        }
+        r = client.post("/api/v1/entities/refunds/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+
+    def test_batch_create_subscriptions(self, client, auth_headers):
+        """POST /batch should create multiple subscriptions atomically."""
+        payload = {
+            "items": [
+                {"plan_name": "Basic", "amount": 299.0, "currency": "PHP"},
+                {"plan_name": "Pro", "amount": 599.0, "currency": "PHP"},
+            ]
+        }
+        r = client.post("/api/v1/entities/subscriptions/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+        plan_names = {d["plan_name"] for d in data}
+        assert plan_names == {"Basic", "Pro"}
+
+    def test_batch_create_bot_logs(self, client, auth_headers):
+        """POST /batch should create multiple bot_logs atomically."""
+        payload = {
+            "items": [
+                {"log_type": "info", "message": "batch log 1"},
+                {"log_type": "info", "message": "batch log 2"},
+            ]
+        }
+        r = client.post("/api/v1/entities/bot_logs/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+
+    def test_batch_create_api_configs(self, client, auth_headers):
+        """POST /batch should create multiple api_configs atomically."""
+        payload = {
+            "items": [
+                {
+                    "config_key": "batch_key_1",
+                    "config_value": "val1",
+                    "service_name": "xendit",
+                },
+                {
+                    "config_key": "batch_key_2",
+                    "config_value": "val2",
+                    "service_name": "xendit",
+                },
+            ]
+        }
+        r = client.post("/api/v1/entities/api_configs/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+
 
 class TestUsdBalanceOptimization:
-    """Verify USD balance is computed correctly with the single-query optimisation."""
+    """Verify USD balance is computed correctly with the single-query optimization."""
 
     def test_usd_balance_endpoint_accessible(self, client, auth_headers):
         """GET /wallet/balance?currency=USD should return a valid response."""
