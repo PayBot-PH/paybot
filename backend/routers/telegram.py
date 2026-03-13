@@ -1,4 +1,5 @@
 import logging
+import html as _html
 import io
 import hashlib
 import os
@@ -853,7 +854,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             cq_data    = callback_query.get("data", "")
             cq_from    = callback_query.get("from", {})
             cq_chat_id = str(cq_from.get("id", ""))
-            cq_first_name = cq_from.get("first_name", "") or ""
+            cq_first_name = _html.escape(cq_from.get("first_name", "") or "")
             tg = TelegramService()
 
             if cq_data in ("lang:en", "lang:zh"):
@@ -908,7 +909,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         if text and "/" in text and not text.startswith("/"):
             text = text[text.index("/"):]
         username = message.get("from", {}).get("username", "unknown")
-        first_name = message.get("from", {}).get("first_name", "") or ""
+        first_name = _html.escape(message.get("from", {}).get("first_name", "") or "")
         photos = message.get("photo", [])
 
         if not chat_id:
@@ -1275,7 +1276,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             await db.commit()
                             await tg.send_message(chat_id, f"✅ KYB approved for {target_chat_id} ({kyb.full_name}). Admin access granted.")
                             # Notify the approved user — prompt them to set PIN
-                            user_name_display = kyb.full_name or "there"
+                            user_name_display = _html.escape(kyb.full_name or "there")
                             await tg.send_message(
                                 target_chat_id,
                                 f"🎉 <b>Congratulations, {user_name_display}!</b>\n"
