@@ -142,9 +142,7 @@ export default function Layout({ children, connected }: LayoutProps) {
       <aside className="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 z-40 bg-background border-r border-border">
         {/* Brand */}
         <Link to="/" className="flex items-center gap-2.5 px-4 h-14 border-b border-border shrink-0">
-          <div className="h-7 w-7 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
-            <Bot className="h-4 w-4 text-white" />
-          </div>
+          <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 shrink-0 rounded-lg" />
           <div>
             <p className="text-sm font-bold leading-tight">{APP_NAME}</p>
             <p className="text-[10px] text-muted-foreground leading-tight">{APP_SUBTITLE}</p>
@@ -181,9 +179,7 @@ export default function Layout({ children, connected }: LayoutProps) {
           <aside className="relative z-10 w-64 h-full bg-background border-r border-border flex flex-col">
             <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0">
               <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-2.5">
-                <div className="h-7 w-7 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
+                <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 rounded-lg" />
                 <p className="text-sm font-bold">{APP_NAME}</p>
               </Link>
               <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded text-muted-foreground hover:text-foreground">
@@ -218,9 +214,7 @@ export default function Layout({ children, connected }: LayoutProps) {
 
           {/* Page title from path */}
           <div className="md:hidden flex items-center gap-2">
-            <div className="h-6 w-6 bg-blue-600 rounded flex items-center justify-center">
-              <Bot className="h-3.5 w-3.5 text-white" />
-            </div>
+            <img src="/logo.svg" alt={APP_NAME} className="h-6 w-6 rounded" />
             <span className="text-sm font-bold">{APP_NAME}</span>
           </div>
 
