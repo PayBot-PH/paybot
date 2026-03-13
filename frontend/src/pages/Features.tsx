@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import AppFooter from '@/components/AppFooter';
 import {
   Bot,
   BarChart3,
@@ -578,12 +579,7 @@ export default function Features() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 py-8 text-center text-slate-500 text-xs space-x-4">
-        <span>© {new Date().getFullYear()} DRL Solutions. All rights reserved.</span>
-        <Link to="/pricing" className="hover:text-sky-400 transition-colors">Pricing</Link>
-        <Link to="/policies" className="hover:text-sky-400 transition-colors">Policies</Link>
-        <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="hover:text-sky-400 transition-colors">Support</a>
-      </footer>
+      <AppFooter />
 
     </div>
   );

@@ -9,6 +9,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { APP_NAME, APP_SUBTITLE, SUPPORT_URL } from '@/lib/brand';
+import AppFooter from '@/components/AppFooter';
 
 interface NavItem {
   to: string;
@@ -286,6 +287,7 @@ export default function Layout({ children, connected }: LayoutProps) {
           <div className="max-w-7xl w-full mx-auto">
             {children}
           </div>
+          <AppFooter variant="admin" />
         </main>
       </div>
     </div>

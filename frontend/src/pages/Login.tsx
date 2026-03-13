@@ -6,7 +6,8 @@ import {
   UserPlus, Menu, X, Lock,
 } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
-import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
+import { APP_NAME, SUPPORT_URL } from '@/lib/brand';
+import AppFooter from '@/components/AppFooter';
 
 declare global {
   interface Window { onTelegramAuth?: (user: TelegramWidgetUser) => void; }
@@ -676,25 +677,7 @@ export default function Login() {
       </section>
 
       {/* ── FOOTER ──────────────────────────────────────────────── */}
-      <footer className="border-t border-white/[0.06] py-8 sm:py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col items-center gap-4 sm:gap-0 sm:flex-row sm:justify-between">
-
-            {/* Brand */}
-            <div className="flex items-center gap-2.5">
-              <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg" />
-              <div>
-                <p className="text-white font-bold text-sm leading-tight">{APP_NAME}</p>
-                <p className="text-slate-500 text-xs">by {COMPANY_NAME}</p>
-              </div>
-            </div>
-
-            <p className="text-slate-600 text-xs text-center sm:text-right">
-              © {new Date().getFullYear()} {COMPANY_NAME}.<br className="sm:hidden" /> All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <AppFooter />
 
     </div>
   );
