@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Bot, BarChart3, Wallet, CreditCard, FileText, Building2, PieChart,
   WifiOff, LogOut, ShieldCheck, MessageSquare, ScrollText, Crown, User,
   Menu, X, Activity, Send, ClipboardList, DollarSign, ChevronDown,
-  MessageCircle, UserCheck, Sun, Moon, ScanLine,
+  MessageCircle, UserCheck, Sun, Moon, ScanLine, ChevronRight,
+  Settings2, Layers,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { APP_NAME, APP_SUBTITLE, SUPPORT_URL } from '@/lib/brand';
+import AppFooter from '@/components/AppFooter';
 
+/* ─── Nav types ─────────────────────────────────────────────────── */
 interface NavItem {
   to: string;
   icon: React.ElementType;
@@ -17,9 +20,20 @@ interface NavItem {
   badge?: string;
 }
 
+interface NavGroup {
+  type: 'group';
+  key: string;
+  icon: React.ElementType;
+  label: string;
+  badge?: string;
+  children: NavItem[];
+}
+
+type NavEntry = NavItem | NavGroup;
+
 interface NavSection {
   label: string;
-  items: NavItem[];
+  items: NavEntry[];
 }
 
 interface LayoutProps {
@@ -34,12 +48,38 @@ export default function Layout({ children, connected }: LayoutProps) {
   const { theme, toggleTheme } = useTheme();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
 
   const userName =
     (user as { name?: string; telegram_username?: string } | null)?.name ||
     (user as { telegram_username?: string } | null)?.telegram_username ||
     'Admin';
 
+  const isActive = (to: string) =>
+    to === '/' ? path === '/' : path.startsWith(to);
+
+  /* Auto-expand sub-groups when a child route is active */
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (['/usdt-send-requests', '/topup-requests'].some((r) => path.startsWith(r))) {
+        next.add('requests');
+      }
+      if (['/kyb-registrations', '/kyc-verifications'].some((r) => path.startsWith(r))) {
+        next.add('compliance');
+      }
+      return next;
+    });
+  }, [path]);
+
+  const toggleGroup = (key: string) =>
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) { next.delete(key); } else { next.add(key); }
+      return next;
+    });
+
+  /* ─── Navigation structure ──────────────────────────────────── */
   const navSections: NavSection[] = [
     {
       label: 'Overview',
@@ -58,37 +98,60 @@ export default function Layout({ children, connected }: LayoutProps) {
         { to: '/reports', icon: PieChart, label: 'Reports' },
       ],
     },
+    /* Bot section — shown to admins / can_manage_bot users */
     ...(isAdmin || permissions?.can_manage_bot || isSuperAdmin
       ? [{
-          label: 'System',
+          label: 'Bot',
           items: [
             ...(isAdmin || isSuperAdmin
               ? [{ to: '/bot-messages', icon: MessageSquare, label: 'Bot Messages' }]
               : []),
-            ...(permissions?.can_manage_bot
+            ...(permissions?.can_manage_bot || isSuperAdmin
               ? [{ to: '/bot-settings', icon: Bot, label: 'Bot Settings' }]
               : []),
-            ...(isSuperAdmin
-              ? [
-                  { to: '/admin-management', icon: ShieldCheck, label: 'Admin Management', badge: 'Super' },
-                  { to: '/usdt-send-requests', icon: Send, label: 'USDT Requests', badge: 'Super' },
-                  { to: '/topup-requests', icon: DollarSign, label: 'Topup Requests', badge: 'Super' },
-                  { to: '/kyb-registrations', icon: ClipboardList, label: 'KYB Registrations', badge: 'Super' },
-                  { to: '/kyc-verifications', icon: UserCheck, label: 'KYC Verifications', badge: 'Super' },
-                ]
-              : []),
-          ],
+          ] as NavEntry[],
+        }]
+      : []),
+    /* Administration — super admin only, with collapsible sub-groups */
+    ...(isSuperAdmin
+      ? [{
+          label: 'Administration',
+          items: [
+            { to: '/admin-management', icon: ShieldCheck, label: 'Admin Management', badge: 'Super' },
+            {
+              type: 'group' as const,
+              key: 'requests',
+              icon: Layers,
+              label: 'Requests',
+              badge: 'Super',
+              children: [
+                { to: '/usdt-send-requests', icon: Send, label: 'USDT Requests', badge: 'Super' },
+                { to: '/topup-requests', icon: DollarSign, label: 'Top-up Requests', badge: 'Super' },
+              ],
+            },
+            {
+              type: 'group' as const,
+              key: 'compliance',
+              icon: Settings2,
+              label: 'Compliance',
+              badge: 'Super',
+              children: [
+                { to: '/kyb-registrations', icon: ClipboardList, label: 'KYB Registrations', badge: 'Super' },
+                { to: '/kyc-verifications', icon: UserCheck, label: 'KYC Verifications', badge: 'Super' },
+              ],
+            },
+          ] as NavEntry[],
         }]
       : []),
     {
-      label: 'More',
-      items: [{ to: '/policies', icon: ScrollText, label: 'Policies' }],
+      label: 'Help & Legal',
+      items: [
+        { to: '/policies', icon: ScrollText, label: 'Policies' },
+      ],
     },
   ];
 
-  const isActive = (to: string) =>
-    to === '/' ? path === '/' : path.startsWith(to);
-
+  /* ─── NavLinks renderer ─────────────────────────────────────── */
   const NavLinks = ({ onNav }: { onNav?: () => void }) => (
     <nav className="flex-1 overflow-y-auto py-3">
       {navSections.map((section) => (
@@ -96,12 +159,72 @@ export default function Layout({ children, connected }: LayoutProps) {
           <p className="px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
             {section.label}
           </p>
-          {section.items.map(({ to, icon: Icon, label, badge }) => {
-            const active = isActive(to);
+          {section.items.map((entry) => {
+            /* Collapsible sub-group */
+            if ('type' in entry && entry.type === 'group') {
+              const group = entry as NavGroup;
+              const isOpen = openGroups.has(group.key);
+              const hasActiveChild = group.children.some((c) => isActive(c.to));
+              return (
+                <div key={group.key}>
+                  <button
+                    onClick={() => toggleGroup(group.key)}
+                    className={`w-full flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+                      hasActiveChild
+                        ? 'text-blue-400 bg-blue-600/10'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    }`}
+                    style={{ width: 'calc(100% - 1rem)' }}
+                  >
+                    <group.icon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 truncate text-left">{group.label}</span>
+                    {group.badge && (
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                        {group.badge}
+                      </span>
+                    )}
+                    <ChevronRight
+                      className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
+                    />
+                  </button>
+                  {isOpen && (
+                    <div className="mt-0.5 mb-1">
+                      {group.children.map(({ to, icon: Icon, label, badge }) => {
+                        const active = isActive(to);
+                        return (
+                          <Link
+                            key={to}
+                            to={to}
+                            onClick={onNav}
+                            className={`flex items-center gap-3 ml-5 mr-2 pl-4 pr-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 border-l-2 ${
+                              active
+                                ? 'border-blue-500 bg-blue-600/10 text-blue-300'
+                                : 'border-border text-muted-foreground hover:text-foreground hover:bg-accent hover:border-blue-500/40'
+                            }`}
+                          >
+                            <Icon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="flex-1 truncate text-xs">{label}</span>
+                            {badge && (
+                              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                {badge}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            /* Regular nav item */
+            const item = entry as NavItem;
+            const active = isActive(item.to);
             return (
               <Link
-                key={to}
-                to={to}
+                key={item.to}
+                to={item.to}
                 onClick={onNav}
                 className={`flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
                   active
@@ -109,11 +232,11 @@ export default function Layout({ children, connected }: LayoutProps) {
                     : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                 }`}
               >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1 truncate">{label}</span>
-                {badge && (
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="flex-1 truncate">{item.label}</span>
+                {item.badge && (
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                    {badge}
+                    {item.badge}
                   </span>
                 )}
               </Link>
@@ -121,8 +244,9 @@ export default function Layout({ children, connected }: LayoutProps) {
           })}
         </div>
       ))}
-      <div className="mb-1">
-        <p className="px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Help</p>
+
+      {/* Contact Support */}
+      <div className="mb-1 mt-1">
         <a
           href={SUPPORT_URL}
           target="_blank"
@@ -137,7 +261,7 @@ export default function Layout({ children, connected }: LayoutProps) {
   );
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex">
+    <div className="h-screen overflow-hidden bg-background text-foreground flex">
 
       {/* ─── Desktop Sidebar ─── */}
       <aside className="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 z-40 bg-background border-r border-border">
@@ -202,7 +326,7 @@ export default function Layout({ children, connected }: LayoutProps) {
       )}
 
       {/* ─── Main Content ─── */}
-      <div className="flex-1 flex flex-col min-h-screen md:ml-56">
+      <div className="flex-1 flex flex-col min-h-0 md:ml-56">
 
         {/* Top Bar */}
         <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-background border-b border-border shrink-0">
@@ -282,13 +406,12 @@ export default function Layout({ children, connected }: LayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto overflow-x-hidden max-w-7xl w-full mx-auto">
-          {children}
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto overflow-x-hidden min-h-0">
+          <div className="max-w-7xl w-full mx-auto">
+            {children}
+          </div>
+          <AppFooter variant="admin" />
         </main>
-
-        <footer className="px-6 py-4 border-t border-border text-center text-[11px] text-muted-foreground">
-          © {new Date().getFullYear()} {APP_NAME} · <Link to="/policies" className="hover:text-foreground transition-colors">Policies</Link>
-        </footer>
       </div>
     </div>
   );

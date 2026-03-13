@@ -4,8 +4,8 @@ import {
   Building2, ChevronDown, ChevronRight, X,
 } from 'lucide-react';
 import { useState } from 'react';
-import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
-import ComplianceBar from '@/components/ComplianceBar';
+import { APP_NAME, SUPPORT_URL } from '@/lib/brand';
+import AppFooter from '@/components/AppFooter';
 
 /* ─── Logo helpers (same as Login.tsx) ───────────────────────── */
 function SiIcon({ src, alt, bg, size = 32 }: { src: string; alt: string; bg: string; size?: number }) {
@@ -403,32 +403,7 @@ export default function Pricing() {
       </section>
 
       {/* ── FOOTER ──────────────────────────────────────────────── */}
-      <footer className="border-t border-white/[0.06] py-8 sm:py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-5">
-            <Link to="/login" className="flex items-center gap-2.5">
-              <div className="h-7 w-7 bg-blue-600 rounded-lg flex items-center justify-center">
-                <Bot className="h-3.5 w-3.5 text-white" />
-              </div>
-              <div>
-                <p className="text-white font-bold text-sm">{APP_NAME}</p>
-                <p className="text-slate-500 text-xs">by {COMPANY_NAME}</p>
-              </div>
-            </Link>
-            <nav className="flex flex-wrap items-center justify-center gap-5 text-xs text-slate-500">
-              <Link to="/login"    className="hover:text-slate-300 transition-colors">Home</Link>
-              <Link to="/features" className="hover:text-slate-300 transition-colors">Features</Link>
-              <Link to="/pricing"  className="hover:text-slate-300 transition-colors">Pricing</Link>
-              <Link to="/register" className="hover:text-slate-300 transition-colors">Register</Link>
-              <Link to="/policies" className="hover:text-slate-300 transition-colors">Policies</Link>
-              <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="hover:text-slate-300 transition-colors">Support</a>
-            </nav>
-            <p className="text-slate-600 text-xs">© {new Date().getFullYear()} {COMPANY_NAME}</p>
-          </div>
-        </div>
-      </footer>
-
-      <ComplianceBar />
+      <AppFooter />
 
     </div>
   );
