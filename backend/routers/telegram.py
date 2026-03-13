@@ -1458,7 +1458,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
-                    # Parse basic EMVCo / QRPH fields from the QR string
+                    # Parse basic EMVCo / QRPH fields from the QR string.
+                    # Tag reference: 53=Currency (608=PHP), 58=Country, 59=Merchant Name,
+                    # 60=City, 62=Additional Data (sub-tag 05=Reference Label, 01=Bill Number).
+                    # NOTE: The equivalent parser exists in ScanQRPH.tsx (frontend).
                     def _parse_tlv(s: str) -> dict:
                         result: dict = {}
                         i = 0
@@ -1485,7 +1488,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         sub = _parse_tlv(add_data)
                         ref_num = sub.get("05", sub.get("01", ""))
 
-                    import uuid
                     external_id = f"qrph-{uuid.uuid4().hex[:12]}"
                     reply_lines = [
                         f"✅ <b>QRPH Payment Recorded</b>",
@@ -1513,6 +1515,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             amount=amount, currency=currency, status="pending",
                             description=f"QRPH payment{f' to {merchant_name}' if merchant_name else ''}",
                             customer_name=merchant_name,
+                            # Reuse qr_code_url to store the raw QRPH/EMVCo string (existing schema
+                            # field; capped at 500 chars to fit the column).
                             qr_code_url=qr_data[:500], telegram_chat_id=chat_id,
                             created_at=now, updated_at=now,
                         )

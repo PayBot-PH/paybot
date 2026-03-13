@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import Layout from '@/components/Layout';
 
 // ---------- EMVCo / QRPH TLV parser ----------
+// Follows EMVCo QR Code Specification for Payment Systems v1.0 and BSP QRPH implementation.
 interface QRPHData {
   merchantName: string;
   merchantCity: string;
@@ -22,6 +23,7 @@ interface QRPHData {
   currency: string;
   referenceNumber: string;
   raw: string;
+  isQRPH: boolean;  // true if the QR data could be parsed as a valid QRPH/EMVCo payload
 }
 
 function parseTLV(data: string): Map<string, string> {
@@ -42,18 +44,23 @@ function parseTLV(data: string): Map<string, string> {
 function parseQRPH(raw: string): QRPHData | null {
   try {
     const tlv = parseTLV(raw);
-    // ID 53 = Transaction Currency (608 = PHP)
-    // ID 54 = Transaction Amount
-    // ID 58 = Country Code
+    // EMVCo tag reference (per QRPH / BSP spec):
+    // ID 53 = Transaction Currency (numeric ISO 4217; 608 = PHP)
+    // ID 54 = Transaction Amount (optional; merchant may omit for open amount)
+    // ID 58 = Country Code ("PH" for Philippines)
     // ID 59 = Merchant Name
     // ID 60 = Merchant City
-    // ID 62 = Additional Data (contains reference number at sub-tag 05)
+    // ID 62 = Additional Data Field; sub-tags:
+    //   05 = Reference Label (most common reference number field)
+    //   01 = Bill Number (alternative reference used by some issuers)
     const merchantName = tlv.get('59') || '';
     const merchantCity = tlv.get('60') || '';
     const amount = tlv.get('54') || '';
     const currency = tlv.get('53') === '608' ? 'PHP' : (tlv.get('53') || '');
 
-    // Parse reference number from additional data field (tag 62, sub-tag 05)
+    // Parse reference number from Additional Data Field (tag 62).
+    // Sub-tag 05 (Reference Label) is checked first; sub-tag 01 (Bill Number) is a fallback
+    // used by some Philippine banks and e-wallets.
     let referenceNumber = '';
     const additionalData = tlv.get('62') || '';
     if (additionalData) {
@@ -61,7 +68,12 @@ function parseQRPH(raw: string): QRPHData | null {
       referenceNumber = subTlv.get('05') || subTlv.get('01') || '';
     }
 
-    return { merchantName, merchantCity, amount, currency, referenceNumber, raw };
+    // Consider it a valid QRPH if it contains at least one definitive EMVCo indicator:
+    // country code 'PH' (tag 58) or currency code '608' (PHP, tag 53).
+    // Merchant name alone is not sufficient as non-QRPH QR codes may also contain text.
+    const isQRPH = tlv.get('58') === 'PH' || tlv.get('53') === '608';
+
+    return { merchantName, merchantCity, amount, currency, referenceNumber, raw, isQRPH };
   } catch {
     return null;
   }
@@ -99,13 +111,13 @@ export default function ScanQRPH() {
   const handleQRFound = useCallback((raw: string) => {
     stopCamera();
     const parsed = parseQRPH(raw);
-    if (parsed) {
+    if (parsed && parsed.isQRPH) {
       setQrData(parsed);
       if (parsed.amount) setAmount(parsed.amount);
       toast.success('QRPH decoded successfully!');
     } else {
-      // Not a QRPH / EMVCo QR — treat as raw data
-      setQrData({ merchantName: '', merchantCity: '', amount: '', currency: 'PHP', referenceNumber: raw, raw });
+      // Not a QRPH / EMVCo QR — store raw data with isQRPH=false so the UI can warn the user
+      setQrData({ merchantName: '', merchantCity: '', amount: '', currency: 'PHP', referenceNumber: '', raw, isQRPH: false });
       toast.info('QR decoded. Please verify the data and enter the amount.');
     }
     setMode('idle');
@@ -346,7 +358,7 @@ export default function ScanQRPH() {
               </div>
 
               {/* Alert if not a QRPH */}
-              {!qrData.merchantName && !qrData.currency && (
+              {!qrData.isQRPH && (
                 <div className="flex items-start gap-2 text-amber-400 text-sm bg-amber-400/10 border border-amber-400/20 rounded-lg p-3">
                   <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>This QR code may not be a standard QRPH. Verify the data before paying.</span>

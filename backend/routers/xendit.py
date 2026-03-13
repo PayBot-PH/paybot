@@ -1,4 +1,5 @@
 import logging
+import uuid
 from datetime import datetime
 from typing import Optional
 
@@ -304,7 +305,6 @@ async def pay_qrph(
 ):
     """Record an outbound payment initiated by scanning a merchant's QRPH code."""
     try:
-        import uuid
         external_id = f"qrph-{uuid.uuid4().hex[:12]}"
         now = datetime.now()
         txn = Transactions(
@@ -316,6 +316,8 @@ async def pay_qrph(
             status="pending",
             description=data.description or data.merchant_name or "QRPH payment",
             customer_name=data.merchant_name,
+            # Reuse qr_code_url to store the raw QRPH/EMVCo string (existing schema field;
+            # capped at 500 chars to fit the column — full data is not needed for audit).
             qr_code_url=data.qr_data[:500] if data.qr_data else "",
             created_at=now,
             updated_at=now,
