@@ -85,7 +85,14 @@ class XenditService:
     async def create_qr_code(self, amount: float, description: str = "", external_id: str = "") -> Dict[str, Any]:
         if not external_id:
             external_id = f"qr-{uuid.uuid4().hex[:12]}"
-        payload: Dict[str, Any] = {"reference_id": external_id, "type": "DYNAMIC", "currency": "PHP", "amount": amount}
+        callback_url = f"{settings.backend_url}/api/v1/xendit/webhook"
+        payload: Dict[str, Any] = {
+            "external_id": external_id,
+            "type": "DYNAMIC",
+            "currency": "PHP",
+            "amount": amount,
+            "callback_url": callback_url,
+        }
         if description:
             payload["metadata"] = {"description": description}
         try:
