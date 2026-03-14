@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.disbursements import Disbursements
@@ -41,11 +41,13 @@ class DisbursementsService:
                     data = {**data, 'user_id': user_id}
                 objs.append(Disbursements(**data))
             self.db.add_all(objs)
+            await self.db.flush()
+            obj_ids = [obj.id for obj in objs]
             await self.db.commit()
-            for obj in objs:
-                await self.db.refresh(obj)
-            logger.info(f"Bulk created {len(objs)} disbursements")
-            return objs
+            result = await self.db.execute(select(Disbursements).where(Disbursements.id.in_(obj_ids)))
+            refreshed = list(result.scalars().all())
+            logger.info(f"Bulk created {len(refreshed)} disbursements")
+            return refreshed
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error bulk creating disbursements: {str(e)}")
@@ -156,6 +158,22 @@ class DisbursementsService:
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error deleting disbursements {obj_id}: {str(e)}")
+            raise
+
+    async def batch_delete(self, ids: List[int], user_id: Optional[str] = None) -> int:
+        """Batch-delete multiple disbursements by IDs in a single query"""
+        try:
+            stmt = delete(Disbursements).where(Disbursements.id.in_(ids))
+            if user_id:
+                stmt = stmt.where(Disbursements.user_id == user_id)
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            deleted_count = result.rowcount
+            logger.info(f"Batch deleted {deleted_count} disbursements")
+            return deleted_count
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error batch deleting disbursements: {str(e)}")
             raise
 
     async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Disbursements]:

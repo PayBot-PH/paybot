@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.api_configs import Api_configs
@@ -41,11 +41,13 @@ class Api_configsService:
                     data = {**data, 'user_id': user_id}
                 objs.append(Api_configs(**data))
             self.db.add_all(objs)
+            await self.db.flush()
+            obj_ids = [obj.id for obj in objs]
             await self.db.commit()
-            for obj in objs:
-                await self.db.refresh(obj)
-            logger.info(f"Bulk created {len(objs)} api_configs")
-            return objs
+            result = await self.db.execute(select(Api_configs).where(Api_configs.id.in_(obj_ids)))
+            refreshed = list(result.scalars().all())
+            logger.info(f"Bulk created {len(refreshed)} api_configs")
+            return refreshed
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error bulk creating api_configs: {str(e)}")
@@ -156,6 +158,22 @@ class Api_configsService:
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error deleting api_configs {obj_id}: {str(e)}")
+            raise
+
+    async def batch_delete(self, ids: List[int], user_id: Optional[str] = None) -> int:
+        """Batch-delete multiple api_configs by IDs in a single query"""
+        try:
+            stmt = delete(Api_configs).where(Api_configs.id.in_(ids))
+            if user_id:
+                stmt = stmt.where(Api_configs.user_id == user_id)
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            deleted_count = result.rowcount
+            logger.info(f"Batch deleted {deleted_count} api_configs")
+            return deleted_count
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error batch deleting api_configs: {str(e)}")
             raise
 
     async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Api_configs]:

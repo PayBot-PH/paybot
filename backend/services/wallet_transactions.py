@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.wallet_transactions import Wallet_transactions
@@ -41,11 +41,13 @@ class Wallet_transactionsService:
                     data = {**data, 'user_id': user_id}
                 objs.append(Wallet_transactions(**data))
             self.db.add_all(objs)
+            await self.db.flush()
+            obj_ids = [obj.id for obj in objs]
             await self.db.commit()
-            for obj in objs:
-                await self.db.refresh(obj)
-            logger.info(f"Bulk created {len(objs)} wallet_transactions")
-            return objs
+            result = await self.db.execute(select(Wallet_transactions).where(Wallet_transactions.id.in_(obj_ids)))
+            refreshed = list(result.scalars().all())
+            logger.info(f"Bulk created {len(refreshed)} wallet_transactions")
+            return refreshed
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error bulk creating wallet_transactions: {str(e)}")
@@ -156,6 +158,22 @@ class Wallet_transactionsService:
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error deleting wallet_transactions {obj_id}: {str(e)}")
+            raise
+
+    async def batch_delete(self, ids: List[int], user_id: Optional[str] = None) -> int:
+        """Batch-delete multiple wallet_transactions by IDs in a single query"""
+        try:
+            stmt = delete(Wallet_transactions).where(Wallet_transactions.id.in_(ids))
+            if user_id:
+                stmt = stmt.where(Wallet_transactions.user_id == user_id)
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            deleted_count = result.rowcount
+            logger.info(f"Batch deleted {deleted_count} wallet_transactions")
+            return deleted_count
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error batch deleting wallet_transactions: {str(e)}")
             raise
 
     async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Wallet_transactions]:

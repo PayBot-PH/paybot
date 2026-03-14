@@ -85,7 +85,7 @@ class Bot_logsBatchDeleteRequest(BaseModel):
 
 # ---------- Routes ----------
 @router.get("", response_model=Bot_logsListResponse)
-async def query_bot_logss(
+async def query_bot_logs(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -94,8 +94,8 @@ async def query_bot_logss(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Query bot_logss with filtering, sorting, and pagination (user can only see their own records)"""
-    logger.debug(f"Querying bot_logss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    """Query bot_logs with filtering, sorting, and pagination (user can only see their own records)"""
+    logger.debug(f"Querying bot_logs: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
     
     service = Bot_logsService(db)
     try:
@@ -114,17 +114,17 @@ async def query_bot_logss(
             sort=sort,
             user_id=str(current_user.id),
         )
-        logger.debug(f"Found {result['total']} bot_logss")
+        logger.debug(f"Found {result['total']} bot_logs")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying bot_logss: {str(e)}", exc_info=True)
+        logger.error(f"Error querying bot_logs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/all", response_model=Bot_logsListResponse)
-async def query_bot_logss_all(
+async def query_bot_logs_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -132,8 +132,8 @@ async def query_bot_logss_all(
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
-    # Query bot_logss with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying bot_logss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    # Query bot_logs with filtering, sorting, and pagination without user limitation
+    logger.debug(f"Querying bot_logs: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
 
     service = Bot_logsService(db)
     try:
@@ -151,12 +151,12 @@ async def query_bot_logss_all(
             query_dict=query_dict,
             sort=sort
         )
-        logger.debug(f"Found {result['total']} bot_logss")
+        logger.debug(f"Found {result['total']} bot_logs")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying bot_logss: {str(e)}", exc_info=True)
+        logger.error(f"Error querying bot_logs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -211,13 +211,13 @@ async def create_bot_logs(
 
 
 @router.post("/batch", response_model=List[Bot_logsResponse], status_code=201)
-async def create_bot_logss_batch(
+async def create_bot_logs_batch(
     request: Bot_logsBatchCreateRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create multiple bot_logss in a single request"""
-    logger.debug(f"Batch creating {len(request.items)} bot_logss")
+    """Create multiple bot_logs in a single request"""
+    logger.debug(f"Batch creating {len(request.items)} bot_logs")
     
     service = Bot_logsService(db)
     
@@ -226,7 +226,7 @@ async def create_bot_logss_batch(
             [item.model_dump() for item in request.items],
             user_id=str(current_user.id),
         )
-        logger.info(f"Batch created {len(results)} bot_logss successfully")
+        logger.info(f"Batch created {len(results)} bot_logs successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -235,13 +235,13 @@ async def create_bot_logss_batch(
 
 
 @router.put("/batch", response_model=List[Bot_logsResponse])
-async def update_bot_logss_batch(
+async def update_bot_logs_batch(
     request: Bot_logsBatchUpdateRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update multiple bot_logss in a single request (requires ownership)"""
-    logger.debug(f"Batch updating {len(request.items)} bot_logss")
+    """Update multiple bot_logs in a single request (requires ownership)"""
+    logger.debug(f"Batch updating {len(request.items)} bot_logs")
     
     service = Bot_logsService(db)
     results = []
@@ -254,7 +254,7 @@ async def update_bot_logss_batch(
             if result:
                 results.append(result)
         
-        logger.info(f"Batch updated {len(results)} bot_logss successfully")
+        logger.info(f"Batch updated {len(results)} bot_logs successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -294,25 +294,19 @@ async def update_bot_logs(
 
 
 @router.delete("/batch")
-async def delete_bot_logss_batch(
+async def delete_bot_logs_batch(
     request: Bot_logsBatchDeleteRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete multiple bot_logss by their IDs (requires ownership)"""
-    logger.debug(f"Batch deleting {len(request.ids)} bot_logss")
+    """Delete multiple bot_logs by their IDs (requires ownership)"""
+    logger.debug(f"Batch deleting {len(request.ids)} bot_logs")
     
     service = Bot_logsService(db)
-    deleted_count = 0
-    
     try:
-        for item_id in request.ids:
-            success = await service.delete(item_id, user_id=str(current_user.id))
-            if success:
-                deleted_count += 1
-        
-        logger.info(f"Batch deleted {deleted_count} bot_logss successfully")
-        return {"message": f"Successfully deleted {deleted_count} bot_logss", "deleted_count": deleted_count}
+        deleted_count = await service.batch_delete(request.ids, user_id=str(current_user.id))
+        logger.info(f"Batch deleted {deleted_count} bot_logs successfully")
+        return {"message": f"Successfully deleted {deleted_count} bot_logs", "deleted_count": deleted_count}
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)

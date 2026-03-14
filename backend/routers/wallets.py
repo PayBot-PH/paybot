@@ -79,7 +79,7 @@ class WalletsBatchDeleteRequest(BaseModel):
 
 # ---------- Routes ----------
 @router.get("", response_model=WalletsListResponse)
-async def query_walletss(
+async def query_wallets(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -88,8 +88,8 @@ async def query_walletss(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Query walletss with filtering, sorting, and pagination (user can only see their own records)"""
-    logger.debug(f"Querying walletss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    """Query wallets with filtering, sorting, and pagination (user can only see their own records)"""
+    logger.debug(f"Querying wallets: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
     
     service = WalletsService(db)
     try:
@@ -108,17 +108,17 @@ async def query_walletss(
             sort=sort,
             user_id=str(current_user.id),
         )
-        logger.debug(f"Found {result['total']} walletss")
+        logger.debug(f"Found {result['total']} wallets")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying walletss: {str(e)}", exc_info=True)
+        logger.error(f"Error querying wallets: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/all", response_model=WalletsListResponse)
-async def query_walletss_all(
+async def query_wallets_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -126,8 +126,8 @@ async def query_walletss_all(
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
-    # Query walletss with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying walletss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    # Query wallets with filtering, sorting, and pagination without user limitation
+    logger.debug(f"Querying wallets: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
 
     service = WalletsService(db)
     try:
@@ -145,12 +145,12 @@ async def query_walletss_all(
             query_dict=query_dict,
             sort=sort
         )
-        logger.debug(f"Found {result['total']} walletss")
+        logger.debug(f"Found {result['total']} wallets")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying walletss: {str(e)}", exc_info=True)
+        logger.error(f"Error querying wallets: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -205,13 +205,13 @@ async def create_wallets(
 
 
 @router.post("/batch", response_model=List[WalletsResponse], status_code=201)
-async def create_walletss_batch(
+async def create_wallets_batch(
     request: WalletsBatchCreateRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create multiple walletss in a single request"""
-    logger.debug(f"Batch creating {len(request.items)} walletss")
+    """Create multiple wallets in a single request"""
+    logger.debug(f"Batch creating {len(request.items)} wallets")
     
     service = WalletsService(db)
     
@@ -220,7 +220,7 @@ async def create_walletss_batch(
             [item.model_dump() for item in request.items],
             user_id=str(current_user.id),
         )
-        logger.info(f"Batch created {len(results)} walletss successfully")
+        logger.info(f"Batch created {len(results)} wallets successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -229,13 +229,13 @@ async def create_walletss_batch(
 
 
 @router.put("/batch", response_model=List[WalletsResponse])
-async def update_walletss_batch(
+async def update_wallets_batch(
     request: WalletsBatchUpdateRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update multiple walletss in a single request (requires ownership)"""
-    logger.debug(f"Batch updating {len(request.items)} walletss")
+    """Update multiple wallets in a single request (requires ownership)"""
+    logger.debug(f"Batch updating {len(request.items)} wallets")
     
     service = WalletsService(db)
     results = []
@@ -248,7 +248,7 @@ async def update_walletss_batch(
             if result:
                 results.append(result)
         
-        logger.info(f"Batch updated {len(results)} walletss successfully")
+        logger.info(f"Batch updated {len(results)} wallets successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -288,25 +288,19 @@ async def update_wallets(
 
 
 @router.delete("/batch")
-async def delete_walletss_batch(
+async def delete_wallets_batch(
     request: WalletsBatchDeleteRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete multiple walletss by their IDs (requires ownership)"""
-    logger.debug(f"Batch deleting {len(request.ids)} walletss")
+    """Delete multiple wallets by their IDs (requires ownership)"""
+    logger.debug(f"Batch deleting {len(request.ids)} wallets")
     
     service = WalletsService(db)
-    deleted_count = 0
-    
     try:
-        for item_id in request.ids:
-            success = await service.delete(item_id, user_id=str(current_user.id))
-            if success:
-                deleted_count += 1
-        
-        logger.info(f"Batch deleted {deleted_count} walletss successfully")
-        return {"message": f"Successfully deleted {deleted_count} walletss", "deleted_count": deleted_count}
+        deleted_count = await service.batch_delete(request.ids, user_id=str(current_user.id))
+        logger.info(f"Batch deleted {deleted_count} wallets successfully")
+        return {"message": f"Successfully deleted {deleted_count} wallets", "deleted_count": deleted_count}
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
