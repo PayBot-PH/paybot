@@ -261,7 +261,7 @@ export default function ScanQRPH() {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
-                    className="h-20 flex-col gap-2 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                    className="h-20 flex-col gap-2 border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white"
                     onClick={startCamera}
                   >
                     <Camera className="h-6 w-6 text-blue-400" />
@@ -269,7 +269,7 @@ export default function ScanQRPH() {
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-20 flex-col gap-2 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                    className="h-20 flex-col gap-2 border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white"
                     onClick={() => { setMode('upload'); fileRef.current?.click(); }}
                   >
                     <Upload className="h-6 w-6 text-purple-400" />
@@ -323,7 +323,7 @@ export default function ScanQRPH() {
                   <CheckCircle className="h-4 w-4 text-emerald-400" />
                   Step 2 — Review &amp; Pay
                 </span>
-                <Button size="sm" variant="ghost" className="text-slate-400 hover:text-white" onClick={reset}>
+                <Button size="sm" variant="ghost" className="text-slate-300 hover:text-white" onClick={reset}>
                   <RefreshCw className="h-3.5 w-3.5 mr-1" /> Rescan
                 </Button>
               </CardTitle>
@@ -408,7 +408,7 @@ export default function ScanQRPH() {
                   <CheckCircle className="h-4 w-4 text-emerald-400" />
                   Payment Recorded
                 </span>
-                <Button size="sm" variant="ghost" className="text-slate-400 hover:text-white" onClick={reset}>
+                <Button size="sm" variant="ghost" className="text-slate-300 hover:text-white" onClick={reset}>
                   <RefreshCw className="h-3.5 w-3.5 mr-1" /> New Scan
                 </Button>
               </CardTitle>
