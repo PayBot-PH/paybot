@@ -34,7 +34,7 @@ class Settings(BaseSettings):
         SQLAlchemy 2.0 can parse it without errors."""
         # Only switch to the public URL when running OUTSIDE Railway (local dev).
         # Inside Railway containers, the .railway.internal hostname is reachable directly.
-        is_on_railway = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID"))
+        is_on_railway = bool(self.railway_environment or self.railway_project_id)
         if "railway.internal" in self.database_url and not is_on_railway:
             public = os.environ.get("DATABASE_PUBLIC_URL", "")
             if public:
@@ -58,6 +58,13 @@ class Settings(BaseSettings):
                 )
                 self.database_url = public
         return self
+
+    # Deployment platform detection (auto-set by each platform)
+    railway_environment: str = ""   # set by Railway (e.g. "production")
+    railway_project_id: str = ""    # set by Railway
+    railway_public_domain: str = "" # set by Railway for the public HTTPS URL
+    render: str = ""                # set by Render (e.g. "true")
+    environment: str = "production" # general application environment flag
 
     # AWS Lambda Configuration
     is_lambda: bool = False
@@ -88,6 +95,13 @@ class Settings(BaseSettings):
     # payMethod strings – adjust based on account type (e.g. "Alipay", "WeChat")
     photonpay_alipay_method: str = "Alipay"
     photonpay_wechat_method: str = "WeChat"
+    photonpay_mode: str = "sandbox"  # "sandbox" or "live"
+
+    # TransFi Checkout API
+    transfi_api_key: str = ""
+    transfi_mode: str = "production"   # "sandbox" or "production"
+    transfi_webhook_secret: str = ""
+    transfi_base_url: str = ""         # override base URL (leave empty for default)
 
     # Simple admin authentication
     admin_user_id: str = "admin"
@@ -135,9 +149,8 @@ class Settings(BaseSettings):
             if explicit_url:
                 return explicit_url
             # 2. Railway auto-provided public domain (set automatically by Railway)
-            railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
-            if railway_domain:
-                return f"https://{railway_domain}"
+            if self.railway_public_domain:
+                return f"https://{self.railway_public_domain}"
             # 3. Render auto-provided public URL (set automatically by Render)
             render_external_url = os.environ.get("RENDER_EXTERNAL_URL", "")
             if render_external_url:
