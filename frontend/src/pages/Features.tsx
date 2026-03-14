@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import ComplianceBar from '@/components/ComplianceBar';
+import AppFooter from '@/components/AppFooter';
 import {
   Bot,
   BarChart3,
@@ -29,6 +29,9 @@ import {
   Play,
   ChevronLeft,
   X,
+  Terminal,
+  Layers,
+  BadgeCheck,
 } from 'lucide-react';
 import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
 
@@ -117,12 +120,70 @@ function TransactionsMockup() {
   );
 }
 
+/**
+ * screenshots[] — each entry may optionally provide an `image` path
+ * (relative to /public, e.g. "/screenshots/telegram.png").
+ * When an image is present it is rendered as a <img>; otherwise the
+ * code-generated mockup component is used as a fallback.
+ */
 const screenshots = [
-  { id: 'telegram', label: 'Telegram Bot', badge: 'bg-blue-500/10 text-blue-300 border-blue-500/20', component: 'telegram', caption: '22 bot commands · instant payment notifications' },
-  { id: 'dashboard', label: 'Admin Dashboard', badge: 'bg-purple-500/10 text-purple-300 border-purple-500/20', component: 'dashboard', caption: '9 pages · real-time updates · mobile-friendly' },
-  { id: 'payments', label: 'Payments Hub', badge: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20', component: 'payments', caption: '7 payment methods · invoice, QR, VA, e-wallet & more' },
-  { id: 'transactions', label: 'Transactions', badge: 'bg-rose-500/10 text-rose-300 border-rose-500/20', component: 'transactions', caption: 'Full searchable & filterable transaction history' },
+  {
+    id: 'telegram',
+    label: 'Telegram Bot',
+    badge: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
+    caption: '22 bot commands · instant payment notifications',
+    image: '/screenshots/telegram.png',
+  },
+  {
+    id: 'dashboard',
+    label: 'Admin Dashboard',
+    badge: 'bg-purple-500/10 text-purple-300 border-purple-500/20',
+    caption: '9 pages · real-time updates · mobile-friendly',
+    image: '/screenshots/dashboard.png',
+  },
+  {
+    id: 'payments',
+    label: 'Payments Hub',
+    badge: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
+    caption: '7 payment methods · invoice, QR, VA, e-wallet & more',
+    image: '/screenshots/payments.png',
+  },
+  {
+    id: 'transactions',
+    label: 'Transactions',
+    badge: 'bg-rose-500/10 text-rose-300 border-rose-500/20',
+    caption: 'Full searchable & filterable transaction history',
+    image: '/screenshots/transactions.png',
+  },
 ];
+
+/** Renders the image when available, falls back to the code mockup. */
+function ScreenshotFrame({ id, image, caption }: { id: string; image?: string; caption: string }) {
+  const [imgOk, setImgOk] = useState(!!image);
+
+  const renderMockup = () => {
+    if (id === 'telegram') return <TelegramMockup />;
+    if (id === 'dashboard') return <DashboardMockup />;
+    if (id === 'payments') return <PaymentsHubMockup />;
+    return <TransactionsMockup />;
+  };
+
+  return (
+    <>
+      {imgOk && image ? (
+        <img
+          src={image}
+          alt={caption}
+          onError={() => setImgOk(false)}
+          className="w-full rounded-2xl border border-slate-600/30 shadow-2xl object-cover"
+          draggable={false}
+        />
+      ) : (
+        renderMockup()
+      )}
+    </>
+  );
+}
 
 function ScreenshotViewer() {
   const [active, setActive] = useState(0);
@@ -130,13 +191,6 @@ function ScreenshotViewer() {
 
   const prev = () => setActive((a) => (a - 1 + screenshots.length) % screenshots.length);
   const next = () => setActive((a) => (a + 1) % screenshots.length);
-
-  const renderMockup = (id: string) => {
-    if (id === 'telegram') return <TelegramMockup />;
-    if (id === 'dashboard') return <DashboardMockup />;
-    if (id === 'payments') return <PaymentsHubMockup />;
-    return <TransactionsMockup />;
-  };
 
   const current = screenshots[active];
 
@@ -183,7 +237,7 @@ function ScreenshotViewer() {
           <div className="absolute inset-0 rounded-2xl bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity z-10 flex items-center justify-center">
             <span className="text-white text-xs font-medium bg-black/50 px-3 py-1 rounded-full">Click to enlarge</span>
           </div>
-          {renderMockup(current.id)}
+          <ScreenshotFrame id={current.id} image={current.image} caption={current.caption} />
         </div>
 
         <p className="text-slate-500 text-xs text-center mt-3">{current.caption}</p>
@@ -218,7 +272,11 @@ function ScreenshotViewer() {
             className="w-full max-w-xs"
             onClick={(e) => e.stopPropagation()}
           >
-            {renderMockup(screenshots[lightbox].id)}
+            <ScreenshotFrame
+              id={screenshots[lightbox].id}
+              image={screenshots[lightbox].image}
+              caption={screenshots[lightbox].caption}
+            />
             <p className="text-slate-400 text-xs text-center mt-3">{screenshots[lightbox].caption}</p>
           </div>
         </div>
@@ -323,6 +381,25 @@ function FeatureCard({ icon, title, description, color }: { icon: React.ReactNod
   );
 }
 
+/** Payment logo pill — hides itself gracefully if the logo image fails to load. */
+function LogoPill({ src, label, bg }: { src: string; label: string; bg: string }) {
+  const [visible, setVisible] = useState(true);
+  if (!visible) return null;
+  return (
+    <div className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border ${bg} bg-slate-800/40`}>
+      <img src={src} alt={label} className="h-5 w-auto" onError={() => setVisible(false)} />
+      <span className="text-slate-300 text-xs font-medium">{label}</span>
+    </div>
+  );
+}
+
+/**
+ * Set DEMO_YOUTUBE_ID to a YouTube video ID (e.g. "dQw4w9WgXcQ") to embed
+ * a YouTube video in the Demo section instead of the local /demo.mp4 file.
+ * Leave as empty string to use the local video file with the placeholder fallback.
+ */
+const DEMO_YOUTUBE_ID = '';
+
 export default function Features() {
   const botFeatures = [
     { icon: <Receipt className="h-4 w-4 text-blue-400" />, title: 'Invoice & Payment Links', description: 'Generate invoices and shareable payment links instantly with a single command.', color: 'bg-blue-500/10' },
@@ -359,16 +436,20 @@ export default function Features() {
       {/* Nav */}
       <header className="sticky top-0 z-50 bg-[#0A0F1E]/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <Link to="/login" className="flex items-center gap-2.5">
             <div className="h-8 w-8 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Bot className="h-4.5 w-4.5 text-white" />
+              <Bot className="h-4 w-4 text-white" />
             </div>
             <div>
               <span className="font-bold text-white text-sm">{APP_NAME}</span>
-            <span className="text-slate-500 text-xs ml-1.5">by {COMPANY_NAME}</span>
+              <span className="text-slate-500 text-xs ml-1.5">by {COMPANY_NAME}</span>
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-2">
+            <Link to="/features"
+              className="hidden sm:flex items-center gap-1.5 text-white text-sm font-medium transition-colors px-3 py-1.5 rounded-lg bg-white/5">
+              Features
+            </Link>
             <Link to="/pricing"
               className="hidden sm:flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5">
               Pricing
@@ -401,15 +482,49 @@ export default function Features() {
           {APP_NAME} lets you accept payments,
           manage your wallet, send disbursements, and generate QR codes — all through simple bot commands or a sleek admin dashboard.
         </p>
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <div className="flex flex-col sm:flex-row gap-3 justify-center mb-16">
           <Link to="/login"
             className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold px-7 py-3.5 rounded-xl transition-all shadow-xl shadow-blue-500/25 text-sm">
             Access Admin Dashboard <ArrowRight className="h-4 w-4" />
           </Link>
-          <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer"
+          <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white font-semibold px-7 py-3.5 rounded-xl transition-all text-sm">
             <MessageCircle className="h-4 w-4 text-sky-400" /> Contact Support
           </a>
+        </div>
+
+        {/* How it works – 3-step flow */}
+        <div className="grid sm:grid-cols-3 gap-4 max-w-3xl mx-auto text-left">
+          {[
+            {
+              step: '01',
+              icon: <Bot className="h-5 w-5 text-blue-400" />,
+              title: 'Connect the Bot',
+              desc: `Add ${APP_NAME} to your Telegram and get authorized by an admin in seconds.`,
+              color: 'from-blue-600/20 to-blue-600/5 border-blue-600/20',
+            },
+            {
+              step: '02',
+              icon: <Terminal className="h-5 w-5 text-sky-400" />,
+              title: 'Send a Command',
+              desc: 'Type /invoice, /qr, /balance, or any of 22 commands to trigger a payment flow.',
+              color: 'from-sky-600/20 to-sky-600/5 border-sky-600/20',
+            },
+            {
+              step: '03',
+              icon: <BadgeCheck className="h-5 w-5 text-emerald-400" />,
+              title: 'Get Paid',
+              desc: 'Your customer pays via QR, e-wallet, or bank transfer. You get notified instantly.',
+              color: 'from-emerald-600/20 to-emerald-600/5 border-emerald-600/20',
+            },
+          ].map(({ step, icon, title, desc, color }) => (
+            <div key={step} className={`relative rounded-2xl bg-gradient-to-b ${color} border p-5`}>
+              <span className="absolute top-4 right-4 text-[10px] font-bold text-slate-600 tracking-widest">{step}</span>
+              <div className="p-2 rounded-lg bg-white/5 w-fit mb-3">{icon}</div>
+              <p className="text-white font-semibold text-sm mb-1">{title}</p>
+              <p className="text-slate-400 text-xs leading-relaxed">{desc}</p>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -440,59 +555,128 @@ export default function Features() {
         </div>
         <div className="max-w-3xl mx-auto">
           <div className="relative rounded-2xl overflow-hidden border border-slate-600/30 shadow-2xl bg-[#0F172A] aspect-video flex items-center justify-center group">
-            {/* Autoplay demo video */}
-            <video
-              autoPlay
-              muted
-              loop
-              playsInline
-              aria-label={`${APP_NAME} demonstration video`}
-              onCanPlay={() => setVideoLoaded(true)}
-              onError={() => setVideoLoaded(false)}
-              className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
-              src="/demo.mp4"
-            />
-            {/* Fallback placeholder shown while video is loading or unavailable */}
-            {!videoLoaded && (
+            {/* YouTube embed (when DEMO_YOUTUBE_ID is set) */}
+            {DEMO_YOUTUBE_ID ? (
+              <iframe
+                src={`https://www.youtube-nocookie.com/embed/${DEMO_YOUTUBE_ID}?rel=0&modestbranding=1`}
+                title={`${APP_NAME} demo video`}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="absolute inset-0 w-full h-full"
+              />
+            ) : (
               <>
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-[#0F172A] to-slate-900" />
-                {/* Grid lines for depth */}
-                <div className="absolute inset-0 opacity-10"
-                  style={{
-                    backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
-                    backgroundSize: '40px 40px',
-                  }}
+                {/* Local video file */}
+                <video
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  aria-label={`${APP_NAME} demonstration video`}
+                  onCanPlay={() => setVideoLoaded(true)}
+                  onError={() => setVideoLoaded(false)}
+                  className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${videoLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  src="/demo.mp4"
                 />
-                {/* Bot icon + text */}
-                <div className="relative flex flex-col items-center gap-4 text-center px-4">
-                  <div className="h-16 w-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/40">
-                    <Bot className="h-8 w-8 text-white" />
+                {/* Fallback placeholder shown while video is loading or unavailable */}
+                {!videoLoaded && (
+                  <>
+                    <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-[#0F172A] to-slate-900" />
+                    {/* Grid lines for depth */}
+                    <div className="absolute inset-0 opacity-10"
+                      style={{
+                        backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+                        backgroundSize: '40px 40px',
+                      }}
+                    />
+                    {/* Bot icon + text */}
+                    <div className="relative flex flex-col items-center gap-4 text-center px-4">
+                      <div className="h-16 w-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center shadow-2xl shadow-blue-500/40">
+                        <Bot className="h-8 w-8 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-white font-bold text-lg">{APP_NAME} Demo</p>
+                        <p className="text-slate-400 text-sm mt-1">Full walkthrough · Payments · Dashboard · Commands</p>
+                      </div>
+                      <a
+                        href={SUPPORT_URL}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm"
+                      >
+                        <MessageCircle className="h-4 w-4 text-sky-400" /> Request a Live Demo
+                      </a>
+                    </div>
+                  </>
+                )}
+                {/* Play button overlay (for local video) */}
+                {videoLoaded && (
+                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="h-20 w-20 rounded-full bg-blue-600/30 backdrop-blur-sm border border-blue-400/30 flex items-center justify-center">
+                      <Play className="h-8 w-8 text-white fill-white ml-1" />
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-white font-bold text-lg">{APP_NAME} Demo</p>
-                    <p className="text-slate-400 text-sm mt-1">Full walkthrough · Payments · Dashboard · Commands</p>
-                  </div>
-                  <a
-                    href={SUPPORT_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 text-white font-semibold px-6 py-2.5 rounded-xl transition-all text-sm"
-                  >
-                    <MessageCircle className="h-4 w-4 text-sky-400" /> Request a Live Demo
-                  </a>
-                </div>
+                )}
               </>
             )}
-            {/* Play button overlay */}
-            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              <div className="h-20 w-20 rounded-full bg-blue-600/30 backdrop-blur-sm border border-blue-400/30 flex items-center justify-center">
-                <Play className="h-8 w-8 text-white fill-white ml-1" />
-              </div>
-            </div>
           </div>
           <p className="text-slate-500 text-xs text-center mt-3">
-            Video demo coming soon · Contact <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" aria-label="Contact traxionpay on Telegram" className="text-sky-400 hover:text-sky-300 transition-colors">@traxionpay</a> for a live walkthrough
+            {DEMO_YOUTUBE_ID ? (
+              <>Embedded YouTube demo · Contact{' '}</>
+            ) : (
+              <>Video demo coming soon · Contact{' '}</>
+            )}
+            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" aria-label="Contact traxionpay on Telegram" className="text-sky-400 hover:text-sky-300 transition-colors">
+              @traxionpay
+            </a>{' '}
+            for a live walkthrough
           </p>
+        </div>
+      </section>
+
+      {/* Payment Methods */}
+      <section className="max-w-6xl mx-auto px-4 pb-20">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-1.5 text-emerald-300 text-xs font-semibold mb-4 uppercase tracking-wider">
+            <Layers className="h-3.5 w-3.5" /> Accepted Methods
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-white">Supports All Major PH Payment Channels</h2>
+          <p className="text-slate-400 mt-3 max-w-xl mx-auto">
+            From e-wallets to bank virtual accounts — collect payments the way your customers prefer.
+          </p>
+        </div>
+
+        {/* E-Wallets row */}
+        <div className="mb-6">
+          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider text-center mb-4">E-Wallets</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {[
+              { src: '/logos/gcash.svg', label: 'GCash', bg: 'bg-blue-500/10 border-blue-500/20' },
+              { src: '/logos/maya.svg', label: 'Maya', bg: 'bg-green-500/10 border-green-500/20' },
+              { src: '/logos/grab.svg', label: 'GrabPay', bg: 'bg-green-600/10 border-green-600/20' },
+              { src: '/logos/alipay.svg', label: 'Alipay', bg: 'bg-sky-500/10 border-sky-500/20' },
+              { src: '/logos/wechat.svg', label: 'WeChat Pay', bg: 'bg-emerald-500/10 border-emerald-500/20' },
+            ].map(({ src, label, bg }) => (
+              <LogoPill key={label} src={src} label={label} bg={bg} />
+            ))}
+          </div>
+        </div>
+
+        {/* Banks row */}
+        <div>
+          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider text-center mb-4">Virtual Accounts (Bank Transfer)</p>
+          <div className="flex flex-wrap justify-center gap-3">
+            {[
+              { src: '/logos/bdo.svg', label: 'BDO', bg: 'bg-blue-700/10 border-blue-700/20' },
+              { src: '/logos/bpi.svg', label: 'BPI', bg: 'bg-red-500/10 border-red-500/20' },
+              { src: '/logos/unionbank.svg', label: 'UnionBank', bg: 'bg-orange-500/10 border-orange-500/20' },
+              { src: '/logos/rcbc.svg', label: 'RCBC', bg: 'bg-yellow-600/10 border-yellow-600/20' },
+              { src: '/logos/metrobank.svg', label: 'Metrobank', bg: 'bg-blue-800/10 border-blue-800/20' },
+              { src: '/logos/psbank.svg', label: 'PSBank', bg: 'bg-slate-500/10 border-slate-500/20' },
+            ].map(({ src, label, bg }) => (
+              <LogoPill key={label} src={src} label={label} bg={bg} />
+            ))}
+          </div>
         </div>
       </section>
 
@@ -527,6 +711,33 @@ export default function Features() {
             22 commands covering the full payment lifecycle — no app install required.
           </p>
         </div>
+
+        {/* Command quick-reference */}
+        <div className="mb-10 rounded-2xl bg-slate-900/60 border border-slate-700/40 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-800/60 border-b border-slate-700/40">
+            <Terminal className="h-3.5 w-3.5 text-slate-400" />
+            <span className="text-slate-400 text-xs font-medium">Common Commands</span>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-slate-700/30">
+            {[
+              { cmd: '/invoice', desc: 'Create a payment invoice', color: 'text-blue-400' },
+              { cmd: '/qr', desc: 'Generate a QR code payment', color: 'text-purple-400' },
+              { cmd: '/alipay', desc: 'Alipay / WeChat QR payment', color: 'text-red-400' },
+              { cmd: '/paylink', desc: 'Generate a payment link', color: 'text-cyan-400' },
+              { cmd: '/va', desc: 'Create a virtual bank account', color: 'text-amber-400' },
+              { cmd: '/balance', desc: 'Check your wallet balance', color: 'text-emerald-400' },
+              { cmd: '/disburse', desc: 'Send money to a bank account', color: 'text-orange-400' },
+              { cmd: '/refund', desc: 'Refund a transaction', color: 'text-rose-400' },
+              { cmd: '/transactions', desc: 'View recent transactions', color: 'text-slate-300' },
+            ].map(({ cmd, desc, color }) => (
+              <div key={cmd} className="flex items-center gap-3 px-4 py-3">
+                <code className={`text-xs font-mono font-bold ${color} shrink-0`}>{cmd}</code>
+                <span className="text-slate-500 text-xs">{desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {botFeatures.map((f) => <FeatureCard key={f.title} {...f} />)}
         </div>
@@ -566,7 +777,7 @@ export default function Features() {
             </Link>
             <p className="mt-5 text-slate-500 text-sm">
               Need access?{' '}
-              <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 transition-colors">
+              <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 transition-colors">
                 Contact @traxionpay
               </a>
             </p>
@@ -575,14 +786,7 @@ export default function Features() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/5 py-8 text-center text-slate-500 text-xs space-x-4">
-        <span>© {new Date().getFullYear()} DRL Solutions. All rights reserved.</span>
-        <Link to="/pricing" className="hover:text-sky-400 transition-colors">Pricing</Link>
-        <Link to="/policies" className="hover:text-sky-400 transition-colors">Policies</Link>
-        <a href="https://t.me/traxionpay" target="_blank" rel="noopener noreferrer" className="hover:text-sky-400 transition-colors">Support</a>
-      </footer>
-
-      <ComplianceBar />
+      <AppFooter />
 
     </div>
   );

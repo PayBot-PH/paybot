@@ -1,9 +1,10 @@
 """Tests for PayBot — bot command handlers, health endpoints, and core API flows."""
+import asyncio
 import os
-import copy
 import hashlib
 import hmac
 import time
+from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:////tmp/test_paybot_{os.getpid()}.db")
@@ -13,6 +14,7 @@ os.environ.setdefault("TELEGRAM_ADMIN_IDS", "123456789")
 
 from fastapi.testclient import TestClient
 from main import app  # noqa: E402
+from services.xendit_service import XenditService  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -601,6 +603,172 @@ class TestTelegramWebhook:
 
 
 # ---------------------------------------------------------------------------
+# /scanqr wizard (photo upload flow)
+# ---------------------------------------------------------------------------
+def _photo_webhook_body(
+    chat_id: int = 99999,
+    username: str = "testuser",
+    caption: str = "",
+    file_id: str = "fake_file_id",
+) -> dict:
+    """Build a webhook body that simulates a user uploading a photo."""
+    return {
+        "message": {
+            "chat": {"id": chat_id},
+            "caption": caption,
+            "from": {"username": username},
+            "message_id": 2,
+            "photo": [
+                {"file_id": f"{file_id}_small", "file_unique_id": "s1", "width": 90,  "height": 90},
+                {"file_id": file_id,             "file_unique_id": "s2", "width": 800, "height": 800},
+            ],
+        }
+    }
+
+
+class TestScanQrWizard:
+    """Tests for the /scanqr wizard that asks for amount then a QR photo."""
+
+    # Must be a recognized admin ID so the webhook routes through the admin path
+    CHAT_ID = 123456789
+
+    def _body(self, text: str) -> dict:
+        return _webhook_body(text, chat_id=self.CHAT_ID)
+
+    def _photo_body(self, file_id: str = "fake_file_id") -> dict:
+        return _photo_webhook_body(chat_id=self.CHAT_ID, file_id=file_id)
+
+    def test_scanqr_command_starts_wizard(self, client):
+        """/scanqr should prompt the user for an amount (wizard step 1)."""
+        # Clear any existing wizard state for this chat
+        from routers.telegram import _pending
+        _pending.pop(str(self.CHAT_ID), None)
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("/scanqr"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Wizard state should now be set for this chat
+        assert str(self.CHAT_ID) in _pending
+        assert _pending[str(self.CHAT_ID)]["cmd"] == "/scanqr"
+        assert _pending[str(self.CHAT_ID)]["step"] == 0
+
+    def test_scanqr_wizard_invalid_amount(self, client):
+        """Sending a non-numeric amount should keep the wizard at step 0."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {"cmd": "/scanqr", "step": 0, "data": {}}
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("notanumber"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Should still be at step 0 (amount not accepted)
+        assert _pending.get(str(self.CHAT_ID), {}).get("step") == 0
+
+    def test_scanqr_wizard_negative_amount(self, client):
+        """A negative amount should be rejected and wizard stays at step 0."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {"cmd": "/scanqr", "step": 0, "data": {}}
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("-500"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        assert _pending.get(str(self.CHAT_ID), {}).get("step") == 0
+
+    def test_scanqr_wizard_valid_amount_advances_to_photo_step(self, client):
+        """Entering a valid amount should advance wizard to step 1 (photo)."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {"cmd": "/scanqr", "step": 0, "data": {}}
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("500"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Should now be at step 1 (photo step), still in _pending
+        assert _pending.get(str(self.CHAT_ID), {}).get("step") == 1
+        assert _pending.get(str(self.CHAT_ID), {}).get("data", {}).get("amount") == "500.0"
+
+    def test_scanqr_wizard_text_on_photo_step_rejected(self, client):
+        """Sending plain text instead of a photo when a photo is expected should prompt again."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {
+            "cmd": "/scanqr", "step": 1, "data": {"amount": "500.0"},
+        }
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("some text instead of photo"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Should still be at step 1 (photo not provided)
+        assert _pending.get(str(self.CHAT_ID), {}).get("step") == 1
+
+    def test_scanqr_wizard_photo_with_no_qr_rejected(self, client):
+        """Uploading a photo with no decodable QR should prompt again."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {
+            "cmd": "/scanqr", "step": 1, "data": {"amount": "500.0"},
+        }
+
+        # Mock _decode_qr_from_telegram_photo to return None (no QR found)
+        with patch("routers.telegram._decode_qr_from_telegram_photo", new=AsyncMock(return_value=None)):
+            r = client.post("/api/v1/telegram/webhook", json=self._photo_body())
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Still waiting for a valid QR photo
+        assert _pending.get(str(self.CHAT_ID), {}).get("step") == 1
+
+    def test_scanqr_wizard_valid_photo_completes_payment(self, client):
+        """Uploading a photo with a valid QR code should complete the wizard and record payment."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {
+            "cmd": "/scanqr", "step": 1, "data": {"amount": "250.0"},
+        }
+
+        sample_qr = "5303608591255555559999996011MANILA CITY"
+
+        with patch(
+            "routers.telegram._decode_qr_from_telegram_photo",
+            new=AsyncMock(return_value=sample_qr),
+        ):
+            r = client.post("/api/v1/telegram/webhook", json=self._photo_body())
+
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        # Wizard state should be cleared after successful completion
+        assert str(self.CHAT_ID) not in _pending
+
+    def test_scanqr_wizard_cancel_clears_state(self, client):
+        """/cancel during the wizard should clear wizard state."""
+        from routers.telegram import _pending
+        _pending[str(self.CHAT_ID)] = {"cmd": "/scanqr", "step": 1, "data": {"amount": "500.0"}}
+
+        r = client.post("/api/v1/telegram/webhook", json=self._body("/cancel"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+        assert str(self.CHAT_ID) not in _pending
+
+
+# ---------------------------------------------------------------------------
+# Helper: _parse_tlv
+# ---------------------------------------------------------------------------
+class TestParseTlv:
+    def test_parse_basic_fields(self):
+        from routers.telegram import _parse_tlv
+        # Hand-crafted TLV: tag 59 (merchant name) and tag 60 (city) and tag 53 (currency)
+        sample = "5905STORE6006MANILA5303608"
+        result = _parse_tlv(sample)
+        assert result.get("59") == "STORE"
+        assert result.get("60") == "MANILA"
+        assert result.get("53") == "608"
+
+    def test_parse_empty_string(self):
+        from routers.telegram import _parse_tlv
+        assert _parse_tlv("") == {}
+
+    def test_parse_invalid_length(self):
+        from routers.telegram import _parse_tlv
+        # Should stop gracefully on malformed input and return empty dict
+        result = _parse_tlv("00ZZBAD")
+        assert result == {}
+
+
+# ---------------------------------------------------------------------------
 # USDT TRC20 static QR image
 # ---------------------------------------------------------------------------
 class TestUsdtQrImage:
@@ -637,8 +805,136 @@ class TestXenditWebhook:
 
 
 # ---------------------------------------------------------------------------
-# Events / simulate
+# Xendit e-wallet channel_properties
 # ---------------------------------------------------------------------------
+class TestXenditEwalletChannelProperties:
+    """Verify that create_ewallet_charge always sends required channel_properties."""
+
+    def test_gcash_charge_includes_success_redirect_url(self):
+        """PH_GCASH requires success_redirect_url in channel_properties (API_VALIDATION_ERROR fix)."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": "ewc-test-123",
+            "status": "PENDING",
+            "actions": {"desktop_web_checkout_url": "https://gcash.example.com/pay"},
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        captured_payload: dict = {}
+
+        async def mock_post(url, **kwargs):
+            captured_payload.update(kwargs.get("json", {}))
+            return mock_response
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = mock_post
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            svc = XenditService()
+            svc.secret_key = "test-key"
+            result = asyncio.get_event_loop().run_until_complete(
+                svc.create_ewallet_charge(amount=100, channel_code="PH_GCASH")
+            )
+
+        assert result["success"] is True
+        props = captured_payload.get("channel_properties", {})
+        assert "success_redirect_url" in props, (
+            "PH_GCASH channel_properties must include success_redirect_url"
+        )
+        assert props["success_redirect_url"], "success_redirect_url must not be empty"
+
+    def test_custom_redirect_url_is_used(self):
+        """Caller-supplied success_redirect_url takes precedence over the default."""
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"id": "ewc-test-456", "status": "PENDING", "actions": {}}
+        mock_response.raise_for_status = MagicMock()
+
+        captured_payload: dict = {}
+
+        async def mock_post(url, **kwargs):
+            captured_payload.update(kwargs.get("json", {}))
+            return mock_response
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = mock_post
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            svc = XenditService()
+            svc.secret_key = "test-key"
+            result = asyncio.get_event_loop().run_until_complete(
+                svc.create_ewallet_charge(
+                    amount=200,
+                    channel_code="PH_GRABPAY",
+                    success_redirect_url="https://myapp.com/success",
+                    failure_redirect_url="https://myapp.com/failed",
+                )
+            )
+
+        assert result["success"] is True
+        props = captured_payload.get("channel_properties", {})
+        assert props["success_redirect_url"] == "https://myapp.com/success"
+        assert props["failure_redirect_url"] == "https://myapp.com/failed"
+
+
+# ---------------------------------------------------------------------------
+# Xendit QR code payload validation
+# ---------------------------------------------------------------------------
+class TestXenditQrCodePayload:
+    """Verify that create_qr_code sends required fields (external_id + callback_url)."""
+
+    def _run(self, coro):
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+    def _make_mock_client(self, captured: dict):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "id": "qr-test-123",
+            "qr_string": "00020101...",
+            "status": "ACTIVE",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        async def mock_post(url, **kwargs):
+            captured.update(kwargs.get("json", {}))
+            return mock_response
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = mock_post
+        return mock_client
+
+    def test_qr_code_sends_external_id(self):
+        """Xendit /qr_codes requires external_id (not reference_id)."""
+        captured: dict = {}
+        mock_client = self._make_mock_client(captured)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            svc = XenditService()
+            svc.secret_key = "test-key"
+            result = self._run(svc.create_qr_code(amount=500, description="Test"))
+
+        assert result["success"] is True
+        assert "external_id" in captured, "Payload must contain external_id"
+        assert "reference_id" not in captured, "Payload must not contain reference_id"
+
+    def test_qr_code_sends_callback_url(self):
+        """Xendit /qr_codes requires callback_url in the request body."""
+        captured: dict = {}
+        mock_client = self._make_mock_client(captured)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            svc = XenditService()
+            svc.secret_key = "test-key"
+            result = self._run(svc.create_qr_code(amount=500))
+
+        assert result["success"] is True
+        assert "callback_url" in captured, "Payload must contain callback_url"
+        assert captured["callback_url"], "callback_url must not be empty"
 class TestEvents:
     def test_simulate_requires_auth(self, client):
         r = client.post(
@@ -748,6 +1044,154 @@ class TestDemoData:
         assert data["paid_count"] >= 5
         assert data["pending_count"] >= 1
         assert data["expired_count"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# Performance optimizations
+# ---------------------------------------------------------------------------
+class TestBatchCreateOptimization:
+    """Verify that batch create endpoints use a single DB transaction (bulk_create)."""
+
+    def test_batch_create_customers(self, client, auth_headers):
+        """POST /batch should create multiple customers atomically."""
+        payload = {
+            "items": [
+                {"name": "Batch Customer A", "email": "a@test.com"},
+                {"name": "Batch Customer B", "email": "b@test.com"},
+            ]
+        }
+        r = client.post("/api/v1/entities/customers/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+        names = {d["name"] for d in data}
+        assert names == {"Batch Customer A", "Batch Customer B"}
+
+    def test_batch_create_transactions(self, client, auth_headers):
+        """POST /batch should create multiple transactions atomically."""
+        payload = {
+            "items": [
+                {
+                    "transaction_type": "invoice",
+                    "amount": 100.0,
+                    "status": "pending",
+                    "currency": "PHP",
+                },
+                {
+                    "transaction_type": "invoice",
+                    "amount": 200.0,
+                    "status": "pending",
+                    "currency": "PHP",
+                },
+            ]
+        }
+        r = client.post("/api/v1/entities/transactions/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+        amounts = sorted(d["amount"] for d in data)
+        assert amounts == [100.0, 200.0]
+
+    def test_batch_create_empty(self, client, auth_headers):
+        """POST /batch with an empty list should return an empty list."""
+        r = client.post(
+            "/api/v1/entities/customers/batch",
+            json={"items": []},
+            headers=auth_headers,
+        )
+        assert r.status_code == 201
+        assert r.json() == []
+
+    def test_batch_create_disbursements(self, client, auth_headers):
+        """POST /batch should create multiple disbursements atomically."""
+        payload = {
+            "items": [
+                {"amount": 500.0, "currency": "PHP", "bank_code": "BDO"},
+                {"amount": 750.0, "currency": "PHP", "bank_code": "BPI"},
+            ]
+        }
+        r = client.post("/api/v1/entities/disbursements/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+        amounts = sorted(d["amount"] for d in data)
+        assert amounts == [500.0, 750.0]
+
+    def test_batch_create_refunds(self, client, auth_headers):
+        """POST /batch should create multiple refunds atomically."""
+        payload = {
+            "items": [
+                {"amount": 50.0, "reason": "test refund 1"},
+                {"amount": 75.0, "reason": "test refund 2"},
+            ]
+        }
+        r = client.post("/api/v1/entities/refunds/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+
+    def test_batch_create_subscriptions(self, client, auth_headers):
+        """POST /batch should create multiple subscriptions atomically."""
+        payload = {
+            "items": [
+                {"plan_name": "Basic", "amount": 299.0, "currency": "PHP"},
+                {"plan_name": "Pro", "amount": 599.0, "currency": "PHP"},
+            ]
+        }
+        r = client.post("/api/v1/entities/subscriptions/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+        plan_names = {d["plan_name"] for d in data}
+        assert plan_names == {"Basic", "Pro"}
+
+    def test_batch_create_bot_logs(self, client, auth_headers):
+        """POST /batch should create multiple bot_logs atomically."""
+        payload = {
+            "items": [
+                {"log_type": "info", "message": "batch log 1"},
+                {"log_type": "info", "message": "batch log 2"},
+            ]
+        }
+        r = client.post("/api/v1/entities/bot_logs/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+
+    def test_batch_create_api_configs(self, client, auth_headers):
+        """POST /batch should create multiple api_configs atomically."""
+        payload = {
+            "items": [
+                {
+                    "config_key": "batch_key_1",
+                    "config_value": "val1",
+                    "service_name": "xendit",
+                },
+                {
+                    "config_key": "batch_key_2",
+                    "config_value": "val2",
+                    "service_name": "xendit",
+                },
+            ]
+        }
+        r = client.post("/api/v1/entities/api_configs/batch", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        data = r.json()
+        assert len(data) == 2
+
+
+class TestUsdBalanceOptimization:
+    """Verify USD balance is computed correctly with the single-query optimization."""
+
+    def test_usd_balance_endpoint_accessible(self, client, auth_headers):
+        """GET /wallet/balance?currency=USD should return a valid response."""
+        r = client.get("/api/v1/wallet/balance", params={"currency": "USD"}, headers=auth_headers)
+        assert r.status_code == 200
+        data = r.json()
+        assert "balance" in data
+        assert "currency" in data
+        assert data["currency"] == "USD"
+        assert isinstance(data["balance"], float)
 
 
 # ---------------------------------------------------------------------------
@@ -930,3 +1374,173 @@ class TestKybAccessControl:
         assert admin.is_active is True
         assert admin.is_super_admin is False  # KYB users are regular admins, not super admin
 
+
+
+# ---------------------------------------------------------------------------
+# USDT→PHP conversion: exchange rate endpoint and topup approval
+# ---------------------------------------------------------------------------
+class TestUsdtPhpConversion:
+    def test_rate_endpoint_returns_default(self, client):
+        """GET /api/v1/app-settings/usdt-php-rate returns a positive rate."""
+        r = client.get("/api/v1/app-settings/usdt-php-rate")
+        assert r.status_code == 200
+        data = r.json()
+        assert "rate" in data
+        assert data["rate"] > 0
+
+    def test_rate_update_requires_auth(self, client):
+        """PUT /api/v1/app-settings/usdt-php-rate requires authentication."""
+        r = client.put("/api/v1/app-settings/usdt-php-rate", json={"rate": 62.0})
+        assert r.status_code in (401, 403)
+
+    def test_rate_update_as_super_admin(self, client, auth_headers):
+        """Super admin can update the USDT→PHP rate."""
+        r = client.put(
+            "/api/v1/app-settings/usdt-php-rate",
+            json={"rate": 60.5},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["rate"] == pytest.approx(60.5)
+
+        # Verify it persisted
+        r2 = client.get("/api/v1/app-settings/usdt-php-rate")
+        assert r2.json()["rate"] == pytest.approx(60.5)
+
+    def test_rate_invalid_zero_rejected(self, client, auth_headers):
+        """Rate of zero or negative is rejected."""
+        r = client.put(
+            "/api/v1/app-settings/usdt-php-rate",
+            json={"rate": 0},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
+
+    def test_topup_rate_endpoint(self, client):
+        """GET /api/v1/topup/rate returns the current USDT→PHP rate."""
+        r = client.get("/api/v1/topup/rate")
+        assert r.status_code == 200
+        assert "usdt_php_rate" in r.json()
+        assert r.json()["usdt_php_rate"] > 0
+
+    def test_topup_approve_credits_php_wallet(self, client, auth_headers):
+        """Approving a topup request credits the PHP wallet at the configured rate."""
+        import asyncio
+        from core.database import db_manager
+        from sqlalchemy import select
+        from models.topup_requests import TopupRequest
+        from models.wallets import Wallets
+        from models.wallet_transactions import Wallet_transactions
+        from datetime import datetime
+
+        chat_id = "999001"
+        amount_usdt = 10.0
+
+        # Set a known exchange rate
+        client.put(
+            "/api/v1/app-settings/usdt-php-rate",
+            json={"rate": 60.0},
+            headers=auth_headers,
+        )
+
+        # Seed a pending topup request
+        async def seed_request():
+            async with db_manager.async_session_maker() as db:
+                req = TopupRequest(
+                    chat_id=chat_id,
+                    telegram_username="testuser",
+                    amount_usdt=amount_usdt,
+                    currency="PHP",
+                    status="pending",
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                )
+                db.add(req)
+                await db.commit()
+                await db.refresh(req)
+                return req.id
+
+        req_id = asyncio.get_event_loop().run_until_complete(seed_request())
+
+        # Approve the request
+        r = client.post(
+            f"/api/v1/topup/{req_id}/approve",
+            json={"note": "Test approval"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        data = r.json()
+        assert data["status"] == "approved"
+
+        # Verify PHP wallet was credited with converted amount (10 USDT × 60 = 600 PHP)
+        async def verify():
+            async with db_manager.async_session_maker() as db:
+                wallet_res = await db.execute(
+                    select(Wallets).where(
+                        Wallets.user_id == f"tg-{chat_id}",
+                        Wallets.currency == "PHP",
+                    )
+                )
+                wallet = wallet_res.scalar_one_or_none()
+
+                txn_res = await db.execute(
+                    select(Wallet_transactions).where(
+                        Wallet_transactions.reference_id == str(req_id),
+                        Wallet_transactions.user_id == f"tg-{chat_id}",
+                    )
+                )
+                txn = txn_res.scalar_one_or_none()
+                return wallet, txn
+
+        wallet, txn = asyncio.get_event_loop().run_until_complete(verify())
+
+        assert wallet is not None, "PHP wallet was not created"
+        assert wallet.currency == "PHP"
+        assert wallet.balance == pytest.approx(600.0, abs=0.01), "Expected 10 USDT × 60 = 600 PHP"
+
+        assert txn is not None, "Wallet transaction was not recorded"
+        assert txn.amount == pytest.approx(600.0, abs=0.01)
+        assert txn.transaction_type == "top_up"
+        assert txn.status == "completed"
+        # Note should include conversion info
+        assert "USDT" in txn.note or "PHP" in txn.note
+
+    def test_topup_approve_note_contains_conversion_info(self, client, auth_headers):
+        """The approval note on the request includes the conversion rate and PHP amount."""
+        import asyncio
+        from core.database import db_manager
+        from models.topup_requests import TopupRequest
+        from datetime import datetime
+
+        chat_id = "999002"
+
+        # Set rate
+        client.put(
+            "/api/v1/app-settings/usdt-php-rate",
+            json={"rate": 58.0},
+            headers=auth_headers,
+        )
+
+        async def seed():
+            async with db_manager.async_session_maker() as db:
+                req = TopupRequest(
+                    chat_id=chat_id,
+                    telegram_username="notetest",
+                    amount_usdt=5.0,
+                    currency="PHP",
+                    status="pending",
+                    created_at=datetime.now(),
+                    updated_at=datetime.now(),
+                )
+                db.add(req)
+                await db.commit()
+                await db.refresh(req)
+                return req.id
+
+        req_id = asyncio.get_event_loop().run_until_complete(seed())
+        r = client.post(f"/api/v1/topup/{req_id}/approve", json={}, headers=auth_headers)
+        assert r.status_code == 200
+        note = r.json().get("note", "")
+        # note should contain "USDT" and "PHP" conversion info
+        assert "PHP" in note or "USDT" in note

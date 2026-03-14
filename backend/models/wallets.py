@@ -5,7 +5,8 @@ from sqlalchemy import Column, DateTime, Float, Index, Integer, String
 class Wallets(Base):
     __tablename__ = "wallets"
     __table_args__ = (
-        Index("ix_wallets_user_id_currency", "user_id", "currency"),
+        # Composite index for the frequent (user_id, currency) lookup in get_or_create_wallet
+        Index("idx_wallets_user_currency", "user_id", "currency"),
         {"extend_existing": True},
     )
 

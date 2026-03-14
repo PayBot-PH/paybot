@@ -24,15 +24,13 @@ Webhook processing
   the top-up record as failed.
 
 Configure the webhook in the PayMongo dashboard:
-  URL    : https://paybot-backend-production-84b2.up.railway.app/api/v1/paymongo/webhook
+  URL    : https://<your-domain>/api/v1/paymongo/webhook
   Events : source.chargeable, checkout_session.payment.paid,
            checkout_session.payment.failed, payment.paid, payment.failed
 """
-import hashlib
-import hmac as _hmac
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
@@ -44,7 +42,6 @@ from core.database import get_db
 from dependencies.auth import get_current_user
 from models.paymongo_webhook_events import PaymongoWebhookEvent
 from models.transactions import Transactions
-from models.wallet_topups import WalletTopup
 from models.wallet_transactions import Wallet_transactions
 from models.wallets import Wallets
 from schemas.auth import UserResponse
@@ -58,19 +55,10 @@ router = APIRouter(prefix="/api/v1/paymongo", tags=["paymongo"])
 
 # ---------- Schemas ----------
 
-class TopupRequest(BaseModel):
-    amount: float
-    description: str = "Wallet Top Up"
-    payment_method: str = "checkout"  # "checkout" | "alipay" | "wechat"
-    success_url: Optional[str] = None
-    cancel_url: Optional[str] = None
-    customer_email: Optional[str] = None
-    customer_name: Optional[str] = None
-    payment_method_types: Optional[List[str]] = None
-
 
 class AlipayQRRequest(BaseModel):
     amount: float
+    currency: str = "HKD"
     description: str = "Alipay payment"
     success_url: Optional[str] = None
     failed_url: Optional[str] = None
@@ -87,26 +75,6 @@ class PaymentResponse(BaseModel):
     success: bool
     message: str = ""
     data: dict = {}
-
-
-class ClaimDepositRequest(BaseModel):
-    payment_channel: str   # "gcash", "maya", "bdo", "bpi", etc.
-    account_number: str    # mobile number or bank account used to send
-    amount: float
-
-
-# Map user-friendly channel names to PayMongo source types
-CHANNEL_SOURCE_TYPES: dict = {
-    "gcash":      ["gcash"],
-    "maya":       ["paymaya"],
-    "paymaya":    ["paymaya"],
-    "bdo":        ["dob", "brankas_bdo"],
-    "bpi":        ["dob", "brankas_bpi"],
-    "metrobank":  ["dob", "brankas_metrobank"],
-    "landbank":   ["dob", "brankas_landbank"],
-    "unionbank":  ["dob"],
-    "card":       ["card"],
-}
 
 
 # ---------- Helpers ----------
@@ -201,204 +169,13 @@ async def _credit_wallet(
 
 # ---------- Endpoints ----------
 
-@router.post("/topup", response_model=PaymentResponse)
-async def initiate_topup(
-    req: TopupRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Initiate a PayMongo wallet top-up.
-
-    Creates a PayMongo Checkout Session (for GCash, Maya, cards, etc.) or a
-    Source (for Alipay / WeChat Pay) and persists a ``wallet_topups`` record
-    linking this top-up to the authenticated user.
-
-    The wallet is credited automatically when PayMongo confirms payment via
-    the ``/webhook`` endpoint.
-    """
-    if req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be greater than zero")
-
-    svc = PayMongoService()
-    now = datetime.now()
-
-    if req.payment_method in ("alipay", "wechat"):
-        result = await svc.create_source(
-            amount=req.amount,
-            payment_type=req.payment_method,
-            description=req.description,
-            success_url=req.success_url or "",
-            failed_url=req.cancel_url or "",
-        )
-        if not result.get("success"):
-            raise HTTPException(status_code=502, detail=result.get("error", "PayMongo API error"))
-
-        topup = WalletTopup(
-            user_id=str(current_user.id),
-            amount=req.amount,
-            currency="PHP",
-            paymongo_source_id=result.get("source_id", ""),
-            reference_number=result.get("reference_number", ""),
-            payment_method=req.payment_method,
-            status="pending",
-            description=req.description,
-            checkout_url=result.get("checkout_url", ""),
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(topup)
-        await db.commit()
-        await db.refresh(topup)
-
-        return PaymentResponse(
-            success=True,
-            message=f"{req.payment_method.title()} QR created. Scan to pay — wallet credited automatically on success.",
-            data={
-                "topup_id": topup.id,
-                "source_id": result.get("source_id", ""),
-                "checkout_url": result.get("checkout_url", ""),
-                "reference_number": result.get("reference_number", ""),
-                "amount": req.amount,
-            },
-        )
-
-    # Default: checkout session (GCash, Maya, card, etc.)
-    result = await svc.create_checkout_session(
-        amount=req.amount,
-        description=req.description,
-        success_url=req.success_url or "",
-        cancel_url=req.cancel_url or "",
-        payment_method_types=req.payment_method_types,
-        customer_email=req.customer_email or "",
-        customer_name=req.customer_name or "",
-    )
-    if not result.get("success"):
-        raise HTTPException(status_code=502, detail=result.get("error", "PayMongo API error"))
-
-    topup = WalletTopup(
-        user_id=str(current_user.id),
-        amount=req.amount,
-        currency="PHP",
-        paymongo_checkout_session_id=result.get("checkout_session_id", ""),
-        reference_number=result.get("reference_number", ""),
-        payment_method=req.payment_method,
-        status="pending",
-        description=req.description,
-        checkout_url=result.get("checkout_url", ""),
-        created_at=now,
-        updated_at=now,
-    )
-    db.add(topup)
-    await db.commit()
-    await db.refresh(topup)
-
-    return PaymentResponse(
-        success=True,
-        message="Checkout session created. Complete payment to credit your PHP wallet.",
-        data={
-            "topup_id": topup.id,
-            "checkout_session_id": result.get("checkout_session_id", ""),
-            "checkout_url": result.get("checkout_url", ""),
-            "reference_number": result.get("reference_number", ""),
-            "amount": req.amount,
-        },
-    )
-
-
-@router.post("/claim-deposit")
-async def claim_deposit(
-    req: ClaimDepositRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Claim a manually-sent bank/e-wallet deposit.
-
-    The user sends money to the PayMongo merchant account via GCash, Maya, bank
-    transfer, etc., then submits the payment channel, account/mobile number used,
-    and the exact amount.  The backend fetches recent PayMongo payments and matches
-    on (status=paid, amount, source type).  If a unique unclaimed match is found,
-    the user's PHP wallet is credited and the payment ID is recorded to prevent
-    double-claiming.
-    """
-    if req.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be greater than zero")
-
-    amount_centavos = int(round(req.amount * 100))
-    channel = req.payment_channel.strip().lower()
-    allowed_source_types = CHANNEL_SOURCE_TYPES.get(channel, [channel])
-
-    svc = PayMongoService()
-    result = await svc.list_payments(limit=50)
-    if not result.get("success"):
-        raise HTTPException(status_code=502, detail="Failed to fetch payments from PayMongo")
-
-    matched_payment = None
-    for payment in result.get("data", []):
-        attrs = payment.get("attributes", {})
-        if attrs.get("status") != "paid":
-            continue
-        if attrs.get("amount", 0) != amount_centavos:
-            continue
-        source_type = (attrs.get("source") or {}).get("type", "")
-        if source_type not in allowed_source_types:
-            continue
-
-        pay_id = payment.get("id", "")
-        # Check this payment hasn't already been claimed
-        existing = await db.execute(
-            select(WalletTopup).where(WalletTopup.reference_number == pay_id)
-        )
-        if existing.scalar_one_or_none():
-            continue  # already claimed — skip
-
-        matched_payment = payment
-        break
-
-    if not matched_payment:
-        raise HTTPException(
-            status_code=404,
-            detail="No matching unclaimed payment found. Please verify your payment channel, account number, and amount then try again.",
-        )
-
-    pay_id = matched_payment.get("id", "")
-    now = datetime.now()
-    topup = WalletTopup(
-        user_id=str(current_user.id),
-        amount=req.amount,
-        currency="PHP",
-        reference_number=pay_id,  # stores PayMongo payment ID to block double-claims
-        payment_method=channel,
-        status="paid",
-        description=f"Manual deposit via {req.payment_channel.upper()}",
-        created_at=now,
-        updated_at=now,
-    )
-    db.add(topup)
-    await db.flush()
-
-    await _credit_wallet(
-        db,
-        str(current_user.id),
-        req.amount,
-        note=f"Manual deposit — {req.payment_channel.upper()} account {req.account_number}",
-        reference_id=pay_id,
-    )
-
-    return {
-        "success": True,
-        "message": f"₱{req.amount:,.2f} has been credited to your PHP wallet.",
-        "payment_id": pay_id,
-        "amount": req.amount,
-    }
-
-
 @router.post("/alipay-qr", response_model=PaymentResponse)
 async def create_alipay_qr(
     req: AlipayQRRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate an Alipay QR checkout via PayMongo. On payment, PHP wallet is credited automatically."""
+    """Generate an Alipay QR checkout via PayMongo. Alipay does not support PHP; use HKD or CNY."""
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero")
 
@@ -408,26 +185,11 @@ async def create_alipay_qr(
         description=req.description,
         success_url=req.success_url or "",
         failed_url=req.failed_url or "",
+        currency=req.currency,
     )
 
     if not result.get("success"):
         raise HTTPException(status_code=502, detail=result.get("error", "PayMongo API error"))
-
-    now = datetime.now()
-    topup = WalletTopup(
-        user_id=str(current_user.id),
-        amount=req.amount,
-        currency="PHP",
-        paymongo_source_id=result.get("source_id", ""),
-        reference_number=result.get("reference_number", ""),
-        payment_method="alipay",
-        status="pending",
-        description=req.description,
-        checkout_url=result.get("checkout_url", ""),
-        created_at=now,
-        updated_at=now,
-    )
-    db.add(topup)
 
     txn = await _save_transaction(
         db, str(current_user.id), "alipay_qr", result, req.amount, req.description,
@@ -438,7 +200,6 @@ async def create_alipay_qr(
         message="Alipay QR created. Scan to pay — wallet credited automatically on success.",
         data={
             "transaction_id": txn.id if txn else None,
-            "topup_id": topup.id if topup else None,
             "source_id": result.get("source_id", ""),
             "checkout_url": result.get("checkout_url", ""),
             "reference_number": result.get("reference_number", ""),
@@ -468,22 +229,6 @@ async def create_wechat_qr(
     if not result.get("success"):
         raise HTTPException(status_code=502, detail=result.get("error", "PayMongo API error"))
 
-    now = datetime.now()
-    topup = WalletTopup(
-        user_id=str(current_user.id),
-        amount=req.amount,
-        currency="PHP",
-        paymongo_source_id=result.get("source_id", ""),
-        reference_number=result.get("reference_number", ""),
-        payment_method="wechat",
-        status="pending",
-        description=req.description,
-        checkout_url=result.get("checkout_url", ""),
-        created_at=now,
-        updated_at=now,
-    )
-    db.add(topup)
-
     txn = await _save_transaction(
         db, str(current_user.id), "wechat_qr", result, req.amount, req.description,
     )
@@ -493,7 +238,6 @@ async def create_wechat_qr(
         message="WeChat Pay QR created. Scan to pay — wallet credited automatically on success.",
         data={
             "transaction_id": txn.id if txn else None,
-            "topup_id": topup.id if topup else None,
             "source_id": result.get("source_id", ""),
             "checkout_url": result.get("checkout_url", ""),
             "reference_number": result.get("reference_number", ""),
@@ -533,7 +277,7 @@ async def paymongo_webhook(
     * On failure/cancel events the wallet_topups record is marked failed.
 
     Configure in PayMongo dashboard:
-      URL   : https://paybot-backend-production-84b2.up.railway.app/api/v1/paymongo/webhook
+      URL   : https://<your-domain>/api/v1/paymongo/webhook
       Events: source.chargeable, checkout_session.payment.paid,
               checkout_session.payment.failed, payment.paid, payment.failed
     """
@@ -614,73 +358,13 @@ async def paymongo_webhook(
 async def _handle_source_chargeable(
     db: AsyncSession, resource: dict, attrs: dict
 ) -> None:
-    """Process a source.chargeable event (Alipay / WeChat Pay).
-
-    When PayMongo marks a source as chargeable the funds have been authorised
-    by the payer.  We must create an actual PayMongo payment from the source
-    so that PayMongo captures the money into the merchant account.  Only after
-    a successful payment creation do we credit the internal wallet.
-    """
+    """Process a source.chargeable event (Alipay / WeChat Pay)."""
     source_id = resource.get("id", "")
     reference_number = attrs.get("metadata", {}).get("reference_number", "")
     amount_centavos = attrs.get("amount", 0)
     amount = amount_centavos / 100
-    currency = attrs.get("currency", "PHP")
 
-    # Create the PayMongo payment from the chargeable source so the merchant
-    # actually receives the funds.  Log errors but do not abort — we still
-    # want to credit the internal wallet to keep the UX consistent.
-    svc = PayMongoService()
-    if source_id and amount > 0:
-        pay_result = await svc.create_payment_from_source(
-            source_id=source_id,
-            amount=amount,
-            currency=currency,
-            description=f"Source payment {reference_number or source_id}",
-        )
-        if pay_result.get("success"):
-            logger.info(
-                "PayMongo payment created from source %s: payment_id=%s status=%s",
-                source_id,
-                pay_result.get("payment_id", ""),
-                pay_result.get("status", ""),
-            )
-        else:
-            logger.warning(
-                "PayMongo could not create payment from source %s: %s — "
-                "crediting internal wallet anyway",
-                source_id,
-                pay_result.get("error", "unknown error"),
-            )
-
-    # Prefer wallet_topups lookup; fall back to legacy transactions table
-    topup = None
-    if reference_number:
-        res = await db.execute(
-            select(WalletTopup).where(WalletTopup.reference_number == reference_number)
-        )
-        topup = res.scalar_one_or_none()
-    if not topup and source_id:
-        res = await db.execute(
-            select(WalletTopup).where(WalletTopup.paymongo_source_id == source_id)
-        )
-        topup = res.scalar_one_or_none()
-
-    if topup:
-        if topup.status == "paid":
-            logger.info("Top-up %s already paid — skipping wallet credit", topup.id)
-            return
-        topup.status = "paid"
-        topup.updated_at = datetime.now()
-        await db.flush()
-        await _credit_wallet(
-            db, topup.user_id, topup.amount,
-            note=f"PayMongo payment received: {topup.description or reference_number}",
-            reference_id=reference_number or source_id,
-        )
-        return
-
-    # Legacy: look up transactions table
+    # Look up transactions table
     txn = None
     if reference_number:
         res = await db.execute(
@@ -713,13 +397,13 @@ async def _handle_source_chargeable(
 
         if old_status != "paid" and txn.user_id:
             await _credit_wallet(
-                db, txn.user_id, txn.amount,
+                db, txn.user_id, txn.amount if txn.amount is not None else amount,
                 note=f"PayMongo payment received: {txn.description or txn.external_id}",
                 reference_id=txn.external_id or source_id,
             )
     else:
         logger.warning(
-            "No top-up or transaction found for PayMongo source %s / ref %s",
+            "No transaction found for PayMongo source %s / ref %s",
             source_id, reference_number,
         )
 
@@ -728,77 +412,51 @@ async def _handle_payment_paid(
     db: AsyncSession, resource: dict, attrs: dict, event_type: str
 ) -> None:
     """Process checkout_session.payment.paid or payment.paid events."""
-    checkout_id = ""
-    reference_number = ""
+    reference_number = attrs.get("metadata", {}).get("reference_number", "")
     amount = 0.0
 
     if event_type == "checkout_session.payment.paid":
-        checkout_id = resource.get("id", "")
-        reference_number = attrs.get("metadata", {}).get("reference_number", "")
-        # amount comes from the payment inside the checkout session
         payments = attrs.get("payments", [])
         if payments:
             amount = payments[0].get("attributes", {}).get("amount", 0) / 100
     else:
         # payment.paid
-        reference_number = attrs.get("metadata", {}).get("reference_number", "")
         amount = attrs.get("amount", 0) / 100
 
-    topup = None
-    if checkout_id:
-        res = await db.execute(
-            select(WalletTopup).where(WalletTopup.paymongo_checkout_session_id == checkout_id)
-        )
-        topup = res.scalar_one_or_none()
-    if not topup and reference_number:
-        res = await db.execute(
-            select(WalletTopup).where(WalletTopup.reference_number == reference_number)
-        )
-        topup = res.scalar_one_or_none()
+    if not reference_number:
+        logger.warning("No transaction found for PayMongo %s ref=%s", event_type, reference_number)
+        return
 
-    if topup:
-        if topup.status == "paid":
-            logger.info("Top-up %s already paid — skipping wallet credit", topup.id)
-            return
-        topup.status = "paid"
-        topup.updated_at = datetime.now()
-        credit_amount = topup.amount if topup.amount else amount
+    res = await db.execute(
+        select(Transactions).where(Transactions.external_id == reference_number)
+    )
+    txn = res.scalar_one_or_none()
+    if txn and txn.status != "paid" and txn.user_id:
+        txn.status = "paid"
+        txn.updated_at = datetime.now()
         await db.flush()
         await _credit_wallet(
-            db, topup.user_id, credit_amount,
-            note=f"PayMongo checkout payment: {topup.description or reference_number}",
-            reference_id=reference_number or checkout_id,
+            db, txn.user_id, txn.amount if txn.amount is not None else amount,
+            note=f"PayMongo checkout payment: {txn.description or reference_number}",
+            reference_id=reference_number,
         )
-    else:
-        logger.warning(
-            "No top-up found for PayMongo %s checkout=%s ref=%s",
-            event_type, checkout_id, reference_number,
-        )
+        return
+
+    logger.warning(
+        "No transaction found for PayMongo %s ref=%s",
+        event_type, reference_number,
+    )
 
 
 async def _handle_payment_failed(
     db: AsyncSession, resource: dict, attrs: dict
 ) -> None:
-    """Mark top-up as failed/cancelled on failure events."""
+    """Log failure events — no wallet_topups to update."""
     source_id = resource.get("id", "")
     reference_number = attrs.get("metadata", {}).get("reference_number", "")
-
-    topup = None
-    if reference_number:
-        res = await db.execute(
-            select(WalletTopup).where(WalletTopup.reference_number == reference_number)
-        )
-        topup = res.scalar_one_or_none()
-    if not topup and source_id:
-        res = await db.execute(
-            select(WalletTopup).where(WalletTopup.paymongo_source_id == source_id)
-        )
-        topup = res.scalar_one_or_none()
-
-    if topup and topup.status == "pending":
-        topup.status = "failed"
-        topup.updated_at = datetime.now()
-        logger.info("Top-up %s marked as failed", topup.id)
+    logger.info(
+        "PayMongo payment failed: source=%s ref=%s", source_id, reference_number
+    )
 
 
 @router.get("/redirect/success")

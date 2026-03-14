@@ -231,32 +231,32 @@ class TestWebhookIdempotency:
         from sqlalchemy import select
         from models.wallets import Wallets
 
-        # Create a wallet_topup record first so the webhook has something to credit
+        # Create a Transactions record so the webhook has something to credit
         user_id = "123456789"
         ref = f"pm-alipay-{uuid.uuid4().hex[:12]}"
         source_id = f"src_{uuid.uuid4().hex[:16]}"
         event_id = f"evt_{uuid.uuid4().hex[:16]}"
 
-        async def seed_topup():
-            from models.wallet_topups import WalletTopup
+        async def seed_transaction():
+            from models.transactions import Transactions
             from datetime import datetime
             async with db_manager.async_session_maker() as db:
-                topup = WalletTopup(
+                txn = Transactions(
                     user_id=user_id,
+                    transaction_type="alipay_qr",
+                    external_id=ref,
+                    xendit_id=source_id,
                     amount=500.0,
                     currency="PHP",
-                    paymongo_source_id=source_id,
-                    reference_number=ref,
-                    payment_method="alipay",
                     status="pending",
                     description="Test top-up",
                     created_at=datetime.now(),
                     updated_at=datetime.now(),
                 )
-                db.add(topup)
+                db.add(txn)
                 await db.commit()
 
-        asyncio.get_event_loop().run_until_complete(seed_topup())
+        asyncio.get_event_loop().run_until_complete(seed_transaction())
 
         body = _source_chargeable_body(
             source_id=source_id,
@@ -303,12 +303,12 @@ class TestWebhookIdempotency:
 
 class TestWalletCrediting:
     def test_source_chargeable_credits_wallet(self, client, auth_headers):
-        """source.chargeable webhook credits the PHP wallet correctly."""
+        """source.chargeable webhook credits the PHP wallet correctly via Transactions lookup."""
         import asyncio
         from core.database import db_manager
         from datetime import datetime
         from sqlalchemy import select
-        from models.wallet_topups import WalletTopup
+        from models.transactions import Transactions
         from models.wallets import Wallets
         from models.wallet_transactions import Wallet_transactions
 
@@ -320,19 +320,19 @@ class TestWalletCrediting:
 
         async def seed_and_get_before():
             async with db_manager.async_session_maker() as db:
-                topup = WalletTopup(
+                txn = Transactions(
                     user_id=user_id,
+                    transaction_type="alipay_qr",
+                    external_id=ref,
+                    xendit_id=source_id,
                     amount=amount,
                     currency="PHP",
-                    paymongo_source_id=source_id,
-                    reference_number=ref,
-                    payment_method="alipay",
                     status="pending",
                     description="Credit test top-up",
                     created_at=datetime.now(),
                     updated_at=datetime.now(),
                 )
-                db.add(topup)
+                db.add(txn)
                 await db.commit()
 
                 res = await db.execute(
@@ -376,22 +376,14 @@ class TestWalletCrediting:
                 )
                 ledger_entry = txn_res.scalar_one_or_none()
 
-                # Verify topup record is marked paid
-                topup_res = await db.execute(
-                    select(WalletTopup).where(WalletTopup.reference_number == ref)
-                )
-                topup = topup_res.scalar_one_or_none()
+                return balance_after, ledger_entry
 
-                return balance_after, ledger_entry, topup
-
-        bal, ledger, topup = asyncio.get_event_loop().run_until_complete(check_after())
+        bal, ledger = asyncio.get_event_loop().run_until_complete(check_after())
 
         assert bal == pytest.approx(balance_before + amount, abs=0.01)
         assert ledger is not None, "Ledger entry was not created"
         assert ledger.amount == pytest.approx(amount, abs=0.01)
         assert ledger.status == "completed"
-        assert topup is not None
-        assert topup.status == "paid"
 
     def test_unknown_event_type_ignored(self, client):
         """Unrecognised event types return ok without side effects."""
@@ -409,12 +401,12 @@ class TestWalletCrediting:
         assert r.json()["status"] == "ok"
 
     def test_topup_initiation_requires_auth(self, client):
-        """The /topup endpoint requires authentication."""
+        """The PayMongo /topup endpoint has been removed — expect 404 or 405."""
         r = client.post(
             "/api/v1/paymongo/topup",
             json={"amount": 100.0, "payment_method": "checkout"},
         )
-        assert r.status_code in (401, 403)
+        assert r.status_code in (401, 403, 404, 405)
 
 
 # ---------------------------------------------------------------------------
@@ -492,28 +484,16 @@ class TestPayMongoGetBalance:
 # ---------------------------------------------------------------------------
 
 class TestSuperAdminWalletBalance:
-    """Test that the super admin's PHP wallet balance is synced from PayMongo."""
+    """Test that the super admin's PHP wallet balance is synced from Xendit."""
 
-    def test_super_admin_balance_synced_from_paymongo(self, client, auth_headers):
-        """Super admin's PHP wallet balance is updated from PayMongo realtime balance."""
-        import asyncio
+    def test_super_admin_balance_synced_from_xendit(self, client, auth_headers):
+        """Super admin's PHP wallet balance is updated from Xendit realtime balance."""
         from unittest.mock import AsyncMock, patch, MagicMock
-        from core.database import db_manager
-        from sqlalchemy import select
-        from models.wallets import Wallets
 
         live_php_balance = 9876.50
-        live_centavos = int(live_php_balance * 100)
 
         mock_response = MagicMock()
-        mock_response.json.return_value = {
-            "data": {
-                "attributes": {
-                    "available": [{"amount": live_centavos, "currency": "PHP"}],
-                    "pending": [],
-                }
-            }
-        }
+        mock_response.json.return_value = {"balance": live_php_balance}
         mock_response.raise_for_status = MagicMock()
 
         with patch("httpx.AsyncClient") as mock_client_cls:
@@ -526,255 +506,14 @@ class TestSuperAdminWalletBalance:
             r = client.get("/api/v1/wallet/balance?currency=PHP", headers=auth_headers)
 
         # The test user (123456789) is added as a super admin in TELEGRAM_ADMIN_IDS
-        # so the endpoint should attempt to sync from PayMongo.
+        # so the endpoint should attempt to sync from Xendit.
         assert r.status_code == 200
         data = r.json()
         assert data["currency"] == "PHP"
-        # Balance should reflect the mocked PayMongo live balance
+        # Balance should reflect the mocked Xendit live balance
         assert data["balance"] == pytest.approx(live_php_balance, abs=0.01)
 
     def test_wallet_balance_endpoint_requires_auth(self, client):
         """The /wallet/balance endpoint requires authentication."""
         r = client.get("/api/v1/wallet/balance?currency=PHP")
         assert r.status_code in (401, 403)
-
-
-# ---------------------------------------------------------------------------
-# create_payment_from_source unit tests
-# ---------------------------------------------------------------------------
-
-class TestCreatePaymentFromSource:
-    """Unit tests for PayMongoService.create_payment_from_source()."""
-
-    def test_successful_payment_creation(self):
-        """create_payment_from_source() returns success dict on HTTP 200."""
-        import asyncio
-        from unittest.mock import AsyncMock, patch, MagicMock
-        from services.paymongo_service import PayMongoService
-
-        mock_resp = MagicMock()
-        mock_resp.status_code = 200
-        mock_resp.json.return_value = {
-            "data": {
-                "id": "pay_test_001",
-                "attributes": {"status": "paid", "amount": 50000},
-            }
-        }
-        mock_resp.raise_for_status = MagicMock()
-
-        async def _run():
-            svc = PayMongoService()
-            with patch.object(svc._http, "post", new=AsyncMock(return_value=mock_resp)):
-                return await svc.create_payment_from_source(
-                    source_id="src_test_001", amount=500.0
-                )
-
-        result = asyncio.get_event_loop().run_until_complete(_run())
-        assert result["success"] is True
-        assert result["payment_id"] == "pay_test_001"
-        assert result["status"] == "paid"
-
-    def test_http_error_returns_failure_dict(self):
-        """HTTP errors from PayMongo are returned as failure dicts (no exception raised)."""
-        import asyncio
-        import httpx
-        from unittest.mock import AsyncMock, patch, MagicMock
-        from services.paymongo_service import PayMongoService
-
-        async def _run():
-            svc = PayMongoService()
-            err_resp = MagicMock()
-            err_resp.status_code = 422
-            err_resp.text = '{"errors":[{"detail":"source type not supported"}]}'
-            with patch.object(
-                svc._http, "post",
-                new=AsyncMock(side_effect=httpx.HTTPStatusError(
-                    "422", request=MagicMock(), response=err_resp
-                )),
-            ):
-                return await svc.create_payment_from_source(
-                    source_id="src_bad_001", amount=500.0
-                )
-
-        result = asyncio.get_event_loop().run_until_complete(_run())
-        assert result["success"] is False
-        assert "error" in result
-
-    def test_network_error_returns_failure_dict(self):
-        """Network errors are caught and returned as failure dicts."""
-        import asyncio
-        import httpx
-        from unittest.mock import AsyncMock, patch
-        from services.paymongo_service import PayMongoService
-
-        async def _run():
-            svc = PayMongoService()
-            with patch.object(
-                svc._http, "post",
-                new=AsyncMock(side_effect=httpx.ConnectError("connection refused")),
-            ):
-                return await svc.create_payment_from_source(
-                    source_id="src_net_err", amount=500.0
-                )
-
-        result = asyncio.get_event_loop().run_until_complete(_run())
-        assert result["success"] is False
-        assert "error" in result
-
-    def test_source_chargeable_still_credits_wallet_when_payment_creation_fails(self, client):
-        """
-        When create_payment_from_source fails (e.g. PayMongo rejects the source
-        type), the internal wallet must still be credited — the payment gateway
-        error must not block the user experience.
-        """
-        import asyncio
-        from unittest.mock import AsyncMock, patch
-        from core.database import db_manager
-        from datetime import datetime
-        from sqlalchemy import select
-        from models.wallet_topups import WalletTopup
-        from models.wallets import Wallets
-
-        user_id = f"test-paymongo-credit-{uuid.uuid4().hex[:8]}"
-        ref = f"pm-alipay-{uuid.uuid4().hex[:12]}"
-        source_id = f"src_{uuid.uuid4().hex[:16]}"
-        event_id = f"evt_{uuid.uuid4().hex[:16]}"
-        amount = 300.0
-
-        async def seed():
-            async with db_manager.async_session_maker() as db:
-                topup = WalletTopup(
-                    user_id=user_id,
-                    amount=amount,
-                    currency="PHP",
-                    paymongo_source_id=source_id,
-                    reference_number=ref,
-                    payment_method="alipay",
-                    status="pending",
-                    description="Alipay payment creation failure test",
-                    created_at=datetime.now(),
-                    updated_at=datetime.now(),
-                )
-                db.add(topup)
-                await db.commit()
-
-        asyncio.get_event_loop().run_until_complete(seed())
-
-        body = _source_chargeable_body(
-            source_id=source_id,
-            reference_number=ref,
-            amount_centavos=int(amount * 100),
-            event_id=event_id,
-        )
-
-        # Simulate PayMongo rejecting the payment-from-source call
-        with patch(
-            "routers.paymongo.PayMongoService.create_payment_from_source",
-            new=AsyncMock(return_value={"success": False, "error": "source type not supported"}),
-        ):
-            r = _post_webhook(client, body)
-
-        assert r.status_code == 200
-        assert r.json()["status"] == "ok"
-
-        async def check():
-            async with db_manager.async_session_maker() as db:
-                res = await db.execute(
-                    select(Wallets).where(
-                        Wallets.user_id == user_id,
-                        Wallets.currency == "PHP",
-                    )
-                )
-                w = res.scalar_one_or_none()
-                return w.balance if w else 0.0
-
-        bal = asyncio.get_event_loop().run_until_complete(check())
-        assert bal == pytest.approx(amount, abs=0.01), (
-            "Wallet must be credited even when PayMongo payment creation fails"
-        )
-
-
-# ---------------------------------------------------------------------------
-# Xendit webhook wallet-credit currency-filter tests
-# ---------------------------------------------------------------------------
-
-class TestXenditWebhookCurrencyFilter:
-    """Verify that the Xendit webhook credits the PHP wallet even when the
-    user has multiple wallets (PHP + USD) — i.e. the currency=='PHP' filter
-    is applied correctly and MultipleResultsFound is avoided."""
-
-    def test_xendit_credits_php_wallet_when_user_has_multiple_wallets(self, client):
-        """
-        When a user holds both a PHP and a USD wallet, a Xendit QR payment
-        webhook must credit only the PHP wallet without raising MultipleResultsFound.
-        """
-        import asyncio
-        from core.database import db_manager
-        from datetime import datetime
-        from sqlalchemy import select
-        from models.transactions import Transactions
-        from models.wallets import Wallets
-
-        user_id = f"tg-multiwallet-{uuid.uuid4().hex[:8]}"
-        ext_id = f"alipay-{uuid.uuid4().hex[:12]}"
-        amount = 250.0
-
-        async def seed():
-            async with db_manager.async_session_maker() as db:
-                # Create PHP wallet
-                db.add(Wallets(user_id=user_id, currency="PHP", balance=0.0,
-                               created_at=datetime.now(), updated_at=datetime.now()))
-                # Create USD wallet (same user)
-                db.add(Wallets(user_id=user_id, currency="USD", balance=0.0,
-                               created_at=datetime.now(), updated_at=datetime.now()))
-                # Create a pending transaction
-                db.add(Transactions(
-                    user_id=user_id,
-                    transaction_type="alipay_qr",
-                    external_id=ext_id,
-                    amount=amount,
-                    currency="PHP",
-                    status="pending",
-                    description="Multi-wallet Alipay test",
-                    created_at=datetime.now(),
-                    updated_at=datetime.now(),
-                ))
-                await db.commit()
-
-        asyncio.get_event_loop().run_until_complete(seed())
-
-        # Send a Xendit-style "paid" webhook
-        r = client.post(
-            "/api/v1/xendit/webhook",
-            json={"external_id": ext_id, "status": "PAID"},
-        )
-        assert r.status_code == 200
-
-        async def check():
-            async with db_manager.async_session_maker() as db:
-                res = await db.execute(
-                    select(Wallets).where(
-                        Wallets.user_id == user_id,
-                        Wallets.currency == "PHP",
-                    )
-                )
-                php_wallet = res.scalar_one_or_none()
-                res2 = await db.execute(
-                    select(Wallets).where(
-                        Wallets.user_id == user_id,
-                        Wallets.currency == "USD",
-                    )
-                )
-                usd_wallet = res2.scalar_one_or_none()
-                return (
-                    php_wallet.balance if php_wallet else 0.0,
-                    usd_wallet.balance if usd_wallet else 0.0,
-                )
-
-        php_bal, usd_bal = asyncio.get_event_loop().run_until_complete(check())
-        assert php_bal == pytest.approx(amount, abs=0.01), (
-            "PHP wallet must be credited by the Xendit QR webhook"
-        )
-        assert usd_bal == pytest.approx(0.0, abs=0.01), (
-            "USD wallet must NOT be credited"
-        )

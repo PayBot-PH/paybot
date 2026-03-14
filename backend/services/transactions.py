@@ -32,6 +32,25 @@ class TransactionsService:
             logger.error(f"Error creating transactions: {str(e)}")
             raise
 
+    async def bulk_create(self, items: List[Dict[str, Any]], user_id: Optional[str] = None) -> List[Transactions]:
+        """Bulk-create multiple transactions in a single transaction (avoids N+1 commits)"""
+        try:
+            objs = []
+            for data in items:
+                if user_id:
+                    data = {**data, 'user_id': user_id}
+                objs.append(Transactions(**data))
+            self.db.add_all(objs)
+            await self.db.commit()
+            for obj in objs:
+                await self.db.refresh(obj)
+            logger.info(f"Bulk created {len(objs)} transactions")
+            return objs
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error bulk creating transactions: {str(e)}")
+            raise
+
     async def check_ownership(self, obj_id: int, user_id: str) -> bool:
         """Check if user owns this record"""
         try:

@@ -1,6 +1,6 @@
 import logging
+import uuid
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
@@ -44,6 +44,14 @@ class CreatePaymentLinkRequest(BaseModel):
     description: str = ""
     customer_name: str = ""
     customer_email: str = ""
+
+
+class PayQRPHRequest(BaseModel):
+    qr_data: str
+    amount: float
+    description: str = ""
+    merchant_name: str = ""
+    reference_number: str = ""
 
 
 class PaymentResponse(BaseModel):
@@ -288,6 +296,57 @@ async def create_payment_link(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/pay-qrph", response_model=PaymentResponse)
+async def pay_qrph(
+    data: PayQRPHRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Record an outbound payment initiated by scanning a merchant's QRPH code."""
+    try:
+        external_id = f"qrph-{uuid.uuid4().hex[:12]}"
+        now = datetime.now()
+        txn = Transactions(
+            user_id=str(current_user.id),
+            transaction_type="qrph_payment",
+            external_id=external_id,
+            amount=data.amount,
+            currency="PHP",
+            status="pending",
+            description=data.description or data.merchant_name or "QRPH payment",
+            customer_name=data.merchant_name,
+            # Reuse qr_code_url to store the raw QRPH/EMVCo string (existing schema field;
+            # capped at 500 chars to fit the column — full data is not needed for audit).
+            qr_code_url=data.qr_data[:500] if data.qr_data else "",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(txn)
+        await db.commit()
+        await db.refresh(txn)
+
+        logger.info(
+            f"QRPH payment recorded: transaction_id={txn.id} amount={data.amount} "
+            f"merchant={data.merchant_name} ref={data.reference_number}"
+        )
+
+        return PaymentResponse(
+            success=True,
+            message="QRPH payment recorded successfully. Complete the payment via your bank or e-wallet app.",
+            data={
+                "transaction_id": txn.id,
+                "external_id": external_id,
+                "amount": data.amount,
+                "merchant_name": data.merchant_name,
+                "reference_number": data.reference_number,
+                "status": "pending",
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error recording QRPH payment: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/webhook")
 async def xendit_webhook(
     request: Request,
@@ -338,10 +397,7 @@ async def xendit_webhook(
                 if status == "paid" and old_status != "paid" and txn.user_id:
                     try:
                         wallet_result = await db.execute(
-                            select(Wallets).where(
-                                Wallets.user_id == txn.user_id,
-                                Wallets.currency == "PHP",
-                            )
+                            select(Wallets).where(Wallets.user_id == txn.user_id)
                         )
                         wallet = wallet_result.scalar_one_or_none()
                         if not wallet:

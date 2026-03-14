@@ -1,4 +1,3 @@
-import asyncio
 import json
 import logging
 import time
@@ -7,9 +6,7 @@ import random
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.database import get_db
 from dependencies.auth import get_current_user
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
