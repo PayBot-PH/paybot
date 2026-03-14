@@ -9,14 +9,71 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from dependencies.auth import get_current_user
+from models.admin_users import AdminUser
+from models.bot_settings import Bot_settings
 from models.transactions import Transactions
 from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from schemas.auth import UserResponse
+from services.bot_settings import Bot_settingsService
+from services.telegram_service import TelegramService
 from services.xendit_service import XenditService
 from services.event_bus import payment_event_bus
 
 logger = logging.getLogger(__name__)
+
+
+async def _send_payment_notification(db: AsyncSession, txn: Transactions, new_status: str) -> None:
+    """Send a Telegram notification to the merchant when payment status changes."""
+    if not txn.telegram_chat_id:
+        return
+    try:
+        # Look up bot_settings for this merchant
+        settings_svc = Bot_settingsService(db)
+        # Transactions created via bot have user_id="tg-{chat_id}"; look up the AdminUser
+        admin_user = None
+        try:
+            chat_id_str = str(txn.telegram_chat_id)
+            adm_res = await db.execute(
+                select(AdminUser).where(AdminUser.telegram_id == chat_id_str)
+            )
+            admin_user = adm_res.scalar_one_or_none()
+        except Exception as e:
+            logger.warning(f"Could not look up admin user for chat {txn.telegram_chat_id}: {e}")
+
+        cfg = None
+        if admin_user:
+            try:
+                cfg_result = await settings_svc.get_list(skip=0, limit=1, user_id=str(admin_user.id))
+                if cfg_result["total"] > 0:
+                    cfg = cfg_result["items"][0]
+            except Exception as e:
+                logger.warning(f"Could not retrieve bot_settings for user {admin_user.id}: {e}")
+
+        # Select the right template
+        tmpl = None
+        if cfg:
+            if new_status == "paid":
+                tmpl = cfg.payment_success_message
+            elif new_status in ("expired", "failed"):
+                tmpl = cfg.payment_failed_message
+            elif new_status == "pending":
+                tmpl = cfg.payment_pending_message
+
+        if not tmpl:
+            return  # No custom template configured; skip notification
+
+        msg = (
+            tmpl
+            .replace("{name}", txn.customer_name or "")
+            .replace("{amount}", f"{txn.amount:,.2f}" if txn.amount is not None else "")
+            .replace("{description}", txn.description or "")
+            .replace("{external_id}", txn.external_id or "")
+        )
+        tg = TelegramService()
+        await tg.send_message(str(txn.telegram_chat_id), msg)
+    except Exception as e:
+        logger.error(f"Failed to send payment notification: {e}")
 
 router = APIRouter(prefix="/api/v1/xendit", tags=["xendit"])
 
@@ -392,6 +449,10 @@ async def xendit_webhook(
                     "transaction_type": txn.transaction_type,
                     "user_id": txn.user_id,
                 })
+
+                # Send Telegram notification using bot_settings template
+                if old_status != status:
+                    await _send_payment_notification(db, txn, status)
 
                 # Credit wallet on successful payment
                 if status == "paid" and old_status != "paid" and txn.user_id:
