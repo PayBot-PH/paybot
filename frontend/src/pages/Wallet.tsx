@@ -28,6 +28,7 @@ import {
   Bitcoin,
   AlertCircle,
   ShieldAlert,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -188,15 +189,10 @@ export default function Wallet() {
   const [dDesc, setDDesc] = useState('');
   const [dLoading, setDLoading] = useState(false);
 
-  // Top Up: method toggle
-  const [topupMethod, setTopupMethod] = useState<'xendit' | 'crypto'>('xendit');
-
-  // Invoice Top Up state
-  const [topupAmount, setTopupAmount] = useState('');
-  const [topupDesc, setTopupDesc] = useState('Wallet Top Up');
-  const [topupEmail, setTopupEmail] = useState('');
-  const [topupLoading, setTopupLoading] = useState(false);
-  const [topupResult, setTopupResult] = useState<{ invoice_url: string; amount: number } | null>(null);
+  // PHP Top Up Info Dialog
+  const [topupDialogOpen, setTopupDialogOpen] = useState(false);
+  const [topupDialogMethod, setTopupDialogMethod] = useState<'ubp' | 'bank'>('ubp');
+  const [paymentCodeCopied, setPaymentCodeCopied] = useState(false);
 
   // Crypto Top Up state
   const [cryptoDepositInfo, setCryptoDepositInfo] = useState<CryptoDepositInfo | null>(null);
@@ -362,33 +358,6 @@ export default function Wallet() {
     } catch {
       toast.error('Disbursement failed');
     } finally { setDLoading(false); }
-  };
-
-  const handleTopup = async () => {
-    const amount = parseFloat(topupAmount);
-    if (!amount || amount <= 0) { toast.error('Enter a valid amount'); return; }
-    setTopupLoading(true);
-    setTopupResult(null);
-    try {
-      const res = await fetch('/api/v1/wallet/topup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount, description: topupDesc || 'Wallet Top Up', customer_email: topupEmail }),
-      });
-      if (!res.ok) {
-        toast.error(await getResponseError(res, 'Failed to create top-up invoice'));
-        return;
-      }
-      const data = await res.json();
-      if (data.success) {
-        setTopupResult({ invoice_url: data.invoice_url, amount });
-        toast.success('Invoice created! Complete payment to credit your wallet.');
-      } else {
-        toast.error(data.message || 'Failed to create top-up invoice');
-      }
-    } catch {
-      toast.error('Top-up failed');
-    } finally { setTopupLoading(false); }
   };
 
   const handleCryptoTopup = async () => {
@@ -712,229 +681,307 @@ export default function Wallet() {
 
               {/* Top Up Tab */}
               <TabsContent value="topup" className="mt-0">
-                {/* Method Selector */}
-                <div className="flex border-b border-slate-700/60">
+                {/* PHP Top Up — informational button */}
+                <div className="border-b border-slate-700/60">
                   <button
-                    onClick={() => setTopupMethod('xendit')}
-                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                      topupMethod === 'xendit'
-                        ? 'text-blue-400 border-b-2 border-blue-400 bg-blue-500/5'
-                        : 'text-slate-500 hover:text-slate-300'
-                    }`}
+                    onClick={() => { setTopupDialogOpen(true); setTopupDialogMethod('ubp'); }}
+                    className="w-full py-3 text-sm font-medium flex items-center justify-center gap-2 text-blue-400 hover:bg-blue-500/5 transition-colors"
                   >
                     <PlusCircle className="h-4 w-4" />
-                    Invoice (PHP)
-                  </button>
-                  <button
-                    onClick={() => setTopupMethod('crypto')}
-                    className={`flex-1 py-3 text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                      topupMethod === 'crypto'
-                        ? 'text-teal-400 border-b-2 border-teal-400 bg-teal-500/5'
-                        : 'text-slate-500 hover:text-slate-300'
-                    }`}
-                  >
-                    <Bitcoin className="h-4 w-4" />
-                    Crypto (USDT)
+                    PHP Top Up — How to Top Up
                   </button>
                 </div>
 
-                {topupMethod === 'xendit' ? (
-                  <div className="p-4 sm:p-6 space-y-4">
-                    {topupResult ? (
-                      <div className="text-center space-y-4">
-                        <div className="bg-blue-900/30 border border-blue-700/50 rounded-xl p-4">
-                          <CheckCircle className="h-10 w-10 text-blue-400 mx-auto mb-3" />
-                          <p className="text-white font-semibold">Invoice Created!</p>
-                          <p className="text-slate-400 text-sm mt-1">₱{topupResult.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })} will be credited after payment</p>
+                {/* Crypto (USDT TRC20) Top Up Panel */}
+                <div className="p-4 sm:p-6 space-y-5">
+                  {/* Deposit Address Card */}
+                  <div className="bg-slate-800/60 border border-teal-500/20 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Bitcoin className="h-4 w-4 text-teal-400" />
+                      <span className="text-teal-300 text-sm font-semibold">USDT Deposit Address</span>
+                      <Badge className="bg-teal-500/15 border border-teal-500/25 text-teal-400 text-[9px] px-1.5 py-0 h-4 ml-auto">TRC20</Badge>
+                    </div>
+
+                    {cryptoDepositInfo ? (
+                      <div className="flex flex-col sm:flex-row items-center gap-4">
+                        {/* QR Code */}
+                        <div className="shrink-0">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${cryptoDepositInfo.address}&bgcolor=1e293b&color=ffffff&margin=8`}
+                            alt="USDT TRC20 QR Code"
+                            className="rounded-lg border border-slate-600/50"
+                            width={130}
+                            height={130}
+                          />
                         </div>
-                        <a
-                          href={topupResult.invoice_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-2 w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-4 rounded-lg transition"
-                        >
-                          <ExternalLink className="h-4 w-4" />
-                          Open Payment Page
-                        </a>
-                        <button
-                          onClick={() => { setTopupResult(null); setTopupAmount(''); }}
-                          className="text-slate-400 text-sm hover:text-slate-300 transition"
-                        >
-                          Create another top-up
-                        </button>
+                        {/* Address + Copy */}
+                        <div className="flex-1 min-w-0 w-full">
+                          <p className="text-slate-400 text-xs mb-1.5">Send USDT (TRC20) to:</p>
+                          <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-600/50 rounded-lg px-3 py-2">
+                            <code className="text-teal-300 text-xs font-mono break-all flex-1">
+                              {cryptoDepositInfo.address}
+                            </code>
+                            <button
+                              onClick={handleCopyAddress}
+                              className="shrink-0 text-slate-400 hover:text-teal-400 transition-colors"
+                              title="Copy address"
+                            >
+                              {addressCopied ? <Check className="h-4 w-4 text-teal-400" /> : <Copy className="h-4 w-4" />}
+                            </button>
+                          </div>
+                          <div className="mt-2 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                            <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+                            <p className="text-amber-300/80 text-[10px] leading-relaxed">
+                              Only send USDT on the TRON (TRC20) network. Other networks will result in permanent loss of funds.
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     ) : (
-                      <>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                          <div>
-                            <Label className="text-slate-300 text-sm">Amount (₱)</Label>
-                            <Input type="number" placeholder="0.00" value={topupAmount}
-                              onChange={e => setTopupAmount(e.target.value)} min="1"
-                              className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
-                          </div>
-                          <div>
-                            <Label className="text-slate-300 text-sm">Email (optional)</Label>
-                            <Input type="email" placeholder="your@email.com" value={topupEmail}
-                              onChange={e => setTopupEmail(e.target.value)}
-                              className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
-                          </div>
-                          <div className="sm:col-span-2">
-                            <Label className="text-slate-300 text-sm">Description</Label>
-                            <Input placeholder="Wallet Top Up" value={topupDesc}
-                              onChange={e => setTopupDesc(e.target.value)}
-                              className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
-                          </div>
-                        </div>
-                        <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400">
-                          A payment invoice will be generated. Pay via credit card, GCash, Maya, bank transfer, or any supported method. Your PHP wallet is credited automatically once paid.
-                        </div>
-                        <Button onClick={handleTopup} disabled={topupLoading}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                          {topupLoading
-                            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating Invoice...</>
-                            : <><PlusCircle className="h-4 w-4 mr-2" />Generate Top Up Invoice</>}
-                        </Button>
-                      </>
+                      <div className="flex items-center justify-center py-6">
+                        <Loader2 className="h-6 w-6 animate-spin text-teal-400" />
+                      </div>
                     )}
                   </div>
-                ) : (
-                  /* Crypto (USDT TRC20) Top Up Panel */
-                  <div className="p-4 sm:p-6 space-y-5">
-                    {/* Deposit Address Card */}
-                    <div className="bg-slate-800/60 border border-teal-500/20 rounded-xl p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Bitcoin className="h-4 w-4 text-teal-400" />
-                        <span className="text-teal-300 text-sm font-semibold">USDT Deposit Address</span>
-                        <Badge className="bg-teal-500/15 border border-teal-500/25 text-teal-400 text-[9px] px-1.5 py-0 h-4 ml-auto">TRC20</Badge>
-                      </div>
 
-                      {cryptoDepositInfo ? (
-                        <div className="flex flex-col sm:flex-row items-center gap-4">
-                          {/* QR Code */}
-                          <div className="shrink-0">
-                            <img
-                              src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${cryptoDepositInfo.address}&bgcolor=1e293b&color=ffffff&margin=8`}
-                              alt="USDT TRC20 QR Code"
-                              className="rounded-lg border border-slate-600/50"
-                              width={130}
-                              height={130}
-                            />
-                          </div>
-                          {/* Address + Copy */}
-                          <div className="flex-1 min-w-0 w-full">
-                            <p className="text-slate-400 text-xs mb-1.5">Send USDT (TRC20) to:</p>
-                            <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-600/50 rounded-lg px-3 py-2">
-                              <code className="text-teal-300 text-xs font-mono break-all flex-1">
-                                {cryptoDepositInfo.address}
-                              </code>
-                              <button
-                                onClick={handleCopyAddress}
-                                className="shrink-0 text-slate-400 hover:text-teal-400 transition-colors"
-                                title="Copy address"
-                              >
-                                {addressCopied ? <Check className="h-4 w-4 text-teal-400" /> : <Copy className="h-4 w-4" />}
-                              </button>
-                            </div>
-                            <div className="mt-2 flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-                              <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
-                              <p className="text-amber-300/80 text-[10px] leading-relaxed">
-                                Only send USDT on the TRON (TRC20) network. Other networks will result in permanent loss of funds.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-center py-6">
-                          <Loader2 className="h-6 w-6 animate-spin text-teal-400" />
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Submit TX Hash Form */}
-                    <div>
-                      <p className="text-slate-300 text-sm font-medium mb-3">Submit Transaction Proof</p>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-slate-400 text-xs">Amount Sent (USDT)</Label>
-                          <Input
-                            type="number"
-                            placeholder="e.g. 50.00"
-                            value={cryptoAmount}
-                            onChange={e => setCryptoAmount(e.target.value)}
-                            min="0.01"
-                            step="0.01"
-                            className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-slate-400 text-xs">Network</Label>
-                          <Input
-                            value="TRC20 (TRON)"
-                            readOnly
-                            className="mt-1 bg-slate-800/40 border-slate-600/40 text-slate-400 cursor-not-allowed"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <Label className="text-slate-400 text-xs">Transaction Hash (TxID)</Label>
-                          <Input
-                            placeholder="Paste your transaction hash here"
-                            value={cryptoTxHash}
-                            onChange={e => setCryptoTxHash(e.target.value)}
-                            className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 font-mono text-xs"
-                          />
-                        </div>
-                      </div>
-                      <Button
-                        onClick={handleCryptoTopup}
-                        disabled={cryptoLoading}
-                        className="w-full mt-3 bg-teal-600 hover:bg-teal-700 text-white"
-                      >
-                        {cryptoLoading
-                          ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>
-                          : <><Bitcoin className="h-4 w-4 mr-2" />Submit Topup Request</>}
-                      </Button>
-                      <p className="text-slate-500 text-xs text-center mt-2">
-                        An admin will verify your transaction and credit your USD wallet.
-                      </p>
-                    </div>
-
-                    {/* Crypto Request History */}
-                    {cryptoRequests.length > 0 && (
+                  {/* Submit TX Hash Form */}
+                  <div>
+                    <p className="text-slate-300 text-sm font-medium mb-3">Submit Transaction Proof</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <p className="text-slate-400 text-xs font-medium mb-2 uppercase tracking-wider">Your Requests</p>
-                        <div className="space-y-2">
-                          {cryptoRequests.slice(0, 5).map(req => (
-                            <div key={req.id} className="flex items-center justify-between bg-slate-800/40 border border-slate-700/30 rounded-lg px-3 py-2.5">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-white text-sm font-medium">${req.amount_usdt.toFixed(2)} USDT</span>
-                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
-                                    req.status === 'approved'
-                                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                                      : req.status === 'rejected'
-                                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                                      : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                                  }`}>
-                                    {req.status}
-                                  </span>
-                                </div>
-                                <p className="text-slate-500 text-[10px] font-mono truncate mt-0.5 max-w-[200px]">{req.tx_hash}</p>
-                              </div>
-                              <div className="text-right ml-2 shrink-0">
-                                {req.status === 'pending'
-                                  ? <Clock className="h-4 w-4 text-amber-400" />
-                                  : req.status === 'approved'
-                                  ? <CheckCircle className="h-4 w-4 text-emerald-400" />
-                                  : <XCircle className="h-4 w-4 text-red-400" />}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <Label className="text-slate-400 text-xs">Amount Sent (USDT)</Label>
+                        <Input
+                          type="number"
+                          placeholder="e.g. 50.00"
+                          value={cryptoAmount}
+                          onChange={e => setCryptoAmount(e.target.value)}
+                          min="0.01"
+                          step="0.01"
+                          className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                        />
                       </div>
-                    )}
+                      <div>
+                        <Label className="text-slate-400 text-xs">Network</Label>
+                        <Input
+                          value="TRC20 (TRON)"
+                          readOnly
+                          className="mt-1 bg-slate-800/40 border-slate-600/40 text-slate-400 cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label className="text-slate-400 text-xs">Transaction Hash (TxID)</Label>
+                        <Input
+                          placeholder="Paste your transaction hash here"
+                          value={cryptoTxHash}
+                          onChange={e => setCryptoTxHash(e.target.value)}
+                          className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 font-mono text-xs"
+                        />
+                      </div>
+                    </div>
+                    <Button
+                      onClick={handleCryptoTopup}
+                      disabled={cryptoLoading}
+                      className="w-full mt-3 bg-teal-600 hover:bg-teal-700 text-white"
+                    >
+                      {cryptoLoading
+                        ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>
+                        : <><Bitcoin className="h-4 w-4 mr-2" />Submit Topup Request</>}
+                    </Button>
+                    <p className="text-slate-500 text-xs text-center mt-2">
+                      An admin will verify your transaction and credit your USD wallet.
+                    </p>
                   </div>
-                )}
+
+                  {/* Crypto Request History */}
+                  {cryptoRequests.length > 0 && (
+                    <div>
+                      <p className="text-slate-400 text-xs font-medium mb-2 uppercase tracking-wider">Your Requests</p>
+                      <div className="space-y-2">
+                        {cryptoRequests.slice(0, 5).map(req => (
+                          <div key={req.id} className="flex items-center justify-between bg-slate-800/40 border border-slate-700/30 rounded-lg px-3 py-2.5">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white text-sm font-medium">${req.amount_usdt.toFixed(2)} USDT</span>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
+                                  req.status === 'approved'
+                                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                                    : req.status === 'rejected'
+                                    ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                                }`}>
+                                  {req.status}
+                                </span>
+                              </div>
+                              <p className="text-slate-500 text-[10px] font-mono truncate mt-0.5 max-w-[200px]">{req.tx_hash}</p>
+                            </div>
+                            <div className="text-right ml-2 shrink-0">
+                              {req.status === 'pending'
+                                ? <Clock className="h-4 w-4 text-amber-400" />
+                                : req.status === 'approved'
+                                ? <CheckCircle className="h-4 w-4 text-emerald-400" />
+                                : <XCircle className="h-4 w-4 text-red-400" />}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </TabsContent>
+
+              {/* PHP Top Up Info Dialog */}
+              <Dialog open={topupDialogOpen} onOpenChange={setTopupDialogOpen}>
+                <DialogContent className="bg-[#1E293B] border-slate-700 text-white max-w-md w-[calc(100vw-2rem)] sm:w-full max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle className="text-white text-base font-semibold">Choose Top Up method</DialogTitle>
+                  </DialogHeader>
+
+                  {/* Method selector */}
+                  <div className="flex gap-3 mt-1">
+                    <button
+                      onClick={() => setTopupDialogMethod('ubp')}
+                      className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
+                        topupDialogMethod === 'ubp'
+                          ? 'border-blue-500 bg-blue-500/10'
+                          : 'border-slate-600 hover:border-slate-500 bg-slate-800/40'
+                      }`}
+                    >
+                      <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center text-white font-extrabold text-sm">UB</div>
+                      <span className="text-xs font-medium text-center leading-tight">UBP Bills<br />Payment</span>
+                    </button>
+                    <button
+                      onClick={() => setTopupDialogMethod('bank')}
+                      className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
+                        topupDialogMethod === 'bank'
+                          ? 'border-blue-500 bg-blue-500/10'
+                          : 'border-slate-600 hover:border-slate-500 bg-slate-800/40'
+                      }`}
+                    >
+                      <Building2 className="w-9 h-9 text-blue-400" />
+                      <span className="text-xs font-medium text-center leading-tight">Bank<br />Transfer</span>
+                    </button>
+                  </div>
+
+                  {/* UBP Bills Payment instructions */}
+                  {topupDialogMethod === 'ubp' && (
+                    <div className="space-y-3 mt-1">
+                      <p className="text-slate-300 text-sm">Please follow these steps:</p>
+                      <ol className="space-y-2.5 text-sm text-slate-300">
+                        <li className="flex gap-3">
+                          <span className="text-slate-500 shrink-0 w-4 text-right">1.</span>
+                          <span>Log in to your <strong className="text-white">UnionBank (UBP)</strong> account</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="text-slate-500 shrink-0 w-4 text-right">2.</span>
+                          <span>Go to <strong className="text-white">Pay Bills (UBP Online)</strong> or <strong className="text-white">Bills Payment (UBP The Portal)</strong> section</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="text-slate-500 shrink-0 w-4 text-right">3.</span>
+                          <span>Click <strong className="text-white">Select Biller</strong> and go to the <strong className="text-white">Biller List</strong> section</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="text-slate-500 shrink-0 w-4 text-right">4.</span>
+                          <span>Select biller name <strong className="text-white">"XENDIT BALANCE TOP-UP"</strong></span>
+                        </li>
+                        <li className="flex gap-3 items-start">
+                          <span className="text-slate-500 shrink-0 w-4 text-right">5.</span>
+                          <span className="flex items-center gap-2 flex-wrap">
+                            Enter your payment code:
+                            {/* Payment code for the Xendit account associated with this platform */}
+                            <span className="text-blue-400 font-mono font-semibold">uso1h0</span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText('uso1h0').then(() => {
+                                  setPaymentCodeCopied(true);
+                                  setTimeout(() => setPaymentCodeCopied(false), 2000);
+                                }).catch(() => {
+                                  toast.error('Could not copy to clipboard');
+                                });
+                              }}
+                              className="text-slate-400 hover:text-blue-400 transition-colors"
+                              title="Copy payment code"
+                            >
+                              {paymentCodeCopied ? <Check className="h-3.5 w-3.5 text-blue-400" /> : <Copy className="h-3.5 w-3.5" />}
+                            </button>
+                          </span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="text-slate-500 shrink-0 w-4 text-right">6.</span>
+                          <span>Enter the amount you want to top-up</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="text-slate-500 shrink-0 w-4 text-right">7.</span>
+                          <span>Indicate the date you want to process the top-up. Note that you can either top-up right away or create a one-time or recurring schedule.</span>
+                        </li>
+                        <li className="flex gap-3">
+                          <span className="text-slate-500 shrink-0 w-4 text-right">8.</span>
+                          <span>Review the details and click <strong className="text-white">Pay</strong> to continue</span>
+                        </li>
+                      </ol>
+                    </div>
+                  )}
+
+                  {/* Bank Transfer details */}
+                  {topupDialogMethod === 'bank' && (
+                    <div className="space-y-3 mt-1">
+                      <p className="text-slate-300 text-sm leading-relaxed">
+                        To top-up your balance, you need to transfer to one of the bank accounts below. Xendit will hold these funds securely on your behalf. If the account name is not under Xendit, please note that the account bearer is a trusted partner of Xendit.
+                      </p>
+                      <div className="overflow-x-auto rounded-lg border border-slate-600/50">
+                        <table className="w-full text-sm border-collapse">
+                          <thead>
+                            <tr className="bg-slate-700/50">
+                              <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Bank</th>
+                              <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Account Name</th>
+                              <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Account Number</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-600/30">
+                            <tr>
+                              <td className="px-3 py-2.5 text-slate-300 text-xs">BDO</td>
+                              <td className="px-3 py-2.5 text-slate-400 text-xs">Xendit Philippines Inc</td>
+                              <td className="px-3 py-2.5 text-slate-400 text-xs font-mono">000661587525</td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2.5 text-slate-300 text-xs">Metrobank</td>
+                              <td className="px-3 py-2.5 text-slate-400 text-xs">Xendit Philippines Inc</td>
+                              <td className="px-3 py-2.5 text-slate-400 text-xs font-mono">5193519258057</td>
+                            </tr>
+                            <tr>
+                              <td className="px-3 py-2.5 text-slate-300 text-xs">Unionbank</td>
+                              <td className="px-3 py-2.5 text-slate-400 text-xs">Xendit Philippines Inc</td>
+                              <td className="px-3 py-2.5 text-slate-400 text-xs font-mono">100590300550</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Footer */}
+                  <div className="flex items-center justify-between mt-2 flex-wrap gap-3">
+                    <a
+                      href="https://help.xendit.co/hc/en-us/articles/360034928492"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 text-xs flex items-center gap-1 hover:text-blue-300 transition-colors"
+                    >
+                      <LinkIcon className="h-3 w-3" />
+                      Learn more about Top up
+                    </a>
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => setTopupDialogOpen(false)}
+                        className="border-slate-600 text-slate-300 hover:bg-slate-700">
+                        Cancel
+                      </Button>
+                      <Button size="sm" onClick={() => setTopupDialogOpen(false)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white">
+                        Okay
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
 
               {/* Send USD Tab */}
               <TabsContent value="send-usd" className="p-4 sm:p-6 mt-0 space-y-5">
