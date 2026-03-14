@@ -88,8 +88,8 @@ async def update_user_role(
     """Update a user's role. Super admin only."""
     _require_super_admin(current_user)
 
-    if data.role not in ("user", "admin"):
-        raise HTTPException(status_code=400, detail="Role must be 'user' or 'admin'.")
+    if data.role not in ("user", "admin", "co_admin", "agent", "super_admin"):
+        raise HTTPException(status_code=400, detail="Role must be 'user', 'admin', 'co_admin', 'agent', or 'super_admin'.")
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
