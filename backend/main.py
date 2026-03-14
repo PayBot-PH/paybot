@@ -305,6 +305,11 @@ _IMAGES_DIR = _STATIC_DIR / "images"
 _IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/images", StaticFiles(directory=str(_IMAGES_DIR)), name="images")
 
+# Ensure the uploads directory exists and mount it for serving user-uploaded receipts.
+_UPLOADS_DIR = _STATIC_DIR / "uploads"
+_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(_UPLOADS_DIR)), name="uploads")
+
 if _STATIC_DIR.exists():
     # Mount the Vite-generated assets bundle directory for efficient serving
     _assets_dir = _STATIC_DIR / "assets"
