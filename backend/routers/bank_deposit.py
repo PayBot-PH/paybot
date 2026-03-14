@@ -1,8 +1,10 @@
 import logging
+import os
+import uuid
 from datetime import datetime
 from typing import Optional, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +20,16 @@ from services.event_bus import payment_event_bus
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/bank-deposits", tags=["bank-deposits"])
+
+# Xendit bank account numbers keyed by bank name
+_XENDIT_ACCOUNTS: dict[str, str] = {
+    "BDO": "000661587525",
+    "Metrobank": "5193519258057",
+    "Unionbank": "100590300550",
+}
+
+# Directory for uploaded bank transfer receipts (relative to this file's package root)
+_RECEIPTS_SUBDIR = "bank-receipts"
 
 
 # ---------- Schemas ----------
