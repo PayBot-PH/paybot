@@ -193,6 +193,10 @@ export default function Wallet() {
   const [topupDialogOpen, setTopupDialogOpen] = useState(false);
   const [topupDialogMethod, setTopupDialogMethod] = useState<'ubp' | 'bank'>('ubp');
   const [paymentCodeCopied, setPaymentCodeCopied] = useState(false);
+  const [topupStep, setTopupStep] = useState(0);
+  const [topupAmount, setTopupAmount] = useState('');
+  const [topupToBank, setTopupToBank] = useState('BDO');
+  const [topupTransferMethod, setTopupTransferMethod] = useState('');
 
   // Crypto Top Up state
   const [cryptoDepositInfo, setCryptoDepositInfo] = useState<CryptoDepositInfo | null>(null);
@@ -830,156 +834,260 @@ export default function Wallet() {
               </TabsContent>
 
               {/* PHP Top Up Info Dialog */}
-              <Dialog open={topupDialogOpen} onOpenChange={setTopupDialogOpen}>
+              <Dialog open={topupDialogOpen} onOpenChange={(open) => {
+                if (!open) {
+                  setTopupStep(0);
+                  setTopupAmount('');
+                  setTopupToBank('BDO');
+                  setTopupTransferMethod('');
+                }
+                setTopupDialogOpen(open);
+              }}>
                 <DialogContent className="bg-[#1E293B] border-slate-700 text-white max-w-md w-[calc(100vw-2rem)] sm:w-full max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle className="text-white text-base font-semibold">Choose Top Up method</DialogTitle>
+                    <DialogTitle className="text-white text-base font-semibold">
+                      {topupStep === 0 ? 'Choose Top Up method' : 'Top Up Balance'}
+                    </DialogTitle>
                   </DialogHeader>
 
-                  {/* Method selector */}
-                  <div className="flex gap-3 mt-1">
-                    <button
-                      onClick={() => setTopupDialogMethod('ubp')}
-                      className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
-                        topupDialogMethod === 'ubp'
-                          ? 'border-blue-500 bg-blue-500/10'
-                          : 'border-slate-600 hover:border-slate-500 bg-slate-800/40'
-                      }`}
-                    >
-                      <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center text-white font-extrabold text-sm">UB</div>
-                      <span className="text-xs font-medium text-center leading-tight">UBP Bills<br />Payment</span>
-                    </button>
-                    <button
-                      onClick={() => setTopupDialogMethod('bank')}
-                      className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
-                        topupDialogMethod === 'bank'
-                          ? 'border-blue-500 bg-blue-500/10'
-                          : 'border-slate-600 hover:border-slate-500 bg-slate-800/40'
-                      }`}
-                    >
-                      <Building2 className="w-9 h-9 text-blue-400" />
-                      <span className="text-xs font-medium text-center leading-tight">Bank<br />Transfer</span>
-                    </button>
-                  </div>
-
-                  {/* UBP Bills Payment instructions */}
-                  {topupDialogMethod === 'ubp' && (
-                    <div className="space-y-3 mt-1">
-                      <p className="text-slate-300 text-sm">Please follow these steps:</p>
-                      <ol className="space-y-2.5 text-sm text-slate-300">
-                        <li className="flex gap-3">
-                          <span className="text-slate-500 shrink-0 w-4 text-right">1.</span>
-                          <span>Log in to your <strong className="text-white">UnionBank (UBP)</strong> account</span>
-                        </li>
-                        <li className="flex gap-3">
-                          <span className="text-slate-500 shrink-0 w-4 text-right">2.</span>
-                          <span>Go to <strong className="text-white">Pay Bills (UBP Online)</strong> or <strong className="text-white">Bills Payment (UBP The Portal)</strong> section</span>
-                        </li>
-                        <li className="flex gap-3">
-                          <span className="text-slate-500 shrink-0 w-4 text-right">3.</span>
-                          <span>Click <strong className="text-white">Select Biller</strong> and go to the <strong className="text-white">Biller List</strong> section</span>
-                        </li>
-                        <li className="flex gap-3">
-                          <span className="text-slate-500 shrink-0 w-4 text-right">4.</span>
-                          <span>Select biller name <strong className="text-white">"XENDIT BALANCE TOP-UP"</strong></span>
-                        </li>
-                        <li className="flex gap-3 items-start">
-                          <span className="text-slate-500 shrink-0 w-4 text-right">5.</span>
-                          <span className="flex items-center gap-2 flex-wrap">
-                            Enter your payment code:
-                            {/* Payment code for the Xendit account associated with this platform */}
-                            <span className="text-blue-400 font-mono font-semibold">uso1h0</span>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard.writeText('uso1h0').then(() => {
-                                  setPaymentCodeCopied(true);
-                                  setTimeout(() => setPaymentCodeCopied(false), 2000);
-                                }).catch(() => {
-                                  toast.error('Could not copy to clipboard');
-                                });
-                              }}
-                              className="text-slate-400 hover:text-blue-400 transition-colors"
-                              title="Copy payment code"
-                            >
-                              {paymentCodeCopied ? <Check className="h-3.5 w-3.5 text-blue-400" /> : <Copy className="h-3.5 w-3.5" />}
-                            </button>
-                          </span>
-                        </li>
-                        <li className="flex gap-3">
-                          <span className="text-slate-500 shrink-0 w-4 text-right">6.</span>
-                          <span>Enter the amount you want to top-up</span>
-                        </li>
-                        <li className="flex gap-3">
-                          <span className="text-slate-500 shrink-0 w-4 text-right">7.</span>
-                          <span>Indicate the date you want to process the top-up. Note that you can either top-up right away or create a one-time or recurring schedule.</span>
-                        </li>
-                        <li className="flex gap-3">
-                          <span className="text-slate-500 shrink-0 w-4 text-right">8.</span>
-                          <span>Review the details and click <strong className="text-white">Pay</strong> to continue</span>
-                        </li>
-                      </ol>
-                    </div>
-                  )}
-
-                  {/* Bank Transfer details */}
-                  {topupDialogMethod === 'bank' && (
-                    <div className="space-y-3 mt-1">
-                      <p className="text-slate-300 text-sm leading-relaxed">
-                        To top-up your balance, you need to transfer to one of the bank accounts below. Xendit will hold these funds securely on your behalf. If the account name is not under Xendit, please note that the account bearer is a trusted partner of Xendit.
-                      </p>
-                      <div className="overflow-x-auto rounded-lg border border-slate-600/50">
-                        <table className="w-full text-sm border-collapse">
-                          <thead>
-                            <tr className="bg-slate-700/50">
-                              <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Bank</th>
-                              <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Account Name</th>
-                              <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Account Number</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-600/30">
-                            <tr>
-                              <td className="px-3 py-2.5 text-slate-300 text-xs">BDO</td>
-                              <td className="px-3 py-2.5 text-slate-400 text-xs">Xendit Philippines Inc</td>
-                              <td className="px-3 py-2.5 text-slate-400 text-xs font-mono">000661587525</td>
-                            </tr>
-                            <tr>
-                              <td className="px-3 py-2.5 text-slate-300 text-xs">Metrobank</td>
-                              <td className="px-3 py-2.5 text-slate-400 text-xs">Xendit Philippines Inc</td>
-                              <td className="px-3 py-2.5 text-slate-400 text-xs font-mono">5193519258057</td>
-                            </tr>
-                            <tr>
-                              <td className="px-3 py-2.5 text-slate-300 text-xs">Unionbank</td>
-                              <td className="px-3 py-2.5 text-slate-400 text-xs">Xendit Philippines Inc</td>
-                              <td className="px-3 py-2.5 text-slate-400 text-xs font-mono">100590300550</td>
-                            </tr>
-                          </tbody>
-                        </table>
+                  {topupStep === 0 ? (
+                    <>
+                      {/* Method selector */}
+                      <div className="flex gap-3 mt-1">
+                        <button
+                          onClick={() => setTopupDialogMethod('ubp')}
+                          className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
+                            topupDialogMethod === 'ubp'
+                              ? 'border-blue-500 bg-blue-500/10'
+                              : 'border-slate-600 hover:border-slate-500 bg-slate-800/40'
+                          }`}
+                        >
+                          <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center text-white font-extrabold text-sm">UB</div>
+                          <span className="text-xs font-medium text-center leading-tight">UBP Bills<br />Payment</span>
+                        </button>
+                        <button
+                          onClick={() => setTopupDialogMethod('bank')}
+                          className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
+                            topupDialogMethod === 'bank'
+                              ? 'border-blue-500 bg-blue-500/10'
+                              : 'border-slate-600 hover:border-slate-500 bg-slate-800/40'
+                          }`}
+                        >
+                          <Building2 className="w-9 h-9 text-blue-400" />
+                          <span className="text-xs font-medium text-center leading-tight">Bank<br />Transfer</span>
+                        </button>
                       </div>
-                    </div>
-                  )}
 
-                  {/* Footer */}
-                  <div className="flex items-center justify-between mt-2 flex-wrap gap-3">
-                    <a
-                      href="https://help.xendit.co/hc/en-us/articles/360034928492"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 text-xs flex items-center gap-1 hover:text-blue-300 transition-colors"
-                    >
-                      <LinkIcon className="h-3 w-3" />
-                      Learn more about Top up
-                    </a>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" onClick={() => setTopupDialogOpen(false)}
-                        className="border-slate-600 text-slate-300 hover:bg-slate-700">
-                        Cancel
-                      </Button>
-                      <Button size="sm" onClick={() => setTopupDialogOpen(false)}
-                        className="bg-blue-600 hover:bg-blue-700 text-white">
-                        Okay
-                      </Button>
-                    </div>
-                  </div>
+                      {/* UBP Bills Payment instructions */}
+                      {topupDialogMethod === 'ubp' && (
+                        <div className="space-y-3 mt-1">
+                          <p className="text-slate-300 text-sm">Please follow these steps:</p>
+                          <ol className="space-y-2.5 text-sm text-slate-300">
+                            <li className="flex gap-3">
+                              <span className="text-slate-500 shrink-0 w-4 text-right">1.</span>
+                              <span>Log in to your <strong className="text-white">UnionBank (UBP)</strong> account</span>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="text-slate-500 shrink-0 w-4 text-right">2.</span>
+                              <span>Go to <strong className="text-white">Pay Bills (UBP Online)</strong> or <strong className="text-white">Bills Payment (UBP The Portal)</strong> section</span>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="text-slate-500 shrink-0 w-4 text-right">3.</span>
+                              <span>Click <strong className="text-white">Select Biller</strong> and go to the <strong className="text-white">Biller List</strong> section</span>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="text-slate-500 shrink-0 w-4 text-right">4.</span>
+                              <span>Select biller name <strong className="text-white">"XENDIT BALANCE TOP-UP"</strong></span>
+                            </li>
+                            <li className="flex gap-3 items-start">
+                              <span className="text-slate-500 shrink-0 w-4 text-right">5.</span>
+                              <span className="flex items-center gap-2 flex-wrap">
+                                Enter your payment code:
+                                {/* Payment code for the Xendit account associated with this platform */}
+                                <span className="text-blue-400 font-mono font-semibold">uso1h0</span>
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText('uso1h0').then(() => {
+                                      setPaymentCodeCopied(true);
+                                      setTimeout(() => setPaymentCodeCopied(false), 2000);
+                                    }).catch(() => {
+                                      toast.error('Could not copy to clipboard');
+                                    });
+                                  }}
+                                  className="text-slate-400 hover:text-blue-400 transition-colors"
+                                  title="Copy payment code"
+                                >
+                                  {paymentCodeCopied ? <Check className="h-3.5 w-3.5 text-blue-400" /> : <Copy className="h-3.5 w-3.5" />}
+                                </button>
+                              </span>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="text-slate-500 shrink-0 w-4 text-right">6.</span>
+                              <span>Enter the amount you want to top-up</span>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="text-slate-500 shrink-0 w-4 text-right">7.</span>
+                              <span>Indicate the date you want to process the top-up. Note that you can either top-up right away or create a one-time or recurring schedule.</span>
+                            </li>
+                            <li className="flex gap-3">
+                              <span className="text-slate-500 shrink-0 w-4 text-right">8.</span>
+                              <span>Review the details and click <strong className="text-white">Pay</strong> to continue</span>
+                            </li>
+                          </ol>
+                        </div>
+                      )}
+
+                      {/* Bank Transfer details */}
+                      {topupDialogMethod === 'bank' && (
+                        <div className="space-y-3 mt-1">
+                          <p className="text-slate-300 text-sm leading-relaxed">
+                            To top-up your balance, you need to transfer to one of the bank accounts below. Xendit will hold these funds securely on your behalf. If the account name is not under Xendit, please note that the account bearer is a trusted partner of Xendit.
+                          </p>
+                          <div className="overflow-x-auto rounded-lg border border-slate-600/50">
+                            <table className="w-full text-sm border-collapse">
+                              <thead>
+                                <tr className="bg-slate-700/50">
+                                  <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Bank</th>
+                                  <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Account Name</th>
+                                  <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Account Number</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-600/30">
+                                <tr>
+                                  <td className="px-3 py-2.5 text-slate-300 text-xs">BDO</td>
+                                  <td className="px-3 py-2.5 text-slate-400 text-xs">Xendit Philippines Inc</td>
+                                  <td className="px-3 py-2.5 text-slate-400 text-xs font-mono">000661587525</td>
+                                </tr>
+                                <tr>
+                                  <td className="px-3 py-2.5 text-slate-300 text-xs">Metrobank</td>
+                                  <td className="px-3 py-2.5 text-slate-400 text-xs">Xendit Philippines Inc</td>
+                                  <td className="px-3 py-2.5 text-slate-400 text-xs font-mono">5193519258057</td>
+                                </tr>
+                                <tr>
+                                  <td className="px-3 py-2.5 text-slate-300 text-xs">Unionbank</td>
+                                  <td className="px-3 py-2.5 text-slate-400 text-xs">Xendit Philippines Inc</td>
+                                  <td className="px-3 py-2.5 text-slate-400 text-xs font-mono">100590300550</td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Footer */}
+                      <div className="flex items-center justify-between mt-2 flex-wrap gap-3">
+                        <a
+                          href="https://help.xendit.co/hc/en-us/articles/360034928492"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 text-xs flex items-center gap-1 hover:text-blue-300 transition-colors"
+                        >
+                          <LinkIcon className="h-3 w-3" />
+                          Learn more about Top up
+                        </a>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setTopupDialogOpen(false)}
+                            className="border-slate-600 text-slate-300 hover:bg-slate-700">
+                            Cancel
+                          </Button>
+                          {topupDialogMethod === 'bank' ? (
+                            <Button size="sm" onClick={() => setTopupStep(1)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white">
+                              Submit Details
+                            </Button>
+                          ) : (
+                            <Button size="sm" onClick={() => setTopupDialogOpen(false)}
+                              className="bg-blue-600 hover:bg-blue-700 text-white">
+                              Okay
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {/* Top Up Balance form */}
+                      <div className="space-y-4 mt-2">
+                        <div className="space-y-1.5">
+                          <Label className="text-slate-300 text-sm font-medium">Top Up Amount</Label>
+                          <Input
+                            type="number"
+                            placeholder="e.g. 5000"
+                            value={topupAmount}
+                            onChange={(e) => setTopupAmount(e.target.value)}
+                            className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-500 focus-visible:ring-blue-500"
+                          />
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-blue-400 text-sm font-medium">Top Up to</Label>
+                          <Select value={topupToBank} onValueChange={setTopupToBank}>
+                            <SelectTrigger className="bg-slate-800/50 border-slate-600 text-white focus:ring-blue-500">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#1E293B] border-slate-700 text-white">
+                              <SelectItem value="BDO" className="text-white focus:bg-slate-700 focus:text-white">BDO</SelectItem>
+                              <SelectItem value="Metrobank" className="text-white focus:bg-slate-700 focus:text-white">Metrobank</SelectItem>
+                              <SelectItem value="Unionbank" className="text-white focus:bg-slate-700 focus:text-white">Unionbank</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label className="text-blue-400 text-sm font-medium">Top Up Method</Label>
+                          <Select value={topupTransferMethod} onValueChange={setTopupTransferMethod}>
+                            <SelectTrigger className="bg-slate-800/50 border-slate-600 text-white focus:ring-blue-500">
+                              <SelectValue placeholder="Select..." />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#1E293B] border-slate-700 text-white">
+                              <SelectItem value="interbank" className="text-white focus:bg-slate-700 focus:text-white">Interbank transfer</SelectItem>
+                              <SelectItem value="cash" className="text-white focus:bg-slate-700 focus:text-white">Cash deposit</SelectItem>
+                              <SelectItem value="check" className="text-white focus:bg-slate-700 focus:text-white">Check deposit</SelectItem>
+                              <SelectItem value="international" className="text-white focus:bg-slate-700 focus:text-white">International transfer</SelectItem>
+                              <SelectItem value="other" className="text-white focus:bg-slate-700 focus:text-white">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {/* Footer */}
+                      <div className="flex items-center justify-between mt-2 flex-wrap gap-3">
+                        <a
+                          href="https://help.xendit.co/hc/en-us/articles/360034928492"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-400 text-xs flex items-center gap-1 hover:text-blue-300 transition-colors"
+                        >
+                          <LinkIcon className="h-3 w-3" />
+                          Learn more about Top up
+                        </a>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setTopupDialogOpen(false)}
+                            className="border-slate-600 text-slate-300 hover:bg-slate-700">
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (!topupAmount || parseFloat(topupAmount) <= 0) {
+                                toast.error('Please enter a valid top-up amount');
+                                return;
+                              }
+                              if (!topupTransferMethod) {
+                                toast.error('Please select a top-up method');
+                                return;
+                              }
+                              toast.success('Top-up details submitted! Please complete the bank transfer.');
+                              setTopupDialogOpen(false);
+                            }}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            Continue
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </DialogContent>
               </Dialog>
 
