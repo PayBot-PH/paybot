@@ -2,9 +2,9 @@ import json
 import logging
 from typing import List, Optional
 
-from datetime import datetime, date
+from datetime import datetime
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import ConfigDict, BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -244,14 +244,12 @@ async def create_transactionss_batch(
     logger.debug(f"Batch creating {len(request.items)} transactionss")
     
     service = TransactionsService(db)
-    results = []
     
     try:
-        for item_data in request.items:
-            result = await service.create(item_data.model_dump(), user_id=str(current_user.id))
-            if result:
-                results.append(result)
-        
+        results = await service.bulk_create(
+            [item.model_dump() for item in request.items],
+            user_id=str(current_user.id),
+        )
         logger.info(f"Batch created {len(results)} transactionss successfully")
         return results
     except Exception as e:

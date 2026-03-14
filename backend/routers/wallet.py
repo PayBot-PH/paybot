@@ -6,7 +6,7 @@ from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import ConfigDict, BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import select, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
@@ -19,7 +19,6 @@ from models.usdt_send_requests import UsdtSendRequest
 from models.admin_users import AdminUser
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
-from services.paymongo_service import PayMongoService
 from services.xendit_service import XenditService
 
 # Default USDT TRC20 deposit address — overridable via environment variable
@@ -183,23 +182,40 @@ async def _compute_usd_balance(db: AsyncSession, user_id: str) -> float:
     Filters by user_id (not wallet_id) so the balance survives wallet row
     recreation after redeployment — even if the wallet.id changes, the
     transaction history is still found via the stable user_id.
+
+    Uses a single query with conditional aggregation instead of two separate
+    queries to halve the number of database round-trips.
     """
-    credit_res = await db.execute(
-        select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
+    row = await db.execute(
+        select(
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Wallet_transactions.transaction_type.in_(_USD_CREDIT_TYPES),
+                         Wallet_transactions.amount),
+                        else_=0.0,
+                    )
+                ),
+                0.0,
+            ).label("credits"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (Wallet_transactions.transaction_type.in_(_USD_DEBIT_TYPES),
+                         Wallet_transactions.amount),
+                        else_=0.0,
+                    )
+                ),
+                0.0,
+            ).label("debits"),
+        ).where(
             Wallet_transactions.user_id == user_id,
-            Wallet_transactions.transaction_type.in_(_USD_CREDIT_TYPES),
             Wallet_transactions.status == "completed",
         )
     )
-    debit_res = await db.execute(
-        select(func.coalesce(func.sum(Wallet_transactions.amount), 0.0)).where(
-            Wallet_transactions.user_id == user_id,
-            Wallet_transactions.transaction_type.in_(_USD_DEBIT_TYPES),
-            Wallet_transactions.status == "completed",
-        )
-    )
-    credits = float(credit_res.scalar() or 0.0)
-    debits = float(debit_res.scalar() or 0.0)
+    result = row.one()
+    credits = float(result.credits or 0.0)
+    debits = float(result.debits or 0.0)
     return max(0.0, credits - debits)
 
 
@@ -225,10 +241,12 @@ async def get_balance(
 ):
     """Get wallet balance.
 
-    - PHP: always synced from the live Xendit account balance so the value
-      never diverges from what Xendit holds.
+    - PHP (super admin): always synced real-time from the live Xendit account
+      balance so the value never diverges from what Xendit holds.
+    - PHP (other users): returns the stored wallet balance.
     - USD: always computed from wallet transaction history (credits minus
       debits) so the balance can never be stuck at 0 due to a stale row.
+    - Other currencies: returns the stored balance as-is.
     """
     user_id = str(current_user.id)
     currency_upper = currency.upper()
@@ -236,26 +254,20 @@ async def get_balance(
     if currency_upper == "PHP":
         wallet = await get_or_create_wallet(db, user_id, "PHP")
 
-        # Super admin: sync balance from the realtime PayMongo account balance
+        # Super admin: sync balance from the realtime Xendit account balance
         perms = current_user.permissions
         if perms and perms.is_super_admin:
-            svc = PayMongoService()
-            pm_result = await svc.get_balance()
-            if pm_result.get("success"):
-                available = pm_result.get("available", [])
-                php_entry = next(
-                    (e for e in available if e.get("currency", "").upper() == "PHP"),
-                    None,
-                )
-                if php_entry is not None:
-                    live_balance = php_entry["amount"] / 100.0
-                    if live_balance != wallet.balance:
-                        wallet.balance = live_balance
-                        wallet.updated_at = datetime.now()
-                        await db.commit()
-                        await db.refresh(wallet)
+            svc = XenditService()
+            xendit_result = await svc.get_balance()
+            if xendit_result.get("success"):
+                live_balance = float(xendit_result.get("balance", 0))
+                if live_balance != wallet.balance:
+                    wallet.balance = live_balance
+                    wallet.updated_at = datetime.now()
+                    await db.commit()
+                    await db.refresh(wallet)
             else:
-                logger.warning("PayMongo get_balance failed: %s", pm_result.get("error"))
+                logger.warning("Xendit get_balance failed: %s", xendit_result.get("error"))
 
         return WalletBalanceResponse(
             wallet_id=wallet.id,

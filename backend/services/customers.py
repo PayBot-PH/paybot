@@ -32,6 +32,25 @@ class CustomersService:
             logger.error(f"Error creating customers: {str(e)}")
             raise
 
+    async def bulk_create(self, items: List[Dict[str, Any]], user_id: Optional[str] = None) -> List[Customers]:
+        """Bulk-create multiple customers in a single transaction (avoids N+1 commits)"""
+        try:
+            objs = []
+            for data in items:
+                if user_id:
+                    data = {**data, 'user_id': user_id}
+                objs.append(Customers(**data))
+            self.db.add_all(objs)
+            await self.db.commit()
+            for obj in objs:
+                await self.db.refresh(obj)
+            logger.info(f"Bulk created {len(objs)} customers")
+            return objs
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error bulk creating customers: {str(e)}")
+            raise
+
     async def check_ownership(self, obj_id: int, user_id: str) -> bool:
         """Check if user owns this record"""
         try:

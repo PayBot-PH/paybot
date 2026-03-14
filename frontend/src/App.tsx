@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { useEffect, useState } from 'react';
 import Dashboard from './pages/Dashboard';
 import Wallet from './pages/Wallet';
@@ -17,8 +18,10 @@ import AdminManagement from './pages/AdminManagement';
 import BotMessagesPage from './pages/BotMessagesPage';
 import TopupRequestsPage from './pages/TopupRequestsPage';
 import UsdtSendRequestsPage from './pages/UsdtSendRequestsPage';
+import BankDepositsPage from './pages/BankDepositsPage';
 import KybRegistrationsPage from './pages/KybRegistrationsPage';
 import KycVerificationsPage from './pages/KycVerificationsPage';
+import RolesPage from './pages/RolesPage';
 import RequireSuperAdmin from './components/RequireSuperAdmin';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import Policies from './pages/Policies';
@@ -32,7 +35,7 @@ import LogoutCallbackPage from './pages/LogoutCallbackPage';
 import NotFound from './pages/NotFound';
 import MaintenancePage from './pages/MaintenancePage';
 import BotIntro from './pages/BotIntro';
-import DeploymentStatus from './pages/DeploymentStatus';
+import ScanQRPH from './pages/ScanQRPH';
 
 const queryClient = new QueryClient();
 
@@ -72,7 +75,8 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
-      <AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
         <TooltipProvider>
           <Toaster />
           <BrowserRouter>
@@ -92,6 +96,7 @@ const App = () => (
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/create-payment" element={<CreatePayment />} />
               <Route path="/payments" element={<PaymentsHub />} />
+              <Route path="/scan-qrph" element={<ScanQRPH />} />
               <Route path="/disbursements" element={<DisbursementsPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/bot-settings" element={<BotSettings />} />
@@ -99,16 +104,18 @@ const App = () => (
               <Route path="/bot-messages" element={<ProtectedAdminRoute><BotMessagesPage /></ProtectedAdminRoute>} />
               <Route path="/topup-requests" element={<RequireSuperAdmin><TopupRequestsPage /></RequireSuperAdmin>} />
               <Route path="/usdt-send-requests" element={<RequireSuperAdmin><UsdtSendRequestsPage /></RequireSuperAdmin>} />
+              <Route path="/bank-deposits" element={<RequireSuperAdmin><BankDepositsPage /></RequireSuperAdmin>} />
               <Route path="/kyb-registrations" element={<RequireSuperAdmin><KybRegistrationsPage /></RequireSuperAdmin>} />
               <Route path="/kyc-verifications" element={<RequireSuperAdmin><KycVerificationsPage /></RequireSuperAdmin>} />
-              <Route path="/deployment-status" element={<DeploymentStatus />} />
+              <Route path="/roles" element={<RequireSuperAdmin><RolesPage /></RequireSuperAdmin>} />
               <Route path="/policies" element={<Policies />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </MaintenanceGuard>
           </BrowserRouter>
         </TooltipProvider>
-      </AuthProvider>
+        </AuthProvider>
+      </LanguageProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );

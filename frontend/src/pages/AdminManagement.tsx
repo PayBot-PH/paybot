@@ -29,8 +29,6 @@ import {
   Wallet as WalletIcon,
   DollarSign,
   RefreshCw,
-  Pencil,
-  UserCog,
 } from 'lucide-react';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -74,23 +72,6 @@ interface CryptoTopupRequest {
   created_at: string | null;
 }
 
-interface CustomRole {
-  id: number;
-  name: string;
-  description: string | null;
-  color: string;
-  is_system: boolean;
-  is_super_admin: boolean;
-  can_manage_payments: boolean;
-  can_manage_disbursements: boolean;
-  can_view_reports: boolean;
-  can_manage_wallet: boolean;
-  can_manage_transactions: boolean;
-  can_manage_bot: boolean;
-  can_approve_topups: boolean;
-  created_by: string | null;
-}
-
 type AdminTab = 'admins' | 'users' | 'roles' | 'crypto' | 'usd-wallets';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -120,10 +101,10 @@ const defaultForm = {
 };
 
 interface RolePreset {
+  id: string;
   name: string;
   description: string;
   color: string;
-  icon: React.ReactNode;
   permissions: {
     is_super_admin: boolean;
     can_manage_payments: boolean;
@@ -136,88 +117,12 @@ interface RolePreset {
   };
 }
 
-const ROLE_PRESETS: RolePreset[] = [
-  {
-    name: 'Super Admin',
-    description: 'Full access to all features including admin management.',
-    color: 'amber',
-    icon: <Crown className="h-4 w-4 text-amber-400" />,
-    permissions: {
-      is_super_admin: true,
-      can_manage_payments: true,
-      can_manage_disbursements: true,
-      can_view_reports: true,
-      can_manage_wallet: true,
-      can_manage_transactions: true,
-      can_manage_bot: true,
-      can_approve_topups: true,
-    },
-  },
-  {
-    name: 'Co Admin',
-    description: 'Trusted admin with full operational access and top-up approval rights.',
-    color: 'purple',
-    icon: <ShieldCheck className="h-4 w-4 text-purple-400" />,
-    permissions: {
-      is_super_admin: false,
-      can_manage_payments: true,
-      can_manage_disbursements: true,
-      can_view_reports: true,
-      can_manage_wallet: true,
-      can_manage_transactions: true,
-      can_manage_bot: false,
-      can_approve_topups: true,
-    },
-  },
-  {
-    name: 'Agent',
-    description: 'Field agent — can create payments and process transactions.',
-    color: 'blue',
-    icon: <UserCog className="h-4 w-4 text-blue-400" />,
-    permissions: {
-      is_super_admin: false,
-      can_manage_payments: true,
-      can_manage_disbursements: false,
-      can_view_reports: false,
-      can_manage_wallet: false,
-      can_manage_transactions: true,
-      can_manage_bot: false,
-      can_approve_topups: false,
-    },
-  },
-  {
-    name: 'Cashier',
-    description: 'Can create payments and view transactions only.',
-    color: 'emerald',
-    icon: <Shield className="h-4 w-4 text-emerald-400" />,
-    permissions: {
-      is_super_admin: false,
-      can_manage_payments: true,
-      can_manage_disbursements: false,
-      can_view_reports: false,
-      can_manage_wallet: false,
-      can_manage_transactions: true,
-      can_manage_bot: false,
-      can_approve_topups: false,
-    },
-  },
-  {
-    name: 'Reporter',
-    description: 'Read-only access to reports and transactions.',
-    color: 'yellow',
-    icon: <Tag className="h-4 w-4 text-yellow-400" />,
-    permissions: {
-      is_super_admin: false,
-      can_manage_payments: false,
-      can_manage_disbursements: false,
-      can_view_reports: true,
-      can_manage_wallet: false,
-      can_manage_transactions: true,
-      can_manage_bot: false,
-      can_approve_topups: false,
-    },
-  },
-];
+const ROLE_ICONS: Record<string, React.ReactNode> = {
+  super_admin: <Crown className="h-4 w-4 text-amber-400" />,
+  manager: <ShieldCheck className="h-4 w-4 text-blue-400" />,
+  cashier: <Shield className="h-4 w-4 text-emerald-400" />,
+  reporter: <Tag className="h-4 w-4 text-yellow-400" />,
+};
 
 // ── Shared sub-components ─────────────────────────────────────────────────────
 
@@ -271,29 +176,56 @@ function TabBar({
   onChange: (id: string) => void;
 }) {
   return (
-    <div className="overflow-x-auto mb-6 [overflow-scrolling:touch]">
-      <div className="flex items-center gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1 min-w-max">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onChange(tab.id)}
-          className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap
-            ${active === tab.id
-              ? 'bg-slate-700 text-white shadow-sm'
-              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
-            }`}
-        >
-          {tab.icon}
-          <span>{tab.label}</span>
-          {tab.count !== undefined && (
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-              active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-slate-700/60 text-slate-400'
-            }`}>
-              {tab.count}
-            </span>
-          )}
-        </button>
-      ))}
+    <div className="mb-6">
+      {/* Mobile: 2-column grid — all tabs visible at a glance, no horizontal scroll */}
+      <div className="sm:hidden grid grid-cols-2 gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1">
+        {tabs.map((tab, idx) => (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-all duration-150
+              ${tabs.length % 2 !== 0 && idx === tabs.length - 1 ? 'col-span-2' : ''}
+              ${active === tab.id
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+              }`}
+          >
+            {tab.icon}
+            <span className="truncate">{tab.label}</span>
+            {tab.count !== undefined && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
+                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-slate-700/60 text-slate-400'
+              }`}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Desktop: horizontal scrollable row with hidden scrollbar */}
+      <div className="hidden sm:flex items-center gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap shrink-0
+              ${active === tab.id
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+              }`}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+            {tab.count !== undefined && (
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
+                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-slate-700/60 text-slate-400'
+              }`}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -492,24 +424,12 @@ function UserManagementTab({
               {/* Identity */}
               <div className="flex items-center gap-3 min-w-0">
                 <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${
-                  user.role === 'super_admin'
-                    ? 'bg-amber-500/15 border border-amber-500/25'
-                    : user.role === 'co_admin'
-                    ? 'bg-purple-500/15 border border-purple-500/25'
-                    : user.role === 'agent'
+                  user.role === 'admin'
                     ? 'bg-blue-500/15 border border-blue-500/25'
-                    : user.role === 'admin'
-                    ? 'bg-cyan-500/15 border border-cyan-500/25'
                     : 'bg-slate-700/50 border border-slate-600/40'
                 }`}>
-                  {user.role === 'super_admin'
-                    ? <Crown className="h-4 w-4 text-amber-400" />
-                    : user.role === 'co_admin'
-                    ? <ShieldCheck className="h-4 w-4 text-purple-400" />
-                    : user.role === 'agent'
-                    ? <UserCog className="h-4 w-4 text-blue-400" />
-                    : user.role === 'admin'
-                    ? <ShieldCheck className="h-4 w-4 text-cyan-400" />
+                  {user.role === 'admin'
+                    ? <ShieldCheck className="h-4 w-4 text-blue-400" />
                     : <User className="h-4 w-4 text-slate-400" />
                   }
                 </div>
@@ -527,7 +447,7 @@ function UserManagementTab({
               </div>
 
               {/* Meta + Role */}
-              <div className="flex items-center gap-4 shrink-0">
+              <div className="flex items-center gap-3 shrink-0">
                 <div className="hidden sm:flex flex-col items-end gap-0.5">
                   <div className="flex items-center gap-1 text-[11px] text-slate-500">
                     <Clock className="h-3 w-3" />
@@ -546,17 +466,11 @@ function UserManagementTab({
                   />
                 ) : (
                   <Badge className={`text-[10px] px-2 h-5 border ${
-                    user.role === 'super_admin'
-                      ? 'bg-amber-500/15 border-amber-500/25 text-amber-400'
-                      : user.role === 'co_admin'
-                      ? 'bg-purple-500/15 border-purple-500/25 text-purple-400'
-                      : user.role === 'agent'
+                    user.role === 'admin'
                       ? 'bg-blue-500/15 border-blue-500/25 text-blue-400'
-                      : user.role === 'admin'
-                      ? 'bg-cyan-500/15 border-cyan-500/25 text-cyan-400'
                       : 'bg-slate-700/40 border-slate-600/40 text-slate-400'
                   }`}>
-                    {user.role === 'co_admin' ? 'Co Admin' : user.role === 'super_admin' ? 'Super Admin' : user.role}
+                    {user.role}
                   </Badge>
                 )}
               </div>
@@ -580,13 +494,10 @@ function RoleSelector({
   const [open, setOpen] = useState(false);
 
   const roles = [
-    { value: 'super_admin', label: 'Super Admin', color: 'text-amber-400', bg: 'bg-amber-500/15 border-amber-500/25' },
-    { value: 'co_admin', label: 'Co Admin', color: 'text-purple-400', bg: 'bg-purple-500/15 border-purple-500/25' },
-    { value: 'agent', label: 'Agent', color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/25' },
-    { value: 'admin', label: 'Admin', color: 'text-cyan-400', bg: 'bg-cyan-500/15 border-cyan-500/25' },
+    { value: 'admin', label: 'Admin', color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/25' },
     { value: 'user', label: 'User', color: 'text-slate-400', bg: 'bg-slate-700/40 border-slate-600/40' },
   ];
-  const current = roles.find((r) => r.value === currentRole) || roles[4];
+  const current = roles.find((r) => r.value === currentRole) || roles[1];
 
   return (
     <div className="relative">
@@ -604,7 +515,7 @@ function RoleSelector({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-1 z-20 bg-slate-800 border border-slate-700/60 rounded-lg shadow-xl overflow-hidden min-w-[120px]">
+          <div className="absolute right-0 mt-1 z-20 bg-slate-800 border border-slate-700/60 rounded-lg shadow-xl overflow-hidden min-w-[100px]">
             {roles.map((r) => (
               <button
                 key={r.value}
@@ -630,36 +541,6 @@ const PRESET_BADGE_COLORS: Record<string, string> = {
   emerald: 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400',
   yellow: 'bg-yellow-500/15 border-yellow-500/25 text-yellow-400',
   purple: 'bg-purple-500/15 border-purple-500/25 text-purple-400',
-  cyan: 'bg-cyan-500/15 border-cyan-500/25 text-cyan-400',
-  red: 'bg-red-500/15 border-red-500/25 text-red-400',
-  teal: 'bg-teal-500/15 border-teal-500/25 text-teal-400',
-  slate: 'bg-slate-500/15 border-slate-500/30 text-slate-300',
-};
-
-const COLOR_OPTIONS = [
-  { value: 'amber', label: 'Amber' },
-  { value: 'blue', label: 'Blue' },
-  { value: 'purple', label: 'Purple' },
-  { value: 'emerald', label: 'Emerald' },
-  { value: 'yellow', label: 'Yellow' },
-  { value: 'cyan', label: 'Cyan' },
-  { value: 'red', label: 'Red' },
-  { value: 'teal', label: 'Teal' },
-  { value: 'slate', label: 'Slate' },
-];
-
-const defaultRoleForm = {
-  name: '',
-  description: '',
-  color: 'blue',
-  is_super_admin: false,
-  can_manage_payments: false,
-  can_manage_disbursements: false,
-  can_view_reports: false,
-  can_manage_wallet: false,
-  can_manage_transactions: false,
-  can_manage_bot: false,
-  can_approve_topups: false,
 };
 
 function RoleManagementTab({
@@ -667,41 +548,20 @@ function RoleManagementTab({
   isSuperAdmin,
   onError,
   onRefreshAdmins,
+  roles,
+  rolesLoading,
 }: {
   admins: AdminUser[];
   isSuperAdmin: boolean;
   onError: (msg: string) => void;
   onRefreshAdmins: () => void;
+  roles: RolePreset[];
+  rolesLoading: boolean;
 }) {
-  const [applying, setApplying] = useState<string | null>(null);
-  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
-  const [rolesLoading, setRolesLoading] = useState(true);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [editingRole, setEditingRole] = useState<CustomRole | null>(null);
-  const [roleForm, setRoleForm] = useState(defaultRoleForm);
-  const [savingRole, setSavingRole] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [applying, setApplying] = useState<string | null>(null); // "{roleId}-{adminId}"
 
-  const fetchCustomRoles = async () => {
-    try {
-      setRolesLoading(true);
-      const res = await fetch('/api/v1/roles');
-      if (!res.ok) throw new Error(await res.text());
-      setCustomRoles(await res.json());
-    } catch (e: unknown) {
-      onError(e instanceof Error ? e.message : 'Failed to load custom roles');
-    } finally {
-      setRolesLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchCustomRoles();
-  }, []);
-
-  // Apply a built-in preset to an admin user (via admin-users PATCH)
-  const applyPreset = async (preset: RolePreset, admin: AdminUser) => {
-    const key = `${preset.name}-${admin.id}`;
+  const applyRole = async (preset: RolePreset, admin: AdminUser) => {
+    const key = `${preset.id}-${admin.id}`;
     setApplying(key);
     try {
       const res = await fetch(`/api/v1/admin-users/${admin.id}`, {
@@ -718,385 +578,210 @@ function RoleManagementTab({
     }
   };
 
-  // Apply a custom (DB-stored) role to an admin user
-  const applyCustomRole = async (role: CustomRole, admin: AdminUser) => {
-    const key = `cr-${role.id}-${admin.id}`;
-    setApplying(key);
-    try {
-      const res = await fetch(`/api/v1/roles/${role.id}/apply/${admin.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      });
-      if (!res.ok) throw new Error(await res.text());
-      onRefreshAdmins();
-    } catch (e: unknown) {
-      onError(e instanceof Error ? e.message : 'Failed to apply role');
-    } finally {
-      setApplying(null);
-    }
-  };
-
-  const handleSaveRole = async () => {
-    if (!roleForm.name.trim()) return;
-    setSavingRole(true);
-    try {
-      const url = editingRole ? `/api/v1/roles/${editingRole.id}` : '/api/v1/roles';
-      const method = editingRole ? 'PATCH' : 'POST';
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...roleForm,
-          name: roleForm.name.trim(),
-          description: roleForm.description.trim() || null,
-        }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      setRoleForm(defaultRoleForm);
-      setShowCreateForm(false);
-      setEditingRole(null);
-      await fetchCustomRoles();
-    } catch (e: unknown) {
-      onError(e instanceof Error ? e.message : 'Failed to save role');
-    } finally {
-      setSavingRole(false);
-    }
-  };
-
-  const handleDeleteRole = async (role: CustomRole) => {
-    if (!confirm(`Delete the "${role.name}" role?`)) return;
-    setDeletingId(role.id);
-    try {
-      const res = await fetch(`/api/v1/roles/${role.id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error(await res.text());
-      await fetchCustomRoles();
-    } catch (e: unknown) {
-      onError(e instanceof Error ? e.message : 'Failed to delete role');
-    } finally {
-      setDeletingId(null);
-    }
-  };
-
-  const startEdit = (role: CustomRole) => {
-    setEditingRole(role);
-    setRoleForm({
-      name: role.name,
-      description: role.description || '',
-      color: role.color,
-      is_super_admin: role.is_super_admin,
-      can_manage_payments: role.can_manage_payments,
-      can_manage_disbursements: role.can_manage_disbursements,
-      can_view_reports: role.can_view_reports,
-      can_manage_wallet: role.can_manage_wallet,
-      can_manage_transactions: role.can_manage_transactions,
-      can_manage_bot: role.can_manage_bot,
-      can_approve_topups: role.can_approve_topups,
-    });
-    setShowCreateForm(true);
-  };
-
-  const cancelForm = () => {
-    setShowCreateForm(false);
-    setEditingRole(null);
-    setRoleForm(defaultRoleForm);
-  };
-
-  const activeAdmins = admins.filter((a) => a.is_active);
-
-  // Render a card for an apply-to-admin section
-  function ApplySection({ onApply }: { onApply: (admin: AdminUser) => void }) {
-    if (!isSuperAdmin || activeAdmins.length === 0) {
-      return isSuperAdmin ? (
-        <p className="text-xs text-slate-600 italic">No active admins to apply this role to.</p>
-      ) : null;
-    }
-    return (
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">Apply to admin</p>
-        <div className="flex flex-wrap gap-2">
-          {activeAdmins.map((admin) => {
-            const busy = applying !== null;
-            return (
-              <button
-                key={admin.id}
-                onClick={() => onApply(admin)}
-                disabled={busy}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs text-slate-300 hover:bg-slate-700/60 hover:text-white transition-all duration-150 disabled:opacity-50"
-              >
-                <User className="h-3 w-3 text-slate-500" />
-                {admin.name || admin.telegram_username || `ID: ${admin.telegram_id}`}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-start gap-2.5 bg-blue-500/8 border border-blue-500/20 rounded-lg px-4 py-3 flex-1">
-          <Shield className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-slate-400 leading-relaxed">
-            Roles define named permission sets. Apply built-in roles or create custom ones. Super Admin can add, edit, and delete custom roles.
-          </p>
-        </div>
-        {isSuperAdmin && !showCreateForm && (
-          <Button
-            size="sm"
-            onClick={() => setShowCreateForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs gap-1.5 shrink-0"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            New Role
-          </Button>
-        )}
+      {/* Info banner */}
+      <div className="flex items-start gap-2.5 bg-blue-500/8 border border-blue-500/20 rounded-lg px-4 py-3">
+        <Shield className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
+        <p className="text-xs text-slate-400 leading-relaxed">
+          Role presets are permission templates. Applying a preset to an admin instantly updates all their permissions to match the role. You can still fine-tune individual permissions afterward in the Admin Users tab.
+        </p>
       </div>
 
-      {/* Create / Edit Role Form */}
-      {showCreateForm && isSuperAdmin && (
-        <Card className="bg-[#1E293B] border-blue-500/20 shadow-lg shadow-blue-900/10">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
-              <Shield className="h-4 w-4 text-blue-400" />
-              {editingRole ? `Edit Role: ${editingRole.name}` : 'Create New Role'}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4 space-y-4">
-            {/* Name + color */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs text-slate-400 mb-1.5 block">Role Name <span className="text-red-400">*</span></label>
-                <input
-                  type="text"
-                  placeholder="e.g. Regional Manager"
-                  value={roleForm.name}
-                  onChange={e => setRoleForm(f => ({ ...f, name: e.target.value }))}
-                  className="w-full bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-slate-400 mb-1.5 block">Color</label>
-                <select
-                  value={roleForm.color}
-                  onChange={e => setRoleForm(f => ({ ...f, color: e.target.value }))}
-                  className="w-full bg-slate-800/60 border border-slate-700/60 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
-                >
-                  {COLOR_OPTIONS.map(c => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="text-xs text-slate-400 mb-1.5 block">Description</label>
-              <input
-                type="text"
-                placeholder="Brief description of this role…"
-                value={roleForm.description}
-                onChange={e => setRoleForm(f => ({ ...f, description: e.target.value }))}
-                className="w-full bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
-              />
-            </div>
-
-            {/* Permissions */}
-            <div>
-              <label className="text-xs text-slate-400 mb-2 block font-medium">Permissions</label>
-              <div className="flex flex-wrap gap-3">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <div
-                    onClick={() => setRoleForm(f => ({ ...f, is_super_admin: !f.is_super_admin }))}
-                    className={`w-8 h-5 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 ${roleForm.is_super_admin ? 'bg-amber-500' : 'bg-slate-700'}`}
-                  >
-                    <div className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${roleForm.is_super_admin ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
-                  </div>
-                  <span className={`text-xs font-semibold ${roleForm.is_super_admin ? 'text-amber-400' : 'text-slate-400'}`}>Super Admin</span>
-                </label>
-                {PERMISSION_KEYS.map(({ key, label }) => (
-                  <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
-                    <input
-                      type="checkbox"
-                      checked={roleForm[key as keyof typeof roleForm] as boolean}
-                      onChange={e => setRoleForm(f => ({ ...f, [key]: e.target.checked }))}
-                      className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0"
-                    />
-                    <span className="text-xs text-slate-300">{label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 pt-1">
-              <Button
-                onClick={handleSaveRole}
-                disabled={savingRole || !roleForm.name.trim()}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700 text-white text-xs disabled:opacity-50"
-              >
-                {savingRole ? 'Saving…' : editingRole ? 'Update Role' : 'Create Role'}
-              </Button>
-              <Button variant="ghost" size="sm" onClick={cancelForm} className="text-slate-400 hover:text-white text-xs">
-                Cancel
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Loading skeletons */}
+      {rolesLoading && (
+        <div className="space-y-3">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-xl bg-slate-800/40 border border-slate-700/50 animate-pulse" />
+          ))}
+        </div>
       )}
 
-      {/* ── Section 1: Built-in Role Presets ── */}
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1.5">
-          <Crown className="h-3 w-3" /> Built-in Roles
-        </p>
-        <div className="space-y-3">
-          {ROLE_PRESETS.map((preset) => {
-            const colorCls = PRESET_BADGE_COLORS[preset.color] || PRESET_BADGE_COLORS['blue'];
-            return (
-              <Card key={preset.name} className="bg-[#1E293B] border-slate-700/50">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-4 mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className={`h-9 w-9 rounded-xl flex items-center justify-center border ${colorCls}`}>
-                        {preset.icon}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-white">{preset.name}</span>
-                          <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${colorCls}`}>BUILT-IN</Badge>
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">{preset.description}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {preset.permissions.is_super_admin && (
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border bg-amber-500/15 border-amber-500/30 text-amber-400 text-xs font-medium">
-                        <Crown className="h-2.5 w-2.5" /> Super Admin
-                      </span>
-                    )}
-                    {PERMISSION_KEYS.map(({ key, label, color }) => (
-                      <PermissionBadge
-                        key={key}
-                        active={preset.permissions[key as keyof typeof preset.permissions] as boolean}
-                        label={label}
-                        color={color}
-                        interactive={false}
-                      />
-                    ))}
-                  </div>
-                  <ApplySection
-                    onApply={(admin) => applyPreset(preset, admin)}
-                  />
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
+      {/* Role preset cards */}
+      {!rolesLoading && roles.map((preset) => {
+        const colorCls = PRESET_BADGE_COLORS[preset.color] || PRESET_BADGE_COLORS['blue'];
+        const icon = ROLE_ICONS[preset.id] ?? <Shield className="h-4 w-4 text-blue-400" />;
+        const activeAdmins = admins.filter((a) => a.is_active);
 
-      {/* ── Section 2: Custom Roles ── */}
-      <div>
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-3 flex items-center gap-1.5">
-          <Shield className="h-3 w-3" /> Custom Roles
-        </p>
-        {rolesLoading ? (
-          <div className="space-y-2">
-            {[1, 2].map(i => <div key={i} className="h-20 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />)}
-          </div>
-        ) : customRoles.length === 0 ? (
-          <Card className="bg-[#1E293B] border-slate-700/50 border-dashed">
-            <CardContent className="flex flex-col items-center justify-center py-10 text-center">
-              <div className="h-12 w-12 rounded-2xl bg-slate-700/40 flex items-center justify-center mb-3">
-                <Shield className="h-6 w-6 text-slate-500" />
+        return (
+          <Card key={preset.id} className="bg-[#1E293B] border-slate-700/50">
+            <CardContent className="p-4">
+              <div className="flex items-start justify-between gap-4 mb-3">
+                <div className="flex items-center gap-3">
+                  <div className={`h-9 w-9 rounded-xl flex items-center justify-center border ${colorCls}`}>
+                    {icon}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-sm text-white">{preset.name}</span>
+                      <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${colorCls}`}>
+                        PRESET
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5">{preset.description}</p>
+                  </div>
+                </div>
               </div>
-              <p className="text-white font-semibold text-sm">No custom roles yet</p>
-              {isSuperAdmin && (
-                <p className="text-slate-500 text-xs mt-1">
-                  Click <span className="text-blue-400 font-medium">New Role</span> above to create one.
-                </p>
+
+              {/* Permission summary */}
+              <div className="flex flex-wrap gap-1.5 mb-4">
+                {preset.permissions.is_super_admin && (
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border bg-amber-500/15 border-amber-500/30 text-amber-400 text-xs font-medium">
+                    <Crown className="h-2.5 w-2.5" /> Super Admin
+                  </span>
+                )}
+                {PERMISSION_KEYS.map(({ key, label, color }) => (
+                  <PermissionBadge
+                    key={key}
+                    active={preset.permissions[key as keyof typeof preset.permissions] as boolean}
+                    label={label}
+                    color={color}
+                    interactive={false}
+                  />
+                ))}
+              </div>
+
+              {/* Apply to admin */}
+              {isSuperAdmin && activeAdmins.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                    Apply to admin
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {activeAdmins.map((admin) => {
+                      const key = `${preset.id}-${admin.id}`;
+                      const isApplying = applying === key;
+                      return (
+                        <button
+                          key={admin.id}
+                          onClick={() => applyRole(preset, admin)}
+                          disabled={!!applying}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs text-slate-300 hover:bg-slate-700/60 hover:text-white transition-all duration-150 disabled:opacity-50"
+                        >
+                          {isApplying ? (
+                            <div className="h-3 w-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
+                          ) : (
+                            <User className="h-3 w-3 text-slate-500" />
+                          )}
+                          {admin.name || admin.telegram_username || `ID: ${admin.telegram_id}`}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {isSuperAdmin && activeAdmins.length === 0 && (
+                <p className="text-xs text-slate-600 italic">No active admins to apply this role to.</p>
               )}
             </CardContent>
           </Card>
-        ) : (
-          <div className="space-y-3">
-            {customRoles.map((role) => {
-              const colorCls = PRESET_BADGE_COLORS[role.color] || PRESET_BADGE_COLORS['blue'];
-              const isDeleting = deletingId === role.id;
-              return (
-                <Card key={role.id} className="bg-[#1E293B] border-slate-700/50">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`h-9 w-9 rounded-xl flex items-center justify-center border ${colorCls}`}>
-                          <Shield className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-sm text-white">{role.name}</span>
-                            <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${colorCls}`}>CUSTOM</Badge>
-                          </div>
-                          {role.description && (
-                            <p className="text-[11px] text-slate-500 mt-0.5">{role.description}</p>
-                          )}
-                        </div>
-                      </div>
-                      {isSuperAdmin && (
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <button
-                            onClick={() => startEdit(role)}
-                            title="Edit role"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          {!role.is_system && (
-                            <button
-                              onClick={() => handleDeleteRole(role)}
-                              disabled={isDeleting}
-                              title="Delete role"
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
-                            >
-                              {isDeleting
-                                ? <div className="h-3.5 w-3.5 rounded-full border-2 border-red-400 border-t-transparent animate-spin" />
-                                : <Trash2 className="h-3.5 w-3.5" />}
-                            </button>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-1.5 mb-4">
-                      {role.is_super_admin && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md border bg-amber-500/15 border-amber-500/30 text-amber-400 text-xs font-medium">
-                          <Crown className="h-2.5 w-2.5" /> Super Admin
-                        </span>
-                      )}
-                      {PERMISSION_KEYS.map(({ key, label, color }) => (
-                        <PermissionBadge
-                          key={key}
-                          active={role[key as keyof CustomRole] as boolean}
-                          label={label}
-                          color={color}
-                          interactive={false}
-                        />
-                      ))}
-                    </div>
-                    <ApplySection
-                      onApply={(admin) => applyCustomRole(role, admin)}
-                    />
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
+        );
+      })}
     </div>
   );
 }
 
 // ── Crypto Requests Tab ───────────────────────────────────────────────────────
+
+function RequestCard({
+  req,
+  canApproveTopups,
+  actionId,
+  onAction,
+}: {
+  req: CryptoTopupRequest;
+  canApproveTopups: boolean;
+  actionId: number | null;
+  onAction: (id: number, action: 'approve' | 'reject') => void;
+}) {
+  const isPending = req.status === 'pending';
+  const isProcessing = actionId === req.id;
+  return (
+    <Card className={`border transition-colors duration-150 ${
+      isPending
+        ? 'bg-[#1E293B] border-slate-700/50 hover:border-teal-500/30'
+        : 'bg-slate-900/40 border-slate-700/30'
+    }`}>
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
+              req.status === 'approved'
+                ? 'bg-emerald-500/15 border-emerald-500/25'
+                : req.status === 'rejected'
+                ? 'bg-red-500/10 border-red-500/20'
+                : 'bg-teal-500/10 border-teal-500/20'
+            }`}>
+              {req.status === 'approved'
+                ? <CheckCircle className="h-4 w-4 text-emerald-400" />
+                : req.status === 'rejected'
+                ? <XCircle className="h-4 w-4 text-red-400" />
+                : <Clock className="h-4 w-4 text-amber-400" />
+              }
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-sm text-white">${req.amount_usdt.toFixed(2)} USDT</span>
+                <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
+                  req.status === 'approved'
+                    ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
+                    : req.status === 'rejected'
+                    ? 'bg-red-500/10 border-red-500/20 text-red-400'
+                    : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                }`}>
+                  {req.status.toUpperCase()}
+                </Badge>
+                <Badge className="bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[9px] px-1.5 py-0 h-4">
+                  {req.network}
+                </Badge>
+              </div>
+              <p className="text-[10px] text-slate-500 font-mono truncate mt-0.5" title={req.tx_hash}>
+                TX: {req.tx_hash}
+              </p>
+              <div className="flex items-center gap-3 mt-1">
+                <span className="text-[10px] text-slate-600">User: {req.user_id}</span>
+                {req.created_at && (
+                  <span className="text-[10px] text-slate-600">{formatDate(req.created_at)}</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {isPending && canApproveTopups && (
+            <div className="flex flex-row items-center gap-1.5 shrink-0">
+              <Button
+                size="sm"
+                disabled={!!actionId}
+                onClick={() => onAction(req.id, 'approve')}
+                className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                {isProcessing
+                  ? <div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  : <><CheckCircle className="h-3.5 w-3.5 mr-1" />Approve</>}
+              </Button>
+              <Button
+                size="sm"
+                disabled={!!actionId}
+                onClick={() => onAction(req.id, 'reject')}
+                className="h-7 px-2.5 text-xs bg-slate-700 hover:bg-red-600/80 text-slate-300 hover:text-white"
+              >
+                <XCircle className="h-3.5 w-3.5 mr-1" />Reject
+              </Button>
+            </div>
+          )}
+
+          {!isPending && req.reviewed_by && (
+            <div className="text-right shrink-0 text-[10px] text-slate-600">
+              <p>By: {req.reviewed_by}</p>
+              {req.reviewed_at && <p>{formatDate(req.reviewed_at)}</p>}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function CryptoRequestsTab({
   canApproveTopups,
@@ -1176,95 +861,6 @@ function CryptoRequestsTab({
     );
   }
 
-  function RequestCard({ req }: { req: CryptoTopupRequest }) {
-    const isPending = req.status === 'pending';
-    const isProcessing = actionId === req.id;
-    return (
-      <Card className={`border transition-colors duration-150 ${
-        isPending
-          ? 'bg-[#1E293B] border-slate-700/50 hover:border-teal-500/30'
-          : 'bg-slate-900/40 border-slate-700/30'
-      }`}>
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3 min-w-0">
-              <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                req.status === 'approved'
-                  ? 'bg-emerald-500/15 border-emerald-500/25'
-                  : req.status === 'rejected'
-                  ? 'bg-red-500/10 border-red-500/20'
-                  : 'bg-teal-500/10 border-teal-500/20'
-              }`}>
-                {req.status === 'approved'
-                  ? <CheckCircle className="h-4 w-4 text-emerald-400" />
-                  : req.status === 'rejected'
-                  ? <XCircle className="h-4 w-4 text-red-400" />
-                  : <Clock className="h-4 w-4 text-amber-400" />
-                }
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-sm text-white">${req.amount_usdt.toFixed(2)} USDT</span>
-                  <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
-                    req.status === 'approved'
-                      ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
-                      : req.status === 'rejected'
-                      ? 'bg-red-500/10 border-red-500/20 text-red-400'
-                      : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                  }`}>
-                    {req.status.toUpperCase()}
-                  </Badge>
-                  <Badge className="bg-teal-500/10 border border-teal-500/20 text-teal-400 text-[9px] px-1.5 py-0 h-4">
-                    {req.network}
-                  </Badge>
-                </div>
-                <p className="text-[10px] text-slate-500 font-mono truncate mt-0.5" title={req.tx_hash}>
-                  TX: {req.tx_hash}
-                </p>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-[10px] text-slate-600">User: {req.user_id}</span>
-                  {req.created_at && (
-                    <span className="text-[10px] text-slate-600">{formatDate(req.created_at)}</span>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {isPending && canApproveTopups && (
-              <div className="flex items-center gap-1.5 shrink-0">
-                <Button
-                  size="sm"
-                  disabled={!!actionId}
-                  onClick={() => handleAction(req.id, 'approve')}
-                  className="h-7 px-2.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {isProcessing
-                    ? <div className="h-3 w-3 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                    : <><CheckCircle className="h-3.5 w-3.5 mr-1" />Approve</>}
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={!!actionId}
-                  onClick={() => handleAction(req.id, 'reject')}
-                  className="h-7 px-2.5 text-xs bg-slate-700 hover:bg-red-600/80 text-slate-300 hover:text-white"
-                >
-                  <XCircle className="h-3.5 w-3.5 mr-1" />Reject
-                </Button>
-              </div>
-            )}
-
-            {!isPending && req.reviewed_by && (
-              <div className="text-right shrink-0 text-[10px] text-slate-600">
-                <p>By: {req.reviewed_by}</p>
-                {req.reviewed_at && <p>{formatDate(req.reviewed_at)}</p>}
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-4">
       {!canApproveTopups && (
@@ -1281,7 +877,15 @@ function CryptoRequestsTab({
             Pending ({pending.length})
           </p>
           <div className="space-y-2">
-            {pending.map(req => <RequestCard key={req.id} req={req} />)}
+            {pending.map(req => (
+              <RequestCard
+                key={req.id}
+                req={req}
+                canApproveTopups={canApproveTopups}
+                actionId={actionId}
+                onAction={handleAction}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -1292,7 +896,15 @@ function CryptoRequestsTab({
             Reviewed ({reviewed.length})
           </p>
           <div className="space-y-2">
-            {reviewed.slice(0, 20).map(req => <RequestCard key={req.id} req={req} />)}
+            {reviewed.slice(0, 20).map(req => (
+              <RequestCard
+                key={req.id}
+                req={req}
+                canApproveTopups={canApproveTopups}
+                actionId={actionId}
+                onAction={handleAction}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -1407,39 +1019,43 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
             </div>
 
             {/* Adjust form */}
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="Amount"
-                value={adjustAmount[w.user_id] || ''}
-                onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
-              />
-              <input
-                type="text"
-                placeholder="Note (optional)"
-                value={adjustNote[w.user_id] || ''}
-                onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
-              />
-              <Button
-                size="sm"
-                onClick={() => handleAdjust(w.user_id, true)}
-                disabled={adjusting === w.user_id}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3"
-              >
-                {adjusting === w.user_id ? '...' : '+ Credit'}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => handleAdjust(w.user_id, false)}
-                disabled={adjusting === w.user_id}
-                className="bg-red-700 hover:bg-red-800 text-white text-xs px-3"
-              >
-                {adjusting === w.user_id ? '...' : '− Debit'}
-              </Button>
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="Amount"
+                  value={adjustAmount[w.user_id] || ''}
+                  onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
+                  className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+                />
+                <input
+                  type="text"
+                  placeholder="Note (optional)"
+                  value={adjustNote[w.user_id] || ''}
+                  onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
+                  className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleAdjust(w.user_id, true)}
+                  disabled={adjusting === w.user_id}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3"
+                >
+                  {adjusting === w.user_id ? '...' : '+ Credit'}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleAdjust(w.user_id, false)}
+                  disabled={adjusting === w.user_id}
+                  className="flex-1 bg-red-700 hover:bg-red-800 text-white text-xs px-3"
+                >
+                  {adjusting === w.user_id ? '...' : '− Debit'}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -1463,6 +1079,8 @@ export default function AdminManagement() {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceLoading, setMaintenanceLoading] = useState(true);
   const [maintenanceUpdating, setMaintenanceUpdating] = useState(false);
+  const [roles, setRoles] = useState<RolePreset[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
 
   const fetchAdmins = async () => {
     try {
@@ -1491,6 +1109,19 @@ export default function AdminManagement() {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      setRolesLoading(true);
+      const res = await fetch('/api/v1/roles');
+      if (!res.ok) throw new Error(await res.text());
+      setRoles(await res.json());
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load roles');
+    } finally {
+      setRolesLoading(false);
+    }
+  };
+
   const handleToggleMaintenance = async () => {
     if (!isSuperAdmin || maintenanceUpdating) return;
     setMaintenanceUpdating(true);
@@ -1513,6 +1144,7 @@ export default function AdminManagement() {
   useEffect(() => {
     fetchAdmins();
     fetchMaintenanceMode();
+    fetchRoles();
     const id = setInterval(fetchAdmins, 30000);
     return () => clearInterval(id);
   }, []);
@@ -1598,6 +1230,7 @@ export default function AdminManagement() {
       id: 'roles',
       label: 'Role Management',
       icon: <Shield className="h-3.5 w-3.5" />,
+      count: roles.length,
     },
     ...(canApproveTopups ? [{
       id: 'crypto',
@@ -1613,16 +1246,16 @@ export default function AdminManagement() {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto w-full min-w-0">
         {/* Page Header */}
-        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-10 w-10 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center">
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="h-10 w-10 rounded-xl bg-purple-500/15 border border-purple-500/25 flex items-center justify-center shrink-0">
               <ShieldCheck className="h-5 w-5 text-purple-400" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-white">Admin Management</h1>
-              <p className="text-slate-500 text-xs mt-0.5">
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-white truncate">Admin Management</h1>
+              <p className="text-slate-500 text-xs mt-0.5 truncate">
                 {admins.length} admin{admins.length !== 1 ? 's' : ''} — {activeAdmins.length} active
               </p>
             </div>
@@ -1631,7 +1264,7 @@ export default function AdminManagement() {
             <Button
               onClick={() => setShowAdd(!showAdd)}
               size="sm"
-              className={`gap-1.5 text-xs ${showAdd ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              className={`gap-1.5 text-xs shrink-0 ${showAdd ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
             >
               {showAdd ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
               {showAdd ? 'Cancel' : 'Add Admin'}
@@ -1877,6 +1510,8 @@ export default function AdminManagement() {
             isSuperAdmin={isSuperAdmin}
             onError={setError}
             onRefreshAdmins={fetchAdmins}
+            roles={roles}
+            rolesLoading={rolesLoading}
           />
         )}
 

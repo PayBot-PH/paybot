@@ -1,5 +1,6 @@
 import logging
 import os
+import secrets
 from pathlib import Path
 from typing import Any
 
@@ -17,11 +18,6 @@ class Settings(BaseSettings):
     app_name: str = "PayBot"
     debug: bool = False
     version: str = "1.0.0"
-    environment: str = "development"
-
-    # Deployment platform detection (set automatically by hosting providers)
-    railway_environment: str = ""
-    railway_project_id: str = ""
 
     # Server
     host: str = "0.0.0.0"
@@ -92,30 +88,6 @@ class Settings(BaseSettings):
     # payMethod strings – adjust based on account type (e.g. "Alipay", "WeChat")
     photonpay_alipay_method: str = "Alipay"
     photonpay_wechat_method: str = "WeChat"
-    # Set to False only during initial integration/testing; True enforces
-    # signature verification for all incoming webhook requests.
-    photonpay_webhook_verify_required: bool = True
-    # "production" (default) or "sandbox".
-    # sandbox uses https://x-api1.uat.photontech.cc;
-    # production uses https://x-api.photonpay.com.
-    # Override PHOTONPAY_BASE_URL to use a fully custom endpoint.
-    photonpay_mode: str = "production"
-    # Explicit API base URL override — takes precedence over photonpay_mode when set.
-    photonpay_base_url: str = ""
-
-    # TransFi Checkout API (Alipay / WeChat Pay collection)
-    # Credentials from TransFi dashboard (Settings > Integration)
-    # Docs: https://transfi-checkout.readme.io/docs/getting-started
-    transfi_api_key: str = ""
-    # Optional explicit base URL override (empty = derived from transfi_mode)
-    transfi_base_url: str = ""
-    # HMAC-SHA256 secret used to verify incoming TransFi webhook signatures
-    transfi_webhook_secret: str = ""
-    # "production" (default) or "sandbox"
-    # sandbox uses https://sandbox-api.transfi.com;
-    # production uses https://api.transfi.com.
-    # Override TRANSFI_BASE_URL to use a fully custom endpoint.
-    transfi_mode: str = "production"
 
     # Simple admin authentication
     admin_user_id: str = "admin"
@@ -130,6 +102,24 @@ class Settings(BaseSettings):
     jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
+
+    @model_validator(mode="after")
+    def generate_jwt_secret_if_missing(self) -> "Settings":
+        """Auto-generate a random JWT secret when JWT_SECRET_KEY is not configured.
+
+        The generated key is ephemeral — it changes on every restart, which means
+        all active sessions will be invalidated when the server restarts.  Set
+        JWT_SECRET_KEY explicitly in your environment variables (or .env file) for
+        persistent authentication across restarts.
+        """
+        if not self.jwt_secret_key:
+            self.jwt_secret_key = secrets.token_hex(32)
+            logger.warning(
+                "JWT_SECRET_KEY is not configured. A temporary random secret has been "
+                "generated for this session. Tokens will be invalidated on restart. "
+                "Set JWT_SECRET_KEY in your environment variables for persistent authentication."
+            )
+        return self
 
     @property
     def backend_url(self) -> str:
@@ -148,7 +138,14 @@ class Settings(BaseSettings):
             railway_domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN", "")
             if railway_domain:
                 return f"https://{railway_domain}"
-            # 3. Fallback to local address
+            # 3. Render auto-provided public URL (set automatically by Render)
+            render_external_url = os.environ.get("RENDER_EXTERNAL_URL", "")
+            if render_external_url:
+                return render_external_url
+            render_hostname = os.environ.get("RENDER_EXTERNAL_HOSTNAME", "")
+            if render_hostname:
+                return f"https://{render_hostname}"
+            # 4. Fallback to local address
             display_host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
             return f"http://{display_host}:{self.port}"
 

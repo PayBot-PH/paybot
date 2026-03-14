@@ -41,8 +41,8 @@ def _resolve_bot_token() -> str:
 class TelegramService:
     """Service for Telegram Bot API integration"""
 
-    def __init__(self):
-        self.bot_token = _resolve_bot_token()
+    def __init__(self, token: Optional[str] = None):
+        self.bot_token = token or _resolve_bot_token()
         if not self.bot_token:
             logger.warning("TELEGRAM_BOT_TOKEN not set - bot will not function")
         self._timeout = httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0)
@@ -231,3 +231,33 @@ class TelegramService:
         except Exception as e:
             logger.error(f"Error answering callback query: {str(e)}")
             return {"success": False, "error": str(e)}
+
+    async def get_file(self, file_id: str) -> Dict[str, Any]:
+        """Retrieve file metadata (file_path) for a Telegram file_id."""
+        try:
+            async with httpx.AsyncClient(timeout=self._timeout) as client:
+                response = await client.get(
+                    f"{self.api_url}/getFile",
+                    params={"file_id": file_id},
+                )
+                data = response.json()
+                if data.get("ok"):
+                    return {"success": True, "file_path": data["result"]["file_path"]}
+                return {"success": False, "error": data.get("description", "Unknown error")}
+        except Exception as e:
+            logger.error(f"Error getting file: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+    async def download_file_bytes(self, file_path: str) -> Optional[bytes]:
+        """Download a Telegram file by its file_path and return the raw bytes."""
+        try:
+            url = f"{TELEGRAM_API_BASE}/file/bot{self.bot_token}/{file_path}"
+            async with httpx.AsyncClient(timeout=httpx.Timeout(30.0)) as client:
+                response = await client.get(url)
+                if response.status_code == 200:
+                    return response.content
+                logger.error(f"Failed to download Telegram file: HTTP {response.status_code}")
+                return None
+        except Exception as e:
+            logger.error(f"Error downloading file: {str(e)}")
+            return None

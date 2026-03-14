@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bot, ShieldCheck, CheckCircle, AlertCircle, User, Phone, Mail, MapPin, Building2, Send } from 'lucide-react';
+import { ShieldCheck, CheckCircle, AlertCircle, User, Phone, Mail, MapPin, Building2, Send } from 'lucide-react';
 import { APP_NAME, COMPANY_NAME } from '@/lib/brand';
 
 interface FormData {
@@ -133,9 +133,7 @@ export default function Register() {
 
         <div className="relative">
           <div className="flex items-center gap-3 mb-10">
-            <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-xl shadow-blue-500/20">
-              <Bot className="h-5 w-5 text-white" />
-            </div>
+            <img src="/logo.svg" alt={APP_NAME} className="h-10 w-10 rounded-xl shadow-xl shadow-blue-500/20" />
             <div>
               <p className="text-white font-bold text-lg leading-tight">{APP_NAME}</p>
               <p className="text-slate-500 text-sm">by {COMPANY_NAME}</p>
@@ -178,9 +176,7 @@ export default function Register() {
       {/* Right panel — form */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 relative overflow-y-auto">
         <div className="lg:hidden flex items-center gap-2.5 mb-8">
-          <div className="h-9 w-9 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <Bot className="h-5 w-5 text-white" />
-          </div>
+          <img src="/logo.svg" alt={APP_NAME} className="h-9 w-9 rounded-xl shadow-lg shadow-blue-500/20" />
           <div>
             <p className="text-white font-bold text-base leading-tight">{APP_NAME}</p>
             <p className="text-slate-500 text-xs">by {COMPANY_NAME}</p>

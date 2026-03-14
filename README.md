@@ -1,110 +1,263 @@
-# 🤖 PayBot — Telegram Bot & Xendit Payment Gateway Dashboard
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/3ff135b7-ed69-4b1b-889a-dbe0111de7dc" alt="PayBot Philippines" width="120" height="120" style="border-radius:24px;" />
+</p>
 
-A full-featured **payment management platform** that combines a **Telegram Bot** with an **Admin Dashboard** powered by **Xendit** payment gateway. Accept payments via invoices, QR codes, payment links, virtual accounts, and e-wallets — all manageable through Telegram commands or a sleek web interface.
+<h1 align="center">PayBot Philippines</h1>
+<p align="center"><strong>Your all-in-one Telegram Payment Platform for Philippine Merchants, Businesses & Individuals</strong></p>
 
-![PayBot Dashboard](https://img.shields.io/badge/PayBot-Admin%20Dashboard-blue?style=for-the-badge&logo=telegram)
-![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)
-![TypeScript](https://img.shields.io/badge/TypeScript-React-blue?style=for-the-badge&logo=typescript)
-![Python](https://img.shields.io/badge/Python-FastAPI-green?style=for-the-badge&logo=python)
+<p align="center">
+  <img src="https://img.shields.io/badge/PayBot-Admin%20Dashboard-2563EB?style=for-the-badge&logo=telegram&logoColor=white" alt="PayBot" />
+  <img src="https://img.shields.io/badge/Payments-Xendit%20%7C%20PayMongo%20%7C%20PhotonPay-10B981?style=for-the-badge" alt="Payments" />
+  <img src="https://img.shields.io/badge/Made%20for-Philippines-0EA5E9?style=for-the-badge" alt="Philippines" />
+  <img src="https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge" alt="MIT License" />
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/TypeScript-React%2018-3178C6?style=flat-square&logo=typescript" />
+  <img src="https://img.shields.io/badge/Python-FastAPI-009688?style=flat-square&logo=python" />
+  <img src="https://img.shields.io/badge/Xendit-API-5C6BC0?style=flat-square" />
+  <img src="https://img.shields.io/badge/PayMongo-API-E91E63?style=flat-square" />
+  <img src="https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?style=flat-square&logo=telegram" />
+</p>
+
+---
+
+## 🚀 What is PayBot?
+
+**PayBot** is a full-featured **Telegram-based payment platform** that turns any Telegram bot into a powerful financial hub. Whether you run an **online store**, operate a **gaming or casino platform**, need a **personal digital wallet**, or want to offer **financial services to your customers** — PayBot handles it all directly through Telegram chats and a sleek admin web dashboard.
+
+No complex integrations. No payment terminal. No bank queues.  
+Just send a Telegram message and get paid — or pay someone — instantly. 💸
+
+---
+
+## 🏢 Built for Every Business Model
+
+<table>
+<tr>
+<td align="center" width="180">
+
+### 🛒 E-Commerce
+Accept GCash, Maya, GrabPay, credit cards, and all PH bank transfers. Integrate payment links directly into your Shopify, WooCommerce, or custom store. Auto-notify customers when payment clears.
+
+</td>
+<td align="center" width="180">
+
+### 🎰 Gaming & Casinos
+Collect player deposits and disburse winnings in seconds. Support for Alipay & WeChat Pay for international players. Batch-disburse to hundreds of winners at once from one command.
+
+</td>
+<td align="center" width="180">
+
+### 🏦 Personal Digital Bank
+Send money to any PH bank, receive payments from clients, check your multi-currency balance (PHP/USD/USDT), and manage your finances — all without leaving Telegram.
+
+</td>
+</tr>
+<tr>
+<td align="center" width="180">
+
+### 💼 Freelancers & Agencies
+Create professional invoices in seconds. Share a payment link with clients. Get notified the moment you're paid. Run recurring billing for retainer clients automatically.
+
+</td>
+<td align="center" width="180">
+
+### 🏪 Retail & F&B
+Display a QR code at the counter — customers scan and pay with GCash, Maya, Alipay or WeChat in seconds. Settlement hits your wallet same day in USDT or PHP.
+
+</td>
+<td align="center" width="180">
+
+### 💸 Remittance & Payroll
+Disburse salaries or commissions to hundreds of employees simultaneously with a single batch disbursement command. Supports all major PH banks.
+
+</td>
+</tr>
+</table>
+
+---
+
+## ✨ Core Capabilities
+
+### 💳 Accept Payments — 7 Methods, 3 Gateways
+
+| Method | Gateway | Details |
+|--------|---------|---------|
+| **Invoice** | Xendit | Professional invoices with auto-payment link, email & SMS |
+| **QR Code (QRIS)** | Xendit | Dynamic QR for in-person or online collection |
+| **Payment Link** | Xendit | Shareable URL — send via chat, email, or SMS |
+| **Virtual Account** | Xendit | Bank transfer via BDO, BPI, UnionBank, RCBC, PNB, Metrobank, ChinaBank |
+| **E-Wallets** | Xendit / PayMongo | GCash, GrabPay, PayMaya/Maya |
+| **Alipay** | PayMongo / PhotonPay | For Chinese tourists & international buyers |
+| **WeChat Pay** | PayMongo / PhotonPay | CNY payments with hosted checkout |
+
+> **Fee-transparent:** Invoice 2.8% · QR 0.7% · E-wallet 2% · VA ₱25 flat · Disbursement ₱25 flat
+
+---
+
+### 💸 Send Money & Disbursements
+
+- **Single Bank Payout** — `/disburse 5000 BPI 1234567890 Juan dela Cruz`
+- **Peer-to-Peer Transfers** — send PHP or USD to any @username on the platform
+- **Batch Disbursements** — pay dozens of recipients at once via the API
+- **USDT Transfers** — send USDT to any TRC20 wallet address
+- **Same-Day Settlement** — collections auto-convert and settle to your wallet in USDT at end of day
+
+---
+
+### 🆔 E-Wallet Accounts with Instant KYC
+
+Create a **verified digital wallet** for your customers or staff directly through Telegram:
+
+1. **Register** — `/register` starts the guided KYC/KYB flow
+2. **Submit** — Name, email, phone, bank details, government ID photo
+3. **Auto-approve** — Super admin reviews and approves via Telegram commands (`/kyb_approve`)
+4. **Wallet activated** — Approved users get an instant PHP + USD wallet and can accept/send payments immediately
+
+Each wallet supports:
+- PHP (primary currency for PH collections)
+- USD / USDT (TRC20 blockchain settlement)
+- Full transaction history
+- Top-up via invoice, crypto, or bank transfer
+- Withdrawal to any PH bank
+
+---
+
+### 🏦 Be Your Own Bank
+
+PayBot makes your Telegram bot a **complete financial institution** for your community:
+
+| Feature | Command | Description |
+|---------|---------|-------------|
+| Check Balance | `/balance` | PHP wallet + transaction history |
+| USD / USDT Balance | `/usdbalance` | USD balance & TRC20 address |
+| Send PHP | `/send 500 @username` | Instant peer-to-peer transfer |
+| Send USD | `/sendusd 100 @username` | USD transfers between users |
+| Send USDT | `/sendusdt 50 TAddr…` | Blockchain USDT transfer |
+| Top Up | `/topup` | Fund wallet via invoice or crypto |
+| Withdraw | `/withdraw 2000` | Cash out to registered bank |
+| Disburse | `/disburse 1000 BPI …` | Payout to any PH bank |
+
+---
+
+### 🔄 Subscriptions & Recurring Billing
+
+Set up automatic billing for any interval:
+
+```
+/subscribe PremiumPlan 999 monthly
+```
+
+Supports `daily`, `weekly`, `monthly`, `yearly` plans — with pause, resume, and cancel controls from the dashboard.
+
+---
+
+### 📊 Real-Time Analytics & Reports
+
+- Revenue reports: daily / weekly / monthly breakdown
+- Payment method performance (Invoice vs QR vs E-Wallet vs VA)
+- Success rate tracking and failed payment analysis
+- Fee calculator for all payment methods
+- Xendit & PayMongo live account balance check
+- Export-ready data from the admin dashboard
+
+---
+
+### 🤖 Full Telegram Bot Experience (22+ Commands)
+
+Users never have to leave Telegram. The bot provides:
+
+- **Interactive menus** with inline keyboards
+- **Real-time payment notifications** (SSE-powered dashboard + bot alerts)
+- **PIN-protected sessions** (4-6 digit PIN, 2-hour timeout, auto-lockout on 3 failures)
+- **Multi-language support** (English & 中文 for Alipay/WeChat merchants)
+
+#### Complete Command Reference
+
+| Category | Command | Example |
+|----------|---------|---------|
+| **Start / Auth** | `/start` | Welcome message & menus |
+| | `/register` | Begin KYB wallet registration |
+| | `/login [PIN]` | PIN-protected session |
+| | `/setpin [PIN]` | Set account PIN |
+| | `/logout` | End session |
+| **Collect Money** | `/invoice <amt> <desc>` | `/invoice 500 Monthly subscription` |
+| | `/qr <amt> <desc>` | `/qr 150 Coffee` |
+| | `/alipay <amt> <desc>` | `/alipay 500 WeChat order` |
+| | `/wechat <amt> <desc>` | `/wechat 300 Coffee order` |
+| | `/link <amt> <desc>` | `/link 1000 Freelance work` |
+| | `/va <amt> <bank>` | `/va 2500 BDO` |
+| | `/ewallet <amt> <provider>` | `/ewallet 300 GCASH` |
+| **Wallet** | `/balance` | PHP balance + history |
+| | `/usdbalance` | USD/USDT balance |
+| | `/send <amt> <@user>` | `/send 100 @maria` |
+| | `/sendusd <amt> <@user>` | `/sendusd 50 @pedro` |
+| | `/sendusdt <amt> <addr>` | `/sendusdt 20 TGGt…` |
+| | `/withdraw <amt>` | `/withdraw 500` |
+| **Money Out** | `/disburse <amt> <bank> <acct> <name>` | `/disburse 1000 BPI 123 Juan` |
+| | `/refund <id> [amt]` | `/refund inv-abc 500` |
+| **Info & Reports** | `/status [id]` | `/status 42` |
+| | `/list` | Last 5 transactions |
+| | `/balance` | Wallet overview |
+| | `/report [period]` | `/report weekly` |
+| | `/fees <amt> <method>` | `/fees 1000 invoice` |
+| **Business** | `/subscribe <plan> <amt> <interval>` | `/subscribe Premium 999 monthly` |
+| | `/remind <id>` | Send payment reminder |
+| | `/cancel <id>` | Cancel pending payment |
+| **Admin Only** | `/kyb_list` | Pending registrations |
+| | `/kyb_approve <chat_id>` | Approve wallet account |
+| | `/kyb_reject <chat_id> <reason>` | Reject with reason |
+
+---
+
+## 🖥️ Admin Dashboard
+
+A full-featured web dashboard for managing everything visually:
+
+| Page | Route | What you can do |
+|------|-------|----------------|
+| **Dashboard** | `/` | Live stats, wallet balance, quick-create payments |
+| **Wallet** | `/wallet` | Multi-currency balance, top up, withdraw, disburse |
+| **Payments Hub** | `/payments` | Create via Invoice, QR, Link, VA, E-wallet, Alipay, WeChat |
+| **Transactions** | `/transactions` | Full history — search, filter, export |
+| **Disbursements** | `/disbursements` | Money-out, refunds, subscriptions, customers |
+| **Reports** | `/reports` | Revenue analytics, fee calculator, balance check |
+| **KYB Approvals** | `/kyb-registrations` | Review & approve wallet registrations |
+| **KYC Approvals** | `/kyc-verifications` | Identity verification management |
+| **Topup Requests** | `/topup-requests` | Approve USDT/crypto top-up requests |
+| **USDT Requests** | `/usdt-send-requests` | Manage outgoing USDT sends |
+| **Bot Settings** | `/bot-settings` | Configure webhook, test messages |
+| **Admin Management** | `/admin-management` | Add/remove admins, set per-admin permissions |
+| **Bot Messages** | `/bot-messages` | Broadcast messages to users |
+| **Features** | `/features` | Public landing page |
+| **Pricing** | `/pricing` | Public pricing page |
 
 ---
 
 ## 🌐 Accessing the Dashboard
 
-Open your browser to the URL that matches your environment:
-
 | Environment | URL |
 |-------------|-----|
-| **Local dev** (Vite frontend dev server) | `http://localhost:3000` |
+| **Local dev** (Vite dev server) | `http://localhost:3000` |
 | **Local / Docker** (backend serves built UI) | `http://localhost:8000` |
 | **Railway production** | `https://<your-project>.up.railway.app` |
 
-> **Finding your Railway URL:** go to your Railway project → select the service → **Settings → Domains**. It looks like `https://paybot-production-xxxx.up.railway.app`.
-
-### Dashboard Pages
-
-| Page | Path | Description |
-|------|------|-------------|
-| Bot Intro | `/intro` | Animated introduction page showcasing bot capabilities |
-| Dashboard | `/` | Stats, wallet balance, recent transactions |
-| Wallet | `/wallet` | Balance management, top up, withdraw, disburse |
-| Payments Hub | `/payments` | Create payments via all 7 methods |
-| Create Payment | `/create-payment` | Invoice / QR / payment link form |
-| Transactions | `/transactions` | Full history with search & filters |
-| Money Management | `/disbursements` | Disbursements, refunds, subscriptions, customers |
-| Reports | `/reports` | Revenue analytics and fee calculator |
-| Bot Settings | `/bot-settings` | Test bot, set webhook, send test message |
-| Admin Management | `/admin-management` | Add/remove admins, set permissions |
-| Bot Messages | `/bot-messages` | Bot broadcast messages |
-| Topup Requests | `/topup-requests` | Approve wallet top-up requests |
-| USDT Send Requests | `/usdt-send-requests` | Manage USDT send requests |
-| Features | `/features` | Public landing page |
-| Policies | `/policies` | Terms of Service, Privacy Policy, Refund Policy |
-
 ---
 
-## ✨ Features
+## 🔐 Security & Compliance
 
-### 💳 Payment Collection (7 Methods)
-- **Invoices** — Generate professional invoices with custom amounts and customer details
-- **QR Codes** — Create QRIS-compatible QR code payments for in-person transactions
-- **Alipay QR** — Alipay-compatible QR via Xendit QRIS
-- **Maya Checkout** — Maya payment via Security Bank Collect (SBC)
-- **Payment Links** — Shareable payment URLs for online collection
-- **Virtual Accounts** — Bank transfer payments via BDO, BPI, UnionBank, RCBC, Metrobank, PNB, ChinaBank
-- **E-Wallets** — Accept payments through GCash, GrabPay, and PayMaya
-
-### 💰 Wallet System
-- Internal wallet with balance tracking
-- **Top Up** via Xendit invoice (auto-credited on payment)
-- Withdraw and transfer between users
-- Auto-credit on successful payments
-- Full transaction history with filtering
-
-### 💸 Disbursements
-- Send money to any Philippine bank account
-- Track disbursement status in real-time
-- Support for all major PH banks
-
-### 🔄 Refunds
-- Full and partial refund processing
-- Automatic wallet balance adjustment
-- Refund history and tracking
-
-### 📅 Subscriptions
-- Create recurring billing plans (daily, weekly, monthly, yearly)
-- Pause, resume, and cancel subscriptions
-- Customer assignment and billing cycle tracking
-
-### 👥 Customer Management
-- Full CRUD for customer profiles
-- Track payment history per customer
-- Notes and contact information
-
-### 📊 Reports & Analytics
-- Revenue reports (daily, weekly, monthly)
-- Payment method breakdown with visual bars
-- Status breakdown (paid, pending, expired, refunded)
-- Success rate tracking
-- Xendit account balance check
-- Fee calculator for all payment methods
-
-### 🤖 Telegram Bot (22 Commands)
-- Full payment gateway accessible via chat commands
-- Real-time payment notifications
-- Interactive menus and inline keyboards
-- Webhook-based for instant responses
-
-### 🔐 Admin Management
-- Role-based access control with per-admin permissions
-- Only Telegram bot users can access the admin UI
-- Add/remove admins and toggle permissions
-- Contact support button linking to [@traxionpay](https://t.me/traxionpay)
-
-### 🔔 Real-Time Notifications
-- Server-Sent Events (SSE) for live dashboard updates
-- Payment confirmation alerts
-- Wallet transaction notifications
+| Feature | Details |
+|---------|---------|
+| **Authentication** | Telegram Login Widget with HMAC-SHA256 verification |
+| **Session Security** | JWT tokens + PIN-based bot sessions (4-6 digits) |
+| **Account Lockout** | 3 failed PIN attempts → 15-min lockout |
+| **Role-Based Access** | 8 permission flags per admin user |
+| **Webhook Verification** | HMAC-SHA256 (PayMongo) · RSA-SHA256 (PhotonPay) |
+| **Data Security** | SQLAlchemy ORM (injection-safe) · Path traversal prevention |
+| **KYC / KYB** | Government ID + selfie verification before wallet activation |
+| **BSP Regulated** | Operating under Bangko Sentral ng Pilipinas guidelines |
+| **PCI DSS** | PCI-compliant payment processing via Xendit & PayMongo |
 
 ---
 
@@ -112,286 +265,28 @@ Open your browser to the URL that matches your environment:
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui |
-| **Backend** | Python 3.11, FastAPI, SQLAlchemy (async), Alembic |
-| **Database** | PostgreSQL (via Atoms Cloud / Supabase) |
-| **Payments** | Xendit API (Philippines) |
-| **Bot** | Telegram Bot API |
-| **Auth** | Atoms Cloud OIDC / Supabase Auth |
+| **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS · shadcn/ui |
+| **Backend** | Python 3.11 · FastAPI (async) · SQLAlchemy 2 · Alembic |
+| **Database** | PostgreSQL (production) · SQLite (local dev) |
+| **Payments** | Xendit · PayMongo · PhotonPay |
+| **Bot** | Telegram Bot API (webhook-based) |
+| **Auth** | Telegram Login Widget · JWT |
 | **Real-time** | Server-Sent Events (SSE) |
-| **SDK** | @metagptx/web-sdk |
-
----
-
-## 🪟 Windows Local Quick Start
-
-Run from the repository root in PowerShell:
-
-```powershell
-./setup_windows.ps1
-./start_local_windows.ps1
-```
-
-What this does:
-- Installs Python 3.11 and Node.js LTS via `winget` (user scope)
-- Enables `pnpm` via Corepack
-- Creates `backend/.env` and `frontend/.env` if missing
-- Installs backend/frontend dependencies
-- Starts backend (`:8000`) and frontend (`:3000`) in separate terminals
-
-If PowerShell blocks script execution for the current terminal session:
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-```
-
----
-
-## 📁 Project Structure
-
-```
-app/
-├── Dockerfile                        # Docker container configuration
-├── railway.json                      # Railway deployment config
-├── runtime.txt                       # Python runtime version (3.11)
-├── start.sh                          # Simple startup script
-├── start_app_v2.sh                   # Advanced startup with auto port assignment
-├── backend/                          # Python FastAPI Backend
-│   ├── main.py                       # App entry point
-│   ├── requirements.txt              # Python dependencies
-│   ├── alembic/                      # Database migrations
-│   ├── core/                         # Core config, database, auth
-│   │   ├── config.py                 # Environment & settings
-│   │   ├── database.py               # Async SQLAlchemy setup
-│   │   └── auth.py                   # Authentication utilities
-│   ├── models/                       # SQLAlchemy ORM models
-│   │   ├── transactions.py           # Payment transactions
-│   │   ├── wallets.py                # User wallets
-│   │   ├── wallet_transactions.py    # Wallet transaction log
-│   │   ├── customers.py              # Customer profiles
-│   │   ├── disbursements.py          # Money-out records
-│   │   ├── refunds.py                # Refund records
-│   │   ├── subscriptions.py          # Recurring billing
-│   │   ├── api_configs.py            # API key storage
-│   │   ├── bot_settings.py           # Telegram bot config
-│   │   └── bot_logs.py               # Bot activity logs
-│   ├── routers/                      # API route handlers
-│   │   ├── xendit.py                 # Xendit webhooks & payments
-│   │   ├── gateway.py                # Full payment gateway API
-│   │   ├── telegram.py               # Telegram webhook handler
-│   │   └── events.py                 # SSE real-time events
-│   └── services/                     # Business logic
-│       ├── xendit_service.py         # Xendit API integration
-│       ├── telegram_service.py       # Telegram Bot API client
-│       └── event_bus.py              # In-memory event bus for SSE
-│
-├── frontend/                         # React + TypeScript Frontend
-│   ├── index.html                    # HTML entry point
-│   ├── package.json                  # Node dependencies
-│   ├── vite.config.ts                # Vite configuration
-│   ├── tailwind.config.ts            # Tailwind CSS config
-│   └── src/
-│       ├── main.tsx                  # React entry point
-│       ├── App.tsx                   # Router & app shell
-│       ├── contexts/AuthContext.tsx   # Auth state management
-│       ├── hooks/usePaymentEvents.ts # SSE real-time hook
-│       ├── lib/                      # Utilities (api, auth)
-│       ├── pages/                    # All page components
-│       └── components/ui/            # shadcn/ui components
-│
-└── README.md                         # This file
-```
-
----
-
-## 🔧 Post-Deployment Setup
-
-After deploying, complete these steps to fully activate all features:
-
-### 1. Set Up Telegram Webhook
-- Open your deployed app's **Bot Settings** page
-- Enter your Telegram Bot Token
-- Set the webhook URL to: `https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook`
-- Click **"Set Webhook"**
-
-Or use the Telegram API directly:
-```bash
-curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
-  -H "Content-Type: application/json" \
-  -d '{"url": "https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook"}'
-```
-
-### 2. Set Up Xendit Webhook
-1. Go to [Xendit Dashboard](https://dashboard.xendit.co) → **Settings** → **Webhooks**
-2. Add webhook URL: `https://paybot-backend-production-84b2.up.railway.app/api/v1/xendit/webhook`
-3. Select events: `invoices`, `qr_codes`, `payment_links`, `disbursements`
-
-### 3. Set Up PayMongo Webhook
-1. Go to [PayMongo Dashboard](https://dashboard.paymongo.com) → **Developers** → **Webhooks**
-2. Click **Add Endpoint** and set URL: `https://paybot-backend-production-84b2.up.railway.app/api/v1/paymongo/webhook`
-3. Select events:
-   - `source.chargeable` (Alipay / WeChat Pay QR payments)
-   - `checkout_session.payment.paid`
-   - `checkout_session.payment.failed`
-   - `payment.paid`
-   - `payment.failed`
-4. Copy the **Signing Secret** (starts with `whsk_`) and set it as `PAYMONGO_WEBHOOK_SECRET`
-5. Set `PAYMONGO_MODE=test` for sandbox or `PAYMONGO_MODE=live` for production
-
-#### PayMongo Top-Up Flow
-1. User calls `POST /api/v1/paymongo/topup` (authenticated) with `amount` and optional `payment_method`
-2. Backend creates a PayMongo Checkout Session (or Source for Alipay/WeChat) and returns a `checkout_url`
-3. User completes payment on the PayMongo-hosted page
-4. PayMongo delivers a signed webhook event to `/api/v1/paymongo/webhook`
-5. Backend verifies the signature, checks idempotency, and credits the PHP wallet
-6. Frontend receives a real-time wallet update via SSE (`/api/v1/events/stream`)
-
-#### Local Development Notes
-- In local/sandbox mode, PayMongo webhooks cannot reach `localhost`
-- Use a tunnel (e.g. [ngrok](https://ngrok.com/): `ngrok http 8000`) and update the webhook URL in the PayMongo dashboard
-- Set `PAYMONGO_MODE=test` and use test API keys from the PayMongo dashboard
-- With `PAYMONGO_WEBHOOK_SECRET` unset, signature verification is skipped (dev-only)
-
-### 4. Verify Everything Works
-```bash
-# Check backend health
-curl https://paybot-backend-production-84b2.up.railway.app/health
-
-# Check Telegram bot connection
-curl https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/bot-info
-
-# Check token configuration (debug)
-curl https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/debug-token-check
-```
-
----
-
-## 🔑 Environment Variables Reference
-
-| Variable | Description | Required | Default |
-|----------|-------------|----------|---------|
-| `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather | ✅ | — |
-| `XENDIT_SECRET_KEY` | Xendit API secret key | ✅ | — |
-| `DATABASE_URL` | PostgreSQL connection string | ✅ | — |
-| `PAYMONGO_SECRET_KEY` | PayMongo secret API key | ❌ | — |
-| `PAYMONGO_PUBLIC_KEY` | PayMongo public API key | ❌ | — |
-| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret (`whsk_…`) | ❌ | — |
-| `PAYMONGO_MODE` | `test` (sandbox) or `live` (production) | ❌ | `test` |
-| `PORT` | Server port | ❌ | `8000` |
-| `DEBUG` | Enable debug mode | ❌ | `false` |
-| `SUPABASE_URL` | Supabase project URL (if using Supabase) | ❌ | — |
-| `SUPABASE_ANON_KEY` | Supabase anonymous key (if using Supabase) | ❌ | — |
-
----
-
-## 🤖 Telegram Bot Commands
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `/start` | Welcome message & quick menu | `/start` |
-| `/help` | Full command reference | `/help` |
-| `/pay` | Interactive payment menu | `/pay` |
-| `/invoice <amount> <desc>` | Create a payment invoice | `/invoice 500 Monthly subscription` |
-| `/qr <amount> <desc>` | Generate QRIS QR code payment | `/qr 150 Coffee` |
-| `/alipay <amount> <desc>` | Alipay-compatible QR via Xendit QRIS | `/alipay 500 Coffee order` |
-| `/wechat <amount> <desc>` | Maya checkout via Security Bank Collect | `/wechat 500 Coffee order` |
-| `/link <amount> <desc>` | Create shareable payment link | `/link 1000 Freelance work` |
-| `/va <amount> <bank>` | Create virtual account | `/va 2500 BDO` |
-| `/ewallet <amount> <provider>` | Charge e-wallet (GCASH, GRABPAY, PAYMAYA) | `/ewallet 300 GCASH` |
-| `/disburse <amt> <bank> <acct> <name>` | Send money to bank account | `/disburse 1000 BPI 1234567890 Juan` |
-| `/refund <id> <amount>` | Process a refund | `/refund inv-abc123 500` |
-| `/status <id>` | Check payment status | `/status 42` |
-| `/balance` | Check wallet balance & history | `/balance` |
-| `/withdraw <amount>` | Withdraw from wallet | `/withdraw 500` |
-| `/send <amount> <user>` | Transfer to another user | `/send 100 user123` |
-| `/list` | List recent transactions | `/list` |
-| `/cancel <id>` | Cancel a pending payment | `/cancel 42` |
-| `/report [daily\|weekly\|monthly]` | View revenue summary | `/report weekly` |
-| `/fees <amount> <method>` | Calculate payment fees | `/fees 1000 invoice` |
-| `/subscribe <plan> <amt> <interval>` | Create subscription | `/subscribe Premium 999 monthly` |
-| `/remind <id>` | Send payment reminder | `/remind 42` |
-
----
-
-## 📱 Admin Dashboard Pages
-
-| Page | Route | Description |
-|------|-------|-------------|
-| **Bot Intro** | `/intro` | Animated landing page showcasing bot capabilities before sign-in |
-| **Dashboard** | `/` | Overview with wallet balance, transaction stats, quick actions |
-| **Wallet** | `/wallet` | Balance management, top up via Xendit, withdraw, disburse |
-| **Payments Hub** | `/payments` | Create payments via Invoice, QR, Payment Link, VA, E-Wallet, Alipay, Maya |
-| **Create Payment** | `/create-payment` | Quick payment creation form |
-| **Transactions** | `/transactions` | Full transaction history with search & filter |
-| **Money Management** | `/disbursements` | Disbursements, refunds, subscriptions, customers |
-| **Reports** | `/reports` | Revenue analytics, breakdowns, fee calculator |
-| **Bot Settings** | `/bot-settings` | Configure Telegram bot and webhook |
-| **Admin Management** | `/admin-management` | Add/remove admins, set permissions |
-| **Bot Messages** | `/bot-messages` | View and manage bot broadcast messages |
-| **Topup Requests** | `/topup-requests` | Review and approve wallet top-up requests |
-| **USDT Send Requests** | `/usdt-send-requests` | Manage USDT withdrawal/send requests |
-| **Features** | `/features` | Public landing page showcasing platform features |
-| **Policies** | `/policies` | Terms of Service, Privacy Policy, and Refund Policy |
-
----
-
-## 🔗 API Endpoints
-
-### Payment Gateway (`/api/v1/gateway/`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/virtual-account` | Create virtual account payment |
-| POST | `/ewallet-charge` | Create e-wallet charge |
-| POST | `/disbursement` | Send money to bank account |
-| GET | `/disbursements` | List all disbursements |
-| POST | `/refund` | Process a refund |
-| GET | `/refunds` | List all refunds |
-| POST | `/subscription` | Create recurring subscription |
-| GET | `/subscriptions` | List all subscriptions |
-| PUT | `/subscription/{id}` | Update subscription status |
-| POST | `/customer` | Add new customer |
-| GET | `/customers` | List all customers |
-| DELETE | `/customer/{id}` | Delete customer |
-| POST | `/calculate-fees` | Calculate payment fees |
-| GET | `/xendit-balance` | Check Xendit account balance |
-| GET | `/reports` | Get revenue analytics |
-| POST | `/send-reminder` | Send payment reminder |
-| POST | `/expire-invoice/{id}` | Cancel pending invoice |
-| GET | `/available-banks` | List supported banks |
-
-### Xendit (`/api/v1/xendit/`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/create-invoice` | Create Xendit invoice |
-| POST | `/create-qr-code` | Create QR code payment |
-| POST | `/create-payment-link` | Create payment link |
-| POST | `/webhook` | Receive Xendit payment callbacks |
-| GET | `/transaction-stats` | Get transaction statistics |
-
-### Telegram (`/api/v1/telegram/`)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/webhook` | Receive Telegram updates |
-| POST | `/set-webhook` | Register webhook URL |
-| GET | `/bot-info` | Get bot connection status |
-| GET | `/debug-token-check` | Debug token configuration |
+| **Deployment** | Railway · Render · Docker · AWS Lambda |
 
 ---
 
 ## 🏦 Supported Banks (Philippines)
 
-| Bank Code | Bank Name |
-|-----------|-----------|
-| BDO | Banco de Oro |
-| BPI | Bank of the Philippine Islands |
-| UNIONBANK | UnionBank of the Philippines |
-| RCBC | Rizal Commercial Banking Corporation |
-| CHINABANK | China Banking Corporation |
-| PNB | Philippine National Bank |
-| METROBANK | Metropolitan Bank & Trust |
+| Code | Bank |
+|------|------|
+| `BDO` | Banco de Oro |
+| `BPI` | Bank of the Philippine Islands |
+| `UNIONBANK` | UnionBank of the Philippines |
+| `RCBC` | Rizal Commercial Banking Corporation |
+| `CHINABANK` | China Banking Corporation |
+| `PNB` | Philippine National Bank |
+| `METROBANK` | Metropolitan Bank & Trust |
 
 ## 📱 Supported E-Wallets
 
@@ -403,52 +298,191 @@ curl https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/debug
 
 ---
 
+## ⚡ Quick Start
+
+### Windows
+
+```powershell
+./setup_windows.ps1
+./start_local_windows.ps1
+```
+
+### Linux / macOS
+
+```bash
+bash start_app_v2.sh   # starts backend (:8000) and frontend (:5173)
+```
+
+### Docker
+
+```bash
+docker build -t paybot .
+docker run -p 8000:8000 --env-file .env paybot
+```
+
+---
+
+## 📁 Project Structure
+
+```
+paybot/
+├── Dockerfile                        # Container config
+├── railway.json                      # Railway deployment
+├── start_app_v2.sh                   # Local startup script
+├── backend/                          # Python FastAPI backend
+│   ├── main.py                       # App entry point (auto-discovers routers)
+│   ├── requirements.txt              # Python dependencies
+│   ├── alembic/                      # Database migrations
+│   ├── core/                         # Config, DB, auth utilities
+│   ├── models/                       # SQLAlchemy ORM models
+│   ├── routers/                      # Auto-discovered API routes
+│   ├── services/                     # Xendit, PayMongo, PhotonPay, Telegram
+│   └── static/                       # Compiled React frontend
+└── frontend/                         # React + TypeScript frontend
+    ├── index.html
+    ├── vite.config.ts
+    └── src/
+        ├── pages/                    # All dashboard pages
+        ├── components/               # UI components (shadcn/ui)
+        ├── contexts/                 # Auth, theme state
+        └── lib/                      # API client, brand config
+```
+
+---
+
+## 🔧 Post-Deployment Setup
+
+### 1. Set Telegram Webhook
+
+```bash
+curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
+  -d '{"url":"https://your-domain.com/api/v1/telegram/webhook"}'
+```
+
+Or use the **Bot Settings** page in the dashboard.
+
+### 2. Set Xendit Webhook
+
+In [Xendit Dashboard](https://dashboard.xendit.co) → **Settings → Webhooks**:
+
+```
+https://your-domain.com/api/v1/xendit/webhook
+```
+
+Events: `invoices`, `qr_codes`, `payment_links`, `disbursements`
+
+### 3. Set PayMongo Webhook
+
+In [PayMongo Dashboard](https://dashboard.paymongo.com) → **Developers → Webhooks**:
+
+```
+https://your-domain.com/api/v1/paymongo/webhook
+```
+
+Events: `source.chargeable`, `checkout_session.payment.paid`, `payment.paid`
+
+Copy the `whsk_…` signing secret → set as `PAYMONGO_WEBHOOK_SECRET`.
+
+### 4. Verify Deployment
+
+```bash
+curl https://your-domain.com/health
+curl https://your-domain.com/api/v1/telegram/bot-info
+```
+
+---
+
+## 🔑 Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | ✅ |
+| `TELEGRAM_BOT_USERNAME` | Bot username (without @) | ✅ |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated super-admin Telegram IDs | ✅ |
+| `JWT_SECRET_KEY` | Secret key for JWT signing | ✅ |
+| `XENDIT_SECRET_KEY` | Xendit API secret key | ✅ |
+| `DATABASE_URL` | `postgresql+asyncpg://user:pass@host/db` | ✅ |
+| `PAYMONGO_SECRET_KEY` | PayMongo secret API key | ❌ |
+| `PAYMONGO_PUBLIC_KEY` | PayMongo public API key | ❌ |
+| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret (`whsk_…`) | ❌ |
+| `PAYMONGO_MODE` | `test` or `live` | ❌ |
+| `PHOTONPAY_APP_ID` | PhotonPay app ID | ❌ |
+| `PHOTONPAY_APP_SECRET` | PhotonPay RSA private key | ❌ |
+| `PORT` | Server port (default `8000`) | ❌ |
+
+---
+
+## 🔗 Key API Endpoints
+
+### Payment Gateway (`/api/v1/gateway/`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/virtual-account` | Create virtual account |
+| POST | `/ewallet-charge` | Charge e-wallet |
+| POST | `/disbursement` | Send money to bank |
+| GET | `/disbursements` | List disbursements |
+| POST | `/refund` | Process refund |
+| GET | `/refunds` | List refunds |
+| POST | `/subscription` | Create subscription |
+| GET | `/subscriptions` | List subscriptions |
+| POST | `/customer` | Add customer |
+| GET | `/customers` | List customers |
+| POST | `/calculate-fees` | Fee calculator |
+| GET | `/xendit-balance` | Live Xendit balance |
+| GET | `/reports` | Revenue analytics |
+
+### Xendit (`/api/v1/xendit/`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/create-invoice` | Create invoice |
+| POST | `/create-qr-code` | QRIS QR code |
+| POST | `/create-payment-link` | Payment link |
+| POST | `/webhook` | Payment callbacks |
+| GET | `/transaction-stats` | Statistics |
+
+### Telegram (`/api/v1/telegram/`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/webhook` | Receive bot updates |
+| POST | `/set-webhook` | Register webhook |
+| GET | `/bot-info` | Bot status |
+
+---
+
 ## 🐛 Troubleshooting
 
-### "No API Key detected" from Xendit
-- Ensure `XENDIT_SECRET_KEY` is set in your environment variables
-- On Railway: check the Variables tab in your service settings
-- The backend has a fallback mechanism in `core/config.py` — verify the Settings class loads correctly
-
-### "TELEGRAM_BOT_TOKEN is not configured"
-- Ensure `TELEGRAM_BOT_TOKEN` is set in your environment variables
-- Use the debug endpoint to verify: `GET /api/v1/telegram/debug-token-check`
-- The backend falls back to hardcoded defaults in `core/config.py` if env vars are missing
-
-### Bot shows "Not Connected" on Bot Settings page
-- Verify the token is valid by calling: `https://api.telegram.org/bot<TOKEN>/getMe`
-- Check if the `/api/v1/telegram/bot-info` endpoint returns successfully
-- Ensure the backend server is running and accessible
-
-### Database connection errors
-- Verify `DATABASE_URL` is correctly formatted: `postgresql+asyncpg://user:pass@host:5432/dbname`
-- Ensure the PostgreSQL server is accessible from your deployment
-- Run migrations: `alembic upgrade head`
+| Problem | Solution |
+|---------|----------|
+| "No API Key detected" | Set `XENDIT_SECRET_KEY` in Railway → Variables |
+| "TELEGRAM_BOT_TOKEN is not configured" | Set `TELEGRAM_BOT_TOKEN`; check via `GET /api/v1/telegram/debug-token-check` |
+| Bot shows "Not Connected" | Verify token: `https://api.telegram.org/bot<TOKEN>/getMe` |
+| Database errors | Check `DATABASE_URL` format: `postgresql+asyncpg://user:pass@host:5432/db`; run `alembic upgrade head` |
+| PayMongo webhooks not received | Use [ngrok](https://ngrok.com/) locally: `ngrok http 8000` and update PayMongo webhook URL |
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
+MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
 ## 🙏 Acknowledgments
 
-### Development Team
+Special thanks to **Sir Den Russell "Camus" Leonardo** and the **DRL Solutions** team for their exceptional work on bot development and payment integration.
 
-Special thanks to **Sir Den Russell "Camus" Leonardo** and the entire **DRL Solutions** team for their exceptional work on the bot development and payment integration features.
-
-### Technologies & Platforms
-
-- [Xendit](https://www.xendit.co/) — Payment gateway for Southeast Asia
-- [Telegram Bot API](https://core.telegram.org/bots/api) — Bot platform
-- [shadcn/ui](https://ui.shadcn.com/) — Beautiful UI components
-- [Atoms Cloud](https://atoms.dev/) — Backend-as-a-Service platform
-- [Railway](https://railway.app/) — Cloud deployment platform
+**Powered by:**
+[Xendit](https://www.xendit.co/) · [PayMongo](https://www.paymongo.com/) · [Telegram Bot API](https://core.telegram.org/bots/api) · [Railway](https://railway.app/) · [shadcn/ui](https://ui.shadcn.com/)
 
 ---
 
 <p align="center">
-  Built with ❤️ for Philippine merchants and developers
+  <img src="https://github.com/user-attachments/assets/3ff135b7-ed69-4b1b-889a-dbe0111de7dc" alt="PayBot" width="60" style="border-radius:12px;" />
+  <br/>
+  <strong>PayBot Philippines</strong> — Built with ❤️ for Philippine merchants, businesses, and developers
+  <br/>
+  <a href="https://t.me/traxionpay">@traxionpay</a> · <a href="https://t.me/traxionpay">Support</a>
 </p>

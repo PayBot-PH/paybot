@@ -34,7 +34,6 @@ import httpx
 logger = logging.getLogger(__name__)
 
 PAYMONGO_BASE_URL = "https://api.paymongo.com/v1"
-WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = 300  # 5-minute replay-protection window
 
 # Default payment method types for checkout sessions.
 # Covers the most common PayMongo-supported methods; can be overridden per request.
@@ -54,17 +53,12 @@ class PayMongoService:
 
     def __init__(self):
         self.secret_key = os.environ.get("PAYMONGO_SECRET_KEY", "")
-        self.public_key = os.environ.get("PAYMONGO_PUBLIC_KEY", "")
-        try:
-            from core.config import settings
-            if not self.secret_key:
+        if not self.secret_key:
+            try:
+                from core.config import settings
                 self.secret_key = settings.paymongo_secret_key
-            if not self.public_key:
-                self.public_key = settings.paymongo_public_key
-        except (AttributeError, ImportError) as e:
-            logger.warning(f"Failed to get PayMongo keys via settings: {e}")
-        if not self.public_key:
-            logger.warning("PAYMONGO_PUBLIC_KEY not configured — Sources API calls will fail")
+            except (AttributeError, ImportError) as e:
+                logger.warning(f"Failed to get PAYMONGO_SECRET_KEY via settings: {e}")
         if not self.secret_key:
             logger.warning("PAYMONGO_SECRET_KEY not configured — PayMongo API calls will fail")
 
@@ -76,91 +70,187 @@ class PayMongoService:
             except (AttributeError, ImportError):
                 pass
 
-        mode = os.environ.get("PAYMONGO_MODE", "")
-        if not mode:
-            try:
-                from core.config import settings
-                mode = settings.paymongo_mode
-            except (AttributeError, ImportError):
-                pass
-        self.mode = mode or "test"
-
-    @property
-    def _http(self) -> httpx.AsyncClient:
-        """Return a shared AsyncClient, creating it lazily on first use."""
-        client = getattr(self, "_client", None)
-        if client is None:
-            self._client = httpx.AsyncClient(timeout=30.0)
-        return self._client
-
-    async def aclose(self) -> None:
-        """Close the shared HTTP client. Call on application shutdown."""
-        client = getattr(self, "_client", None)
-        if client is not None:
-            await client.aclose()
-            self._client = None
+        self.mode = os.environ.get("PAYMONGO_MODE", "test")
+        try:
+            from core.config import settings
+            self.mode = settings.paymongo_mode or self.mode
+        except (AttributeError, ImportError):
+            pass
 
     def _get_auth(self):
-        """Secret key auth for most endpoints."""
         return (self.secret_key, "")
 
-    def _get_public_auth(self):
-        """Public key auth — required by the Sources API."""
-        return (self.public_key, "")
+    # ------------------------------------------------------------------
+    # Webhook signature verification
+    # ------------------------------------------------------------------
 
-    def verify_webhook_signature(self, raw_body: bytes, header_value: str) -> bool:
-        """Verify a PayMongo webhook signature.
+    def verify_webhook_signature(
+        self,
+        raw_body: bytes,
+        signature_header: str,
+        tolerance_seconds: int = 300,
+    ) -> bool:
+        """Verify a PayMongo webhook request signature.
 
-        The ``Paymongo-Signature`` header has the format::
-
-            t=<unix_timestamp>,te=<test_sig>,li=<live_sig>
-
-        Raises:
-            ValueError: if ``PAYMONGO_WEBHOOK_SECRET`` is not configured.
+        Args:
+            raw_body: The raw (un-decoded) request body bytes.
+            signature_header: Value of the ``Paymongo-Signature`` header.
+            tolerance_seconds: Maximum age of a valid request (default 5 min).
 
         Returns:
-            True if the signature is valid and the timestamp is within 5 minutes,
-            False otherwise.
+            True if the signature is valid and the request is fresh.
+
+        Raises:
+            ValueError: If the webhook secret is not configured.
         """
         if not self.webhook_secret:
-            raise ValueError(
-                "PAYMONGO_WEBHOOK_SECRET is not configured — "
-                "set it in your environment to enable webhook signature verification."
-            )
+            raise ValueError("PAYMONGO_WEBHOOK_SECRET is not configured")
 
-        # Parse header fields
-        fields: dict = {}
-        for part in header_value.split(","):
-            part = part.strip()
+        # Parse header: t=<ts>,te=<sig>,li=<sig>
+        parts: Dict[str, str] = {}
+        for part in signature_header.split(","):
             if "=" in part:
-                k, _, v = part.partition("=")
-                fields[k.strip()] = v.strip()
+                k, v = part.split("=", 1)
+                parts[k.strip()] = v.strip()
 
-        timestamp_str = fields.get("t", "")
-        # Accept either "te" (test) or "li" (live) signature
-        sig = fields.get("te") or fields.get("li") or ""
-
-        if not timestamp_str or not sig:
+        timestamp_str = parts.get("t", "")
+        if not timestamp_str:
+            logger.warning("PayMongo signature header missing timestamp")
             return False
 
+        # Guard against replay attacks
         try:
-            timestamp = int(timestamp_str)
+            ts = int(timestamp_str)
         except ValueError:
             return False
-
-        # Reject stale timestamps (replay protection: 5 minute window)
-        if abs(time.time() - timestamp) > WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS:
+        if abs(time.time() - ts) > tolerance_seconds:
+            logger.warning("PayMongo webhook timestamp outside tolerance window")
             return False
 
-        # Recompute expected HMAC-SHA256
-        signed_payload = f"{timestamp}.{raw_body.decode('utf-8')}"
+        # Compute expected signature
+        signed_payload = f"{timestamp_str}.{raw_body.decode('utf-8', errors='replace')}"
         expected = hmac.new(
             self.webhook_secret.encode("utf-8"),
             signed_payload.encode("utf-8"),
             hashlib.sha256,
         ).hexdigest()
 
-        return hmac.compare_digest(expected, sig)
+        # Check against test or live signature depending on mode
+        sig_key = "li" if self.mode == "live" else "te"
+        received = parts.get(sig_key, "")
+        if not received:
+            # Fall back: try the other key if current mode key is absent
+            alt_key = "te" if sig_key == "li" else "li"
+            received = parts.get(alt_key, "")
+
+        if not received:
+            logger.warning("PayMongo signature header missing signature value")
+            return False
+
+        return hmac.compare_digest(expected, received)
+
+    # ------------------------------------------------------------------
+    # Checkout Session (card, GCash, Maya, and more)
+    # ------------------------------------------------------------------
+
+    async def create_checkout_session(
+        self,
+        amount: float,
+        description: str = "Wallet Top Up",
+        success_url: str = "",
+        cancel_url: str = "",
+        payment_method_types: Optional[list] = None,
+        reference_number: str = "",
+        currency: str = "PHP",
+        customer_email: str = "",
+        customer_name: str = "",
+    ) -> Dict[str, Any]:
+        """Create a PayMongo Checkout Session for multi-method payments.
+
+        Supports: gcash, paymaya, card, dob, brankas_*, billease, etc.
+
+        Args:
+            amount: Amount in PHP.
+            description: Line-item description shown on checkout page.
+            success_url: Where PayMongo redirects after successful payment.
+            cancel_url: Where PayMongo redirects on cancel/failure.
+            payment_method_types: List of payment types to accept.
+            reference_number: Internal reference; stored in metadata.
+            currency: Currency code (default PHP).
+            customer_email: Pre-fill customer e-mail.
+            customer_name: Pre-fill customer name.
+
+        Returns:
+            dict with success, checkout_session_id, checkout_url, reference_number
+        """
+        if not reference_number:
+            reference_number = f"pm-cs-{uuid.uuid4().hex[:12]}"
+        if payment_method_types is None:
+            payment_method_types = list(DEFAULT_CHECKOUT_PAYMENT_METHODS)
+
+        amount_centavos = int(round(amount * 100))
+
+        backend_url = ""
+        try:
+            from core.config import settings
+            backend_url = settings.backend_url
+        except Exception:
+            pass
+
+        line_item = {
+            "currency": currency,
+            "amount": amount_centavos,
+            "name": description or "Wallet Top Up",
+            "quantity": 1,
+        }
+
+        attributes: Dict[str, Any] = {
+            "billing": {},
+            "cancel_url": cancel_url or f"{backend_url}/api/v1/paymongo/redirect/failed",
+            "description": description or "Wallet Top Up",
+            "line_items": [line_item],
+            "payment_method_types": payment_method_types,
+            "success_url": success_url or f"{backend_url}/api/v1/paymongo/redirect/success",
+            "metadata": {"reference_number": reference_number},
+        }
+
+        if customer_email:
+            attributes["billing"]["email"] = customer_email
+        if customer_name:
+            attributes["billing"]["name"] = customer_name
+
+        payload = {"data": {"attributes": attributes}}
+
+        try:
+            async with httpx.AsyncClient() as client:
+                r = await client.post(
+                    f"{PAYMONGO_BASE_URL}/checkout_sessions",
+                    json=payload,
+                    auth=self._get_auth(),
+                    timeout=30.0,
+                )
+                r.raise_for_status()
+                data = r.json().get("data", {})
+                attrs = data.get("attributes", {})
+                return {
+                    "success": True,
+                    "checkout_session_id": data.get("id", ""),
+                    "reference_number": reference_number,
+                    "checkout_url": attrs.get("checkout_url", ""),
+                    "amount": amount,
+                    "currency": currency,
+                    "status": attrs.get("status", "active"),
+                }
+        except httpx.HTTPStatusError as e:
+            logger.error(f"PayMongo checkout session creation failed: {e.response.text}")
+            return {"success": False, "error": e.response.text}
+        except Exception as e:
+            logger.error(f"PayMongo checkout session creation error: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # Sources (Alipay / WeChat)
+    # ------------------------------------------------------------------
 
     async def create_source(
         self,
@@ -175,12 +265,12 @@ class PayMongoService:
         Create a PayMongo Source for Alipay or WeChat Pay.
 
         Args:
-            amount: Amount in PHP (e.g. 500.00)
+            amount: Amount in the specified currency (e.g. 500.00)
             payment_type: "alipay" or "wechat"
             description: Payment description
             success_url: Redirect URL on success
             failed_url: Redirect URL on failure/cancel
-            currency: Currency code (default PHP)
+            currency: Currency code (e.g. "HKD" for Alipay, "CNY" for WeChat Pay)
 
         Returns:
             dict with success, source_id, checkout_url, reference_number
@@ -219,7 +309,7 @@ class PayMongoService:
                 r = await client.post(
                     f"{PAYMONGO_BASE_URL}/sources",
                     json=payload,
-                    auth=self._get_public_auth(),
+                    auth=self._get_auth(),
                     timeout=30.0,
                 )
                 r.raise_for_status()
@@ -245,10 +335,17 @@ class PayMongoService:
     async def create_alipay_qr(
         self, amount: float, description: str = "",
         success_url: str = "", failed_url: str = "",
+        currency: str = "HKD",
     ) -> Dict[str, Any]:
+        """Create an Alipay QR source via PayMongo.
+
+        Alipay does not support PHP; use HKD (Hong Kong Dollar) or CNY (Chinese Yuan).
+        Defaults to HKD.
+        """
         return await self.create_source(
             amount=amount, payment_type="alipay",
             description=description, success_url=success_url, failed_url=failed_url,
+            currency=currency,
         )
 
     async def create_wechat_qr(
@@ -260,73 +357,17 @@ class PayMongoService:
             description=description, success_url=success_url, failed_url=failed_url,
         )
 
-    async def create_payment_from_source(
-        self,
-        source_id: str,
-        amount: float,
-        currency: str = "PHP",
-        description: str = "",
-    ) -> Dict[str, Any]:
-        """
-        Create a PayMongo payment from a chargeable source (Alipay / WeChat Pay).
-
-        This must be called after receiving a ``source.chargeable`` webhook so that
-        PayMongo actually captures the funds from the user.  Without this call the
-        source expires and the merchant never receives the money.
-
-        Args:
-            source_id:   ID of the chargeable PayMongo source (e.g. "src_xxx").
-            amount:      Payment amount in PHP (e.g. 500.00).
-            currency:    ISO-4217 currency code (default: "PHP").
-            description: Human-readable payment description.
-
-        Returns:
-            On success: {"success": True, "payment_id": str, "status": str}
-            On failure: {"success": False, "error": str}
-        """
-        amount_centavos = int(round(amount * 100))
-        payload = {
-            "data": {
-                "attributes": {
-                    "amount": amount_centavos,
-                    "currency": currency,
-                    "source": {"id": source_id, "type": "source"},
-                    "description": description or "Payment",
-                }
-            }
-        }
-        try:
-            r = await self._http.post(
-                f"{PAYMONGO_BASE_URL}/payments",
-                json=payload,
-                auth=self._get_auth(),
-            )
-            r.raise_for_status()
-            data = r.json().get("data", {})
-            attrs = data.get("attributes", {})
-            return {
-                "success": True,
-                "payment_id": data.get("id", ""),
-                "status": attrs.get("status", ""),
-                "amount": amount,
-                "currency": currency,
-            }
-        except httpx.HTTPStatusError as e:
-            logger.error("PayMongo create_payment_from_source failed: %s", e.response.text)
-            return {"success": False, "error": e.response.text}
-        except Exception as e:
-            logger.error("PayMongo create_payment_from_source error: %s", str(e))
-            return {"success": False, "error": str(e)}
-
     async def get_source(self, source_id: str) -> Dict[str, Any]:
         """Retrieve a PayMongo source by ID."""
         try:
-            r = await self._http.get(
-                f"{PAYMONGO_BASE_URL}/sources/{source_id}",
-                auth=self._get_auth(),
-            )
-            r.raise_for_status()
-            return {"success": True, "data": r.json().get("data", {})}
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    f"{PAYMONGO_BASE_URL}/sources/{source_id}",
+                    auth=self._get_auth(),
+                    timeout=30.0,
+                )
+                r.raise_for_status()
+                return {"success": True, "data": r.json().get("data", {})}
         except Exception as e:
             return {"success": False, "error": str(e)}
 
@@ -340,13 +381,15 @@ class PayMongoService:
             dict with success and data (list of payment objects).
         """
         try:
-            r = await self._http.get(
-                f"{PAYMONGO_BASE_URL}/payments",
-                params={"limit": min(limit, 100)},
-                auth=self._get_auth(),
-            )
-            r.raise_for_status()
-            return {"success": True, "data": r.json().get("data", [])}
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    f"{PAYMONGO_BASE_URL}/payments",
+                    params={"limit": min(limit, 100)},
+                    auth=self._get_auth(),
+                    timeout=30.0,
+                )
+                r.raise_for_status()
+                return {"success": True, "data": r.json().get("data", [])}
         except httpx.HTTPStatusError as e:
             logger.error("PayMongo list_payments failed: %s", e.response.text)
             return {"success": False, "error": e.response.text}
@@ -371,17 +414,19 @@ class PayMongoService:
         Docs: https://developers.paymongo.com/reference/retrieve-balance
         """
         try:
-            r = await self._http.get(
-                f"{PAYMONGO_BASE_URL}/balance",
-                auth=self._get_auth(),
-            )
-            r.raise_for_status()
-            attrs = r.json().get("data", {}).get("attributes", {})
-            return {
-                "success": True,
-                "available": attrs.get("available", []),
-                "pending": attrs.get("pending", []),
-            }
+            async with httpx.AsyncClient() as client:
+                r = await client.get(
+                    f"{PAYMONGO_BASE_URL}/balance",
+                    auth=self._get_auth(),
+                    timeout=30.0,
+                )
+                r.raise_for_status()
+                attrs = r.json().get("data", {}).get("attributes", {})
+                return {
+                    "success": True,
+                    "available": attrs.get("available", []),
+                    "pending": attrs.get("pending", []),
+                }
         except httpx.HTTPStatusError as e:
             logger.error("PayMongo get_balance failed: %s", e.response.text)
             return {"success": False, "error": e.response.text}

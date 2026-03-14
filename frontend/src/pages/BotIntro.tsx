@@ -194,9 +194,7 @@ export default function BotIntro() {
       {/* Header */}
       <header className="relative z-10 flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <Bot className="h-4 w-4 text-white" />
-          </div>
+          <img src="/logo.svg" alt={APP_NAME} className="h-8 w-8 rounded-lg" />
           <p className="text-sm font-bold text-white hidden sm:block">{APP_NAME}</p>
         </Link>
         <Link

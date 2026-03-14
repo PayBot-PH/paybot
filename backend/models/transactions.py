@@ -1,19 +1,25 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Float, Integer, String
+from sqlalchemy import Column, DateTime, Float, Index, Integer, String
 
 
 class Transactions(Base):
     __tablename__ = "transactions"
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        # Index for per-user list queries (the most common filter)
+        Index("idx_txn_user_id", "user_id"),
+        # Index for status-based filtering (e.g. pending/completed dashboards)
+        Index("idx_txn_status", "status"),
+        {"extend_existing": True},
+    )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
-    user_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, nullable=False)
     transaction_type = Column(String, nullable=False)
-    external_id = Column(String, nullable=True, index=True)
+    external_id = Column(String, nullable=True)
     xendit_id = Column(String, nullable=True)
     amount = Column(Float, nullable=False)
     currency = Column(String, nullable=True, default='PHP', server_default='PHP')
-    status = Column(String, nullable=False, index=True)
+    status = Column(String, nullable=False)
     description = Column(String, nullable=True)
     customer_name = Column(String, nullable=True)
     customer_email = Column(String, nullable=True)
