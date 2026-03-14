@@ -30,6 +30,7 @@ from services.paymongo_service import PayMongoService
 from services.photonpay_service import PhotonPayService
 from services.bot_settings import Bot_settingsService
 from models.topup_requests import TopupRequest
+from models.bank_deposit_requests import BankDepositRequest
 from models.usdt_send_requests import UsdtSendRequest
 from models.kyb_registrations import KybRegistration
 from models.admin_users import AdminUser
@@ -1218,8 +1219,33 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"🆔 Request ID: <code>#{pending_topup.id}</code>\n\n"
                         f"⏳ Under review by admin. Your PHP wallet will be credited once approved.",
                     )
-                else:
-                    await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /topup [amount] for USDT.")
+                    return {"status": "ok"}
+
+                # Check if this user has a pending bank deposit request awaiting receipt
+                dep_result = await db.execute(
+                    select(BankDepositRequest)
+                    .where(BankDepositRequest.chat_id == chat_id, BankDepositRequest.status == "pending", BankDepositRequest.receipt_file_id.is_(None))
+                    .order_by(BankDepositRequest.created_at.desc())
+                )
+                pending_deposit = dep_result.scalar_one_or_none()
+                if pending_deposit:
+                    best_photo = max(photos, key=lambda p: p.get("file_size", 0))
+                    pending_deposit.receipt_file_id = best_photo["file_id"]
+                    pending_deposit.updated_at = datetime.now()
+                    await db.commit()
+                    await tg.send_message(
+                        chat_id,
+                        f"✅ <b>Receipt received!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"💳 Channel: <b>{pending_deposit.channel}</b>\n"
+                        f"🔢 Account: <code>{pending_deposit.account_number}</code>\n"
+                        f"💰 Amount: <b>₱{pending_deposit.amount_php:,.2f}</b>\n"
+                        f"🆔 Request ID: <code>#{pending_deposit.id}</code>\n\n"
+                        f"⏳ Under review by admin. Your PHP wallet will be credited once approved.",
+                    )
+                    return {"status": "ok"}
+
+                await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /topup [amount] for USDT.")
                 return {"status": "ok"}
             # Fall through to the wizard handler below (photo step is active)
 
@@ -1448,6 +1474,44 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except Exception as exc:
                     logger.error(f"/scanqr wizard completion error: {exc}", exc_info=True)
                     await tg.send_message(chat_id, "❌ An error occurred processing your QRPH payment. Please try again.")
+                return {"status": "ok"}
+
+            # /deposit is handled inline: store the deposit request and ask for receipt
+            if cmd == "/deposit":
+                try:
+                    channel = str(collected.get("channel", "")).strip().upper()
+                    account = str(collected.get("account", "")).strip()
+                    amount_php = float(collected.get("amount", 0))
+                    if not channel or not account or amount_php <= 0:
+                        await tg.send_message(chat_id, "❌ Invalid deposit details. Please try /deposit again.")
+                        return {"status": "ok"}
+                    now = datetime.now()
+                    deposit_req = BankDepositRequest(
+                        chat_id=chat_id,
+                        telegram_username=username,
+                        channel=channel,
+                        account_number=account,
+                        amount_php=amount_php,
+                        status="pending",
+                        created_at=now,
+                    )
+                    db.add(deposit_req)
+                    await db.commit()
+                    await db.refresh(deposit_req)
+                    await tg.send_message(
+                        chat_id,
+                        f"✅ <b>Deposit details recorded!</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"💳 Channel: <b>{channel}</b>\n"
+                        f"🔢 Account: <code>{account}</code>\n"
+                        f"💰 Amount: <b>₱{amount_php:,.2f}</b>\n"
+                        f"🆔 Request ID: <code>#{deposit_req.id}</code>\n\n"
+                        f"📷 <b>Next step:</b> Please send a screenshot / photo of your transfer confirmation in this chat.\n"
+                        f"The admin will verify and credit your PHP wallet once the receipt is confirmed.",
+                    )
+                except Exception as exc:
+                    logger.error(f"/deposit wizard completion error: {exc}", exc_info=True)
+                    await tg.send_message(chat_id, "❌ An error occurred saving your deposit. Please try /deposit again.")
                 return {"status": "ok"}
 
             # Other commands: rebuild command text and fall through to routing
@@ -2970,6 +3034,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "💰 <b>PHP Wallet</b>\n"
                 "  /balance — PHP &amp; USD balances + history\n"
                 "  /topup [amt] — Top up via USDT (auto-converted)\n"
+                "  /deposit — Deposit via bank / e-wallet transfer\n"
                 "  /send [amt] [to] — Send PHP to another user\n"
                 "  /withdraw [amt] — Withdraw PHP\n\n"
                 "💵 <b>USD Wallet (USDT TRC20)</b>\n"
@@ -3007,6 +3072,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "💰 <b>PHP 钱包</b>\n"
                 "  /balance — PHP 和 USD 余额及历史\n"
                 "  /topup [金额] — 通过 USDT 充值（自动换汇）\n"
+                "  /deposit — 通过银行 / 电子钱包存款\n"
                 "  /send [金额] [接收方] — 向用户转账 PHP\n"
                 "  /withdraw [金额] — 提现 PHP\n\n"
                 "💵 <b>USD 钱包（USDT TRC20）</b>\n"
@@ -3083,6 +3149,29 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except Exception as e:
                     logger.error(f"Topup create error: {e}", exc_info=True)
                     await tg.send_message(chat_id, "❌ Failed to create topup request. Please try again.")
+
+        # ==================== /deposit ====================
+        elif text.startswith("/deposit"):
+            await tg.send_message(
+                chat_id,
+                _t(chat_id,
+                   "🏦 <b>Bank / E-Wallet Deposit</b>\n"
+                   "━━━━━━━━━━━━━━━━━━━━\n"
+                   "I'll guide you through submitting your deposit receipt for verification.\n\n"
+                   "Supported channels:\n"
+                   "  • <b>GCash</b> · <b>Maya</b>\n"
+                   "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
+                   "Let's start — I'll ask you a few quick questions.",
+                   "🏦 <b>银行 / 电子钱包存款</b>\n"
+                   "━━━━━━━━━━━━━━━━━━━━\n"
+                   "请按步骤提交存款收据以供核实。\n\n"
+                   "支持的渠道：\n"
+                   "  • <b>GCash</b> · <b>Maya</b>\n"
+                   "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
+                   "开始吧，我会问您几个简单问题。"),
+            )
+            prompt = _wizard_start(chat_id, "/deposit")
+            await tg.send_message(chat_id, prompt)
 
         else:
             await tg.send_message(
