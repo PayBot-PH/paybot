@@ -65,7 +65,7 @@ def _usdt_static_qr_url() -> str:
     return f"{settings.backend_url.rstrip('/')}/images/usdt_trc20_qr.png"
 
 
-def _parse_tlv(s: str) -> dict:
+def _parse_tlv(tlv_string: str) -> dict:
     """Parse an EMVCo/QRPH TLV-encoded string into a tag→value dict.
 
     Tag reference: 53=Currency (608=PHP), 58=Country, 59=Merchant Name,
@@ -74,30 +74,30 @@ def _parse_tlv(s: str) -> dict:
     """
     result: dict = {}
     i = 0
-    while i + 4 <= len(s):
-        tag = s[i:i+2]
+    while i + 4 <= len(tlv_string):
+        tag = tlv_string[i:i+2]
         try:
-            length = int(s[i+2:i+4])
+            length = int(tlv_string[i+2:i+4])
         except ValueError:
             break
-        if i + 4 + length > len(s):
+        if i + 4 + length > len(tlv_string):
             break
-        result[tag] = s[i+4:i+4+length]
+        result[tag] = tlv_string[i+4:i+4+length]
         i += 4 + length
     return result
 
 
-async def _decode_qr_from_telegram_photo(tg: "TelegramService", file_id: str) -> Optional[str]:
+async def _decode_qr_from_telegram_photo(telegram_service: "TelegramService", file_id: str) -> Optional[str]:
     """Download a Telegram photo by file_id and decode the first QR code found.
 
     Returns the decoded string, or None if no QR code could be detected.
     """
-    file_info = await tg.get_file(file_id)
+    file_info = await telegram_service.get_file(file_id)
     if not file_info.get("success"):
         logger.warning(f"getFile failed for file_id={file_id}: {file_info.get('error')}")
         return None
 
-    image_bytes = await tg.download_file_bytes(file_info["file_path"])
+    image_bytes = await telegram_service.download_file_bytes(file_info["file_path"])
     if not image_bytes:
         return None
 
@@ -117,7 +117,7 @@ async def _decode_qr_from_telegram_photo(tg: "TelegramService", file_id: str) ->
 
 
 async def _process_scanqr(
-    tg: "TelegramService",
+    telegram_service: "TelegramService",
     db: "AsyncSession",
     chat_id: str,
     username: str,
@@ -125,16 +125,16 @@ async def _process_scanqr(
     qr_data: str,
 ) -> None:
     """Process a QRPH payment after the amount and QR data have been collected."""
-    tlv = _parse_tlv(qr_data)
-    merchant_name = tlv.get("59", "")
-    merchant_city = tlv.get("60", "")
-    currency_code = tlv.get("53", "")
+    parsed_tlv = _parse_tlv(qr_data)
+    merchant_name = parsed_tlv.get("59", "")
+    merchant_city = parsed_tlv.get("60", "")
+    currency_code = parsed_tlv.get("53", "")
     currency = "PHP" if currency_code == "608" else currency_code or "PHP"
-    ref_num = ""
-    add_data = tlv.get("62", "")
-    if add_data:
-        sub = _parse_tlv(add_data)
-        ref_num = sub.get("05", sub.get("01", ""))
+    reference_number = ""
+    additional_data = parsed_tlv.get("62", "")
+    if additional_data:
+        sub_tlv_data = _parse_tlv(additional_data)
+        reference_number = sub_tlv_data.get("05", sub_tlv_data.get("01", ""))
 
     external_id = f"qrph-{uuid.uuid4().hex[:12]}"
     reply_lines = [
@@ -146,18 +146,18 @@ async def _process_scanqr(
         reply_lines.append(f"🏪 Merchant: <b>{merchant_name}</b>")
     if merchant_city:
         reply_lines.append(f"📍 City: {merchant_city}")
-    if ref_num:
-        reply_lines.append(f"🆔 Reference: <code>{ref_num}</code>")
+    if reference_number:
+        reply_lines.append(f"🆔 Reference: <code>{reference_number}</code>")
     reply_lines += [
         "",
         "⏳ Status: <b>Pending</b>",
         "💳 Complete the payment via your bank or e-wallet app.",
     ]
-    await tg.send_message(chat_id, "\n".join(reply_lines))
+    await telegram_service.send_message(chat_id, "\n".join(reply_lines))
 
     try:
         now = datetime.now()
-        txn = Transactions(
+        transaction = Transactions(
             user_id=f"tg-{chat_id}", transaction_type="qrph_payment",
             external_id=external_id, xendit_id="",
             amount=amount, currency=currency, status="pending",
@@ -168,7 +168,7 @@ async def _process_scanqr(
             qr_code_url=qr_data[:500], telegram_chat_id=chat_id,
             created_at=now, updated_at=now,
         )
-        db.add(txn)
+        db.add(transaction)
         await db.commit()
     except Exception as e:
         logger.error(f"DB save failed for /scanqr: {e}", exc_info=True)
@@ -214,8 +214,8 @@ async def _get_php_balance_for_bot(db: AsyncSession, tg_user_id: str) -> float:
     Returns 0.0 if neither source is available so the caller can decide.
     """
     try:
-        pm_svc = PayMongoService()
-        result = await pm_svc.get_balance()
+        paymongo_service = PayMongoService()
+        result = await paymongo_service.get_balance()
         if result.get("success"):
             available = result.get("available", [])
             php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
@@ -364,7 +364,7 @@ def _wizard_start(chat_id: str, cmd: str) -> str:
         f"Type <code>/cancel</code> at any time to abort.\n\n"
         + _CMD_STEPS[cmd][0]["prompt"]
     )
-def _start_kb() -> dict:
+def _start_reply_keyboard() -> dict:
     """Full quick-action keyboard for /start and /help."""
     return {
         "keyboard": [
@@ -378,7 +378,7 @@ def _start_kb() -> dict:
     }
 
 
-def _lang_kb() -> dict:
+def _language_inline_keyboard() -> dict:
     """Inline keyboard for language selection on /start."""
     return {
         "inline_keyboard": [[
@@ -462,7 +462,7 @@ def _welcome_zh(name: str = "") -> str:
     )
 
 
-def _pay_kb() -> dict:
+def _payment_reply_keyboard() -> dict:
     """Quick-action keyboard shown after payment creation commands."""
     return {
         "keyboard": [
@@ -475,7 +475,7 @@ def _pay_kb() -> dict:
     }
 
 
-def _wallet_kb() -> dict:
+def _wallet_reply_keyboard() -> dict:
     """Quick-action keyboard shown after wallet commands."""
     return {
         "keyboard": [
@@ -488,7 +488,7 @@ def _wallet_kb() -> dict:
     }
 
 
-def _info_kb() -> dict:
+def _info_reply_keyboard() -> dict:
     """Quick-action keyboard shown after info/report commands."""
     return {
         "keyboard": [
@@ -532,14 +532,14 @@ _PIN_MAX_ATTEMPTS = 3
 _user_lang: dict[str, str] = {}
 
 
-def _lang(chat_id: str) -> str:
+def _get_user_language(chat_id: str) -> str:
     """Return the stored language for a chat, defaulting to English."""
     return _user_lang.get(chat_id, "en")
 
 
-def _t(chat_id: str, en: str, zh: str = "") -> str:
+def _localize(chat_id: str, en: str, zh: str = "") -> str:
     """Pick the localised string based on the user's stored language."""
-    if _lang(chat_id) == "zh" and zh:
+    if _get_user_language(chat_id) == "zh" and zh:
         return zh
     return en
 
@@ -630,7 +630,7 @@ async def _get_or_create_kyb(db: AsyncSession, chat_id: str, username: str) -> "
 
 async def _handle_kyb_flow(
     db: AsyncSession,
-    tg: "TelegramService",
+    telegram_service: "TelegramService",
     chat_id: str,
     username: str,
     text: str,
@@ -642,10 +642,10 @@ async def _handle_kyb_flow(
     """
     # Allow /start command to show registration info even without KYB record
     if text and text.startswith("/start"):
-        await tg.send_message(
+        await telegram_service.send_message(
             chat_id,
             "🌐 <b>Select Language / 请选择语言</b>",
-            reply_markup=_lang_kb(),
+            reply_markup=_language_inline_keyboard(),
         )
         return True
 
@@ -655,7 +655,7 @@ async def _handle_kyb_flow(
         kyb = res.scalar_one_or_none()
     except Exception as e:
         logger.error("KYB lookup failed: %s", e)
-        await tg.send_message(chat_id, "⚠️ A database error occurred. Please try again later.")
+        await telegram_service.send_message(chat_id, "⚠️ A database error occurred. Please try again later.")
         return True
 
     # No KYB record yet
@@ -668,9 +668,9 @@ async def _handle_kyb_flow(
                 await db.refresh(kyb)
             except Exception as e:
                 logger.error("KYB create failed: %s", e)
-                await tg.send_message(chat_id, "⚠️ Could not start registration. Please try again.")
+                await telegram_service.send_message(chat_id, "⚠️ Could not start registration. Please try again.")
                 return True
-            await tg.send_message(
+            await telegram_service.send_message(
                 chat_id,
                 "🎉 <b>KYB Registration Started!</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
@@ -679,7 +679,7 @@ async def _handle_kyb_flow(
                 + _KYB_PROMPTS["full_name"],
             )
         else:
-            await tg.send_message(
+            await telegram_service.send_message(
                 chat_id,
                 "👋 <b>Welcome to PayBot Philippines!</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
@@ -691,13 +691,13 @@ async def _handle_kyb_flow(
 
     # KYB already approved — this shouldn't happen (authorized users bypass this flow)
     if kyb.status == "approved":
-        await tg.send_message(chat_id, "✅ Your KYB is approved. You can now use all bot commands. Type /start to begin.")
+        await telegram_service.send_message(chat_id, "✅ Your KYB is approved. You can now use all bot commands. Type /start to begin.")
         return True
 
     # KYB rejected
     if kyb.status == "rejected":
         reason = kyb.rejection_reason or "No reason provided."
-        await tg.send_message(
+        await telegram_service.send_message(
             chat_id,
             f"😔 <b>KYB Registration Not Approved</b>\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -709,7 +709,7 @@ async def _handle_kyb_flow(
 
     # KYB pending review
     if kyb.status == "pending_review":
-        await tg.send_message(
+        await telegram_service.send_message(
             chat_id,
             "⏳ <b>Registration Under Review</b>\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
@@ -724,7 +724,7 @@ async def _handle_kyb_flow(
 
     if step == "full_name":
         if not text or text.startswith("/"):
-            await tg.send_message(chat_id, _KYB_PROMPTS["full_name"])
+            await telegram_service.send_message(chat_id, _KYB_PROMPTS["full_name"])
             return True
         try:
             kyb.full_name = text.strip()
@@ -733,12 +733,12 @@ async def _handle_kyb_flow(
         except Exception as e:
             logger.error("KYB update failed (full_name): %s", e)
             await db.rollback()
-        await tg.send_message(chat_id, _KYB_PROMPTS["phone"])
+        await telegram_service.send_message(chat_id, _KYB_PROMPTS["phone"])
         return True
 
     if step == "phone":
         if not text or text.startswith("/"):
-            await tg.send_message(chat_id, _KYB_PROMPTS["phone"])
+            await telegram_service.send_message(chat_id, _KYB_PROMPTS["phone"])
             return True
         try:
             kyb.phone = text.strip()
@@ -747,12 +747,12 @@ async def _handle_kyb_flow(
         except Exception as e:
             logger.error("KYB update failed (phone): %s", e)
             await db.rollback()
-        await tg.send_message(chat_id, _KYB_PROMPTS["address"])
+        await telegram_service.send_message(chat_id, _KYB_PROMPTS["address"])
         return True
 
     if step == "address":
         if not text or text.startswith("/"):
-            await tg.send_message(chat_id, _KYB_PROMPTS["address"])
+            await telegram_service.send_message(chat_id, _KYB_PROMPTS["address"])
             return True
         try:
             kyb.address = text.strip()
@@ -761,12 +761,12 @@ async def _handle_kyb_flow(
         except Exception as e:
             logger.error("KYB update failed (address): %s", e)
             await db.rollback()
-        await tg.send_message(chat_id, _KYB_PROMPTS["bank"])
+        await telegram_service.send_message(chat_id, _KYB_PROMPTS["bank"])
         return True
 
     if step == "bank":
         if not text or text.startswith("/"):
-            await tg.send_message(chat_id, _KYB_PROMPTS["bank"])
+            await telegram_service.send_message(chat_id, _KYB_PROMPTS["bank"])
             return True
         try:
             kyb.bank_name = text.strip()
@@ -775,12 +775,12 @@ async def _handle_kyb_flow(
         except Exception as e:
             logger.error("KYB update failed (bank): %s", e)
             await db.rollback()
-        await tg.send_message(chat_id, _KYB_PROMPTS["id_photo"])
+        await telegram_service.send_message(chat_id, _KYB_PROMPTS["id_photo"])
         return True
 
     if step == "id_photo":
         if not photos:
-            await tg.send_message(chat_id, _KYB_PROMPTS["id_photo"])
+            await telegram_service.send_message(chat_id, _KYB_PROMPTS["id_photo"])
             return True
         best_photo = max(photos, key=lambda p: p.get("file_size", 0))
         try:
@@ -791,10 +791,10 @@ async def _handle_kyb_flow(
         except Exception as e:
             logger.error("KYB update failed (id_photo): %s", e)
             await db.rollback()
-            await tg.send_message(chat_id, "⚠️ Could not save your ID photo. Please try again.")
+            await telegram_service.send_message(chat_id, "⚠️ Could not save your ID photo. Please try again.")
             return True
 
-        await tg.send_message(
+        await telegram_service.send_message(
             chat_id,
             "✅ <b>KYB Registration Submitted!</b>\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
@@ -812,7 +812,7 @@ async def _handle_kyb_flow(
         owner_id = _get_bot_owner_id()
         if owner_id:
             uname_display = f"@{username}" if username and username != "unknown" else f"chat_id:{chat_id}"
-            await tg.send_message(
+            await telegram_service.send_message(
                 owner_id,
                 f"🔔 <b>New KYB Registration</b>\n"
                 f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -833,7 +833,7 @@ async def _handle_kyb_flow(
         await db.commit()
     except Exception:
         await db.rollback()
-    await tg.send_message(chat_id, "⚠️ Registration state reset. Let's start again.\n\n" + _KYB_PROMPTS["full_name"])
+    await telegram_service.send_message(chat_id, "⚠️ Registration state reset. Let's start again.\n\n" + _KYB_PROMPTS["full_name"])
     return True
 
 
@@ -1064,50 +1064,50 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ── Handle inline button callbacks (language selection) ──────────
         if callback_query:
-            cq_id      = callback_query.get("id", "")
-            cq_data    = callback_query.get("data", "")
-            cq_from    = callback_query.get("from", {})
-            cq_chat_id = str(cq_from.get("id", ""))
-            cq_first_name = _escape_html(cq_from.get("first_name", ""))
-            tg = TelegramService()
+            callback_query_id = callback_query.get("id", "")
+            callback_query_data = callback_query.get("data", "")
+            callback_query_sender = callback_query.get("from", {})
+            callback_sender_chat_id = str(callback_query_sender.get("id", ""))
+            callback_sender_first_name = _escape_html(callback_query_sender.get("first_name", ""))
+            telegram_service = TelegramService()
 
-            if cq_data in ("lang:en", "lang:zh"):
-                await tg.answer_callback_query(cq_id)
-                lang = cq_data.split(":")[1]
+            if callback_query_data in ("lang:en", "lang:zh"):
+                await telegram_service.answer_callback_query(callback_query_id)
+                lang = callback_query_data.split(":")[1]
 
                 # Persist the language choice for this user.
-                _user_lang[cq_chat_id] = lang
+                _user_lang[callback_sender_chat_id] = lang
 
                 # Check whether this chat belongs to a registered admin
                 is_registered = False
-                adm_user = None
+                admin_user = None
                 try:
-                    adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == cq_chat_id, AdminUser.is_active.is_(True)))
-                    adm_user = adm_res.scalar_one_or_none()
-                    is_registered = adm_user is not None
+                    admin_result = await db.execute(select(AdminUser).where(AdminUser.telegram_id == callback_sender_chat_id, AdminUser.is_active.is_(True)))
+                    admin_user = admin_result.scalar_one_or_none()
+                    is_registered = admin_user is not None
                 except Exception:
                     pass
 
                 if is_registered:
                     welcome = None
-                    if adm_user:
+                    if admin_user:
                         try:
-                            _svc = Bot_settingsService(db)
-                            _cfg_result = await _svc.get_list(skip=0, limit=1, user_id=str(adm_user.id))
-                            if _cfg_result["total"] > 0:
-                                _cfg = _cfg_result["items"][0]
-                                _tmpl = _cfg.welcome_message_en if lang == "en" else _cfg.welcome_message_zh
-                                if _tmpl:
-                                    welcome = _tmpl.replace("{name}", cq_first_name or "")
+                            bot_settings_service = Bot_settingsService(db)
+                            bot_config_result = await bot_settings_service.get_list(skip=0, limit=1, user_id=str(admin_user.id))
+                            if bot_config_result["total"] > 0:
+                                bot_settings_config = bot_config_result["items"][0]
+                                welcome_template = bot_settings_config.welcome_message_en if lang == "en" else bot_settings_config.welcome_message_zh
+                                if welcome_template:
+                                    welcome = welcome_template.replace("{name}", callback_sender_first_name or "")
                         except Exception as e:
-                            logger.warning(f"Could not load welcome template for user {adm_user.id}: {e}")
+                            logger.warning(f"Could not load welcome template for user {admin_user.id}: {e}")
                     if not welcome:
-                        welcome = _welcome_en(cq_first_name) if lang == "en" else _welcome_zh(cq_first_name)
-                    await tg.send_message(cq_chat_id, welcome)
+                        welcome = _welcome_en(callback_sender_first_name) if lang == "en" else _welcome_zh(callback_sender_first_name)
+                    await telegram_service.send_message(callback_sender_chat_id, welcome)
                 else:
                     if lang == "en":
-                        greeting = f"Hi {cq_first_name}! 👋" if cq_first_name else "👋 Hello!"
-                        msg = (
+                        greeting = f"Hi {callback_sender_first_name}! 👋" if callback_sender_first_name else "👋 Hello!"
+                        welcome_message = (
                             f"🌟 <b>Welcome to PayBot Philippines!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"{greeting} Great to have you here! 😊\n\n"
@@ -1117,8 +1117,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"👉 Type /register to begin — it only takes a few minutes!"
                         )
                     else:
-                        greeting = f"嗨 {cq_first_name}！👋" if cq_first_name else "👋 你好！"
-                        msg = (
+                        greeting = f"嗨 {callback_sender_first_name}！👋" if callback_sender_first_name else "👋 你好！"
+                        welcome_message = (
                             f"🌟 <b>欢迎使用 PayBot Philippines！</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"{greeting} 很高兴认识你！😊\n\n"
@@ -1127,7 +1127,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"完成快速 KYB（了解您的业务）注册，我们将验证您的账户并开放所有支付功能。\n\n"
                             f"👉 输入 /register 开始注册，只需几分钟！"
                         )
-                    await tg.send_message(cq_chat_id, msg)
+                    await telegram_service.send_message(callback_sender_chat_id, welcome_message)
 
             return {"status": "ok"}
 
@@ -1147,7 +1147,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         if not chat_id:
             return {"status": "ok"}
 
-        tg = TelegramService()
+        telegram_service = TelegramService()
         tg_user_id = f"tg-{chat_id}"
 
         # ==================== Access control: KYB gate ====================
@@ -1155,7 +1155,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # through the KYB registration flow (photos or text).
         is_admin = await _is_authorized_admin(db, chat_id)
         if not is_admin:
-            await _handle_kyb_flow(db, tg, chat_id, username, text, photos)
+            await _handle_kyb_flow(db, telegram_service, chat_id, username, text, photos)
             return {"status": "ok"}
 
         # ==================== PIN session gate ====================
@@ -1172,21 +1172,21 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             if not pin_exempt and not _is_pin_session_active(chat_id):
                 # Fetch admin to check if PIN is set
                 try:
-                    _adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
-                    _adm = _adm_res.scalar_one_or_none()
+                    admin_query_result = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
+                    admin_record = admin_query_result.scalar_one_or_none()
                 except Exception:
-                    _adm = None
-                if _adm and _adm.pin_hash:
+                    admin_record = None
+                if admin_record and admin_record.pin_hash:
                     name_display = f" {first_name}" if first_name else ""
-                    await tg.send_message(
+                    await telegram_service.send_message(
                         chat_id,
                         f"🔐 <b>Session Expired</b>\n\n"
                         f"Hey{name_display}! Your session has timed out for security. No worries — just log back in:\n\n"
                         f"<code>/login [your PIN]</code>",
                     )
                     return {"status": "ok"}
-                elif _adm and not _adm.pin_hash:
-                    await tg.send_message(
+                elif admin_record and not admin_record.pin_hash:
+                    await telegram_service.send_message(
                         chat_id,
                         "🔒 <b>Secure Your Account</b>\n\n"
                         "You're almost ready! Set a PIN to protect your account and unlock bot access:\n\n"
@@ -1224,7 +1224,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
                     pending_topup.updated_at = now
                     await db.commit()
-                    await tg.send_message(
+                    await telegram_service.send_message(
                         chat_id,
                         f"✅ <b>Receipt received!</b>\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -1248,7 +1248,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     pending_deposit.receipt_file_id = best_photo["file_id"]
                     pending_deposit.updated_at = datetime.now()
                     await db.commit()
-                    await tg.send_message(
+                    await telegram_service.send_message(
                         chat_id,
                         f"✅ <b>Receipt received!</b>\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -1260,7 +1260,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     )
                     return {"status": "ok"}
 
-                await tg.send_message(chat_id, "ℹ️ No pending top-up request found. Use /topup [amount] for USDT.")
+                await telegram_service.send_message(chat_id, "ℹ️ No pending top-up request found. Use /topup [amount] for USDT.")
                 return {"status": "ok"}
             # Fall through to the wizard handler below (photo step is active)
 
@@ -1272,78 +1272,78 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             parts = text.split(maxsplit=1)
             pin_input = parts[1].strip() if len(parts) > 1 else ""
             try:
-                _adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
-                _adm = _adm_res.scalar_one_or_none()
+                admin_query_result = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
+                admin_record = admin_query_result.scalar_one_or_none()
             except Exception:
-                _adm = None
+                admin_record = None
 
-            if not _adm:
-                await tg.send_message(chat_id, "⚠️ Account not found. Please contact your administrator.")
+            if not admin_record:
+                await telegram_service.send_message(chat_id, "⚠️ Account not found. Please contact your administrator.")
                 return {"status": "ok"}
 
-            if not _adm.pin_hash:
-                await tg.send_message(
+            if not admin_record.pin_hash:
+                await telegram_service.send_message(
                     chat_id,
                     "ℹ️ No PIN set yet. Use <code>/setpin [4–6 digits]</code> to create your PIN first.",
                 )
                 return {"status": "ok"}
 
             # Check lock
-            if _adm.pin_locked_until and datetime.utcnow() < _adm.pin_locked_until.replace(tzinfo=None):
-                remaining = int((_adm.pin_locked_until.replace(tzinfo=None) - datetime.utcnow()).total_seconds() / 60) + 1
-                await tg.send_message(chat_id, f"🔒 Account temporarily locked. Try again in {remaining} minute(s).")
+            if admin_record.pin_locked_until and datetime.utcnow() < admin_record.pin_locked_until.replace(tzinfo=None):
+                remaining = int((admin_record.pin_locked_until.replace(tzinfo=None) - datetime.utcnow()).total_seconds() / 60) + 1
+                await telegram_service.send_message(chat_id, f"🔒 Account temporarily locked. Try again in {remaining} minute(s).")
                 return {"status": "ok"}
 
             if not pin_input:
-                await tg.send_message(chat_id, "❌ Usage: <code>/login [your PIN]</code>\nExample: <code>/login 1234</code>")
+                await telegram_service.send_message(chat_id, "❌ Usage: <code>/login [your PIN]</code>\nExample: <code>/login 1234</code>")
                 return {"status": "ok"}
 
             if not pin_input.isdigit() or not (4 <= len(pin_input) <= 6):
-                await tg.send_message(chat_id, "❌ PIN must be 4–6 digits.")
+                await telegram_service.send_message(chat_id, "❌ PIN must be 4–6 digits.")
                 return {"status": "ok"}
 
-            expected = _hash_pin(pin_input, _adm.pin_salt or "")
-            if expected == _adm.pin_hash:
+            expected = _hash_pin(pin_input, admin_record.pin_salt or "")
+            if expected == admin_record.pin_hash:
                 # Correct — start session, reset failed attempts
                 _start_pin_session(chat_id)
                 try:
-                    _adm.pin_failed_attempts = 0
-                    _adm.pin_locked_until = None
-                    _adm.updated_at = datetime.now()
+                    admin_record.pin_failed_attempts = 0
+                    admin_record.pin_locked_until = None
+                    admin_record.updated_at = datetime.now()
                     await db.commit()
                 except Exception:
                     await db.rollback()
-                await tg.send_message(
+                await telegram_service.send_message(
                     chat_id,
-                    _t(chat_id,
-                       f"✅ <b>Welcome back, {_adm.name or username}!</b> 👋\n\n"
+                    _localize(chat_id,
+                       f"✅ <b>Welcome back, {admin_record.name or username}!</b> 👋\n\n"
                        f"You're all set — your session is active for 2 hours. Let's get to work! 💪\n\n"
                        f"Type /help to explore all commands.",
-                       f"✅ <b>欢迎回来，{_adm.name or username}！</b> 👋\n\n"
+                       f"✅ <b>欢迎回来，{admin_record.name or username}！</b> 👋\n\n"
                        f"登录成功，会话有效期 2 小时。开始吧！💪\n\n"
                        f"输入 /help 查看所有命令。"),
                 )
             else:
                 # Wrong PIN
-                failed = (_adm.pin_failed_attempts or 0) + 1
+                failed = (admin_record.pin_failed_attempts or 0) + 1
                 locked_until = None
                 if failed >= _PIN_MAX_ATTEMPTS:
                     locked_until = datetime.now() + timedelta(minutes=_PIN_LOCK_MINUTES)
                 try:
-                    _adm.pin_failed_attempts = failed
-                    _adm.pin_locked_until = locked_until
-                    _adm.updated_at = datetime.now()
+                    admin_record.pin_failed_attempts = failed
+                    admin_record.pin_locked_until = locked_until
+                    admin_record.updated_at = datetime.now()
                     await db.commit()
                 except Exception:
                     await db.rollback()
                 if locked_until:
-                    await tg.send_message(
+                    await telegram_service.send_message(
                         chat_id,
                         f"🔒 <b>Account Temporarily Locked</b>\n\nToo many incorrect PIN attempts. Please wait {_PIN_LOCK_MINUTES} minutes before trying again.",
                     )
                 else:
                     remaining_attempts = _PIN_MAX_ATTEMPTS - failed
-                    await tg.send_message(
+                    await telegram_service.send_message(
                         chat_id,
                         f"❌ Incorrect PIN. You have {remaining_attempts} attempt(s) remaining.\n\nIf you've forgotten your PIN, please contact the administrator.",
                     )
@@ -1354,37 +1354,37 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             parts = text.split(maxsplit=1)
             pin_input = parts[1].strip() if len(parts) > 1 else ""
             if not pin_input or not pin_input.isdigit() or not (4 <= len(pin_input) <= 6):
-                await tg.send_message(
+                await telegram_service.send_message(
                     chat_id,
                     "❌ Usage: <code>/setpin [4–6 digit PIN]</code>\n\nExample: <code>/setpin 1234</code>\n\n"
                     "⚠️ <i>Choose a PIN only you know. Do not share it.</i>",
                 )
                 return {"status": "ok"}
             try:
-                _adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
-                _adm = _adm_res.scalar_one_or_none()
+                admin_query_result = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
+                admin_record = admin_query_result.scalar_one_or_none()
             except Exception:
-                _adm = None
-            if not _adm:
-                await tg.send_message(chat_id, "⚠️ Account not found.")
+                admin_record = None
+            if not admin_record:
+                await telegram_service.send_message(chat_id, "⚠️ Account not found.")
                 return {"status": "ok"}
             salt = _generate_salt()
             try:
-                _adm.pin_salt = salt
-                _adm.pin_hash = _hash_pin(pin_input, salt)
-                _adm.pin_failed_attempts = 0
-                _adm.pin_locked_until = None
-                _adm.updated_at = datetime.now()
+                admin_record.pin_salt = salt
+                admin_record.pin_hash = _hash_pin(pin_input, salt)
+                admin_record.pin_failed_attempts = 0
+                admin_record.pin_locked_until = None
+                admin_record.updated_at = datetime.now()
                 await db.commit()
             except Exception as e:
                 logger.error(f"setpin DB error: {e}", exc_info=True)
                 await db.rollback()
-                await tg.send_message(chat_id, "⚠️ Could not save PIN. Please try again.")
+                await telegram_service.send_message(chat_id, "⚠️ Could not save PIN. Please try again.")
                 return {"status": "ok"}
             _start_pin_session(chat_id)
-            await tg.send_message(
+            await telegram_service.send_message(
                 chat_id,
-                _t(chat_id,
+                _localize(chat_id,
                    "✅ <b>PIN set successfully!</b>\n\n"
                    "🔐 Your account is now PIN-protected.\n"
                    "Use <code>/login [PIN]</code> to authenticate next time.\n\n"
@@ -1399,9 +1399,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         # ==================== /logout ====================
         elif text.startswith("/logout"):
             _end_pin_session(chat_id)
-            await tg.send_message(
+            await telegram_service.send_message(
                 chat_id,
-                _t(chat_id,
+                _localize(chat_id,
                    "👋 <b>You've been signed out.</b>\n\nStay safe! When you're ready to continue, just log back in:\n\n<code>/login [your PIN]</code>",
                    "👋 <b>已退出登录。</b>\n\n注意安全！准备好后，重新登录：\n\n<code>/login [PIN]</code>"),
             )
@@ -1423,16 +1423,16 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 if param["type"] == "photo":
                     # Expect an uploaded photo for this step
                     if not photos:
-                        await tg.send_message(
+                        await telegram_service.send_message(
                             chat_id,
                             "❌ Please upload a photo of the QR code.\n\n" + param["prompt"],
                         )
                         return {"status": "ok"}
                     # Use the largest resolution photo (last in list)
                     photo_file_id = photos[-1].get("file_id", "")
-                    qr_decoded = await _decode_qr_from_telegram_photo(tg, photo_file_id)
+                    qr_decoded = await _decode_qr_from_telegram_photo(telegram_service, photo_file_id)
                     if not qr_decoded:
-                        await tg.send_message(
+                        await telegram_service.send_message(
                             chat_id,
                             "❌ Could not detect a QR code in the photo. "
                             "Please try again with a clearer, well-lit image.\n\n" + param["prompt"],
@@ -1448,19 +1448,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
                     if param["type"] == "float":
                         try:
-                            fval = float(raw)
-                            if fval <= 0:
+                            parsed_float_value = float(raw)
+                            if parsed_float_value <= 0:
                                 raise ValueError("Must be > 0")
-                            state["data"][param["key"]] = str(fval)
+                            state["data"][param["key"]] = str(parsed_float_value)
                         except ValueError:
-                            await tg.send_message(
+                            await telegram_service.send_message(
                                 chat_id,
                                 "❌ Please enter a valid positive number.\n\n" + param["prompt"],
                             )
                             return {"status": "ok"}
                     else:
                         if not raw:
-                            await tg.send_message(chat_id, "❌ Value cannot be empty.\n\n" + param["prompt"])
+                            await telegram_service.send_message(chat_id, "❌ Value cannot be empty.\n\n" + param["prompt"])
                             return {"status": "ok"}
                         state["data"][param["key"]] = raw
 
@@ -1469,7 +1469,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             # More steps outstanding?
             if state["step"] < len(steps):
                 next_param = steps[state["step"]]
-                await tg.send_message(chat_id, next_param["prompt"])
+                await telegram_service.send_message(chat_id, next_param["prompt"])
                 return {"status": "ok"}
 
             # All values collected
@@ -1483,12 +1483,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     amount = float(collected.get("amount", 0))
                     qr_data = collected.get("qr_data", "")
                     if amount <= 0 or not qr_data:
-                        await tg.send_message(chat_id, "❌ Invalid amount or missing QR data.")
+                        await telegram_service.send_message(chat_id, "❌ Invalid amount or missing QR data.")
                         return {"status": "ok"}
-                    await _process_scanqr(tg, db, chat_id, username, amount, qr_data)
+                    await _process_scanqr(telegram_service, db, chat_id, username, amount, qr_data)
                 except Exception as exc:
                     logger.error(f"/scanqr wizard completion error: {exc}", exc_info=True)
-                    await tg.send_message(chat_id, "❌ An error occurred processing your QRPH payment. Please try again.")
+                    await telegram_service.send_message(chat_id, "❌ An error occurred processing your QRPH payment. Please try again.")
                 return {"status": "ok"}
 
             # /deposit is handled inline: store the deposit request and ask for receipt
@@ -1498,7 +1498,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     account = str(collected.get("account", "")).strip()
                     amount_php = float(collected.get("amount", 0))
                     if not channel or not account or amount_php <= 0:
-                        await tg.send_message(chat_id, "❌ Invalid deposit details. Please try /deposit again.")
+                        await telegram_service.send_message(chat_id, "❌ Invalid deposit details. Please try /deposit again.")
                         return {"status": "ok"}
                     now = datetime.now()
                     deposit_req = BankDepositRequest(
@@ -1513,7 +1513,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     db.add(deposit_req)
                     await db.commit()
                     await db.refresh(deposit_req)
-                    await tg.send_message(
+                    await telegram_service.send_message(
                         chat_id,
                         f"✅ <b>Deposit details recorded!</b>\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -1526,7 +1526,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     )
                 except Exception as exc:
                     logger.error(f"/deposit wizard completion error: {exc}", exc_info=True)
-                    await tg.send_message(chat_id, "❌ An error occurred saving your deposit. Please try /deposit again.")
+                    await telegram_service.send_message(chat_id, "❌ An error occurred saving your deposit. Please try /deposit again.")
                 return {"status": "ok"}
 
             # Other commands: rebuild command text and fall through to routing
@@ -1538,7 +1538,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             if text.startswith("/cancel"):
                 # /cancel always aborts the current wizard
                 del _pending[chat_id]
-                await tg.send_message(chat_id, _t(chat_id, "❌ Wizard cancelled.", "❌ 已取消。"))
+                await telegram_service.send_message(chat_id, _localize(chat_id, "❌ Wizard cancelled.", "❌ 已取消。"))
                 return {"status": "ok"}
             # Any other new command: silently cancel wizard and process normally
             del _pending[chat_id]
@@ -1548,16 +1548,16 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             # Clear stored language so the user is prompted to pick again.
             _user_lang.pop(chat_id, None)
             greeting = f"Hi {first_name}! 👋" if first_name else "👋 Hello!"
-            await tg.send_message(
+            await telegram_service.send_message(
                 chat_id,
                 f"🌐 {greeting}\n\n<b>Select your language / 请选择语言</b>",
-                reply_markup=_lang_kb(),
+                reply_markup=_language_inline_keyboard(),
             )
 
         # ==================== /kyb_list (bot owner only) ====================
         elif text.startswith("/kyb_list"):
             if chat_id != _get_bot_owner_id():
-                await tg.send_message(chat_id, "❌ This command is only available to the bot owner.")
+                await telegram_service.send_message(chat_id, "❌ This command is only available to the bot owner.")
             else:
                 try:
                     res = await db.execute(
@@ -1565,7 +1565,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     )
                     pending_kybs = res.scalars().all()
                     if not pending_kybs:
-                        await tg.send_message(chat_id, "✅ No pending KYB registrations.")
+                        await telegram_service.send_message(chat_id, "✅ No pending KYB registrations.")
                     else:
                         lines = [f"📋 <b>Pending KYB Registrations ({len(pending_kybs)})</b>\n━━━━━━━━━━━━━━━━━━━━"]
                         for k in pending_kybs:
@@ -1577,28 +1577,28 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 f"  ▶ <code>/kyb_approve {k.chat_id}</code>\n"
                                 f"  ✖ <code>/kyb_reject {k.chat_id} reason</code>"
                             )
-                        await tg.send_message(chat_id, "\n".join(lines))
+                        await telegram_service.send_message(chat_id, "\n".join(lines))
                 except Exception as e:
                     logger.error("kyb_list error: %s", e)
-                    await tg.send_message(chat_id, "⚠️ Failed to fetch KYB list.")
+                    await telegram_service.send_message(chat_id, "⚠️ Failed to fetch KYB list.")
 
         # ==================== /kyb_approve (bot owner only) ====================
         elif text.startswith("/kyb_approve"):
             if chat_id != _get_bot_owner_id():
-                await tg.send_message(chat_id, "❌ This command is only available to the bot owner.")
+                await telegram_service.send_message(chat_id, "❌ This command is only available to the bot owner.")
             else:
                 parts = text.split(maxsplit=1)
                 if len(parts) < 2:
-                    await tg.send_message(chat_id, "❌ Usage: /kyb_approve [chat_id]")
+                    await telegram_service.send_message(chat_id, "❌ Usage: /kyb_approve [chat_id]")
                 else:
                     target_chat_id = parts[1].strip()
                     try:
                         res = await db.execute(select(KybRegistration).where(KybRegistration.chat_id == target_chat_id))
                         kyb = res.scalar_one_or_none()
                         if not kyb:
-                            await tg.send_message(chat_id, f"❌ No KYB record found for chat_id: {target_chat_id}")
+                            await telegram_service.send_message(chat_id, f"❌ No KYB record found for chat_id: {target_chat_id}")
                         elif kyb.status == "approved":
-                            await tg.send_message(chat_id, f"ℹ️ KYB for {target_chat_id} is already approved.")
+                            await telegram_service.send_message(chat_id, f"ℹ️ KYB for {target_chat_id} is already approved.")
                         else:
                             kyb.status = "approved"
                             # Create AdminUser record for the approved user
@@ -1621,10 +1621,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 )
                                 db.add(new_admin)
                             await db.commit()
-                            await tg.send_message(chat_id, f"✅ KYB approved for {target_chat_id} ({kyb.full_name}). Admin access granted.")
+                            await telegram_service.send_message(chat_id, f"✅ KYB approved for {target_chat_id} ({kyb.full_name}). Admin access granted.")
                             # Notify the approved user — prompt them to set PIN
                             greeting_name = _escape_html(kyb.full_name or "there")
-                            await tg.send_message(
+                            await telegram_service.send_message(
                                 target_chat_id,
                                 f"🎉 <b>Congratulations, {greeting_name}!</b>\n"
                                 "━━━━━━━━━━━━━━━━━━━━\n"
@@ -1640,16 +1640,16 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             await db.rollback()
                         except Exception:
                             pass
-                        await tg.send_message(chat_id, f"⚠️ Failed to approve KYB: {e}")
+                        await telegram_service.send_message(chat_id, f"⚠️ Failed to approve KYB: {e}")
 
         # ==================== /kyb_reject (bot owner only) ====================
         elif text.startswith("/kyb_reject"):
             if chat_id != _get_bot_owner_id():
-                await tg.send_message(chat_id, "❌ This command is only available to the bot owner.")
+                await telegram_service.send_message(chat_id, "❌ This command is only available to the bot owner.")
             else:
                 parts = text.split(maxsplit=2)
                 if len(parts) < 2:
-                    await tg.send_message(chat_id, "❌ Usage: /kyb_reject [chat_id] [reason]")
+                    await telegram_service.send_message(chat_id, "❌ Usage: /kyb_reject [chat_id] [reason]")
                 else:
                     target_chat_id = parts[1].strip()
                     reason = parts[2].strip() if len(parts) > 2 else "No reason provided."
@@ -1657,14 +1657,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         res = await db.execute(select(KybRegistration).where(KybRegistration.chat_id == target_chat_id))
                         kyb = res.scalar_one_or_none()
                         if not kyb:
-                            await tg.send_message(chat_id, f"❌ No KYB record found for chat_id: {target_chat_id}")
+                            await telegram_service.send_message(chat_id, f"❌ No KYB record found for chat_id: {target_chat_id}")
                         else:
                             kyb.status = "rejected"
                             kyb.rejection_reason = reason
                             await db.commit()
-                            await tg.send_message(chat_id, f"✅ KYB rejected for {target_chat_id} ({kyb.full_name}).")
+                            await telegram_service.send_message(chat_id, f"✅ KYB rejected for {target_chat_id} ({kyb.full_name}).")
                             # Notify the rejected user
-                            await tg.send_message(
+                            await telegram_service.send_message(
                                 target_chat_id,
                                 f"❌ <b>KYB Registration Rejected</b>\n"
                                 f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -1677,18 +1677,18 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             await db.rollback()
                         except Exception:
                             pass
-                        await tg.send_message(chat_id, f"⚠️ Failed to reject KYB: {e}")
+                        await telegram_service.send_message(chat_id, f"⚠️ Failed to reject KYB: {e}")
 
         # ==================== /invoice ====================
         elif text.startswith("/invoice"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/invoice"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/invoice"))
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Invoice payment"
@@ -1709,18 +1709,18 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             "inline_keyboard": [[{"text": "💳 Pay Now", "url": invoice_url}]]
                         } if invoice_url else None
                         # Send reply FIRST
-                        await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                        await telegram_service.send_message(chat_id, reply, reply_markup=keyboard)
                         # Then try DB save
                         try:
                             now = datetime.now()
-                            txn = Transactions(
+                            transaction = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="invoice",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("invoice_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 payment_url=result.get("invoice_url", ""), telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
-                            db.add(txn)
+                            db.add(transaction)
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /invoice: {e}", exc_info=True)
@@ -1729,20 +1729,20 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
+                        await telegram_service.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /qr ====================
         elif text.startswith("/qr"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/qr"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/qr"))
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "QR payment"
@@ -1754,17 +1754,17 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"📱 QR: <code>{result.get('qr_string', '')}</code>\n"
                             f"🆔 <code>{result.get('external_id', '')}</code>"
                         )
-                        await tg.send_message(chat_id, reply)
+                        await telegram_service.send_message(chat_id, reply)
                         try:
                             now = datetime.now()
-                            txn = Transactions(
+                            transaction = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="qr_code",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("qr_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=result.get("qr_string", ""), telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
-                            db.add(txn)
+                            db.add(transaction)
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /qr: {e}", exc_info=True)
@@ -1773,24 +1773,24 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
+                        await telegram_service.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /scanqr (QRPH scan — upload QR image) ====================
         elif text.startswith("/scanqr"):
-            await tg.send_message(chat_id, _wizard_start(chat_id, "/scanqr"))
+            await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/scanqr"))
 
         # ==================== /alipay (PhotonPay → Alipay QR) ====================
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/alipay"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/alipay"))
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
@@ -1810,28 +1810,28 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     )
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
-                        ref_num = result.get("req_id", "")
+                        reference_number = result.get("req_id", "")
                         caption = (
                             f"✅ <b>Alipay Payment Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
+                            f"�� Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
-                            f"🆔 <code>{ref_num}</code>\n\n"
+                            f"🆔 <code>{reference_number}</code>\n\n"
                             f"📱 Tap the button below to open the Alipay checkout page.\n"
                             f"💳 Your PHP wallet will be credited automatically once paid."
                         )
                         keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay", "url": checkout_url}]]} if checkout_url else None
-                        await tg.send_message(chat_id, caption, reply_markup=keyboard)
+                        await telegram_service.send_message(chat_id, caption, reply_markup=keyboard)
                         try:
                             now = datetime.now()
-                            txn = Transactions(
+                            transaction = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
-                                external_id=ref_num, xendit_id=result.get("pay_id", ""),
+                                external_id=reference_number, xendit_id=result.get("pay_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=checkout_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
-                            db.add(txn)
+                            db.add(transaction)
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /alipay: {e}", exc_info=True)
@@ -1840,20 +1840,20 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Alipay payment failed: {result.get('error', 'Unknown error')}")
+                        await telegram_service.send_message(chat_id, f"❌ Alipay payment failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /wechat (PhotonPay → WeChat Pay QR) ====================
         elif text.startswith("/wechat"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/wechat"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/wechat"))
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
@@ -1873,28 +1873,28 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     )
                     if result.get("success"):
                         checkout_url = result.get("checkout_url", "")
-                        ref_num = result.get("req_id", "")
+                        reference_number = result.get("req_id", "")
                         caption = (
                             f"✅ <b>WeChat Pay Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
                             f"📝 {description}\n"
-                            f"🆔 <code>{ref_num}</code>\n\n"
+                            f"🆔 <code>{reference_number}</code>\n\n"
                             f"📱 Tap the button below to open the WeChat Pay checkout page.\n"
                             f"💳 Your PHP wallet will be credited automatically once paid."
                         )
                         keyboard = {"inline_keyboard": [[{"text": "💚 Pay via WeChat", "url": checkout_url}]]} if checkout_url else None
-                        await tg.send_message(chat_id, caption, reply_markup=keyboard)
+                        await telegram_service.send_message(chat_id, caption, reply_markup=keyboard)
                         try:
                             now = datetime.now()
-                            txn = Transactions(
+                            transaction = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="wechat_qr",
-                                external_id=ref_num, xendit_id=result.get("pay_id", ""),
+                                external_id=reference_number, xendit_id=result.get("pay_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 qr_code_url=checkout_url, telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
-                            db.add(txn)
+                            db.add(transaction)
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /wechat: {e}", exc_info=True)
@@ -1903,20 +1903,20 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ WeChat Pay failed: {result.get('error', 'Unknown error')}")
+                        await telegram_service.send_message(chat_id, f"❌ WeChat Pay failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /link ====================
         elif text.startswith("/link"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/link"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/link"))
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Payment link"
@@ -1936,17 +1936,17 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         keyboard = {
                             "inline_keyboard": [[{"text": "🔗 Pay Now", "url": link_url}]]
                         } if link_url else None
-                        await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                        await telegram_service.send_message(chat_id, reply, reply_markup=keyboard)
                         try:
                             now = datetime.now()
-                            txn = Transactions(
+                            transaction = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="payment_link",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("payment_link_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
                                 payment_url=result.get("payment_link_url", ""), telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
-                            db.add(txn)
+                            db.add(transaction)
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /link: {e}", exc_info=True)
@@ -1955,20 +1955,20 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
+                        await telegram_service.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /va ====================
         elif text.startswith("/va"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/va"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/va"))
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     bank_code = parts[2].upper()
@@ -1980,17 +1980,17 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"🔢 Account: <code>{result.get('account_number', '')}</code>\n"
                             f"🆔 <code>{result.get('external_id', '')}</code>"
                         )
-                        await tg.send_message(chat_id, reply)
+                        await telegram_service.send_message(chat_id, reply)
                         try:
                             now = datetime.now()
-                            txn = Transactions(
+                            transaction = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="virtual_account",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("va_id", ""),
                                 amount=amount, currency="PHP", status="pending",
                                 description=f"VA: {bank_code}", telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
-                            db.add(txn)
+                            db.add(transaction)
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /va: {e}", exc_info=True)
@@ -1999,20 +1999,20 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
+                        await telegram_service.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /ewallet ====================
         elif text.startswith("/ewallet"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/ewallet"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/ewallet"))
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     provider = parts[2].upper()
@@ -2032,17 +2032,17 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"🆔 <code>{result.get('external_id', '')}</code>"
                         )
                         ewallet_keyboard = {"inline_keyboard": [[{"text": "📱 Pay Now", "url": checkout}]]} if checkout else None
-                        await tg.send_message(chat_id, reply, reply_markup=ewallet_keyboard)
+                        await telegram_service.send_message(chat_id, reply, reply_markup=ewallet_keyboard)
                         try:
                             now = datetime.now()
-                            txn = Transactions(
+                            transaction = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="ewallet",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("charge_id", ""),
                                 amount=amount, currency="PHP", status="pending",
                                 description=f"E-Wallet: {provider}", payment_url=checkout,
                                 telegram_chat_id=chat_id, created_at=now, updated_at=now,
                             )
-                            db.add(txn)
+                            db.add(transaction)
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /ewallet: {e}", exc_info=True)
@@ -2051,27 +2051,27 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
+                        await telegram_service.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /disburse ====================
         elif text.startswith("/disburse"):
             parts = text.split(maxsplit=4)
             if len(parts) < 5:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/disburse"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/disburse"))
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     # Balance gate — check user has sufficient PHP wallet balance
                     tg_uid = f"tg-{chat_id}"
                     php_bal = await _get_php_balance_for_bot(db, tg_uid)
                     if php_bal <= 0:
-                        await tg.send_message(
+                        await telegram_service.send_message(
                             chat_id,
                             "❌ <b>Insufficient balance.</b>\n\n"
                             "Your PHP wallet balance is <b>₱0.00</b>.\n"
@@ -2081,7 +2081,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     if php_bal < amount:
-                        await tg.send_message(
+                        await telegram_service.send_message(
                             chat_id,
                             f"❌ <b>Insufficient balance.</b>\n\n"
                             f"Available: <b>₱{php_bal:,.2f}</b>\n"
@@ -2110,7 +2110,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"🆔 <code>{result.get('external_id', '')}</code>\n\n"
                             f"Use /status {result.get('external_id', '')} to track."
                         )
-                        await tg.send_message(chat_id, reply)
+                        await telegram_service.send_message(chat_id, reply)
                         try:
                             now = datetime.now()
                             disb = Disbursements(
@@ -2150,69 +2150,69 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ Disbursement failed: {result.get('error', 'Unknown error')}")
+                        await telegram_service.send_message(chat_id, f"❌ Disbursement failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /refund ====================
         elif text.startswith("/refund"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/refund"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/refund"))
             else:
                 ext_id = parts[1].strip()
                 # DB lookup is required for refund logic — wrap it safely
                 try:
                     result = await db.execute(select(Transactions).where(Transactions.external_id == ext_id))
-                    txn = result.scalar_one_or_none()
+                    transaction = result.scalar_one_or_none()
                 except Exception as e:
                     logger.error(f"DB lookup failed for /refund: {e}", exc_info=True)
-                    await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
-                    txn = None
+                    await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
+                    transaction = None
                     # Skip further processing
                     await _safe_log(db, chat_id, username, text)
                     return {"status": "ok"}
 
-                if not txn:
-                    await tg.send_message(chat_id, f"❌ Transaction not found: {ext_id}")
-                elif txn.status != "paid":
-                    await tg.send_message(chat_id, "❌ Only paid transactions can be refunded.")
+                if not transaction:
+                    await telegram_service.send_message(chat_id, f"❌ Transaction not found: {ext_id}")
+                elif transaction.status != "paid":
+                    await telegram_service.send_message(chat_id, "❌ Only paid transactions can be refunded.")
                 else:
                     try:
-                        refund_amount = float(parts[2]) if len(parts) > 2 else txn.amount
+                        refund_amount = float(parts[2]) if len(parts) > 2 else transaction.amount
                     except ValueError:
-                        await tg.send_message(chat_id, "❌ Invalid refund amount.")
+                        await telegram_service.send_message(chat_id, "❌ Invalid refund amount.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     if refund_amount <= 0:
-                        await tg.send_message(chat_id, "❌ Refund amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Refund amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
-                    elif refund_amount > txn.amount:
-                        await tg.send_message(chat_id, "❌ Refund amount exceeds transaction amount.")
+                    elif refund_amount > transaction.amount:
+                        await telegram_service.send_message(chat_id, "❌ Refund amount exceeds transaction amount.")
                     else:
                         xendit = XenditService()
-                        ref_result = await xendit.create_refund(invoice_id=txn.xendit_id, amount=refund_amount)
-                        ref_type = "full" if refund_amount >= txn.amount else "partial"
+                        ref_result = await xendit.create_refund(invoice_id=transaction.xendit_id, amount=refund_amount)
+                        ref_type = "full" if refund_amount >= transaction.amount else "partial"
                         if ref_result.get("success"):
                             reply = f"✅ <b>Refund Processed!</b>\n\n💰 ₱{refund_amount:,.2f}\n📋 Type: {ref_type}\n🆔 {ext_id}"
                         else:
                             reply = f"❌ Refund failed: {ref_result.get('error', 'Unknown')}"
                         # Send reply FIRST
-                        await tg.send_message(chat_id, reply)
+                        await telegram_service.send_message(chat_id, reply)
                         # Then try DB save
                         try:
                             now = datetime.now()
                             ref = Refunds(
-                                user_id=f"tg-{chat_id}", transaction_id=txn.id,
-                                external_id=f"ref-{txn.id}", amount=refund_amount, reason="Telegram refund",
+                                user_id=f"tg-{chat_id}", transaction_id=transaction.id,
+                                external_id=f"ref-{transaction.id}", amount=refund_amount, reason="Telegram refund",
                                 status="pending" if ref_result.get("success") else "failed",
                                 refund_type=ref_type, created_at=now, updated_at=now,
                             )
                             db.add(ref)
                             if ref_result.get("success"):
-                                txn.status = "refunded" if ref_type == "full" else "partially_refunded"
-                                txn.updated_at = now
+                                transaction.status = "refunded" if ref_type == "full" else "partially_refunded"
+                                transaction.updated_at = now
                             await db.commit()
                         except Exception as e:
                             logger.error(f"DB save failed for /refund: {e}", exc_info=True)
@@ -2233,50 +2233,50 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     recent = res.scalars().all()
                 except Exception as e:
                     logger.error(f"DB lookup failed for /status: {e}", exc_info=True)
-                    await tg.send_message(chat_id, "⚠️ Database temporarily unavailable.")
+                    await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable.")
                     await _safe_log(db, chat_id, username, text)
                     return {"status": "ok"}
                 if not recent:
-                    await tg.send_message(chat_id, "📭 No transactions found.\n\nUsage: /status [external_id]")
+                    await telegram_service.send_message(chat_id, "📭 No transactions found.\n\nUsage: /status [external_id]")
                 else:
-                    s_map = {"paid": "✅", "pending": "⏳", "expired": "❌", "refunded": "↩️"}
+                    status_emoji_map = {"paid": "✅", "pending": "⏳", "expired": "❌", "refunded": "↩️"}
                     lines = ["📋 <b>Recent Transactions</b>\n━━━━━━━━━━━━━━━━━━━━"]
                     for t in recent:
-                        em = s_map.get(t.status, "❓")
-                        lines.append(f"{em} ₱{t.amount:,.2f} — {t.transaction_type} — <code>{t.external_id}</code>")
+                        status_emoji = status_emoji_map.get(t.status, "❓")
+                        lines.append(f"{status_emoji} ₱{t.amount:,.2f} — {t.transaction_type} — <code>{t.external_id}</code>")
                     lines.append("\nUse /status [id] for details.")
-                    await tg.send_message(chat_id, "\n".join(lines))
+                    await telegram_service.send_message(chat_id, "\n".join(lines))
             else:
                 ext_id = parts[1].strip()
                 try:
                     result = await db.execute(select(Transactions).where(Transactions.external_id == ext_id))
-                    txn = result.scalar_one_or_none()
+                    transaction = result.scalar_one_or_none()
                 except Exception as e:
                     logger.error(f"DB lookup failed for /status: {e}", exc_info=True)
-                    await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
+                    await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
                     await _safe_log(db, chat_id, username, text)
                     return {"status": "ok"}
 
-                if txn:
-                    emoji = {"paid": "✅", "pending": "⏳", "expired": "❌", "refunded": "↩️"}.get(txn.status, "❓")
-                    created = txn.created_at.strftime("%b %d %H:%M") if txn.created_at else "N/A"
+                if transaction:
+                    emoji = {"paid": "✅", "pending": "⏳", "expired": "❌", "refunded": "↩️"}.get(transaction.status, "❓")
+                    created = transaction.created_at.strftime("%b %d %H:%M") if transaction.created_at else "N/A"
                     reply = (
                         f"📊 <b>Transaction Details</b>\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🆔 <code>{txn.external_id}</code>\n"
-                        f"💰 <b>₱{txn.amount:,.2f}</b>\n"
-                        f"📋 Type: {txn.transaction_type}\n"
-                        f"{emoji} Status: <b>{txn.status.upper()}</b>\n"
-                        f"📝 {txn.description or 'N/A'}\n"
+                        f"🆔 <code>{transaction.external_id}</code>\n"
+                        f"💰 <b>₱{transaction.amount:,.2f}</b>\n"
+                        f"📋 Type: {transaction.transaction_type}\n"
+                        f"{emoji} Status: <b>{transaction.status.upper()}</b>\n"
+                        f"📝 {transaction.description or 'N/A'}\n"
                         f"🕐 {created}"
                     )
-                    if txn.payment_url and txn.status == "pending":
-                        keyboard = {"inline_keyboard": [[{"text": "💳 Pay Now", "url": txn.payment_url}]]}
-                        await tg.send_message(chat_id, reply, reply_markup=keyboard)
+                    if transaction.payment_url and transaction.status == "pending":
+                        keyboard = {"inline_keyboard": [[{"text": "💳 Pay Now", "url": transaction.payment_url}]]}
+                        await telegram_service.send_message(chat_id, reply, reply_markup=keyboard)
                     else:
-                        await tg.send_message(chat_id, reply)
+                        await telegram_service.send_message(chat_id, reply)
                 else:
-                    await tg.send_message(chat_id, f"❌ Not found: <code>{ext_id}</code>")
+                    await telegram_service.send_message(chat_id, f"❌ Not found: <code>{ext_id}</code>")
 
         # ==================== /balance ====================
         elif text.startswith("/balance"):
@@ -2292,10 +2292,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.refresh(wallet)
                 # Sync PHP balance from PayMongo live account balance
                 try:
-                    pm_svc = PayMongoService()
-                    pm_bal = await pm_svc.get_balance()
-                    if pm_bal.get("success"):
-                        available = pm_bal.get("available", [])
+                    paymongo_service = PayMongoService()
+                    paymongo_balance = await paymongo_service.get_balance()
+                    if paymongo_balance.get("success"):
+                        available = paymongo_balance.get("available", [])
                         php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
                         if php_entry is not None:
                             wallet.balance = float(php_entry["amount"]) / 100.0
@@ -2340,12 +2340,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 f"💵 USD: <b>${usd_balance:,.2f}</b> (USDT TRC20)\n"
             )
             if recent_wt:
-                t_map = {"send": "📤", "withdraw": "⬇️", "receive": "📥", "topup": "⬆️", "crypto_topup": "⬆️", "usdt_send": "📤"}
+                transaction_type_emoji_map = {"send": "📤", "withdraw": "⬇️", "receive": "📥", "topup": "⬆️", "crypto_topup": "⬆️", "usdt_send": "📤"}
                 reply += "\n📜 <b>Recent PHP Activity:</b>\n"
                 for wt in recent_wt:
-                    em = t_map.get(wt.transaction_type, "💸")
-                    dt = wt.created_at.strftime("%b %d") if wt.created_at else ""
-                    reply += f"  {em} {wt.transaction_type} ₱{wt.amount:,.2f} — {dt}\n"
+                    transaction_emoji = transaction_type_emoji_map.get(wt.transaction_type, "💸")
+                    transaction_date = wt.created_at.strftime("%b %d") if wt.created_at else ""
+                    reply += f"  {transaction_emoji} {wt.transaction_type} ₱{wt.amount:,.2f} — {transaction_date}\n"
             reply += (
                 "\n💵 <b>USD Wallet actions:</b>\n"
                 "  /usdbalance — Full USD details\n"
@@ -2353,7 +2353,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
                 "  /sendusd [amt] [@username] — Send USD to a user\n"
             )
-            await tg.send_message(chat_id, reply)
+            await telegram_service.send_message(chat_id, reply)
 
         # ==================== /usdbalance ====================
         elif text.startswith("/usdbalance"):
@@ -2407,32 +2407,32 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             if usd_txns:
                 reply += "\n📜 <b>Recent USD Activity:</b>\n"
                 for wt in usd_txns:
-                    em = "⬆️" if wt.transaction_type == "crypto_topup" else "📤"
-                    dt = wt.created_at.strftime("%b %d") if wt.created_at else ""
-                    reply += f"  {em} {wt.transaction_type} ${wt.amount:,.2f} — {dt}\n"
+                    transaction_emoji = "⬆️" if wt.transaction_type == "crypto_topup" else "📤"
+                    transaction_date = wt.created_at.strftime("%b %d") if wt.created_at else ""
+                    reply += f"  {transaction_emoji} {wt.transaction_type} ${wt.amount:,.2f} — {transaction_date}\n"
             reply += (
                 "\n📥 /topup [amt] — Top up\n"
                 "📤 /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
                 "💸 /sendusd [amt] [@username] — Send USD to a user"
             )
-            await tg.send_message(chat_id, reply)
+            await telegram_service.send_message(chat_id, reply)
 
         # ==================== /sendusdt ====================
         elif text.startswith("/sendusdt"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/sendusdt"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/sendusdt"))
             else:
                 try:
                     amount = float(parts[1])
                     addr = parts[2].strip()
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     # Validate TRC-20 address
                     if not re.match(r'^T[1-9A-HJ-NP-Za-km-z]{33}$', addr):
-                        await tg.send_message(
+                        await telegram_service.send_message(
                             chat_id,
                             "❌ Invalid TRC-20 address.\n"
                             "Must start with <b>T</b> and be exactly <b>34 characters</b> (base58 format)."
@@ -2448,12 +2448,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         usd_balance = usd_wallet.balance if usd_wallet else 0.0
                     except Exception as e:
                         logger.error(f"DB failed for /sendusdt balance check: {e}", exc_info=True)
-                        await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
+                        await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
                     if usd_balance < amount:
-                        await tg.send_message(
+                        await telegram_service.send_message(
                             chat_id,
                             f"❌ Insufficient USD balance.\n"
                             f"💵 Available: <b>${usd_balance:,.2f} USDT</b>\n"
@@ -2465,7 +2465,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     # Reject if the PHP/PayMongo balance is below the minimum threshold
                     php_balance = await _get_php_balance_for_bot(db, tg_user_id)
                     if php_balance < _PHP_MIN_WITHDRAWAL_BALANCE:
-                        await tg.send_message(
+                        await telegram_service.send_message(
                             chat_id,
                             f"❌ <b>USDT withdrawal rejected.</b>\n\n"
                             f"The PHP balance (₱{php_balance:,.2f}) is below the "
@@ -2492,7 +2492,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.refresh(send_req)
 
                     short_addr = f"{addr[:8]}...{addr[-6:]}"
-                    await tg.send_message(
+                    await telegram_service.send_message(
                         chat_id,
                         f"✅ <b>USDT Send Request Submitted</b>\n\n"
                         f"💵 Amount: <b>${amount:,.2f} USDT</b>\n"
@@ -2503,30 +2503,30 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     )
                     logger.info("USDT send via bot: user=%s amount=%s to=%s req=%s", tg_user_id, amount, addr, send_req.id)
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount. Example: /sendusdt 50 T...")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount. Example: /sendusdt 50 T...")
                 except Exception as e:
                     logger.error(f"Failed to create /sendusdt request: {e}", exc_info=True)
                     try:
                         await db.rollback()
                     except Exception:
                         pass
-                    await tg.send_message(chat_id, "❌ Failed to submit request. Please try again.")
+                    await telegram_service.send_message(chat_id, "❌ Failed to submit request. Please try again.")
 
         # ==================== /sendusd (send USD to user by @username) ====================
         elif text.startswith("/sendusd"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/sendusd"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/sendusd"))
             else:
                 try:
                     amount = float(parts[1])
                     recipient_username = parts[2].strip().lstrip("@")
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     if not recipient_username:
-                        await tg.send_message(chat_id, "❌ Recipient username is required.")
+                        await telegram_service.send_message(chat_id, "❌ Recipient username is required.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
@@ -2541,11 +2541,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         recipient_admin = rec_res.scalar_one_or_none()
                     except Exception as e:
                         logger.error("DB lookup failed for /sendusd: %s", e)
-                        await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
+                        await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
                         return {"status": "ok"}
 
                     if not recipient_admin:
-                        await tg.send_message(
+                        await telegram_service.send_message(
                             chat_id,
                             f"❌ User @{recipient_username} not found or not active.\n"
                             "Please check the username and try again."
@@ -2555,7 +2555,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
                     recipient_tg_user_id = f"tg-{recipient_admin.telegram_id}"
                     if tg_user_id == recipient_tg_user_id:
-                        await tg.send_message(chat_id, "❌ You cannot send USD to yourself.")
+                        await telegram_service.send_message(chat_id, "❌ You cannot send USD to yourself.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
@@ -2564,11 +2564,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         sender_balance = await _compute_usd_balance_for_wallet(db, tg_user_id)
                     except Exception as e:
                         logger.error("Balance check failed for /sendusd: %s", e)
-                        await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
+                        await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
                         return {"status": "ok"}
 
                     if sender_balance < amount:
-                        await tg.send_message(
+                        await telegram_service.send_message(
                             chat_id,
                             f"❌ Insufficient USD balance.\n"
                             f"💵 Available: <b>${sender_balance:,.2f}</b>\n"
@@ -2654,11 +2654,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             await db.rollback()
                         except Exception:
                             pass
-                        await tg.send_message(chat_id, "❌ Transfer failed. Please try again.")
+                        await telegram_service.send_message(chat_id, "❌ Transfer failed. Please try again.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
-                    await tg.send_message(
+                    await telegram_service.send_message(
                         chat_id,
                         f"✅ <b>USD Sent!</b>\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -2667,7 +2667,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"💰 New Balance: <b>${sender_wallet.balance:,.2f}</b>"
                     )
                     # Notify recipient
-                    await tg.send_message(
+                    await telegram_service.send_message(
                         recipient_admin.telegram_id,
                         f"💵 <b>USD Received!</b>\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -2677,19 +2677,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     )
                     logger.info("USD transfer via bot: sender=%s recipient=@%s amount=%s", tg_user_id, recipient_username, amount)
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount. Example: /sendusd 50 @johndoe")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount. Example: /sendusd 50 @johndoe")
 
         # ==================== /send ====================
         elif text.startswith("/send"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/send"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/send"))
             else:
                 try:
                     amount = float(parts[1])
                     recipient = parts[2]
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be positive.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be positive.")
                     else:
                         # DB required for wallet ops
                         try:
@@ -2703,26 +2703,26 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 await db.refresh(wallet)
                         except Exception as e:
                             logger.error(f"DB failed for /send wallet lookup: {e}", exc_info=True)
-                            await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
+                            await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
                             await _safe_log(db, chat_id, username, text)
                             return {"status": "ok"}
 
                         if wallet.balance < amount:
-                            await tg.send_message(chat_id, f"❌ Insufficient balance: ₱{wallet.balance:,.2f}")
+                            await telegram_service.send_message(chat_id, f"❌ Insufficient balance: ₱{wallet.balance:,.2f}")
                         else:
                             now = datetime.now()
-                            bb = wallet.balance
-                            new_balance = bb - amount
+                            balance_before = wallet.balance
+                            new_balance = balance_before - amount
                             # Send reply FIRST
                             reply = f"✅ <b>Sent!</b>\n\n💸 ₱{amount:,.2f} → {recipient}\n💰 Balance: <b>₱{new_balance:,.2f}</b>"
-                            await tg.send_message(chat_id, reply)
+                            await telegram_service.send_message(chat_id, reply)
                             # Then DB
                             try:
                                 wallet.balance = new_balance
                                 wallet.updated_at = now
                                 wtxn = Wallet_transactions(
                                     user_id=tg_user_id, wallet_id=wallet.id,
-                                    transaction_type="send", amount=amount, balance_before=bb,
+                                    transaction_type="send", amount=amount, balance_before=balance_before,
                                     balance_after=new_balance, recipient=recipient,
                                     note=f"Sent to {recipient} via Telegram", status="completed",
                                     reference_id=f"tg-send-{wallet.id}-{int(now.timestamp())}",
@@ -2743,18 +2743,18 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 except Exception:
                                     pass
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /withdraw ====================
         elif text.startswith("/withdraw"):
             parts = text.split(maxsplit=1)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/withdraw"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/withdraw"))
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be positive.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be positive.")
                     else:
                         try:
                             res = await db.execute(select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP"))
@@ -2767,26 +2767,26 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 await db.refresh(wallet)
                         except Exception as e:
                             logger.error(f"DB failed for /withdraw wallet lookup: {e}", exc_info=True)
-                            await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
+                            await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
                             await _safe_log(db, chat_id, username, text)
                             return {"status": "ok"}
 
                         if wallet.balance < amount:
-                            await tg.send_message(chat_id, f"❌ Insufficient balance: ₱{wallet.balance:,.2f}")
+                            await telegram_service.send_message(chat_id, f"❌ Insufficient balance: ₱{wallet.balance:,.2f}")
                         else:
                             now = datetime.now()
-                            bb = wallet.balance
-                            new_balance = bb - amount
+                            balance_before = wallet.balance
+                            new_balance = balance_before - amount
                             # Send reply FIRST
                             reply = f"✅ <b>Withdrawn!</b>\n\n💸 ₱{amount:,.2f}\n💰 Balance: <b>₱{new_balance:,.2f}</b>"
-                            await tg.send_message(chat_id, reply)
+                            await telegram_service.send_message(chat_id, reply)
                             # Then DB
                             try:
                                 wallet.balance = new_balance
                                 wallet.updated_at = now
                                 wtxn = Wallet_transactions(
                                     user_id=tg_user_id, wallet_id=wallet.id,
-                                    transaction_type="withdraw", amount=amount, balance_before=bb,
+                                    transaction_type="withdraw", amount=amount, balance_before=balance_before,
                                     balance_after=new_balance, note="Withdrawal via Telegram",
                                     status="completed",
                                     reference_id=f"tg-withdraw-{wallet.id}-{int(now.timestamp())}",
@@ -2807,7 +2807,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 except Exception:
                                     pass
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /report ====================
         elif text.startswith("/report"):
@@ -2848,13 +2848,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.rollback()
                 except Exception:
                     pass
-            await tg.send_message(chat_id, reply)
+            await telegram_service.send_message(chat_id, reply)
 
         # ==================== /fees ====================
         elif text.startswith("/fees"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/fees"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/fees"))
             else:
                 try:
                     amount = float(parts[1])
@@ -2865,15 +2865,15 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"💱 <b>Fee Calculation</b>\n\n💰 Amount: ₱{amount:,.2f}\n📋 Method: {method}\n"
                         f"💸 Fee: ₱{fees['fee']:,.2f}\n💵 Net: <b>₱{fees['net_amount']:,.2f}</b>"
                     )
-                    await tg.send_message(chat_id, reply)
+                    await telegram_service.send_message(chat_id, reply)
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /subscribe ====================
         elif text.startswith("/subscribe"):
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
-                await tg.send_message(chat_id, "❌ Usage: /subscribe [amount] [plan_name]\nExample: /subscribe 999 Premium Monthly")
+                await telegram_service.send_message(chat_id, "❌ Usage: /subscribe [amount] [plan_name]\nExample: /subscribe 999 Premium Monthly")
             else:
                 try:
                     amount = float(parts[1])
@@ -2885,7 +2885,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         f"✅ <b>Subscription Created!</b>\n\n📋 {plan_name}\n"
                         f"💰 ₱{amount:,.2f}/month\n📅 Next billing: {next_billing}"
                     )
-                    await tg.send_message(chat_id, reply)
+                    await telegram_service.send_message(chat_id, reply)
                     # Then DB
                     try:
                         sub = Subscriptions(
@@ -2904,42 +2904,42 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         except Exception:
                             pass
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount.")
 
         # ==================== /remind ====================
         elif text.startswith("/remind"):
             parts = text.split(maxsplit=1)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/remind"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/remind"))
             else:
                 ext_id = parts[1].strip()
                 try:
                     result = await db.execute(select(Transactions).where(Transactions.external_id == ext_id))
-                    txn = result.scalar_one_or_none()
+                    transaction = result.scalar_one_or_none()
                 except Exception as e:
                     logger.error(f"DB lookup failed for /remind: {e}", exc_info=True)
-                    await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
+                    await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
                     await _safe_log(db, chat_id, username, text)
                     return {"status": "ok"}
 
-                if txn and txn.status == "pending":
+                if transaction and transaction.status == "pending":
                     msg = (
                         f"💳 <b>Payment Reminder</b>\n"
                         f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💰 ₱{txn.amount:,.2f} for {txn.description or 'your order'}\n"
-                        f"🆔 <code>{txn.external_id}</code>"
+                        f"💰 ₱{transaction.amount:,.2f} for {transaction.description or 'your order'}\n"
+                        f"🆔 <code>{transaction.external_id}</code>"
                     )
                     keyboard = None
-                    if txn.payment_url:
-                        keyboard = {"inline_keyboard": [[{"text": "💳 Pay Now", "url": txn.payment_url}]]}
-                    if txn.telegram_chat_id:
-                        await tg.send_message(txn.telegram_chat_id, msg, reply_markup=keyboard)
+                    if transaction.payment_url:
+                        keyboard = {"inline_keyboard": [[{"text": "💳 Pay Now", "url": transaction.payment_url}]]}
+                    if transaction.telegram_chat_id:
+                        await telegram_service.send_message(transaction.telegram_chat_id, msg, reply_markup=keyboard)
                     reply = f"✅ Reminder sent for <code>{ext_id}</code>"
-                elif txn:
-                    reply = f"ℹ️ Transaction <code>{ext_id}</code> is already <b>{txn.status}</b>"
+                elif transaction:
+                    reply = f"ℹ️ Transaction <code>{ext_id}</code> is already <b>{transaction.status}</b>"
                 else:
                     reply = f"❌ Not found: <code>{ext_id}</code>"
-                await tg.send_message(chat_id, reply)
+                await telegram_service.send_message(chat_id, reply)
 
         # ==================== /list ====================
         elif text.startswith("/list"):
@@ -2952,52 +2952,52 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 txns = res.scalars().all()
             except Exception as e:
                 logger.error(f"DB failed for /list: {e}", exc_info=True)
-                await tg.send_message(chat_id, "⚠️ Database temporarily unavailable.")
+                await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable.")
                 await _safe_log(db, chat_id, username, text)
                 return {"status": "ok"}
             if not txns:
-                await tg.send_message(chat_id, "📭 No transactions yet.")
+                await telegram_service.send_message(chat_id, "📭 No transactions yet.")
             else:
-                s_map = {"paid": "✅", "pending": "⏳", "expired": "❌", "refunded": "↩️"}
+                status_emoji_map = {"paid": "✅", "pending": "⏳", "expired": "❌", "refunded": "↩️"}
                 lines = [f"📋 <b>Last {len(txns)} Transactions</b>\n━━━━━━━━━━━━━━━━━━━━"]
                 for t in txns:
-                    em = s_map.get(t.status, "❓")
-                    dt = t.created_at.strftime("%b %d") if t.created_at else ""
+                    status_emoji = status_emoji_map.get(t.status, "❓")
+                    transaction_date = t.created_at.strftime("%b %d") if t.created_at else ""
                     lines.append(
-                        f"{em} <b>₱{t.amount:,.2f}</b> — {t.transaction_type}\n"
-                        f"   <code>{t.external_id}</code> · {dt}"
+                        f"{status_emoji} <b>₱{t.amount:,.2f}</b> — {t.transaction_type}\n"
+                        f"   <code>{t.external_id}</code> · {transaction_date}"
                     )
                 lines.append("\nUse /status [id] for details.")
-                await tg.send_message(chat_id, "\n".join(lines))
+                await telegram_service.send_message(chat_id, "\n".join(lines))
 
         # ==================== /cancel ====================
         elif text.startswith("/cancel"):
             parts = text.split(maxsplit=1)
             if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/cancel"))
+                await telegram_service.send_message(chat_id, _wizard_start(chat_id, "/cancel"))
             else:
                 ext_id = parts[1].strip()
                 try:
                     result = await db.execute(select(Transactions).where(Transactions.external_id == ext_id))
-                    txn = result.scalar_one_or_none()
+                    transaction = result.scalar_one_or_none()
                 except Exception as e:
                     logger.error(f"DB lookup failed for /cancel: {e}", exc_info=True)
-                    await tg.send_message(chat_id, "⚠️ Database temporarily unavailable.")
+                    await telegram_service.send_message(chat_id, "⚠️ Database temporarily unavailable.")
                     await _safe_log(db, chat_id, username, text)
                     return {"status": "ok"}
-                if not txn:
-                    await tg.send_message(chat_id, f"❌ Not found: <code>{ext_id}</code>")
-                elif txn.status != "pending":
-                    await tg.send_message(
+                if not transaction:
+                    await telegram_service.send_message(chat_id, f"❌ Not found: <code>{ext_id}</code>")
+                elif transaction.status != "pending":
+                    await telegram_service.send_message(
                         chat_id,
-                        f"⚠️ Cannot cancel — transaction is already <b>{txn.status}</b>."
+                        f"⚠️ Cannot cancel — transaction is already <b>{transaction.status}</b>."
                     )
                 else:
                     try:
-                        txn.status = "expired"
-                        txn.updated_at = datetime.now()
+                        transaction.status = "expired"
+                        transaction.updated_at = datetime.now()
                         await db.commit()
-                        await tg.send_message(
+                        await telegram_service.send_message(
                             chat_id,
                             f"✅ <b>Cancelled</b>\n🆔 <code>{ext_id}</code> marked as expired."
                         )
@@ -3007,7 +3007,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             await db.rollback()
                         except Exception:
                             pass
-                        await tg.send_message(chat_id, "⚠️ Failed to cancel. Please try again.")
+                        await telegram_service.send_message(chat_id, "⚠️ Failed to cancel. Please try again.")
 
         # ==================== /pay (interactive menu) ====================
         elif text.startswith("/pay"):
@@ -3025,7 +3025,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "📷 /scanqr [qr_string] [amt] — Pay via QRPH scan\n\n"
                 "💡 Example: /invoice 500 Coffee order"
             )
-            await tg.send_message(chat_id, menu)
+            await telegram_service.send_message(chat_id, menu)
 
         # ==================== /help ====================
         elif text.startswith("/help"):
@@ -3105,7 +3105,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /help — 显示本帮助 😊\n\n"
                 "💡 <b>提示：</b>大多数命令支持逐步引导 — 输入命令后按提示操作即可！"
             )
-            await tg.send_message(chat_id, _t(chat_id, help_en, help_zh))
+            await telegram_service.send_message(chat_id, _localize(chat_id, help_en, help_zh))
 
         # ==================== /topup ====================
         elif text.startswith("/topup"):
@@ -3125,12 +3125,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     f"Example: /topup 50\n\n"
                     f"After submitting, send a screenshot of your transaction as a photo in this chat."
                 )
-                await tg.send_photo(chat_id, qr_url, caption=caption)
+                await telegram_service.send_photo(chat_id, qr_url, caption=caption)
             else:
                 try:
                     amount = float(parts[1])
                     if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
+                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
                     else:
                         amount_php = round(amount * rate, 2)
                         now = datetime.now()
@@ -3158,18 +3158,18 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"✅ After sending, <b>reply with a screenshot</b> of your transaction as a photo.\n"
                             f"The admin will verify and credit your PHP wallet within minutes."
                         )
-                        await tg.send_photo(chat_id, qr_url, caption=caption)
+                        await telegram_service.send_photo(chat_id, qr_url, caption=caption)
                 except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount. Example: /topup 50")
+                    await telegram_service.send_message(chat_id, "❌ Invalid amount. Example: /topup 50")
                 except Exception as e:
                     logger.error(f"Topup create error: {e}", exc_info=True)
-                    await tg.send_message(chat_id, "❌ Failed to create topup request. Please try again.")
+                    await telegram_service.send_message(chat_id, "❌ Failed to create topup request. Please try again.")
 
         # ==================== /deposit ====================
         elif text.startswith("/deposit"):
-            await tg.send_message(
+            await telegram_service.send_message(
                 chat_id,
-                _t(chat_id,
+                _localize(chat_id,
                    "🏦 <b>Bank / E-Wallet Deposit</b>\n"
                    "━━━━━━━━━━━━━━━━━━━━\n"
                    "I'll guide you through submitting your deposit receipt for verification.\n\n"
@@ -3186,12 +3186,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                    "开始吧，我会问您几个简单问题。"),
             )
             prompt = _wizard_start(chat_id, "/deposit")
-            await tg.send_message(chat_id, prompt)
+            await telegram_service.send_message(chat_id, prompt)
 
         else:
-            await tg.send_message(
+            await telegram_service.send_message(
                 chat_id,
-                _t(chat_id,
+                _localize(chat_id,
                    "🤔 Hmm, I don't recognise that command.\n\nType /help to see everything I can do! 😊",
                    "🤔 没有找到该命令。\n\n输入 /help 查看所有可用命令！😊")
             )
