@@ -190,7 +190,7 @@ function TutorialOverlay({ onDone }: { onDone: () => void }) {
       <div className="relative w-full max-w-md bg-[#0F1B2D] border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
           <div className="flex items-center gap-2"><Bot className="h-5 w-5 text-blue-400" /><span className="text-white font-bold text-sm">Bot Setup Guide</span></div>
-          <button onClick={onDone} className="text-slate-500 hover:text-slate-300 transition-colors"><X className="h-4 w-4" /></button>
+          <button onClick={onDone} className="text-slate-400 hover:text-slate-200 transition-colors"><X className="h-4 w-4" /></button>
         </div>
         <div className="flex items-center gap-1.5 px-5 pb-4">
           {TUTORIAL_STEPS.map((_, i) => (
@@ -206,8 +206,8 @@ function TutorialOverlay({ onDone }: { onDone: () => void }) {
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" /><p className="text-xs leading-relaxed">{s.tip}</p>
           </div>
           <div className="flex gap-3">
-            {step > 0 && <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-800"><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>}
-            {step === 0 && <Button variant="ghost" onClick={onDone} className="flex-1 text-slate-500 hover:text-slate-300">Skip tutorial</Button>}
+            {step > 0 && <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1 border-slate-500 text-slate-200 hover:text-white hover:bg-slate-800"><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>}
+            {step === 0 && <Button variant="ghost" onClick={onDone} className="flex-1 text-slate-400 hover:text-slate-200">Skip tutorial</Button>}
             <Button onClick={isLast ? onDone : () => setStep(step + 1)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
               {isLast ? <><CheckCircle className="h-4 w-4 mr-1" /> Get Started</> : <>Next <ChevronRight className="h-4 w-4 ml-1" /></>}
             </Button>
@@ -428,7 +428,7 @@ export default function BotSettings() {
     <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 flex items-center gap-3">
       <Info className="h-4 w-4 text-blue-400 shrink-0" />
       <p className="text-sm text-blue-300 flex-1">You have unsaved changes</p>
-      <Button size="sm" variant="outline" onClick={handleResetConfig} className="border-slate-600 text-slate-300 hover:text-white gap-1.5">
+      <Button size="sm" variant="outline" onClick={handleResetConfig} className="border-slate-500 text-slate-200 hover:text-white gap-1.5">
         <RotateCcw className="h-3.5 w-3.5" /> Discard
       </Button>
       <Button size="sm" onClick={handleSaveConfig} disabled={configSaving} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
@@ -455,7 +455,7 @@ export default function BotSettings() {
                 {localConfig.bot_status === 'active' ? 'Active' : localConfig.bot_status === 'maintenance' ? 'Maintenance' : 'Inactive'}
               </Badge>
             )}
-            <Button variant="outline" size="sm" onClick={() => setShowTutorial(true)} className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-800 gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowTutorial(true)} className="border-slate-500 text-slate-200 hover:text-white hover:bg-slate-800 gap-2">
               <Info className="h-3.5 w-3.5" /> Setup Guide
             </Button>
           </div>
@@ -585,7 +585,7 @@ export default function BotSettings() {
                     <Button onClick={handleAutoSetup} disabled={autoSetupLoading || !user} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-sm">
                       {autoSetupLoading ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Setting up...</> : <><Zap className="h-3 w-3 mr-1" />Auto-Setup</>}
                     </Button>
-                    <Button onClick={fetchWebhookInfo} disabled={webhookInfoLoading || !user} variant="outline" size="icon" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700">
+                    <Button onClick={fetchWebhookInfo} disabled={webhookInfoLoading || !user} variant="outline" size="icon" className="border-slate-500 text-slate-200 hover:text-white hover:bg-slate-700">
                       <RefreshCw className={`h-3 w-3 ${webhookInfoLoading ? 'animate-spin' : ''}`} />
                     </Button>
                   </div>
@@ -605,7 +605,7 @@ export default function BotSettings() {
                         <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 border ml-auto"><CheckCircle className="h-3 w-3 mr-1" /> Connected</Badge>
                       </div>
                       <div className="bg-slate-800/50 rounded-lg p-3"><p className="text-xs text-slate-400">Bot ID</p><code className="text-sm text-white font-mono">{botInfo.id}</code></div>
-                      <Button onClick={fetchBotInfo} variant="outline" size="sm" className="w-full border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700">Refresh Info</Button>
+                      <Button onClick={fetchBotInfo} variant="outline" size="sm" className="w-full border-slate-500 text-slate-200 hover:text-white hover:bg-slate-700">Refresh Info</Button>
                     </div>
                   ) : (
                     <div className="text-center py-8">
@@ -614,7 +614,7 @@ export default function BotSettings() {
                       {botError && <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-3 text-left"><p className="text-xs text-red-400 font-mono break-all">{botError}</p></div>}
                       {botError?.includes('Authentication required') && !user
                         ? <Button onClick={() => login()} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">Log In</Button>
-                        : <Button onClick={fetchBotInfo} variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700">Retry</Button>}
+                        : <Button onClick={fetchBotInfo} variant="outline" size="sm" className="border-slate-500 text-slate-200 hover:text-white hover:bg-slate-700">Retry</Button>}
                     </div>
                   )}
                 </CardContent>
@@ -690,7 +690,7 @@ export default function BotSettings() {
                 </Card>
 
                 <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={handleResetConfig} className="border-slate-600 text-slate-300 hover:text-white gap-1.5"><RotateCcw className="h-4 w-4" /> Discard</Button>
+                  <Button variant="outline" onClick={handleResetConfig} className="border-slate-500 text-slate-200 hover:text-white gap-1.5"><RotateCcw className="h-4 w-4" /> Discard</Button>
                   <Button onClick={handleSaveConfig} disabled={configSaving || !configChanged} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
                     {configSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Settings
                   </Button>
@@ -730,7 +730,7 @@ export default function BotSettings() {
                         placeholder="Leave empty to use default..." className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 font-mono text-xs resize-y" rows={rows} />
                       <div className="flex justify-between items-center">
                         <span className="text-[11px] text-slate-500">{localConfig[field].length} chars</span>
-                        <Button size="sm" variant="outline" onClick={() => setDefaultTemplate(field)} className="border-slate-600 text-slate-400 hover:text-white text-xs gap-1">
+                        <Button size="sm" variant="outline" onClick={() => setDefaultTemplate(field)} className="border-slate-500 text-slate-300 hover:text-white text-xs gap-1">
                           <RotateCcw className="h-3 w-3" /> Use Default
                         </Button>
                       </div>
@@ -739,7 +739,7 @@ export default function BotSettings() {
                 ))}
 
                 <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={handleResetConfig} className="border-slate-600 text-slate-300 hover:text-white gap-1.5"><RotateCcw className="h-4 w-4" /> Discard</Button>
+                  <Button variant="outline" onClick={handleResetConfig} className="border-slate-500 text-slate-200 hover:text-white gap-1.5"><RotateCcw className="h-4 w-4" /> Discard</Button>
                   <Button onClick={handleSaveConfig} disabled={configSaving || !configChanged} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
                     {configSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Messages
                   </Button>

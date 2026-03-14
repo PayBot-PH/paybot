@@ -101,7 +101,7 @@ export default function ReportsPage() {
                 <SelectItem value="monthly" className="text-white">Monthly</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={fetchReport} variant="outline" size="sm" className="border-slate-600 text-slate-300 hover:text-white">
+            <Button onClick={fetchReport} variant="outline" size="sm" className="border-slate-500 text-slate-200 hover:text-white">
               <RefreshCcw className="h-4 w-4" />
             </Button>
           </div>
