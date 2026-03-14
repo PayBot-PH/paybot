@@ -64,7 +64,7 @@ export default function Layout({ children, connected }: LayoutProps) {
   useEffect(() => {
     setOpenGroups((prev) => {
       const next = new Set(prev);
-      if (['/usdt-send-requests', '/topup-requests'].some((r) => path.startsWith(r))) {
+      if (['/usdt-send-requests', '/topup-requests', '/bank-deposits'].some((r) => path.startsWith(r))) {
         next.add('requests');
       }
       if (['/kyb-registrations', '/kyc-verifications'].some((r) => path.startsWith(r))) {
@@ -129,6 +129,7 @@ export default function Layout({ children, connected }: LayoutProps) {
               children: [
                 { to: '/usdt-send-requests', icon: Send, label: t('nav_usdt_requests'), badge: 'Super' },
                 { to: '/topup-requests', icon: DollarSign, label: t('nav_topup_requests'), badge: 'Super' },
+                { to: '/bank-deposits', icon: Building2, label: t('nav_bank_deposits'), badge: 'Super' },
               ],
             },
             {

@@ -18,6 +18,7 @@ import AdminManagement from './pages/AdminManagement';
 import BotMessagesPage from './pages/BotMessagesPage';
 import TopupRequestsPage from './pages/TopupRequestsPage';
 import UsdtSendRequestsPage from './pages/UsdtSendRequestsPage';
+import BankDepositsPage from './pages/BankDepositsPage';
 import KybRegistrationsPage from './pages/KybRegistrationsPage';
 import KycVerificationsPage from './pages/KycVerificationsPage';
 import RequireSuperAdmin from './components/RequireSuperAdmin';
@@ -102,6 +103,7 @@ const App = () => (
               <Route path="/bot-messages" element={<ProtectedAdminRoute><BotMessagesPage /></ProtectedAdminRoute>} />
               <Route path="/topup-requests" element={<RequireSuperAdmin><TopupRequestsPage /></RequireSuperAdmin>} />
               <Route path="/usdt-send-requests" element={<RequireSuperAdmin><UsdtSendRequestsPage /></RequireSuperAdmin>} />
+              <Route path="/bank-deposits" element={<RequireSuperAdmin><BankDepositsPage /></RequireSuperAdmin>} />
               <Route path="/kyb-registrations" element={<RequireSuperAdmin><KybRegistrationsPage /></RequireSuperAdmin>} />
               <Route path="/kyc-verifications" element={<RequireSuperAdmin><KycVerificationsPage /></RequireSuperAdmin>} />
               <Route path="/policies" element={<Policies />} />
