@@ -1080,14 +1080,29 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
                 # Check whether this chat belongs to a registered admin
                 is_registered = False
+                adm_user = None
                 try:
                     adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == cq_chat_id, AdminUser.is_active.is_(True)))
-                    is_registered = adm_res.scalar_one_or_none() is not None
+                    adm_user = adm_res.scalar_one_or_none()
+                    is_registered = adm_user is not None
                 except Exception:
                     pass
 
                 if is_registered:
-                    welcome = _welcome_en(cq_first_name) if lang == "en" else _welcome_zh(cq_first_name)
+                    welcome = None
+                    if adm_user:
+                        try:
+                            _svc = Bot_settingsService(db)
+                            _cfg_result = await _svc.get_list(skip=0, limit=1, user_id=str(adm_user.id))
+                            if _cfg_result["total"] > 0:
+                                _cfg = _cfg_result["items"][0]
+                                _tmpl = _cfg.welcome_message_en if lang == "en" else _cfg.welcome_message_zh
+                                if _tmpl:
+                                    welcome = _tmpl.replace("{name}", cq_first_name or "")
+                        except Exception as e:
+                            logger.warning(f"Could not load welcome template for user {adm_user.id}: {e}")
+                    if not welcome:
+                        welcome = _welcome_en(cq_first_name) if lang == "en" else _welcome_zh(cq_first_name)
                     await tg.send_message(cq_chat_id, welcome)
                 else:
                     if lang == "en":
