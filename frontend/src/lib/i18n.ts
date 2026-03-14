@@ -27,6 +27,7 @@ export const translations = {
     nav_compliance: 'Compliance',
     nav_kyb_registrations: 'KYB Registrations',
     nav_kyc_verifications: 'KYC Verifications',
+    nav_roles: 'Role Management',
     nav_policies: 'Policies',
     nav_contact_support: 'Contact Support',
 
@@ -71,6 +72,7 @@ export const translations = {
     nav_compliance: '合规',
     nav_kyb_registrations: 'KYB 注册',
     nav_kyc_verifications: 'KYC 验证',
+    nav_roles: '角色管理',
     nav_policies: '政策',
     nav_contact_support: '联系支持',
 

@@ -5,7 +5,7 @@ import {
   WifiOff, LogOut, ShieldCheck, MessageSquare, ScrollText, Crown, User,
   Menu, X, Activity, Send, ClipboardList, DollarSign, ChevronDown,
   MessageCircle, UserCheck, Sun, Moon, ScanLine, ChevronRight,
-  Settings2, Layers,
+  Settings2, Layers, Shield,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -120,6 +120,7 @@ export default function Layout({ children, connected }: LayoutProps) {
           label: t('nav_administration'),
           items: [
             { to: '/admin-management', icon: ShieldCheck, label: t('nav_admin_management'), badge: 'Super' },
+            { to: '/roles', icon: Shield, label: t('nav_roles'), badge: 'Super' },
             {
               type: 'group' as const,
               key: 'requests',
