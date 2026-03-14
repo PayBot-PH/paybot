@@ -1,9 +1,8 @@
-import json
 import logging
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import Depends, HTTPException
 from pydantic import ConfigDict, BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,14 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
+from routers.base_router import create_crud_router
 from services.disbursements import DisbursementsService
 from dependencies.auth import get_current_user
 from schemas.auth import UserResponse
 
-# Set up logging
 logger = logging.getLogger(__name__)
-
-router = APIRouter(prefix="/api/v1/entities/disbursements", tags=["disbursements"])
 
 
 # ---------- Pydantic Schemas ----------
@@ -103,7 +100,7 @@ class DisbursementsBatchDeleteRequest(BaseModel):
     ids: List[int]
 
 
-# ---------- Routes ----------
+# ---------- Helpers ----------
 async def _require_php_balance(db: AsyncSession, user_id: str, amount: float) -> Wallets:
     """Check user has sufficient PHP wallet balance. Raises 402 if insufficient."""
     result = await db.execute(
@@ -144,106 +141,23 @@ async def _deduct_php_balance(db: AsyncSession, wallet: Wallets, user_id: str, a
     await db.commit()
 
 
-
-@router.get("", response_model=DisbursementsListResponse)
-async def query_disbursements(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Query disbursements with filtering, sorting, and pagination (user can only see their own records)"""
-    logger.debug(f"Querying disbursements: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
-    
-    service = DisbursementsService(db)
-    try:
-        # Parse query JSON if provided
-        query_dict = None
-        if query:
-            try:
-                query_dict = json.loads(query)
-            except json.JSONDecodeError:
-                raise HTTPException(status_code=400, detail="Invalid query JSON format")
-        
-        result = await service.get_list(
-            skip=skip, 
-            limit=limit,
-            query_dict=query_dict,
-            sort=sort,
-            user_id=str(current_user.id),
-        )
-        logger.debug(f"Found {result['total']} disbursements")
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error querying disbursements: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.get("/all", response_model=DisbursementsListResponse)
-async def query_disbursements_all(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
-):
-    # Query disbursements with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying disbursements: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
-
-    service = DisbursementsService(db)
-    try:
-        # Parse query JSON if provided
-        query_dict = None
-        if query:
-            try:
-                query_dict = json.loads(query)
-            except json.JSONDecodeError:
-                raise HTTPException(status_code=400, detail="Invalid query JSON format")
-
-        result = await service.get_list(
-            skip=skip,
-            limit=limit,
-            query_dict=query_dict,
-            sort=sort
-        )
-        logger.debug(f"Found {result['total']} disbursements")
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error querying disbursements: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.get("/{id}", response_model=DisbursementsResponse)
-async def get_disbursements(
-    id: int,
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Get a single disbursements by ID (user can only see their own records)"""
-    logger.debug(f"Fetching disbursements with id: {id}, fields={fields}")
-    
-    service = DisbursementsService(db)
-    try:
-        result = await service.get_by_id(id, user_id=str(current_user.id))
-        if not result:
-            logger.warning(f"Disbursements with id {id} not found")
-            raise HTTPException(status_code=404, detail="Disbursements not found")
-        
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching disbursements {id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+# ---------- Router ----------
+# All standard CRUD endpoints are generated by the factory; the create
+# endpoint is handled separately to enforce the PHP balance check.
+router = create_crud_router(
+    prefix="/api/v1/entities/disbursements",
+    tags=["disbursements"],
+    service_class=DisbursementsService,
+    entity_name="Disbursements",
+    data_schema=DisbursementsData,
+    update_schema=DisbursementsUpdateData,
+    response_schema=DisbursementsResponse,
+    list_response_schema=DisbursementsListResponse,
+    batch_create_schema=DisbursementsBatchCreateRequest,
+    batch_update_schema=DisbursementsBatchUpdateRequest,
+    batch_delete_schema=DisbursementsBatchDeleteRequest,
+    include_create=False,
+)
 
 
 @router.post("", response_model=DisbursementsResponse, status_code=201)
@@ -281,132 +195,4 @@ async def create_disbursements(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error creating disbursements: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.post("/batch", response_model=List[DisbursementsResponse], status_code=201)
-async def create_disbursements_batch(
-    request: DisbursementsBatchCreateRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Create multiple disbursements in a single request"""
-    logger.debug(f"Batch creating {len(request.items)} disbursements")
-    
-    service = DisbursementsService(db)
-    
-    try:
-        results = await service.bulk_create(
-            [item.model_dump() for item in request.items],
-            user_id=str(current_user.id),
-        )
-        logger.info(f"Batch created {len(results)} disbursements successfully")
-        return results
-    except Exception as e:
-        await db.rollback()
-        logger.error(f"Error in batch create: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
-
-
-@router.put("/batch", response_model=List[DisbursementsResponse])
-async def update_disbursements_batch(
-    request: DisbursementsBatchUpdateRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Update multiple disbursements in a single request (requires ownership)"""
-    logger.debug(f"Batch updating {len(request.items)} disbursements")
-    
-    service = DisbursementsService(db)
-    results = []
-    
-    try:
-        for item in request.items:
-            # Only include non-None values for partial updates
-            update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
-            result = await service.update(item.id, update_dict, user_id=str(current_user.id))
-            if result:
-                results.append(result)
-        
-        logger.info(f"Batch updated {len(results)} disbursements successfully")
-        return results
-    except Exception as e:
-        await db.rollback()
-        logger.error(f"Error in batch update: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
-
-
-@router.put("/{id}", response_model=DisbursementsResponse)
-async def update_disbursements(
-    id: int,
-    data: DisbursementsUpdateData,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Update an existing disbursements (requires ownership)"""
-    logger.debug(f"Updating disbursements {id} with data: {data}")
-
-    service = DisbursementsService(db)
-    try:
-        # Only include non-None values for partial updates
-        update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
-        result = await service.update(id, update_dict, user_id=str(current_user.id))
-        if not result:
-            logger.warning(f"Disbursements with id {id} not found for update")
-            raise HTTPException(status_code=404, detail="Disbursements not found")
-        
-        logger.info(f"Disbursements {id} updated successfully")
-        return result
-    except HTTPException:
-        raise
-    except ValueError as e:
-        logger.error(f"Validation error updating disbursements {id}: {str(e)}")
-        raise HTTPException(status_code=400, detail=str(e))
-    except Exception as e:
-        logger.error(f"Error updating disbursements {id}: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
-
-
-@router.delete("/batch")
-async def delete_disbursements_batch(
-    request: DisbursementsBatchDeleteRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Delete multiple disbursements by their IDs (requires ownership)"""
-    logger.debug(f"Batch deleting {len(request.ids)} disbursements")
-    
-    service = DisbursementsService(db)
-    try:
-        deleted_count = await service.batch_delete(request.ids, user_id=str(current_user.id))
-        logger.info(f"Batch deleted {deleted_count} disbursements successfully")
-        return {"message": f"Successfully deleted {deleted_count} disbursements", "deleted_count": deleted_count}
-    except Exception as e:
-        await db.rollback()
-        logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
-
-
-@router.delete("/{id}")
-async def delete_disbursements(
-    id: int,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Delete a single disbursements by ID (requires ownership)"""
-    logger.debug(f"Deleting disbursements with id: {id}")
-    
-    service = DisbursementsService(db)
-    try:
-        success = await service.delete(id, user_id=str(current_user.id))
-        if not success:
-            logger.warning(f"Disbursements with id {id} not found for deletion")
-            raise HTTPException(status_code=404, detail="Disbursements not found")
-        
-        logger.info(f"Disbursements {id} deleted successfully")
-        return {"message": "Disbursements deleted successfully", "id": id}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error deleting disbursements {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
