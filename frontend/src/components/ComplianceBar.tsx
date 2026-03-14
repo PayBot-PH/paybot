@@ -22,7 +22,7 @@ export default function ComplianceBar() {
         </div>
         {/* Regulatory text */}
         <p className="text-xs text-slate-500 text-center max-w-lg leading-relaxed">
-          <span className="text-slate-400 font-medium">PayBot Philippines</span> is regulated by the{' '}
+          <span className="text-slate-400 font-medium">PayBot PH</span> is regulated by the{' '}
           <span className="text-slate-400 font-medium">Bangko Sentral ng Pilipinas (BSP)</span>.
           We are PCI&nbsp;DSS compliant and registered with the National Privacy Commission (NPC) as a Data Protection Officer.
         </p>

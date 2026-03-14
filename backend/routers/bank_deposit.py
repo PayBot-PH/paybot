@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/bank-deposits", tags=["bank-deposits"])
 
-# Xendit bank account numbers keyed by bank name
-_XENDIT_ACCOUNTS: dict[str, str] = {
-    "BDO": "000661587525",
-    "Metrobank": "5193519258057",
-    "Unionbank": "100590300550",
+# PayBot PH bank accounts
+_PAYBOT_ACCOUNTS: dict[str, dict[str, str]] = {
+    "GoTyme Digital Bank": {"number": "012116012891", "name": "PayBot PH"},
+    "Security Bank Corporation": {"number": "0000068888173", "name": "PayBot PH"},
+    "Asia United Bank": {"number": "934105321485", "name": "PayBot PH"},
 }
 
 # Directory for uploaded bank transfer receipts (relative to this file's package root)
@@ -78,6 +78,67 @@ async def _get_or_create_php_wallet(db: AsyncSession, user_id: str) -> Wallets:
 
 
 # ---------- Endpoints ----------
+
+@router.post("", response_model=BankDepositRequestResponse, status_code=201)
+async def create_bank_deposit_request(
+    amount_php: float = Form(...),
+    channel: str = Form(...),
+    account_number: str = Form(...),
+    transfer_method: str = Form(...),
+    ref_number: Optional[str] = Form(None),
+    receipt: Optional[UploadFile] = File(None),
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit a bank deposit request with an optional receipt file."""
+    receipt_path: Optional[str] = None
+    if receipt and receipt.filename:
+        uploads_dir = os.path.join(os.path.dirname(__file__), "..", "static", "uploads", _RECEIPTS_SUBDIR)
+        os.makedirs(uploads_dir, exist_ok=True)
+        ext = os.path.splitext(receipt.filename)[1] or ".bin"
+        filename = f"{uuid.uuid4().hex}{ext}"
+        file_path = os.path.join(uploads_dir, filename)
+        content = await receipt.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+        receipt_path = f"/uploads/{_RECEIPTS_SUBDIR}/{filename}"
+
+    note_parts = [f"Transfer method: {transfer_method}"]
+    if ref_number:
+        note_parts.append(f"Ref: {ref_number}")
+    note_text = " | ".join(note_parts)
+
+    req = BankDepositRequest(
+        chat_id=current_user.id,
+        telegram_username=current_user.name,
+        channel=channel,
+        account_number=account_number,
+        amount_php=amount_php,
+        receipt_file_id=receipt_path,
+        status="pending",
+        note=note_text,
+    )
+    db.add(req)
+    await db.commit()
+    await db.refresh(req)
+
+    try:
+        payment_event_bus.publish({
+            "event_type": "bank_deposit_request",
+            "request_id": req.id,
+            "user_id": f"tg-{current_user.id}",
+            "amount_php": amount_php,
+            "channel": channel,
+        })
+    except Exception:
+        pass
+
+    logger.info(
+        "Bank deposit request #%s created by %s — ₱%.2f via %s",
+        req.id, current_user.id, amount_php, channel,
+    )
+    return req
+
 
 @router.get("", response_model=BankDepositListResponse)
 async def list_bank_deposit_requests(
