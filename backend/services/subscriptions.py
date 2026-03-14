@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.subscriptions import Subscriptions
@@ -41,11 +41,13 @@ class SubscriptionsService:
                     data = {**data, 'user_id': user_id}
                 objs.append(Subscriptions(**data))
             self.db.add_all(objs)
+            await self.db.flush()
+            obj_ids = [obj.id for obj in objs]
             await self.db.commit()
-            for obj in objs:
-                await self.db.refresh(obj)
-            logger.info(f"Bulk created {len(objs)} subscriptions")
-            return objs
+            result = await self.db.execute(select(Subscriptions).where(Subscriptions.id.in_(obj_ids)))
+            refreshed = list(result.scalars().all())
+            logger.info(f"Bulk created {len(refreshed)} subscriptions")
+            return refreshed
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error bulk creating subscriptions: {str(e)}")
@@ -156,6 +158,22 @@ class SubscriptionsService:
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error deleting subscriptions {obj_id}: {str(e)}")
+            raise
+
+    async def batch_delete(self, ids: List[int], user_id: Optional[str] = None) -> int:
+        """Batch-delete multiple subscriptions by IDs in a single query"""
+        try:
+            stmt = delete(Subscriptions).where(Subscriptions.id.in_(ids))
+            if user_id:
+                stmt = stmt.where(Subscriptions.user_id == user_id)
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            deleted_count = result.rowcount
+            logger.info(f"Batch deleted {deleted_count} subscriptions")
+            return deleted_count
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error batch deleting subscriptions: {str(e)}")
             raise
 
     async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Subscriptions]:

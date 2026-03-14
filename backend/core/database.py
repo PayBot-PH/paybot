@@ -163,9 +163,9 @@ class DatabaseManager:
                 else:
                     # Non-Lambda, non-SQLite: Use QueuePool with connection pooling
                     engine_kwargs["pool_pre_ping"] = True  # Verify connections before using them
-                    engine_kwargs["pool_size"] = 10  # Connection pool size
-                    engine_kwargs["max_overflow"] = 20  # Maximum overflow connections
-                    engine_kwargs["pool_recycle"] = 3600  # Connection recycle time (1 hour)
+                    engine_kwargs["pool_size"] = 20  # Connection pool size
+                    engine_kwargs["max_overflow"] = 40  # Maximum overflow connections
+                    engine_kwargs["pool_recycle"] = 1800  # Connection recycle time (30 minutes)
                     engine_kwargs["pool_timeout"] = 30  # Connection acquisition timeout (30 seconds)
                     logger.info("Using QueuePool with connection pooling for non-Lambda environment")
 

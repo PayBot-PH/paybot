@@ -106,7 +106,7 @@ class SubscriptionsBatchDeleteRequest(BaseModel):
 
 # ---------- Routes ----------
 @router.get("", response_model=SubscriptionsListResponse)
-async def query_subscriptionss(
+async def query_subscriptions(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -115,8 +115,8 @@ async def query_subscriptionss(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Query subscriptionss with filtering, sorting, and pagination (user can only see their own records)"""
-    logger.debug(f"Querying subscriptionss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    """Query subscriptions with filtering, sorting, and pagination (user can only see their own records)"""
+    logger.debug(f"Querying subscriptions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
     
     service = SubscriptionsService(db)
     try:
@@ -135,17 +135,17 @@ async def query_subscriptionss(
             sort=sort,
             user_id=str(current_user.id),
         )
-        logger.debug(f"Found {result['total']} subscriptionss")
+        logger.debug(f"Found {result['total']} subscriptions")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying subscriptionss: {str(e)}", exc_info=True)
+        logger.error(f"Error querying subscriptions: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/all", response_model=SubscriptionsListResponse)
-async def query_subscriptionss_all(
+async def query_subscriptions_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -153,8 +153,8 @@ async def query_subscriptionss_all(
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
-    # Query subscriptionss with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying subscriptionss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    # Query subscriptions with filtering, sorting, and pagination without user limitation
+    logger.debug(f"Querying subscriptions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
 
     service = SubscriptionsService(db)
     try:
@@ -172,12 +172,12 @@ async def query_subscriptionss_all(
             query_dict=query_dict,
             sort=sort
         )
-        logger.debug(f"Found {result['total']} subscriptionss")
+        logger.debug(f"Found {result['total']} subscriptions")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying subscriptionss: {str(e)}", exc_info=True)
+        logger.error(f"Error querying subscriptions: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -232,13 +232,13 @@ async def create_subscriptions(
 
 
 @router.post("/batch", response_model=List[SubscriptionsResponse], status_code=201)
-async def create_subscriptionss_batch(
+async def create_subscriptions_batch(
     request: SubscriptionsBatchCreateRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create multiple subscriptionss in a single request"""
-    logger.debug(f"Batch creating {len(request.items)} subscriptionss")
+    """Create multiple subscriptions in a single request"""
+    logger.debug(f"Batch creating {len(request.items)} subscriptions")
     
     service = SubscriptionsService(db)
     
@@ -247,7 +247,7 @@ async def create_subscriptionss_batch(
             [item.model_dump() for item in request.items],
             user_id=str(current_user.id),
         )
-        logger.info(f"Batch created {len(results)} subscriptionss successfully")
+        logger.info(f"Batch created {len(results)} subscriptions successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -256,13 +256,13 @@ async def create_subscriptionss_batch(
 
 
 @router.put("/batch", response_model=List[SubscriptionsResponse])
-async def update_subscriptionss_batch(
+async def update_subscriptions_batch(
     request: SubscriptionsBatchUpdateRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update multiple subscriptionss in a single request (requires ownership)"""
-    logger.debug(f"Batch updating {len(request.items)} subscriptionss")
+    """Update multiple subscriptions in a single request (requires ownership)"""
+    logger.debug(f"Batch updating {len(request.items)} subscriptions")
     
     service = SubscriptionsService(db)
     results = []
@@ -275,7 +275,7 @@ async def update_subscriptionss_batch(
             if result:
                 results.append(result)
         
-        logger.info(f"Batch updated {len(results)} subscriptionss successfully")
+        logger.info(f"Batch updated {len(results)} subscriptions successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -315,25 +315,19 @@ async def update_subscriptions(
 
 
 @router.delete("/batch")
-async def delete_subscriptionss_batch(
+async def delete_subscriptions_batch(
     request: SubscriptionsBatchDeleteRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete multiple subscriptionss by their IDs (requires ownership)"""
-    logger.debug(f"Batch deleting {len(request.ids)} subscriptionss")
+    """Delete multiple subscriptions by their IDs (requires ownership)"""
+    logger.debug(f"Batch deleting {len(request.ids)} subscriptions")
     
     service = SubscriptionsService(db)
-    deleted_count = 0
-    
     try:
-        for item_id in request.ids:
-            success = await service.delete(item_id, user_id=str(current_user.id))
-            if success:
-                deleted_count += 1
-        
-        logger.info(f"Batch deleted {deleted_count} subscriptionss successfully")
-        return {"message": f"Successfully deleted {deleted_count} subscriptionss", "deleted_count": deleted_count}
+        deleted_count = await service.batch_delete(request.ids, user_id=str(current_user.id))
+        logger.info(f"Batch deleted {deleted_count} subscriptions successfully")
+        return {"message": f"Successfully deleted {deleted_count} subscriptions", "deleted_count": deleted_count}
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)

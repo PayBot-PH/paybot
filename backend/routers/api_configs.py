@@ -85,7 +85,7 @@ class Api_configsBatchDeleteRequest(BaseModel):
 
 # ---------- Routes ----------
 @router.get("", response_model=Api_configsListResponse)
-async def query_api_configss(
+async def query_api_configs(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -94,8 +94,8 @@ async def query_api_configss(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Query api_configss with filtering, sorting, and pagination (user can only see their own records)"""
-    logger.debug(f"Querying api_configss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    """Query api_configs with filtering, sorting, and pagination (user can only see their own records)"""
+    logger.debug(f"Querying api_configs: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
     
     service = Api_configsService(db)
     try:
@@ -114,17 +114,17 @@ async def query_api_configss(
             sort=sort,
             user_id=str(current_user.id),
         )
-        logger.debug(f"Found {result['total']} api_configss")
+        logger.debug(f"Found {result['total']} api_configs")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying api_configss: {str(e)}", exc_info=True)
+        logger.error(f"Error querying api_configs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/all", response_model=Api_configsListResponse)
-async def query_api_configss_all(
+async def query_api_configs_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -132,8 +132,8 @@ async def query_api_configss_all(
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
-    # Query api_configss with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying api_configss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    # Query api_configs with filtering, sorting, and pagination without user limitation
+    logger.debug(f"Querying api_configs: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
 
     service = Api_configsService(db)
     try:
@@ -151,12 +151,12 @@ async def query_api_configss_all(
             query_dict=query_dict,
             sort=sort
         )
-        logger.debug(f"Found {result['total']} api_configss")
+        logger.debug(f"Found {result['total']} api_configs")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying api_configss: {str(e)}", exc_info=True)
+        logger.error(f"Error querying api_configs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -211,13 +211,13 @@ async def create_api_configs(
 
 
 @router.post("/batch", response_model=List[Api_configsResponse], status_code=201)
-async def create_api_configss_batch(
+async def create_api_configs_batch(
     request: Api_configsBatchCreateRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create multiple api_configss in a single request"""
-    logger.debug(f"Batch creating {len(request.items)} api_configss")
+    """Create multiple api_configs in a single request"""
+    logger.debug(f"Batch creating {len(request.items)} api_configs")
     
     service = Api_configsService(db)
     
@@ -226,7 +226,7 @@ async def create_api_configss_batch(
             [item.model_dump() for item in request.items],
             user_id=str(current_user.id),
         )
-        logger.info(f"Batch created {len(results)} api_configss successfully")
+        logger.info(f"Batch created {len(results)} api_configs successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -235,13 +235,13 @@ async def create_api_configss_batch(
 
 
 @router.put("/batch", response_model=List[Api_configsResponse])
-async def update_api_configss_batch(
+async def update_api_configs_batch(
     request: Api_configsBatchUpdateRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update multiple api_configss in a single request (requires ownership)"""
-    logger.debug(f"Batch updating {len(request.items)} api_configss")
+    """Update multiple api_configs in a single request (requires ownership)"""
+    logger.debug(f"Batch updating {len(request.items)} api_configs")
     
     service = Api_configsService(db)
     results = []
@@ -254,7 +254,7 @@ async def update_api_configss_batch(
             if result:
                 results.append(result)
         
-        logger.info(f"Batch updated {len(results)} api_configss successfully")
+        logger.info(f"Batch updated {len(results)} api_configs successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -294,25 +294,19 @@ async def update_api_configs(
 
 
 @router.delete("/batch")
-async def delete_api_configss_batch(
+async def delete_api_configs_batch(
     request: Api_configsBatchDeleteRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete multiple api_configss by their IDs (requires ownership)"""
-    logger.debug(f"Batch deleting {len(request.ids)} api_configss")
+    """Delete multiple api_configs by their IDs (requires ownership)"""
+    logger.debug(f"Batch deleting {len(request.ids)} api_configs")
     
     service = Api_configsService(db)
-    deleted_count = 0
-    
     try:
-        for item_id in request.ids:
-            success = await service.delete(item_id, user_id=str(current_user.id))
-            if success:
-                deleted_count += 1
-        
-        logger.info(f"Batch deleted {deleted_count} api_configss successfully")
-        return {"message": f"Successfully deleted {deleted_count} api_configss", "deleted_count": deleted_count}
+        deleted_count = await service.batch_delete(request.ids, user_id=str(current_user.id))
+        logger.info(f"Batch deleted {deleted_count} api_configs successfully")
+        return {"message": f"Successfully deleted {deleted_count} api_configs", "deleted_count": deleted_count}
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)

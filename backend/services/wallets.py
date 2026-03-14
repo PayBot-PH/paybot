@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.wallets import Wallets
@@ -41,11 +41,13 @@ class WalletsService:
                     data = {**data, 'user_id': user_id}
                 objs.append(Wallets(**data))
             self.db.add_all(objs)
+            await self.db.flush()
+            obj_ids = [obj.id for obj in objs]
             await self.db.commit()
-            for obj in objs:
-                await self.db.refresh(obj)
-            logger.info(f"Bulk created {len(objs)} wallets")
-            return objs
+            result = await self.db.execute(select(Wallets).where(Wallets.id.in_(obj_ids)))
+            refreshed = list(result.scalars().all())
+            logger.info(f"Bulk created {len(refreshed)} wallets")
+            return refreshed
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error bulk creating wallets: {str(e)}")
@@ -156,6 +158,22 @@ class WalletsService:
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error deleting wallets {obj_id}: {str(e)}")
+            raise
+
+    async def batch_delete(self, ids: List[int], user_id: Optional[str] = None) -> int:
+        """Batch-delete multiple wallets by IDs in a single query"""
+        try:
+            stmt = delete(Wallets).where(Wallets.id.in_(ids))
+            if user_id:
+                stmt = stmt.where(Wallets.user_id == user_id)
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            deleted_count = result.rowcount
+            logger.info(f"Batch deleted {deleted_count} wallets")
+            return deleted_count
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error batch deleting wallets: {str(e)}")
             raise
 
     async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Wallets]:

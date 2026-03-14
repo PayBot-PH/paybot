@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.bot_logs import Bot_logs
@@ -41,11 +41,13 @@ class Bot_logsService:
                     data = {**data, 'user_id': user_id}
                 objs.append(Bot_logs(**data))
             self.db.add_all(objs)
+            await self.db.flush()
+            obj_ids = [obj.id for obj in objs]
             await self.db.commit()
-            for obj in objs:
-                await self.db.refresh(obj)
-            logger.info(f"Bulk created {len(objs)} bot_logs")
-            return objs
+            result = await self.db.execute(select(Bot_logs).where(Bot_logs.id.in_(obj_ids)))
+            refreshed = list(result.scalars().all())
+            logger.info(f"Bulk created {len(refreshed)} bot_logs")
+            return refreshed
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error bulk creating bot_logs: {str(e)}")
@@ -156,6 +158,22 @@ class Bot_logsService:
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error deleting bot_logs {obj_id}: {str(e)}")
+            raise
+
+    async def batch_delete(self, ids: List[int], user_id: Optional[str] = None) -> int:
+        """Batch-delete multiple bot_logs by IDs in a single query"""
+        try:
+            stmt = delete(Bot_logs).where(Bot_logs.id.in_(ids))
+            if user_id:
+                stmt = stmt.where(Bot_logs.user_id == user_id)
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            deleted_count = result.rowcount
+            logger.info(f"Batch deleted {deleted_count} bot_logs")
+            return deleted_count
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error batch deleting bot_logs: {str(e)}")
             raise
 
     async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Bot_logs]:

@@ -94,7 +94,7 @@ class RefundsBatchDeleteRequest(BaseModel):
 
 # ---------- Routes ----------
 @router.get("", response_model=RefundsListResponse)
-async def query_refundss(
+async def query_refunds(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -103,8 +103,8 @@ async def query_refundss(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Query refundss with filtering, sorting, and pagination (user can only see their own records)"""
-    logger.debug(f"Querying refundss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    """Query refunds with filtering, sorting, and pagination (user can only see their own records)"""
+    logger.debug(f"Querying refunds: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
     
     service = RefundsService(db)
     try:
@@ -123,17 +123,17 @@ async def query_refundss(
             sort=sort,
             user_id=str(current_user.id),
         )
-        logger.debug(f"Found {result['total']} refundss")
+        logger.debug(f"Found {result['total']} refunds")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying refundss: {str(e)}", exc_info=True)
+        logger.error(f"Error querying refunds: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.get("/all", response_model=RefundsListResponse)
-async def query_refundss_all(
+async def query_refunds_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -141,8 +141,8 @@ async def query_refundss_all(
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
-    # Query refundss with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying refundss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    # Query refunds with filtering, sorting, and pagination without user limitation
+    logger.debug(f"Querying refunds: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
 
     service = RefundsService(db)
     try:
@@ -160,12 +160,12 @@ async def query_refundss_all(
             query_dict=query_dict,
             sort=sort
         )
-        logger.debug(f"Found {result['total']} refundss")
+        logger.debug(f"Found {result['total']} refunds")
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying refundss: {str(e)}", exc_info=True)
+        logger.error(f"Error querying refunds: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -220,13 +220,13 @@ async def create_refunds(
 
 
 @router.post("/batch", response_model=List[RefundsResponse], status_code=201)
-async def create_refundss_batch(
+async def create_refunds_batch(
     request: RefundsBatchCreateRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create multiple refundss in a single request"""
-    logger.debug(f"Batch creating {len(request.items)} refundss")
+    """Create multiple refunds in a single request"""
+    logger.debug(f"Batch creating {len(request.items)} refunds")
     
     service = RefundsService(db)
     
@@ -235,7 +235,7 @@ async def create_refundss_batch(
             [item.model_dump() for item in request.items],
             user_id=str(current_user.id),
         )
-        logger.info(f"Batch created {len(results)} refundss successfully")
+        logger.info(f"Batch created {len(results)} refunds successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -244,13 +244,13 @@ async def create_refundss_batch(
 
 
 @router.put("/batch", response_model=List[RefundsResponse])
-async def update_refundss_batch(
+async def update_refunds_batch(
     request: RefundsBatchUpdateRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Update multiple refundss in a single request (requires ownership)"""
-    logger.debug(f"Batch updating {len(request.items)} refundss")
+    """Update multiple refunds in a single request (requires ownership)"""
+    logger.debug(f"Batch updating {len(request.items)} refunds")
     
     service = RefundsService(db)
     results = []
@@ -263,7 +263,7 @@ async def update_refundss_batch(
             if result:
                 results.append(result)
         
-        logger.info(f"Batch updated {len(results)} refundss successfully")
+        logger.info(f"Batch updated {len(results)} refunds successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -303,25 +303,19 @@ async def update_refunds(
 
 
 @router.delete("/batch")
-async def delete_refundss_batch(
+async def delete_refunds_batch(
     request: RefundsBatchDeleteRequest,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Delete multiple refundss by their IDs (requires ownership)"""
-    logger.debug(f"Batch deleting {len(request.ids)} refundss")
+    """Delete multiple refunds by their IDs (requires ownership)"""
+    logger.debug(f"Batch deleting {len(request.ids)} refunds")
     
     service = RefundsService(db)
-    deleted_count = 0
-    
     try:
-        for item_id in request.ids:
-            success = await service.delete(item_id, user_id=str(current_user.id))
-            if success:
-                deleted_count += 1
-        
-        logger.info(f"Batch deleted {deleted_count} refundss successfully")
-        return {"message": f"Successfully deleted {deleted_count} refundss", "deleted_count": deleted_count}
+        deleted_count = await service.batch_delete(request.ids, user_id=str(current_user.id))
+        logger.info(f"Batch deleted {deleted_count} refunds successfully")
+        return {"message": f"Successfully deleted {deleted_count} refunds", "deleted_count": deleted_count}
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)

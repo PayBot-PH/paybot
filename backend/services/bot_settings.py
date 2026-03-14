@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.bot_settings import Bot_settings
@@ -41,11 +41,13 @@ class Bot_settingsService:
                     data = {**data, 'user_id': user_id}
                 objs.append(Bot_settings(**data))
             self.db.add_all(objs)
+            await self.db.flush()
+            obj_ids = [obj.id for obj in objs]
             await self.db.commit()
-            for obj in objs:
-                await self.db.refresh(obj)
-            logger.info(f"Bulk created {len(objs)} bot_settings")
-            return objs
+            result = await self.db.execute(select(Bot_settings).where(Bot_settings.id.in_(obj_ids)))
+            refreshed = list(result.scalars().all())
+            logger.info(f"Bulk created {len(refreshed)} bot_settings")
+            return refreshed
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error bulk creating bot_settings: {str(e)}")
@@ -156,6 +158,22 @@ class Bot_settingsService:
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error deleting bot_settings {obj_id}: {str(e)}")
+            raise
+
+    async def batch_delete(self, ids: List[int], user_id: Optional[str] = None) -> int:
+        """Batch-delete multiple bot_settings by IDs in a single query"""
+        try:
+            stmt = delete(Bot_settings).where(Bot_settings.id.in_(ids))
+            if user_id:
+                stmt = stmt.where(Bot_settings.user_id == user_id)
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            deleted_count = result.rowcount
+            logger.info(f"Batch deleted {deleted_count} bot_settings")
+            return deleted_count
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error batch deleting bot_settings: {str(e)}")
             raise
 
     async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Bot_settings]:

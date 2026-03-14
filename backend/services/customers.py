@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.customers import Customers
@@ -41,11 +41,13 @@ class CustomersService:
                     data = {**data, 'user_id': user_id}
                 objs.append(Customers(**data))
             self.db.add_all(objs)
+            await self.db.flush()
+            obj_ids = [obj.id for obj in objs]
             await self.db.commit()
-            for obj in objs:
-                await self.db.refresh(obj)
-            logger.info(f"Bulk created {len(objs)} customers")
-            return objs
+            result = await self.db.execute(select(Customers).where(Customers.id.in_(obj_ids)))
+            refreshed = list(result.scalars().all())
+            logger.info(f"Bulk created {len(refreshed)} customers")
+            return refreshed
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error bulk creating customers: {str(e)}")
@@ -156,6 +158,22 @@ class CustomersService:
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error deleting customers {obj_id}: {str(e)}")
+            raise
+
+    async def batch_delete(self, ids: List[int], user_id: Optional[str] = None) -> int:
+        """Batch-delete multiple customers by IDs in a single query"""
+        try:
+            stmt = delete(Customers).where(Customers.id.in_(ids))
+            if user_id:
+                stmt = stmt.where(Customers.user_id == user_id)
+            result = await self.db.execute(stmt)
+            await self.db.commit()
+            deleted_count = result.rowcount
+            logger.info(f"Batch deleted {deleted_count} customers")
+            return deleted_count
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error batch deleting customers: {str(e)}")
             raise
 
     async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Customers]:
