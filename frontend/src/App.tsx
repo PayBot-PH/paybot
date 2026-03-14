@@ -21,6 +21,7 @@ import UsdtSendRequestsPage from './pages/UsdtSendRequestsPage';
 import BankDepositsPage from './pages/BankDepositsPage';
 import KybRegistrationsPage from './pages/KybRegistrationsPage';
 import KycVerificationsPage from './pages/KycVerificationsPage';
+import RolesPage from './pages/RolesPage';
 import RequireSuperAdmin from './components/RequireSuperAdmin';
 import ProtectedAdminRoute from './components/ProtectedAdminRoute';
 import Policies from './pages/Policies';
@@ -106,6 +107,7 @@ const App = () => (
               <Route path="/bank-deposits" element={<RequireSuperAdmin><BankDepositsPage /></RequireSuperAdmin>} />
               <Route path="/kyb-registrations" element={<RequireSuperAdmin><KybRegistrationsPage /></RequireSuperAdmin>} />
               <Route path="/kyc-verifications" element={<RequireSuperAdmin><KycVerificationsPage /></RequireSuperAdmin>} />
+              <Route path="/roles" element={<RequireSuperAdmin><RolesPage /></RequireSuperAdmin>} />
               <Route path="/policies" element={<Policies />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
