@@ -355,8 +355,8 @@ _CMD_STEPS: Dict[str, List[Dict]] = {
         {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>exact amount</b> sent in PHP:\n<i>e.g. 500.00</i>"},
     ],
     "/scanqr": [
+        {"key": "qr_data", "type": "photo", "prompt": "📷 Please upload a photo of the <b>QRPH QR code</b>.\n<i>Make sure the QR code is clearly visible and well-lit.</i>"},
         {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>amount</b> to pay in PHP:\n<i>e.g. 500</i>"},
-        {"key": "qr_data", "type": "photo", "prompt": "📷 Now upload a photo of the <b>QRPH QR code</b>.\n<i>Make sure the QR code is clearly visible and well-lit.</i>"},
     ],
 }
 
@@ -1475,6 +1475,20 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
             # More steps outstanding?
             if state["step"] < len(steps):
+                # /scanqr: after the QR photo is decoded, check PHP balance before
+                # asking for the amount — fail immediately if no funds available.
+                if cmd == "/scanqr" and state["step"] == 1:
+                    php_bal = await _get_php_balance_for_bot(db, f"tg-{chat_id}")
+                    if php_bal <= 0:
+                        del _pending[chat_id]
+                        await telegram_service.send_message(
+                            chat_id,
+                            "❌ <b>Transaction Failed</b>\n\n"
+                            "Your PHP wallet balance is <b>₱0.00</b>.\n"
+                            "You do not have sufficient funds to complete this QRPH payment.\n\n"
+                            "💡 Please top up first using /alipay or /wechat.",
+                        )
+                        return {"status": "ok"}
                 next_param = steps[state["step"]]
                 await telegram_service.send_message(chat_id, next_param["prompt"])
                 return {"status": "ok"}
@@ -1491,6 +1505,18 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     qr_data = collected.get("qr_data", "")
                     if amount <= 0 or not qr_data:
                         await telegram_service.send_message(chat_id, "❌ Invalid amount or missing QR data.")
+                        return {"status": "ok"}
+                    # Final balance check: ensure the user has enough to cover the exact amount.
+                    php_bal = await _get_php_balance_for_bot(db, f"tg-{chat_id}")
+                    if php_bal < amount:
+                        await telegram_service.send_message(
+                            chat_id,
+                            f"❌ <b>Transaction Failed — Insufficient Balance</b>\n\n"
+                            f"💰 Required: <b>₱{amount:,.2f}</b>\n"
+                            f"💳 Available: <b>₱{php_bal:,.2f}</b>\n\n"
+                            f"Your balance is not enough to complete this QRPH payment.\n"
+                            f"Please top up first using /alipay or /wechat.",
+                        )
                         return {"status": "ok"}
                     await _process_scanqr(telegram_service, db, chat_id, username, amount, qr_data)
                 except Exception as exc:
