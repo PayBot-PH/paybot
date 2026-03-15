@@ -233,9 +233,9 @@ export default function Wallet() {
     if (!user) return;
     try {
       const [phpRes, usdRes, txnRes] = await Promise.all([
-        fetch('/api/v1/wallet/balance?currency=PHP').then(r => r.json()),
-        fetch('/api/v1/wallet/balance?currency=USD').then(r => r.json()),
-        fetch('/api/v1/wallet/transactions').then(r => r.json()),
+        fetch('/api/v1/wallet/balance?currency=PHP').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+        fetch('/api/v1/wallet/balance?currency=USD').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
+        fetch('/api/v1/wallet/transactions').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); }),
       ]);
       setPhpBalance(phpRes);
       setUsdBalance(usdRes);
@@ -294,7 +294,7 @@ export default function Wallet() {
 
     // Fetch available banks
     fetch('/api/v1/gateway/available-banks')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((data) => {
         const banks: BankOption[] = (data || []).map((b: { name: string; code: string }) => ({
           name: b.name,
@@ -314,7 +314,7 @@ export default function Wallet() {
 
     // Fetch crypto deposit info
     fetch('/api/v1/wallet/crypto-deposit-info')
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(data => setCryptoDepositInfo(data))
       .catch(() => {});
   }, [user, fetchWalletData, fetchCryptoRequests, fetchSendUsdtRequests]);

@@ -1209,8 +1209,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     select(TopupRequest)
                     .where(TopupRequest.chat_id == chat_id, TopupRequest.status == "pending", TopupRequest.receipt_file_id.is_(None))
                     .order_by(TopupRequest.created_at.desc())
+                    .limit(1)
                 )
-                pending_topup = result.scalar_one_or_none()
+                pending_topup = result.scalars().first()
                 if pending_topup:
                     # Save the highest-resolution photo file_id
                     best_photo = max(photos, key=lambda p: p.get("file_size", 0))
@@ -1241,8 +1242,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     select(BankDepositRequest)
                     .where(BankDepositRequest.chat_id == chat_id, BankDepositRequest.status == "pending", BankDepositRequest.receipt_file_id.is_(None))
                     .order_by(BankDepositRequest.created_at.desc())
+                    .limit(1)
                 )
-                pending_deposit = dep_result.scalar_one_or_none()
+                pending_deposit = dep_result.scalars().first()
                 if pending_deposit:
                     best_photo = max(photos, key=lambda p: p.get("file_size", 0))
                     pending_deposit.receipt_file_id = best_photo["file_id"]
