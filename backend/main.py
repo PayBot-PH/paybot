@@ -15,7 +15,7 @@ from fastapi.routing import APIRouter
 from fastapi.staticfiles import StaticFiles
 
 # MODULE_IMPORTS_START
-from services.database import initialize_database, close_database
+from services.database import initialize_database, close_database, check_database_health
 from services.auth import initialize_admin_user
 # MODULE_IMPORTS_END
 
@@ -303,8 +303,14 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 @app.get("/health")
-def health_check():
-    return {"status": "healthy"}
+async def health_check():
+    db_healthy = await check_database_health()
+    if db_healthy:
+        return {"status": "healthy", "database": "healthy"}
+    return JSONResponse(
+        status_code=503,
+        content={"status": "unhealthy", "database": "unavailable"},
+    )
 
 
 # ── Frontend SPA serving ─────────────────────────────────────────────────────

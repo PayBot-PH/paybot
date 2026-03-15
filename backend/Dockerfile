@@ -43,5 +43,7 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
 
-# Start the server — attempt migrations first (non-fatal), then start uvicorn
-CMD ["sh", "-c", "alembic upgrade head || echo 'Alembic migration failed, continuing...' ; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start the server — run migrations first, then start uvicorn.
+# Using && so a failed migration aborts startup; Railway will keep the old
+# container running until the new one passes the /health check.
+CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
