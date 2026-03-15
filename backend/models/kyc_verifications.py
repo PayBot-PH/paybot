@@ -21,7 +21,7 @@ class KycVerification(Base):
     telegram_username = Column(String(128), nullable=True)
 
     # KYC step tracking — values: "full_name" | "date_of_birth" | "nationality" | "id_type" | "id_number" | "id_photo" | "selfie" | "done"
-    step = Column(String(32), nullable=False, default="full_name")
+    step = Column(String(32), nullable=False, default="full_name", server_default="full_name")
 
     # Collected KYC answers
     full_name = Column(String(256), nullable=True)
@@ -33,7 +33,7 @@ class KycVerification(Base):
     selfie_file_id = Column(String(256), nullable=True)
 
     # Overall status — values: "in_progress" | "pending_review" | "approved" | "rejected"
-    status = Column(String(32), nullable=False, default="in_progress")
+    status = Column(String(32), nullable=False, default="in_progress", server_default="in_progress")
     rejection_reason = Column(String(512), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
