@@ -74,6 +74,10 @@ class Settings(BaseSettings):
     paymongo_public_key: str = ""
     paymongo_webhook_secret: str = ""
     paymongo_mode: str = "test"  # "test" or "live"
+    # PayMongo wallet top-up via InstaPay / PESONet
+    paymongo_bank_name: str = "paymongo"
+    paymongo_account_name: str = "DRL TECHS. COMPUTER SOFTWARE TRADING"
+    paymongo_account_number: str = "655716460543"
 
     # PhotonPay API (Alipay / WeChat Pay collection)
     # Credentials from PhotonPay merchant portal (Settings > Developer)

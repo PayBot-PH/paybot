@@ -42,6 +42,11 @@ router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
 
 USDT_TRC20_ADDRESS = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
 
+# PayMongo wallet top-up via InstaPay / PESONet (values default to config, overridable via env vars)
+PAYMONGO_BANK_NAME = settings.paymongo_bank_name
+PAYMONGO_ACCOUNT_NAME = settings.paymongo_account_name
+PAYMONGO_ACCOUNT_NUMBER = settings.paymongo_account_number
+
 # Transaction types that credit / debit the USD wallet (keep in sync with wallet.py)
 _USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
 _USD_DEBIT_TYPES = ("usdt_send", "usd_send", "admin_debit")
@@ -345,7 +350,7 @@ _CMD_STEPS: Dict[str, List[Dict]] = {
         {"key": "id", "type": "str", "prompt": "🆔 Enter the <b>transaction ID</b> to send a reminder:\n<i>e.g. INV-xxx</i>"},
     ],
     "/deposit": [
-        {"key": "channel", "type": "str",   "prompt": "💳 Enter the <b>payment channel</b> used to send the money:\n<i>GCASH · MAYA · BDO · BPI · METROBANK · UNIONBANK · LANDBANK</i>"},
+        {"key": "channel", "type": "str",   "prompt": "💳 Enter the <b>payment channel</b> used to send the money:\n<i>INSTAPAY · PESONET · GCASH · MAYA · BDO · BPI · METROBANK · UNIONBANK · LANDBANK</i>"},
         {"key": "account", "type": "str",   "prompt": "🔢 Enter the <b>account / mobile number</b> used to make the transfer:\n<i>e.g. 09XXXXXXXXX or your bank account number</i>"},
         {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>exact amount</b> sent in PHP:\n<i>e.g. 500.00</i>"},
     ],
@@ -3174,18 +3179,26 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 _localize(chat_id,
                    "🏦 <b>Bank / E-Wallet Deposit</b>\n"
                    "━━━━━━━━━━━━━━━━━━━━\n"
-                   "I'll guide you through submitting your deposit receipt for verification.\n\n"
+                   "Transfer funds to our PayMongo wallet via <b>InstaPay</b> or <b>PESONet</b>:\n\n"
+                   f"🏦 Bank: <b>{PAYMONGO_BANK_NAME}</b>\n"
+                   f"👤 Account Name: <b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
+                   f"🔢 Account Number: <code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
                    "Supported channels:\n"
+                   "  • <b>InstaPay</b> · <b>PESONet</b>\n"
                    "  • <b>GCash</b> · <b>Maya</b>\n"
                    "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
-                   "Let's start — I'll ask you a few quick questions.",
+                   "After transferring, I'll ask you a few quick questions to record your deposit.",
                    "🏦 <b>银行 / 电子钱包存款</b>\n"
                    "━━━━━━━━━━━━━━━━━━━━\n"
-                   "请按步骤提交存款收据以供核实。\n\n"
+                   "通过 <b>InstaPay</b> 或 <b>PESONet</b> 将资金转入我们的 PayMongo 钱包：\n\n"
+                   f"🏦 银行：<b>{PAYMONGO_BANK_NAME}</b>\n"
+                   f"👤 账户名：<b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
+                   f"🔢 账户号：<code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
                    "支持的渠道：\n"
+                   "  • <b>InstaPay</b> · <b>PESONet</b>\n"
                    "  • <b>GCash</b> · <b>Maya</b>\n"
                    "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
-                   "开始吧，我会问您几个简单问题。"),
+                   "转账后，我会问您几个问题来记录您的存款。"),
             )
             prompt = _wizard_start(chat_id, "/deposit")
             await telegram_service.send_message(chat_id, prompt)
