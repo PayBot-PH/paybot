@@ -50,7 +50,10 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetch('/api/v1/app-settings/maintenance')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         setMaintenanceMode(!!data.maintenance_mode);
       })

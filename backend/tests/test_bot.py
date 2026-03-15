@@ -63,6 +63,29 @@ class TestHealth:
         assert r.status_code == 200
         assert r.json()["status"] == "healthy"
 
+    def test_root_health_includes_database_field(self, client):
+        """The /health endpoint must return a 'database' field so callers can
+        distinguish between a simple liveness probe and a full readiness check."""
+        r = client.get("/health")
+        assert r.status_code == 200
+        data = r.json()
+        assert "database" in data
+
+    def test_root_health_returns_503_when_db_unavailable(self):
+        """When the database is unreachable /health must return HTTP 503 so that
+        Railway/Render does not route traffic to an instance with a broken DB."""
+        from unittest.mock import patch, AsyncMock
+        from fastapi.testclient import TestClient
+        from main import app
+
+        with patch("main.check_database_health", new=AsyncMock(return_value=False)):
+            with TestClient(app, raise_server_exceptions=False) as c:
+                r = c.get("/health")
+        assert r.status_code == 503
+        data = r.json()
+        assert data["status"] == "unhealthy"
+        assert data["database"] == "unavailable"
+
     def test_api_v1_health(self, client):
         r = client.get("/api/v1/health")
         assert r.status_code == 200
