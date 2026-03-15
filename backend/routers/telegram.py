@@ -47,6 +47,11 @@ PAYMONGO_BANK_NAME = settings.paymongo_bank_name
 PAYMONGO_ACCOUNT_NAME = settings.paymongo_account_name
 PAYMONGO_ACCOUNT_NUMBER = settings.paymongo_account_number
 
+# Xendit bank deposit account (shown in /deposit command and balance-error messages)
+XENDIT_BANK_NAME = settings.xendit_bank_name
+XENDIT_ACCOUNT_NAME = settings.xendit_account_name
+XENDIT_ACCOUNT_NUMBER = settings.xendit_account_number
+
 # Transaction types that credit / debit the USD wallet (keep in sync with wallet.py)
 _USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
 _USD_DEBIT_TYPES = ("usdt_send", "usd_send", "admin_debit")
@@ -1486,11 +1491,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             "❌ <b>Transaction Failed — No Balance</b>\n\n"
                             "Your PHP wallet balance is <b>₱0.00</b>.\n"
                             "You do not have sufficient funds to complete this QRPH payment.\n\n"
-                            "💳 <b>Top up via Bank / E-Wallet Deposit:</b>\n"
+                            "💳 <b>Top up via Bank / E-Wallet Deposit — use the Bot Command /deposit</b>\n"
                             "━━━━━━━━━━━━━━━━━━━━\n"
-                            f"🏦 Bank: <b>{PAYMONGO_BANK_NAME}</b>\n"
-                            f"👤 Account Name: <b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
-                            f"🔢 Account Number: <code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
+                            f"🏦 Bank: <b>{XENDIT_BANK_NAME}</b>\n"
+                            f"👤 Account Name: <b>{XENDIT_ACCOUNT_NAME}</b>\n"
+                            f"🔢 Account Number: <code>{XENDIT_ACCOUNT_NUMBER}</code>\n\n"
                             "Supported channels:\n"
                             "  • <b>InstaPay</b> · <b>PESONet</b>\n"
                             "  • <b>GCash</b> · <b>Maya</b>\n"
@@ -1522,13 +1527,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             chat_id,
                             f"❌ <b>Transaction Failed — Insufficient Balance</b>\n\n"
                             f"💰 Required: <b>₱{amount:,.2f}</b>\n"
-                            f"💳 Available: <b>₱{php_bal:,.2f}</b>\n\n"
+                            f"💳 Available: <b>₱{php_bal:,.2f}</b>\n"
+                            f"📉 Shortfall: <b>-₱{amount - php_bal:,.2f}</b>\n\n"
                             f"Your balance is not enough to complete this QRPH payment.\n\n"
-                            "💳 <b>Top up via Bank / E-Wallet Deposit:</b>\n"
+                            "💳 <b>Top up via Bank / E-Wallet Deposit — use the Bot Command /deposit</b>\n"
                             "━━━━━━━━━━━━━━━━━━━━\n"
-                            f"🏦 Bank: <b>{PAYMONGO_BANK_NAME}</b>\n"
-                            f"👤 Account Name: <b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
-                            f"🔢 Account Number: <code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
+                            f"🏦 Bank: <b>{XENDIT_BANK_NAME}</b>\n"
+                            f"👤 Account Name: <b>{XENDIT_ACCOUNT_NAME}</b>\n"
+                            f"🔢 Account Number: <code>{XENDIT_ACCOUNT_NUMBER}</code>\n\n"
                             "Supported channels:\n"
                             "  • <b>InstaPay</b> · <b>PESONet</b>\n"
                             "  • <b>GCash</b> · <b>Maya</b>\n"
@@ -3223,10 +3229,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 _localize(chat_id,
                    "🏦 <b>Bank / E-Wallet Deposit</b>\n"
                    "━━━━━━━━━━━━━━━━━━━━\n"
-                   "Transfer funds to our PayMongo wallet via <b>InstaPay</b> or <b>PESONet</b>:\n\n"
-                   f"🏦 Bank: <b>{PAYMONGO_BANK_NAME}</b>\n"
-                   f"👤 Account Name: <b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
-                   f"🔢 Account Number: <code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
+                   "Transfer funds to our Xendit account via <b>InstaPay</b> or <b>PESONet</b>:\n\n"
+                   f"🏦 Bank: <b>{XENDIT_BANK_NAME}</b>\n"
+                   f"👤 Account Name: <b>{XENDIT_ACCOUNT_NAME}</b>\n"
+                   f"🔢 Account Number: <code>{XENDIT_ACCOUNT_NUMBER}</code>\n\n"
                    "Supported channels:\n"
                    "  • <b>InstaPay</b> · <b>PESONet</b>\n"
                    "  • <b>GCash</b> · <b>Maya</b>\n"
@@ -3234,10 +3240,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                    "After transferring, I'll ask you a few quick questions to record your deposit.",
                    "🏦 <b>银行 / 电子钱包存款</b>\n"
                    "━━━━━━━━━━━━━━━━━━━━\n"
-                   "通过 <b>InstaPay</b> 或 <b>PESONet</b> 将资金转入我们的 PayMongo 钱包：\n\n"
-                   f"🏦 银行：<b>{PAYMONGO_BANK_NAME}</b>\n"
-                   f"👤 账户名：<b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
-                   f"🔢 账户号：<code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
+                   "通过 <b>InstaPay</b> 或 <b>PESONet</b> 将资金转入我们的 Xendit 账户：\n\n"
+                   f"🏦 银行：<b>{XENDIT_BANK_NAME}</b>\n"
+                   f"👤 账户名：<b>{XENDIT_ACCOUNT_NAME}</b>\n"
+                   f"🔢 账户号：<code>{XENDIT_ACCOUNT_NUMBER}</code>\n\n"
                    "支持的渠道：\n"
                    "  • <b>InstaPay</b> · <b>PESONet</b>\n"
                    "  • <b>GCash</b> · <b>Maya</b>\n"
