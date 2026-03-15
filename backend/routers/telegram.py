@@ -1483,10 +1483,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         del _pending[chat_id]
                         await telegram_service.send_message(
                             chat_id,
-                            "❌ <b>Transaction Failed</b>\n\n"
+                            "❌ <b>Transaction Failed — No Balance</b>\n\n"
                             "Your PHP wallet balance is <b>₱0.00</b>.\n"
                             "You do not have sufficient funds to complete this QRPH payment.\n\n"
-                            "💡 Please top up first using /alipay or /wechat.",
+                            "💳 <b>Top up via Bank / E-Wallet Deposit:</b>\n"
+                            "━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🏦 Bank: <b>{PAYMONGO_BANK_NAME}</b>\n"
+                            f"👤 Account Name: <b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
+                            f"🔢 Account Number: <code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
+                            "Supported channels:\n"
+                            "  • <b>InstaPay</b> · <b>PESONet</b>\n"
+                            "  • <b>GCash</b> · <b>Maya</b>\n"
+                            "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
+                            "After transferring, use /deposit to record your payment.",
                         )
                         return {"status": "ok"}
                 next_param = steps[state["step"]]
@@ -1514,8 +1523,17 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"❌ <b>Transaction Failed — Insufficient Balance</b>\n\n"
                             f"💰 Required: <b>₱{amount:,.2f}</b>\n"
                             f"💳 Available: <b>₱{php_bal:,.2f}</b>\n\n"
-                            f"Your balance is not enough to complete this QRPH payment.\n"
-                            f"Please top up first using /alipay or /wechat.",
+                            f"Your balance is not enough to complete this QRPH payment.\n\n"
+                            "💳 <b>Top up via Bank / E-Wallet Deposit:</b>\n"
+                            "━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🏦 Bank: <b>{PAYMONGO_BANK_NAME}</b>\n"
+                            f"👤 Account Name: <b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
+                            f"🔢 Account Number: <code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
+                            "Supported channels:\n"
+                            "  • <b>InstaPay</b> · <b>PESONet</b>\n"
+                            "  • <b>GCash</b> · <b>Maya</b>\n"
+                            "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
+                            "After transferring, use /deposit to record your payment.",
                         )
                         return {"status": "ok"}
                     await _process_scanqr(telegram_service, db, chat_id, username, amount, qr_data)
