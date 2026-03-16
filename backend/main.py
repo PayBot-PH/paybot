@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from services.database import initialize_database, close_database, check_database_health
 from services.auth import initialize_admin_user
 # MODULE_IMPORTS_END
+from routers.telegram import telegram_webhook as _telegram_webhook
 
 # Telegram bot commands registered on startup
 BOT_COMMANDS = [
@@ -287,6 +288,13 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
 # Setup logging before router discovery
 setup_logging()
 include_routers_from_package(app, "routers")
+
+# Add /webhook as a top-level alias for the Telegram webhook handler.
+# Telegram may have been configured to POST to /webhook (without the
+# /api/v1/telegram prefix).  Without this alias the GET /{full_path:path}
+# catch-all matches the path but not the method, returning 405 instead of
+# handling the update.
+app.add_api_route("/webhook", _telegram_webhook, methods=["POST"], include_in_schema=False)
 
 
 # Add exception handler for all exceptions except HTTPException
