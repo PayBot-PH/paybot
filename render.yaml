@@ -9,6 +9,8 @@ services:
     envVars:
       - key: PYTHON_BACKEND_URL
         sync: false
+      - key: CUSTOM_DOMAIN
+        sync: false
       - key: TELEGRAM_BOT_TOKEN
         sync: false
       - key: TELEGRAM_BOT_USERNAME

@@ -88,6 +88,7 @@ Railway will automatically create services based on your `railway.toml` configur
 
 | Variable Name | Description | Default Value |
 |--------------|-------------|---------------|
+| `CUSTOM_DOMAIN` | Your custom domain name — auto-configures backend URL and CORS | Empty |
 | `ENVIRONMENT` | Application environment | `production` |
 | `DEBUG` | Enable debug mode | `false` |
 | `PORT` | Server port (auto-set by Railway) | `8000` |
@@ -99,6 +100,20 @@ Railway will automatically create services based on your `railway.toml` configur
 ```
 ALLOWED_ORIGINS=https://your-frontend.railway.app,http://localhost:3000
 ```
+
+#### Using a Custom Domain
+
+If you have registered your own domain (e.g. `drl-developers.info`) and pointed it at your deployed service, set **only** `CUSTOM_DOMAIN` instead of configuring `PYTHON_BACKEND_URL` and `ALLOWED_ORIGINS` separately:
+
+```
+CUSTOM_DOMAIN=drl-developers.info
+```
+
+PayBot will automatically:
+- Use `https://drl-developers.info` as the backend URL for Telegram webhooks and QR-code image links.
+- Add `https://drl-developers.info` to the CORS allowed-origins list so the admin dashboard loads correctly.
+
+You do **not** need to set `PYTHON_BACKEND_URL` or `ALLOWED_ORIGINS` when `CUSTOM_DOMAIN` is configured — though you can still add extra origins to `ALLOWED_ORIGINS` if needed (e.g. `http://localhost:3000` for local development).
 
 ### 2.2 Frontend Environment Variables (if deploying frontend separately)
 
