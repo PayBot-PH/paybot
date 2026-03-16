@@ -1262,13 +1262,23 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.commit()
                     await telegram_service.send_message(
                         chat_id,
-                        f"✅ <b>Receipt received!</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💳 Channel: <b>{pending_deposit.channel}</b>\n"
-                        f"🔢 Account: <code>{pending_deposit.account_number}</code>\n"
-                        f"💰 Amount: <b>₱{pending_deposit.amount_php:,.2f}</b>\n"
-                        f"🆔 Request ID: <code>#{pending_deposit.id}</code>\n\n"
-                        f"⏳ Under review by admin. Your PHP wallet will be credited once approved.",
+                        _localize(
+                            chat_id,
+                            f"📷 <b>Receipt received!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💳 Channel: <b>{pending_deposit.channel}</b>\n"
+                            f"🔢 Account: <code>{pending_deposit.account_number}</code>\n"
+                            f"💰 Amount: <b>₱{pending_deposit.amount_php:,.2f}</b>\n"
+                            f"🆔 Request ID: <code>#{pending_deposit.id}</code>\n\n"
+                            f"⏳ <b>Please wait for confirmation</b> — our team is reviewing your deposit. Your PHP wallet will be credited once approved.",
+                            f"📷 <b>收据已收到！</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💳 渠道：<b>{pending_deposit.channel}</b>\n"
+                            f"🔢 账号：<code>{pending_deposit.account_number}</code>\n"
+                            f"💰 金额：<b>₱{pending_deposit.amount_php:,.2f}</b>\n"
+                            f"🆔 请求编号：<code>#{pending_deposit.id}</code>\n\n"
+                            f"⏳ <b>请等待确认</b> — 我们的团队正在审核您的存款，批准后将存入您的 PHP 钱包。",
+                        ),
                     )
                     return {"status": "ok"}
 
@@ -1572,14 +1582,27 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.refresh(deposit_req)
                     await telegram_service.send_message(
                         chat_id,
-                        f"✅ <b>Deposit details recorded!</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💳 Channel: <b>{channel}</b>\n"
-                        f"🔢 Account: <code>{account}</code>\n"
-                        f"💰 Amount: <b>₱{amount_php:,.2f}</b>\n"
-                        f"🆔 Request ID: <code>#{deposit_req.id}</code>\n\n"
-                        f"📷 <b>Next step:</b> Please send a screenshot / photo of your transfer confirmation in this chat.\n"
-                        f"The admin will verify and credit your PHP wallet once the receipt is confirmed.",
+                        _localize(
+                            chat_id,
+                            f"✅ <b>Deposit Details Confirmed!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"Here is a summary of what you submitted:\n\n"
+                            f"💳 Channel: <b>{channel}</b>\n"
+                            f"🔢 Account: <code>{account}</code>\n"
+                            f"💰 Amount: <b>₱{amount_php:,.2f}</b>\n"
+                            f"🆔 Request ID: <code>#{deposit_req.id}</code>\n\n"
+                            f"📷 <b>Next step:</b> Please send a screenshot / photo of your transfer receipt in this chat so we can verify it faster.\n\n"
+                            f"⏳ <b>Please wait</b> — our team will review your deposit and credit your PHP wallet once confirmed.",
+                            f"✅ <b>存款详情已确认！</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"以下是您提交的信息摘要：\n\n"
+                            f"💳 渠道：<b>{channel}</b>\n"
+                            f"🔢 账号：<code>{account}</code>\n"
+                            f"💰 金额：<b>₱{amount_php:,.2f}</b>\n"
+                            f"🆔 请求编号：<code>#{deposit_req.id}</code>\n\n"
+                            f"📷 <b>下一步：</b>请在此发送转账收据截图，以便我们更快速地核实。\n\n"
+                            f"⏳ <b>请耐心等待</b> — 我们的团队将审核您的存款，确认后将存入您的 PHP 钱包。",
+                        ),
                     )
                 except Exception as exc:
                     logger.error(f"/deposit wizard completion error: {exc}", exc_info=True)
