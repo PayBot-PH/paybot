@@ -1,11 +1,12 @@
 # PayBot Deployment Guide
 
-This guide covers deploying PayBot on **Railway** or **Render** with a PostgreSQL database.
+This guide covers deploying PayBot on **Railway**, **Render**, or **Cloudflare Pages** (frontend) with a PostgreSQL database.
 
 ## Prerequisites
 
 - A GitHub account with access to the PayBot repository
-- A [Railway](https://railway.app) **or** [Render](https://render.com) account
+- A [Railway](https://railway.app) **or** [Render](https://render.com) account (for the backend)
+- Optionally a [Cloudflare](https://cloudflare.com) account (for the frontend)
 - A Xendit account for payment processing
 - A Telegram Bot Token (create via [@BotFather](https://t.me/botfather))
 
@@ -22,6 +23,9 @@ This guide covers deploying PayBot on **Railway** or **Render** with a PostgreSQ
 ### Render
 7. [Troubleshooting](#7-troubleshooting)
 8. [Render Setup](#8-render-setup)
+
+### Cloudflare Pages
+9. [Cloudflare Pages Setup](#9-cloudflare-pages-setup)
 
 ---
 
@@ -498,10 +502,100 @@ Expected response:
 
 ---
 
+## 9. Cloudflare Pages Setup
+
+[Cloudflare Pages](https://pages.cloudflare.com) hosts the React frontend as a globally-distributed static site. The backend (API) continues to run on Railway or Render — Cloudflare Pages Functions transparently proxy every `/api/*` request to it, so the frontend code requires no changes.
+
+### Architecture
+
+```
+Browser → Cloudflare Pages (static SPA)
+              ↓ /api/*  (Pages Function proxy)
+         Railway / Render  (FastAPI backend)
+```
+
+### 9.1 Prerequisites
+
+- A deployed backend on Railway or Render (see sections above)
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up)
+
+### 9.2 Create a Cloudflare Pages Project
+
+1. Log in to the [Cloudflare dashboard](https://dash.cloudflare.com)
+2. Go to **Workers & Pages** → **Create application** → **Pages**
+3. Click **Connect to Git**, authenticate with GitHub, and select the `paybot` repository
+4. Configure the build settings:
+
+   | Setting | Value |
+   |---------|-------|
+   | **Root directory** | `frontend` |
+   | **Build command** | `pnpm install --frozen-lockfile && pnpm run build` |
+   | **Build output directory** | `dist` |
+   | **Node.js version** | `20` |
+
+5. Click **Save and Deploy** — Cloudflare will run the build and publish the site
+
+### 9.3 Set Environment Variables in Cloudflare Pages
+
+After the initial deploy, go to your Pages project → **Settings** → **Environment variables** and add:
+
+| Variable | Environment | Description |
+|----------|-------------|-------------|
+| `BACKEND_URL` | Production | Public URL of your backend, e.g. `https://paybot-backend.onrender.com` or `https://your-backend.railway.app` |
+| `VITE_TELEGRAM_BOT_USERNAME` | Production | Your bot username without `@`, e.g. `mypaybot` (used by Telegram Login Widget) |
+
+> **Note:** Variables prefixed with `VITE_` are embedded into the frontend bundle at build time. `BACKEND_URL` (no prefix) is read at runtime by the Cloudflare Pages Function proxy and is never exposed to the browser.
+
+After adding variables, trigger a new deployment (**Deployments** → **Retry deployment**) so the build picks up the new `VITE_*` values.
+
+### 9.4 GitHub Actions Secrets Setup
+
+The deploy workflow automatically deploys to Cloudflare Pages on every push to `main` when the required secrets are present.
+
+**Add these secrets to your GitHub repository** (Settings → Secrets and variables → Actions, or under the `production` environment):
+
+| Secret | Description |
+|--------|-------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Cloudflare Pages: Edit** permission |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID (found in the dashboard right sidebar) |
+| `CLOUDFLARE_PROJECT_NAME` | Name of the Cloudflare Pages project (defaults to `paybot` if not set) |
+
+**How to create the API token:**
+
+1. Go to [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens)
+2. Click **Create Token** → **Use template** → **Edit Cloudflare Workers**
+3. Under **Permissions**, ensure **Cloudflare Pages: Edit** is included
+4. Set **Account Resources** to your account
+5. Click **Continue to Summary** → **Create Token**
+6. Copy and save the token as `CLOUDFLARE_API_TOKEN` in GitHub Secrets
+
+> **Note:** If `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_ACCOUNT_ID` is missing, the Cloudflare deploy step is skipped with a warning — this lets you use Railway-only or Render-only without changing the workflow.
+
+### 9.5 Custom Domain (optional)
+
+1. In your Pages project → **Custom domains** → **Set up a custom domain**
+2. Enter your domain (e.g. `app.yourdomain.com`) and follow the DNS instructions
+3. Update `ALLOWED_ORIGINS` on your backend to include the new domain:
+   ```
+   ALLOWED_ORIGINS=https://app.yourdomain.com,https://paybot.pages.dev
+   ```
+
+### 9.6 Verify the Deployment
+
+After deploying, visit your Cloudflare Pages URL (e.g. `https://paybot.pages.dev`) and:
+
+1. The login page should load
+2. Open the browser DevTools → **Network** tab and confirm `/api/v1/...` requests return responses from the backend
+3. Sign in with Telegram to confirm authentication works end-to-end
+
+---
+
 ## Additional Resources
 
 - [Railway Documentation](https://docs.railway.app)
 - [Render Documentation](https://docs.render.com)
+- [Cloudflare Pages Documentation](https://developers.cloudflare.com/pages)
+- [Cloudflare Pages Functions](https://developers.cloudflare.com/pages/functions)
 - [Alembic Documentation](https://alembic.sqlalchemy.org)
 - [FastAPI Documentation](https://fastapi.tiangolo.com)
 - [Xendit API Documentation](https://developers.xendit.co)
@@ -522,7 +616,7 @@ If you encounter any issues:
 
 ## Summary
 
-You should now have PayBot running on either Railway or Render:
+You should now have PayBot running on Railway, Render, or Cloudflare Pages:
 
 ✅ Backend service running on Railway or Render  
 ✅ PostgreSQL database provisioned and connected  
@@ -532,5 +626,6 @@ You should now have PayBot running on either Railway or Render:
 ✅ Webhooks configured for Xendit and Telegram  
 ✅ Health checks passing  
 ✅ Logs accessible for monitoring  
+✅ Frontend deployed to Cloudflare Pages (optional)  
 
 Your PayBot application is now successfully deployed! 🚀
