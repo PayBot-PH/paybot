@@ -47,6 +47,11 @@ PAYMONGO_BANK_NAME = settings.paymongo_bank_name
 PAYMONGO_ACCOUNT_NAME = settings.paymongo_account_name
 PAYMONGO_ACCOUNT_NUMBER = settings.paymongo_account_number
 
+# Xendit bank deposit account (shown in /deposit command and balance-error messages)
+XENDIT_BANK_NAME = settings.xendit_bank_name
+XENDIT_ACCOUNT_NAME = settings.xendit_account_name
+XENDIT_ACCOUNT_NUMBER = settings.xendit_account_number
+
 # Transaction types that credit / debit the USD wallet (keep in sync with wallet.py)
 _USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
 _USD_DEBIT_TYPES = ("usdt_send", "usd_send", "admin_debit")
@@ -355,8 +360,8 @@ _CMD_STEPS: Dict[str, List[Dict]] = {
         {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>exact amount</b> sent in PHP:\n<i>e.g. 500.00</i>"},
     ],
     "/scanqr": [
+        {"key": "qr_data", "type": "photo", "prompt": "📷 Please upload a photo of the <b>QRPH QR code</b>.\n<i>Make sure the QR code is clearly visible and well-lit.</i>"},
         {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>amount</b> to pay in PHP:\n<i>e.g. 500</i>"},
-        {"key": "qr_data", "type": "photo", "prompt": "📷 Now upload a photo of the <b>QRPH QR code</b>.\n<i>Make sure the QR code is clearly visible and well-lit.</i>"},
     ],
 }
 
@@ -1257,13 +1262,23 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.commit()
                     await telegram_service.send_message(
                         chat_id,
-                        f"✅ <b>Receipt received!</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💳 Channel: <b>{pending_deposit.channel}</b>\n"
-                        f"🔢 Account: <code>{pending_deposit.account_number}</code>\n"
-                        f"💰 Amount: <b>₱{pending_deposit.amount_php:,.2f}</b>\n"
-                        f"🆔 Request ID: <code>#{pending_deposit.id}</code>\n\n"
-                        f"⏳ Under review by admin. Your PHP wallet will be credited once approved.",
+                        _localize(
+                            chat_id,
+                            f"📷 <b>Receipt received!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💳 Channel: <b>{pending_deposit.channel}</b>\n"
+                            f"🔢 Account: <code>{pending_deposit.account_number}</code>\n"
+                            f"💰 Amount: <b>₱{pending_deposit.amount_php:,.2f}</b>\n"
+                            f"🆔 Request ID: <code>#{pending_deposit.id}</code>\n\n"
+                            f"⏳ <b>Please wait for confirmation</b> — our team is reviewing your deposit. Your PHP wallet will be credited once approved.",
+                            f"📷 <b>收据已收到！</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💳 渠道：<b>{pending_deposit.channel}</b>\n"
+                            f"🔢 账号：<code>{pending_deposit.account_number}</code>\n"
+                            f"💰 金额：<b>₱{pending_deposit.amount_php:,.2f}</b>\n"
+                            f"🆔 请求编号：<code>#{pending_deposit.id}</code>\n\n"
+                            f"⏳ <b>请等待确认</b> — 我们的团队正在审核您的存款，批准后将存入您的 PHP 钱包。",
+                        ),
                     )
                     return {"status": "ok"}
 
@@ -1475,6 +1490,29 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
             # More steps outstanding?
             if state["step"] < len(steps):
+                # /scanqr: after the QR photo is decoded, check PHP balance before
+                # asking for the amount — fail immediately if no funds available.
+                if cmd == "/scanqr" and state["step"] == 1:
+                    php_bal = await _get_php_balance_for_bot(db, f"tg-{chat_id}")
+                    if php_bal <= 0:
+                        del _pending[chat_id]
+                        await telegram_service.send_message(
+                            chat_id,
+                            "❌ <b>Transaction Failed — No Balance</b>\n\n"
+                            "Your PHP wallet balance is <b>₱0.00</b>.\n"
+                            "You do not have sufficient funds to complete this QRPH payment.\n\n"
+                            "💳 <b>Top up via Bank / E-Wallet Deposit — use the Bot Command /deposit</b>\n"
+                            "━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🏦 Bank: <b>{XENDIT_BANK_NAME}</b>\n"
+                            f"👤 Account Name: <b>{XENDIT_ACCOUNT_NAME}</b>\n"
+                            f"🔢 Account Number: <code>{XENDIT_ACCOUNT_NUMBER}</code>\n\n"
+                            "Supported channels:\n"
+                            "  • <b>InstaPay</b> · <b>PESONet</b>\n"
+                            "  • <b>GCash</b> · <b>Maya</b>\n"
+                            "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
+                            "After transferring, use /deposit to record your payment.",
+                        )
+                        return {"status": "ok"}
                 next_param = steps[state["step"]]
                 await telegram_service.send_message(chat_id, next_param["prompt"])
                 return {"status": "ok"}
@@ -1491,6 +1529,28 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     qr_data = collected.get("qr_data", "")
                     if amount <= 0 or not qr_data:
                         await telegram_service.send_message(chat_id, "❌ Invalid amount or missing QR data.")
+                        return {"status": "ok"}
+                    # Final balance check: ensure the user has enough to cover the exact amount.
+                    php_bal = await _get_php_balance_for_bot(db, f"tg-{chat_id}")
+                    if php_bal < amount:
+                        await telegram_service.send_message(
+                            chat_id,
+                            f"❌ <b>Transaction Failed — Insufficient Balance</b>\n\n"
+                            f"💰 Required: <b>₱{amount:,.2f}</b>\n"
+                            f"💳 Available: <b>₱{php_bal:,.2f}</b>\n"
+                            f"📉 Shortfall: <b>-₱{amount - php_bal:,.2f}</b>\n\n"
+                            f"Your balance is not enough to complete this QRPH payment.\n\n"
+                            "💳 <b>Top up via Bank / E-Wallet Deposit — use the Bot Command /deposit</b>\n"
+                            "━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🏦 Bank: <b>{XENDIT_BANK_NAME}</b>\n"
+                            f"👤 Account Name: <b>{XENDIT_ACCOUNT_NAME}</b>\n"
+                            f"🔢 Account Number: <code>{XENDIT_ACCOUNT_NUMBER}</code>\n\n"
+                            "Supported channels:\n"
+                            "  • <b>InstaPay</b> · <b>PESONet</b>\n"
+                            "  • <b>GCash</b> · <b>Maya</b>\n"
+                            "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
+                            "After transferring, use /deposit to record your payment.",
+                        )
                         return {"status": "ok"}
                     await _process_scanqr(telegram_service, db, chat_id, username, amount, qr_data)
                 except Exception as exc:
@@ -1522,14 +1582,27 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.refresh(deposit_req)
                     await telegram_service.send_message(
                         chat_id,
-                        f"✅ <b>Deposit details recorded!</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💳 Channel: <b>{channel}</b>\n"
-                        f"🔢 Account: <code>{account}</code>\n"
-                        f"💰 Amount: <b>₱{amount_php:,.2f}</b>\n"
-                        f"🆔 Request ID: <code>#{deposit_req.id}</code>\n\n"
-                        f"📷 <b>Next step:</b> Please send a screenshot / photo of your transfer confirmation in this chat.\n"
-                        f"The admin will verify and credit your PHP wallet once the receipt is confirmed.",
+                        _localize(
+                            chat_id,
+                            f"✅ <b>Deposit Details Confirmed!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"Here is a summary of what you submitted:\n\n"
+                            f"💳 Channel: <b>{channel}</b>\n"
+                            f"🔢 Account: <code>{account}</code>\n"
+                            f"💰 Amount: <b>₱{amount_php:,.2f}</b>\n"
+                            f"🆔 Request ID: <code>#{deposit_req.id}</code>\n\n"
+                            f"📷 <b>Next step:</b> Please send a screenshot / photo of your transfer receipt in this chat so we can verify it faster.\n\n"
+                            f"⏳ <b>Please wait</b> — our team will review your deposit and credit your PHP wallet once confirmed.",
+                            f"✅ <b>存款详情已确认！</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"以下是您提交的信息摘要：\n\n"
+                            f"💳 渠道：<b>{channel}</b>\n"
+                            f"🔢 账号：<code>{account}</code>\n"
+                            f"💰 金额：<b>₱{amount_php:,.2f}</b>\n"
+                            f"🆔 请求编号：<code>#{deposit_req.id}</code>\n\n"
+                            f"📷 <b>下一步：</b>请在此发送转账收据截图，以便我们更快速地核实。\n\n"
+                            f"⏳ <b>请耐心等待</b> — 我们的团队将审核您的存款，确认后将存入您的 PHP 钱包。",
+                        ),
                     )
                 except Exception as exc:
                     logger.error(f"/deposit wizard completion error: {exc}", exc_info=True)
@@ -3179,10 +3252,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 _localize(chat_id,
                    "🏦 <b>Bank / E-Wallet Deposit</b>\n"
                    "━━━━━━━━━━━━━━━━━━━━\n"
-                   "Transfer funds to our PayMongo wallet via <b>InstaPay</b> or <b>PESONet</b>:\n\n"
-                   f"🏦 Bank: <b>{PAYMONGO_BANK_NAME}</b>\n"
-                   f"👤 Account Name: <b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
-                   f"🔢 Account Number: <code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
+                   "Transfer funds to our Xendit account via <b>InstaPay</b> or <b>PESONet</b>:\n\n"
+                   f"🏦 Bank: <b>{XENDIT_BANK_NAME}</b>\n"
+                   f"👤 Account Name: <b>{XENDIT_ACCOUNT_NAME}</b>\n"
+                   f"🔢 Account Number: <code>{XENDIT_ACCOUNT_NUMBER}</code>\n\n"
                    "Supported channels:\n"
                    "  • <b>InstaPay</b> · <b>PESONet</b>\n"
                    "  • <b>GCash</b> · <b>Maya</b>\n"
@@ -3190,10 +3263,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                    "After transferring, I'll ask you a few quick questions to record your deposit.",
                    "🏦 <b>银行 / 电子钱包存款</b>\n"
                    "━━━━━━━━━━━━━━━━━━━━\n"
-                   "通过 <b>InstaPay</b> 或 <b>PESONet</b> 将资金转入我们的 PayMongo 钱包：\n\n"
-                   f"🏦 银行：<b>{PAYMONGO_BANK_NAME}</b>\n"
-                   f"👤 账户名：<b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
-                   f"🔢 账户号：<code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
+                   "通过 <b>InstaPay</b> 或 <b>PESONet</b> 将资金转入我们的 Xendit 账户：\n\n"
+                   f"🏦 银行：<b>{XENDIT_BANK_NAME}</b>\n"
+                   f"👤 账户名：<b>{XENDIT_ACCOUNT_NAME}</b>\n"
+                   f"🔢 账户号：<code>{XENDIT_ACCOUNT_NUMBER}</code>\n\n"
                    "支持的渠道：\n"
                    "  • <b>InstaPay</b> · <b>PESONet</b>\n"
                    "  • <b>GCash</b> · <b>Maya</b>\n"

@@ -79,6 +79,11 @@ class Settings(BaseSettings):
     paymongo_account_name: str = "DRL TECHS. COMPUTER SOFTWARE TRADING"
     paymongo_account_number: str = "655716460543"
 
+    # Xendit bank deposit account (shown in /deposit command)
+    xendit_bank_name: str = ""
+    xendit_account_name: str = ""
+    xendit_account_number: str = ""
+
     # PhotonPay API (Alipay / WeChat Pay collection)
     # Credentials from PhotonPay merchant portal (Settings > Developer)
     photonpay_app_id: str = ""
