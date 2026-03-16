@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePaymentEvents } from '@/hooks/usePaymentEvents';
@@ -7,15 +7,27 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   FileText, QrCode, LinkIcon, Plus, Loader2, CheckCircle,
-  Copy, ExternalLink, Wallet, CreditCard, Building2, Smartphone, Store,
+  Copy, ExternalLink, CreditCard, Building2, Smartphone, Store, ShoppingCart, Banknote,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
+
+const TAB_LABELS: Record<string, string> = {
+  invoice: 'Invoice',
+  qr_code: 'QR Code',
+  payment_link: 'Payment Link',
+  virtual_account: 'Virtual Account',
+  ewallet: 'E-Wallet',
+  retail_outlet: 'Retail Outlet',
+  card: 'Card',
+  paylater: 'PayLater',
+  alipay: 'Alipay',
+  wechat: 'WeChat',
+};
 
 export default function PaymentsHub() {
   const { user } = useAuth();
@@ -27,15 +39,16 @@ export default function PaymentsHub() {
   const [bankCode, setBankCode] = useState('BDO');
   const [ewalletProvider, setEwalletProvider] = useState('PH_GCASH');
   const [mobileNumber, setMobileNumber] = useState('');
+  const [retailOutlet, setRetailOutlet] = useState('7ELEVEN');
+  const [paylaterProvider, setPaylaterProvider] = useState('PH_BILLEASE');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
 
   usePaymentEvents({ enabled: !!user });
 
-  const reset = () => { setAmount(''); setDescription(''); setCustomerName(''); setCustomerEmail(''); setResult(null); };
-
   const handleCreate = async () => {
     if (!amount || parseFloat(amount) <= 0) { toast.error('Enter a valid amount'); return; }
+    if (tab === 'retail_outlet' && !customerName.trim()) { toast.error('Customer name is required for retail outlet payments'); return; }
     setLoading(true);
     setResult(null);
     try {
@@ -63,6 +76,18 @@ export default function PaymentsHub() {
         case 'ewallet':
           endpoint = '/api/v1/gateway/ewallet-charge';
           payload = { amount: amt, channel_code: ewalletProvider, mobile_number: mobileNumber };
+          break;
+        case 'retail_outlet':
+          endpoint = '/api/v1/gateway/retail-outlet';
+          payload = { amount: amt, channel_code: retailOutlet, customer_name: customerName };
+          break;
+        case 'card':
+          endpoint = '/api/v1/gateway/card-charge';
+          payload = { amount: amt, description: description || 'Card payment' };
+          break;
+        case 'paylater':
+          endpoint = '/api/v1/gateway/paylater';
+          payload = { amount: amt, channel_code: paylaterProvider };
           break;
         case 'alipay':
           endpoint = '/api/v1/photonpay/alipay-session';
@@ -96,21 +121,55 @@ export default function PaymentsHub() {
     payment_link: { icon: <LinkIcon className="h-4 w-4" />, color: 'text-cyan-400' },
     virtual_account: { icon: <Building2 className="h-4 w-4" />, color: 'text-emerald-400' },
     ewallet: { icon: <Smartphone className="h-4 w-4" />, color: 'text-orange-400' },
+    retail_outlet: { icon: <Store className="h-4 w-4" />, color: 'text-yellow-400' },
+    card: { icon: <CreditCard className="h-4 w-4" />, color: 'text-pink-400' },
+    paylater: { icon: <ShoppingCart className="h-4 w-4" />, color: 'text-violet-400' },
     alipay: { icon: <QrCode className="h-4 w-4" />, color: 'text-red-400' },
     wechat: { icon: <QrCode className="h-4 w-4" />, color: 'text-green-400' },
   };
 
+  const RETAIL_OUTLETS = [
+    ['7ELEVEN', '7-Eleven (CLIQQ)'],
+    ['7ELEVEN_CLIQQ', '7-Eleven CLIQQ App'],
+    ['CEBUANA', 'Cebuana Lhuillier'],
+    ['ECPAY', 'ECPay'],
+    ['MLHUILLIER', 'M Lhuillier'],
+    ['PALAWAN', 'Palawan Express'],
+    ['DP_NONBANK', 'DA5 / Non-bank'],
+    ['POSIBLE', 'Posible'],
+    ['USSC', 'USSC'],
+  ];
+
+  const EWALLET_PROVIDERS = [
+    ['PH_GCASH', 'GCash'],
+    ['PH_GRABPAY', 'GrabPay'],
+    ['PH_PAYMAYA', 'Maya (PayMaya)'],
+    ['PH_SHOPEEPAY', 'ShopeePay'],
+  ];
+
+  const PAYLATER_PROVIDERS = [
+    ['PH_BILLEASE', 'BillEase'],
+    ['PH_ATOME', 'Atome'],
+  ];
+
+  const VA_BANKS = ['BDO', 'BPI', 'UNIONBANK', 'RCBC', 'CHINABANK', 'PNB', 'EASTWEST', 'LANDBANK', 'METROBANK'];
+
+  const needsDescription = ['invoice', 'qr_code', 'payment_link', 'card', 'alipay', 'wechat'];
+  const needsCustomerName = ['invoice', 'payment_link', 'virtual_account', 'retail_outlet'];
+  const needsCustomerEmail = ['invoice', 'payment_link'];
+
   return (
     <Layout>
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold text-white mb-6">Payments Hub</h1>
+        <h1 className="text-2xl font-bold text-white mb-2">Payments Hub</h1>
+        <p className="text-slate-400 text-sm mb-6">Create payments using all Xendit payment channels</p>
 
         <Tabs value={tab} onValueChange={(v) => { setTab(v); setResult(null); }}>
           <TabsList className="bg-slate-800 border border-slate-700 mb-6 flex-wrap h-auto gap-1 p-1">
             {Object.entries(tabConfig).map(([key, cfg]) => (
               <TabsTrigger key={key} value={key} className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
                 <span className={cfg.color}>{cfg.icon}</span>
-                <span className="ml-2 capitalize">{key.replace(/_/g, ' ').replace('alipay', 'Alipay').replace('wechat', 'WeChat')}</span>
+                <span className="ml-2">{TAB_LABELS[key]}</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -119,7 +178,8 @@ export default function PaymentsHub() {
             <Card className="bg-[#1E293B] border-slate-700/50">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
-                  Create {tab.replace(/_/g, ' ').replace('alipay', 'Alipay').replace('wechat', 'WeChat')}
+                  <span className={tabConfig[tab]?.color}>{tabConfig[tab]?.icon}</span>
+                  Create {TAB_LABELS[tab]}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -130,7 +190,7 @@ export default function PaymentsHub() {
                     className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
                 </div>
 
-                {(tab === 'invoice' || tab === 'qr_code' || tab === 'payment_link' || tab === 'alipay' || tab === 'wechat') && (
+                {needsDescription.includes(tab) && (
                   <div>
                     <Label className="text-slate-300">Description</Label>
                     <Textarea placeholder="Payment description..." value={description}
@@ -139,16 +199,18 @@ export default function PaymentsHub() {
                   </div>
                 )}
 
-                {(tab === 'invoice' || tab === 'payment_link' || tab === 'virtual_account') && (
+                {needsCustomerName.includes(tab) && (
                   <div>
-                    <Label className="text-slate-300">Customer Name</Label>
+                    <Label className="text-slate-300">
+                      Customer Name{tab === 'retail_outlet' ? ' *' : ''}
+                    </Label>
                     <Input placeholder="John Doe" value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
                   </div>
                 )}
 
-                {(tab === 'invoice' || tab === 'payment_link') && (
+                {needsCustomerEmail.includes(tab) && (
                   <div>
                     <Label className="text-slate-300">Customer Email</Label>
                     <Input type="email" placeholder="john@example.com" value={customerEmail}
@@ -163,7 +225,7 @@ export default function PaymentsHub() {
                     <Select value={bankCode} onValueChange={setBankCode}>
                       <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
                       <SelectContent className="bg-slate-800 border-slate-600">
-                        {['BDO', 'BPI', 'UNIONBANK', 'RCBC', 'CHINABANK', 'PNB'].map(b => (
+                        {VA_BANKS.map(b => (
                           <SelectItem key={b} value={b} className="text-white">{b}</SelectItem>
                         ))}
                       </SelectContent>
@@ -178,7 +240,7 @@ export default function PaymentsHub() {
                       <Select value={ewalletProvider} onValueChange={setEwalletProvider}>
                         <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
                         <SelectContent className="bg-slate-800 border-slate-600">
-                          {[['PH_GCASH', 'GCash'], ['PH_GRABPAY', 'GrabPay']].map(([v, l]) => (
+                          {EWALLET_PROVIDERS.map(([v, l]) => (
                             <SelectItem key={v} value={v} className="text-white">{l}</SelectItem>
                           ))}
                         </SelectContent>
@@ -193,8 +255,46 @@ export default function PaymentsHub() {
                   </>
                 )}
 
+                {tab === 'retail_outlet' && (
+                  <div>
+                    <Label className="text-slate-300">Retail Outlet / OTC Channel</Label>
+                    <Select value={retailOutlet} onValueChange={setRetailOutlet}>
+                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-600">
+                        {RETAIL_OUTLETS.map(([v, l]) => (
+                          <SelectItem key={v} value={v} className="text-white">{l}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500 mt-1">Customer pays cash at the selected retail outlet using the generated payment code.</p>
+                  </div>
+                )}
+
+                {tab === 'paylater' && (
+                  <div>
+                    <Label className="text-slate-300">PayLater Provider</Label>
+                    <Select value={paylaterProvider} onValueChange={setPaylaterProvider}>
+                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-slate-800 border-slate-600">
+                        {PAYLATER_PROVIDERS.map(([v, l]) => (
+                          <SelectItem key={v} value={v} className="text-white">{l}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500 mt-1">Buy Now, Pay Later — customer is redirected to the provider's app to complete payment.</p>
+                  </div>
+                )}
+
+                {tab === 'card' && (
+                  <div className="rounded-lg bg-slate-800/50 border border-slate-700 p-3">
+                    <p className="text-xs text-slate-400">
+                      <span className="text-pink-400 font-medium">🔒 Secure card payment</span> — Customer is redirected to a Xendit-hosted checkout page to enter card details (Visa, Mastercard, JCB, Amex). PCI-compliant.
+                    </p>
+                  </div>
+                )}
+
                 <Button onClick={handleCreate} disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white">
-                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</> : <><Plus className="h-4 w-4 mr-2" />Create</>}
+                  {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Creating...</> : <><Plus className="h-4 w-4 mr-2" />Create {TAB_LABELS[tab]}</>}
                 </Button>
               </CardContent>
             </Card>
@@ -204,13 +304,14 @@ export default function PaymentsHub() {
               <CardContent>
                 {!result ? (
                   <div className="text-center py-12">
-                    <CreditCard className="h-16 w-16 text-slate-600 mx-auto mb-4" />
+                    <Banknote className="h-16 w-16 text-slate-600 mx-auto mb-4" />
                     <p className="text-slate-400">Create a payment to see the result</p>
+                    <p className="text-slate-500 text-sm mt-2">Payment details and links will appear here</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2 text-emerald-400 mb-4">
-                      <CheckCircle className="h-5 w-5" /><span className="font-medium">Created!</span>
+                      <CheckCircle className="h-5 w-5" /><span className="font-medium">Created successfully!</span>
                     </div>
                     {Object.entries(result).map(([key, value]) => {
                       if (!value || key === 'success') return null;
@@ -224,8 +325,8 @@ export default function PaymentsHub() {
                             ) : (
                               <code className="text-sm text-white font-mono bg-slate-800 px-2 py-1 rounded break-all flex-1">{String(value)}</code>
                             )}
-                            <button onClick={() => copy(String(value))} className="text-slate-500 hover:text-slate-300"><Copy className="h-3.5 w-3.5" /></button>
-                            {isUrl && <a href={value as string} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300"><ExternalLink className="h-3.5 w-3.5" /></a>}
+                            <button onClick={() => copy(String(value))} className="text-slate-500 hover:text-slate-300 flex-shrink-0"><Copy className="h-3.5 w-3.5" /></button>
+                            {isUrl && <a href={value as string} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 flex-shrink-0"><ExternalLink className="h-3.5 w-3.5" /></a>}
                           </div>
                         </div>
                       );
