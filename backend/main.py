@@ -192,11 +192,28 @@ app = FastAPI(
 
 
 # MODULE_MIDDLEWARE_START
+# Origins that are never considered "production" external domains.
+_LOCAL_PREFIXES = (
+    "http://127.0.0.1",
+    "https://127.0.0.1",
+    "http://localhost",
+    "https://localhost",
+    "http://0.0.0.0",
+    "https://0.0.0.0",
+)
+
 # Read allowed origins from environment variable, fallback to allow all for development
 allowed_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
-if allowed_origins_env:
-    # Parse comma-separated origins
-    allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+allowed_origins = [origin.strip() for origin in allowed_origins_env.split(",") if origin.strip()]
+
+# Auto-include the configured backend URL (custom domain or PYTHON_BACKEND_URL) so that
+# the admin dashboard works without having to separately configure ALLOWED_ORIGINS.
+_backend_url = settings.backend_url
+if _backend_url and not any(_backend_url.startswith(p) for p in _LOCAL_PREFIXES):
+    if _backend_url not in allowed_origins:
+        allowed_origins.append(_backend_url)
+
+if allowed_origins:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,

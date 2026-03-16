@@ -107,6 +107,11 @@ class Settings(BaseSettings):
     # Only this user can approve/reject KYB registrations and manage bot admins.
     telegram_bot_owner_id: str = ""
 
+    # Custom domain — set this to your own domain (e.g. "drl-developers.info") to
+    # automatically configure the backend URL and CORS without touching any other variable.
+    # The https:// scheme is added automatically if omitted.
+    custom_domain: str = ""
+
     # JWT configuration
     jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
@@ -139,7 +144,13 @@ class Settings(BaseSettings):
                 "PYTHON_BACKEND_URL", f"https://{self.lambda_function_name}.execute-api.{self.aws_region}.amazonaws.com"
             )
         else:
-            # 1. Explicit override (highest priority)
+            # 0. Custom domain (highest priority) — normalize to a full https:// URL
+            if self.custom_domain:
+                domain = self.custom_domain.strip().rstrip("/")
+                if not domain.startswith("http://") and not domain.startswith("https://"):
+                    domain = f"https://{domain}"
+                return domain
+            # 1. Explicit URL override (second priority after custom_domain)
             explicit_url = os.environ.get("PYTHON_BACKEND_URL", "")
             if explicit_url:
                 return explicit_url
