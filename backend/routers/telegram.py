@@ -334,7 +334,9 @@ _CMD_STEPS: Dict[str, List[Dict]] = {
         {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>withdrawal amount</b> in PHP:\n<i>e.g. 500</i>"},
     ],
     "/topup": [
-        {"key": "amount", "type": "float", "prompt": "💰 Enter the <b>USDT amount</b> to top up:\n<i>e.g. 100</i>"},
+        {"key": "channel", "type": "str",   "prompt": "💳 Enter the <b>payment channel</b> used to send the money:\n<i>INSTAPAY · PESONET · GCASH · MAYA · BDO · BPI · METROBANK · UNIONBANK · LANDBANK</i>"},
+        {"key": "account", "type": "str",   "prompt": "🔢 Enter the <b>account / mobile number</b> used to make the transfer:\n<i>e.g. 09XXXXXXXXX or your bank account number</i>"},
+        {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>exact amount</b> sent in PHP:\n<i>e.g. 500.00</i>"},
     ],
     "/sendusdt": [
         {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>USDT amount</b> to send:\n<i>e.g. 50</i>"},
@@ -417,7 +419,7 @@ def _welcome_en(name: str = "") -> str:
         f"  /refund [id] [amt] — Refund a payment\n\n"
         f"💰 <b>PHP Wallet</b>\n"
         f"  /balance — View balances &amp; history\n"
-        f"  /topup [amt] — Top up PHP wallet via USDT (auto-converted)\n"
+        f"  /topup — Top up PHP wallet via bank / e-wallet transfer\n"
         f"  /send [amt] [to] — Send funds to another user\n"
         f"  /withdraw [amt] — Withdraw\n\n"
         f"💵 <b>USD Wallet (USDT TRC20)</b>\n"
@@ -454,7 +456,7 @@ def _welcome_zh(name: str = "") -> str:
         f"  /refund [ID] [金额] — 退款\n\n"
         f"💰 <b>PHP 钱包</b>\n"
         f"  /balance — 查看余额及历史\n"
-        f"  /topup [金额] — 通过 USDT 充值至 PHP 钱包（自动换汇）\n"
+        f"  /topup — 通过银行 / 电子钱包充值 PHP 钱包\n"
         f"  /send [金额] [接收方] — 向用户转账\n"
         f"  /withdraw [金额] — 提现\n\n"
         f"💵 <b>USD 钱包（USDT TRC20）</b>\n"
@@ -1282,7 +1284,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     )
                     return {"status": "ok"}
 
-                await telegram_service.send_message(chat_id, "ℹ️ No pending top-up request found. Use /topup [amount] for USDT.")
+                await telegram_service.send_message(chat_id, "ℹ️ No pending top-up or deposit request found. Use /topup to top up your PHP wallet.")
                 return {"status": "ok"}
             # Fall through to the wizard handler below (photo step is active)
 
@@ -1609,7 +1611,56 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await telegram_service.send_message(chat_id, "❌ An error occurred saving your deposit. Please try /deposit again.")
                 return {"status": "ok"}
 
-            # Other commands: rebuild command text and fall through to routing
+            # /topup is handled inline: store as bank deposit request and ask for receipt
+            if cmd == "/topup":
+                try:
+                    channel = str(collected.get("channel", "")).strip().upper()
+                    account = str(collected.get("account", "")).strip()
+                    amount_php = float(collected.get("amount", 0))
+                    if not channel or not account or amount_php <= 0:
+                        await telegram_service.send_message(chat_id, "❌ Invalid top-up details. Please try /topup again.")
+                        return {"status": "ok"}
+                    now = datetime.now()
+                    deposit_req = BankDepositRequest(
+                        chat_id=chat_id,
+                        telegram_username=username,
+                        channel=channel,
+                        account_number=account,
+                        amount_php=amount_php,
+                        status="pending",
+                        created_at=now,
+                    )
+                    db.add(deposit_req)
+                    await db.commit()
+                    await db.refresh(deposit_req)
+                    await telegram_service.send_message(
+                        chat_id,
+                        _localize(
+                            chat_id,
+                            f"✅ <b>Top Up Details Confirmed!</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"Here is a summary of what you submitted:\n\n"
+                            f"💳 Channel: <b>{channel}</b>\n"
+                            f"🔢 Account: <code>{account}</code>\n"
+                            f"💰 Amount: <b>₱{amount_php:,.2f}</b>\n"
+                            f"🆔 Request ID: <code>#{deposit_req.id}</code>\n\n"
+                            f"📷 <b>Next step:</b> Please send a screenshot / photo of your transfer receipt in this chat so we can verify it faster.\n\n"
+                            f"⏳ <b>Please wait</b> — our team will review your top-up and credit your PHP wallet once confirmed.",
+                            f"✅ <b>充值详情已确认！</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"以下是您提交的信息摘要：\n\n"
+                            f"💳 渠道：<b>{channel}</b>\n"
+                            f"🔢 账号：<code>{account}</code>\n"
+                            f"💰 金额：<b>₱{amount_php:,.2f}</b>\n"
+                            f"🆔 请求编号：<code>#{deposit_req.id}</code>\n\n"
+                            f"📷 <b>下一步：</b>请在此发送转账收据截图，以便我们更快速地核实。\n\n"
+                            f"⏳ <b>请耐心等待</b> — 我们的团队将审核您的充值，确认后将存入您的 PHP 钱包。",
+                        ),
+                    )
+                except Exception as exc:
+                    logger.error(f"/topup wizard completion error: {exc}", exc_info=True)
+                    await telegram_service.send_message(chat_id, "❌ An error occurred saving your top-up request. Please try /topup again.")
+                return {"status": "ok"}
             parts = [cmd] + [collected.get(s["key"], s.get("default", "")) for s in steps]
             text = " ".join(str(p) for p in parts)
             # fall through to command routing below
@@ -2427,9 +2478,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     transaction_date = wt.created_at.strftime("%b %d") if wt.created_at else ""
                     reply += f"  {transaction_emoji} {wt.transaction_type} ₱{wt.amount:,.2f} — {transaction_date}\n"
             reply += (
+                "\n💰 <b>PHP Wallet actions:</b>\n"
+                "  /topup — Top up via bank / e-wallet transfer\n"
+                "  /deposit — Deposit via bank / e-wallet transfer\n"
                 "\n💵 <b>USD Wallet actions:</b>\n"
                 "  /usdbalance — Full USD details\n"
-                "  /topup [amt] — Top up\n"
                 "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
                 "  /sendusd [amt] [@username] — Send USD to a user\n"
             )
@@ -2491,7 +2544,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     transaction_date = wt.created_at.strftime("%b %d") if wt.created_at else ""
                     reply += f"  {transaction_emoji} {wt.transaction_type} ${wt.amount:,.2f} — {transaction_date}\n"
             reply += (
-                "\n📥 /topup [amt] — Top up\n"
+                "\n📥 /topup — Top up via bank / e-wallet transfer\n"
                 "📤 /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
                 "💸 /sendusd [amt] [@username] — Send USD to a user"
             )
@@ -2537,7 +2590,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             chat_id,
                             f"❌ Insufficient USD balance.\n"
                             f"💵 Available: <b>${usd_balance:,.2f} USDT</b>\n"
-                            f"📥 Top up with /topup [amount]"
+                            f"💡 Use /usdbalance for USD wallet details"
                         )
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
@@ -2652,7 +2705,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             chat_id,
                             f"❌ Insufficient USD balance.\n"
                             f"💵 Available: <b>${sender_balance:,.2f}</b>\n"
-                            f"📥 Top up with /topup [amount]"
+                            f"💡 Use /usdbalance for USD wallet details"
                         )
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
@@ -3128,7 +3181,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /refund [id] [amt] — Full or partial refund\n\n"
                 "💰 <b>PHP Wallet</b>\n"
                 "  /balance — PHP &amp; USD balances + history\n"
-                "  /topup [amt] — Top up via USDT (auto-converted)\n"
+                "  /topup — Top up PHP wallet via bank / e-wallet transfer\n"
                 "  /deposit — Deposit via bank / e-wallet transfer\n"
                 "  /send [amt] [to] — Send PHP to another user\n"
                 "  /withdraw [amt] — Withdraw PHP\n\n"
@@ -3166,7 +3219,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "  /refund [ID] [金额] — 全额或部分退款\n\n"
                 "💰 <b>PHP 钱包</b>\n"
                 "  /balance — PHP 和 USD 余额及历史\n"
-                "  /topup [金额] — 通过 USDT 充值（自动换汇）\n"
+                "  /topup — 通过银行 / 电子钱包充值 PHP 钱包\n"
                 "  /deposit — 通过银行 / 电子钱包存款\n"
                 "  /send [金额] [接收方] — 向用户转账 PHP\n"
                 "  /withdraw [金额] — 提现 PHP\n\n"
@@ -3189,61 +3242,54 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /topup ====================
         elif text.startswith("/topup"):
-            parts = text.split(maxsplit=1)
-            rate = await get_usdt_php_rate(db)
-            if len(parts) < 2:
-                qr_url = _usdt_static_qr_url()
-                caption = (
-                    f"💵 <b>Top Up PHP Wallet via USDT TRC20</b>\n"
-                    f"━━━━━━━━━━━━━━━━━━━━\n"
-                    f"Send USDT (TRC20) to:\n\n"
-                    f"<code>{USDT_TRC20_ADDRESS}</code>\n\n"
-                    f"⚠️ <b>Network:</b> TRC20 (TRON) only — do NOT use ERC20 or BEP20\n\n"
-                    f"💱 <b>Exchange Rate:</b> $1 USDT = ₱{rate:.2f} PHP\n\n"
-                    f"Then run:\n"
-                    f"  <b>/topup [amount]</b>  — to submit your request\n\n"
-                    f"Example: /topup 50\n\n"
-                    f"After submitting, send a screenshot of your transaction as a photo in this chat."
-                )
-                await telegram_service.send_photo(chat_id, qr_url, caption=caption)
-            else:
-                try:
-                    amount = float(parts[1])
-                    if amount <= 0:
-                        await telegram_service.send_message(chat_id, "❌ Amount must be greater than zero.")
-                    else:
-                        amount_php = round(amount * rate, 2)
-                        now = datetime.now()
-                        req = TopupRequest(
-                            chat_id=chat_id,
-                            telegram_username=username,
-                            amount_usdt=amount,
-                            currency="PHP",
-                            status="pending",
-                            created_at=now,
-                        )
-                        db.add(req)
-                        await db.commit()
-                        await db.refresh(req)
-                        qr_url = _usdt_static_qr_url()
-                        caption = (
-                            f"💵 <b>Top Up PHP Wallet via USDT TRC20</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"📤 Send exactly <b>${amount:.2f} USDT</b> to:\n\n"
-                            f"<code>{USDT_TRC20_ADDRESS}</code>\n\n"
-                            f"⚠️ <b>Network:</b> TRC20 (TRON) only — do NOT use ERC20\n"
-                            f"🆔 Request ID: <code>#{req.id}</code>\n\n"
-                            f"💱 <b>Exchange Rate:</b> $1 USDT = ₱{rate:.2f} PHP\n"
-                            f"💰 <b>You will receive:</b> ₱{amount_php:,.2f} PHP\n\n"
-                            f"✅ After sending, <b>reply with a screenshot</b> of your transaction as a photo.\n"
-                            f"The admin will verify and credit your PHP wallet within minutes."
-                        )
-                        await telegram_service.send_photo(chat_id, qr_url, caption=caption)
-                except ValueError:
-                    await telegram_service.send_message(chat_id, "❌ Invalid amount. Example: /topup 50")
-                except Exception as e:
-                    logger.error(f"Topup create error: {e}", exc_info=True)
-                    await telegram_service.send_message(chat_id, "❌ Failed to create topup request. Please try again.")
+            await telegram_service.send_message(
+                chat_id,
+                _localize(
+                    chat_id,
+                    "💰 <b>Top Up PHP Wallet</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    "Please transfer the amount to any of the following PayBot accounts:\n\n"
+                    "🏦 <b>GoTyme Digital Bank</b>\n"
+                    "   Account Name: <b>PayBot PH</b>\n"
+                    "   Account Number: <code>012116012891</code>\n\n"
+                    "🏦 <b>Security Bank Corporation</b>\n"
+                    "   Account Name: <b>PayBot PH</b>\n"
+                    "   Account Number: <code>0000068888173</code>\n\n"
+                    "🏦 <b>Asia United Bank</b>\n"
+                    "   Account Name: <b>PayBot PH</b>\n"
+                    "   Account Number: <code>934105321485</code>\n\n"
+                    f"📱 <b>GCash / Maya (via InstaPay / PESONet)</b>\n"
+                    f"   Account Name: <b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
+                    f"   Account Number: <code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
+                    "Supported channels:\n"
+                    "  • <b>InstaPay</b> · <b>PESONet</b>\n"
+                    "  • <b>GCash</b> · <b>Maya</b>\n"
+                    "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
+                    "After transferring, I'll ask you a few quick questions to record your top-up.",
+                    "💰 <b>充值 PHP 钱包</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    "请将款项转入以下任一 PayBot 账户：\n\n"
+                    "🏦 <b>GoTyme Digital Bank</b>\n"
+                    "   账户名：<b>PayBot PH</b>\n"
+                    "   账号：<code>012116012891</code>\n\n"
+                    "🏦 <b>Security Bank Corporation</b>\n"
+                    "   账户名：<b>PayBot PH</b>\n"
+                    "   账号：<code>0000068888173</code>\n\n"
+                    "🏦 <b>Asia United Bank</b>\n"
+                    "   账户名：<b>PayBot PH</b>\n"
+                    "   账号：<code>934105321485</code>\n\n"
+                    f"📱 <b>GCash / Maya（通过 InstaPay / PESONet）</b>\n"
+                    f"   账户名：<b>{PAYMONGO_ACCOUNT_NAME}</b>\n"
+                    f"   账号：<code>{PAYMONGO_ACCOUNT_NUMBER}</code>\n\n"
+                    "支持的渠道：\n"
+                    "  • <b>InstaPay</b> · <b>PESONet</b>\n"
+                    "  • <b>GCash</b> · <b>Maya</b>\n"
+                    "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
+                    "转账后，我将询问几个问题以记录您的充值。",
+                ),
+            )
+            prompt = _wizard_start(chat_id, "/topup")
+            await telegram_service.send_message(chat_id, prompt)
 
         # ==================== /deposit ====================
         elif text.startswith("/deposit"):
