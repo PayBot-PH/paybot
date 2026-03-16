@@ -86,6 +86,45 @@ class SendReminderRequest(BaseModel):
 class ReportRequest(BaseModel):
     period: str = "monthly"  # daily, weekly, monthly
 
+class CreateRetailOutletRequest(BaseModel):
+    amount: float
+    channel_code: str  # 7ELEVEN, 7ELEVEN_CLIQQ, CEBUANA, ECPAY, MLHUILLIER, PALAWAN, DP_NONBANK, POSIBLE, USSC
+    customer_name: str
+
+    class Config:
+        # Accepted Xendit OTC channel codes for Philippines
+        VALID_CHANNELS = {
+            "7ELEVEN", "7ELEVEN_CLIQQ", "CEBUANA", "ECPAY",
+            "MLHUILLIER", "PALAWAN", "DP_NONBANK", "POSIBLE", "USSC",
+        }
+
+    def model_post_init(self, __context):  # type: ignore[override]
+        if self.channel_code not in self.Config.VALID_CHANNELS:
+            raise ValueError(
+                f"Invalid channel_code '{self.channel_code}'. "
+                f"Supported values: {sorted(self.Config.VALID_CHANNELS)}"
+            )
+
+
+class CreatePayLaterRequest(BaseModel):
+    amount: float
+    channel_code: str  # PH_BILLEASE, PH_ATOME
+
+    class Config:
+        VALID_CHANNELS = {"PH_BILLEASE", "PH_ATOME"}
+
+    def model_post_init(self, __context):  # type: ignore[override]
+        if self.channel_code not in self.Config.VALID_CHANNELS:
+            raise ValueError(
+                f"Invalid channel_code '{self.channel_code}'. "
+                f"Supported values: {sorted(self.Config.VALID_CHANNELS)}"
+            )
+
+
+class CreateCardPaymentRequest(BaseModel):
+    amount: float
+    description: str = ""
+
 
 # ==================== VIRTUAL ACCOUNTS ====================
 @router.post("/virtual-account", response_model=GatewayResponse)
@@ -432,6 +471,153 @@ async def list_customers(
                         "total_amount": c.total_amount,
                         "created_at": str(c.created_at) if c.created_at else None} for c in items],
             "total": len(items)}
+
+
+
+# ==================== RETAIL OUTLETS / OVER-THE-COUNTER ====================
+@router.post("/retail-outlet", response_model=GatewayResponse)
+async def create_retail_outlet_payment(
+    data: CreateRetailOutletRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create an over-the-counter (retail outlet) payment code.
+
+    channel_code options: 7ELEVEN, 7ELEVEN_CLIQQ, CEBUANA, ECPAY,
+    MLHUILLIER, PALAWAN, DP_NONBANK, POSIBLE, USSC.
+    """
+    try:
+        service = XenditService()
+        result = await service.create_retail_outlet_payment(
+            amount=data.amount,
+            channel_code=data.channel_code,
+            customer_name=data.customer_name,
+        )
+        if not result.get("success"):
+            return GatewayResponse(success=False, message=result.get("error", "Failed"))
+        now = datetime.now()
+        txn = Transactions(
+            user_id=str(current_user.id),
+            transaction_type="retail_outlet",
+            external_id=result.get("external_id", ""),
+            xendit_id=result.get("payment_code_id", ""),
+            amount=data.amount,
+            currency="PHP",
+            status="pending",
+            description=f"OTC: {data.channel_code} - {data.customer_name}",
+            customer_name=data.customer_name,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(txn)
+        await db.commit()
+        return GatewayResponse(success=True, message="Retail outlet payment code created", data={
+            "transaction_id": txn.id,
+            "payment_code_id": result.get("payment_code_id", ""),
+            "payment_code": result.get("payment_code", ""),
+            "channel_code": data.channel_code,
+            "external_id": result.get("external_id", ""),
+            "amount": data.amount,
+            "expiration_date": result.get("expiration_date", ""),
+        })
+    except Exception as e:
+        logger.error(f"Retail outlet payment error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== PAYLATER / BNPL ====================
+@router.post("/paylater", response_model=GatewayResponse)
+async def create_paylater_charge(
+    data: CreatePayLaterRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a PayLater / Buy-Now-Pay-Later charge.
+
+    channel_code options: PH_BILLEASE, PH_ATOME.
+    """
+    try:
+        service = XenditService()
+        result = await service.create_paylater_charge(
+            amount=data.amount,
+            channel_code=data.channel_code,
+        )
+        if not result.get("success"):
+            return GatewayResponse(success=False, message=result.get("error", "Failed"))
+        now = datetime.now()
+        txn = Transactions(
+            user_id=str(current_user.id),
+            transaction_type="paylater",
+            external_id=result.get("external_id", ""),
+            xendit_id=result.get("charge_id", ""),
+            amount=data.amount,
+            currency="PHP",
+            status="pending",
+            description=f"PayLater: {data.channel_code}",
+            payment_url=result.get("checkout_url", ""),
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(txn)
+        await db.commit()
+        return GatewayResponse(success=True, message="PayLater charge created", data={
+            "transaction_id": txn.id,
+            "charge_id": result.get("charge_id", ""),
+            "checkout_url": result.get("checkout_url", ""),
+            "external_id": result.get("external_id", ""),
+            "amount": data.amount,
+        })
+    except Exception as e:
+        logger.error(f"PayLater charge error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== CARD PAYMENT ====================
+@router.post("/card-charge", response_model=GatewayResponse)
+async def create_card_charge(
+    data: CreateCardPaymentRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a card payment request via Xendit Payment Requests v3 API.
+
+    Returns a checkout URL where the customer securely enters card details.
+    Supports Visa, Mastercard, JCB, and Amex (local and international).
+    """
+    try:
+        service = XenditService()
+        result = await service.create_card_payment_request(
+            amount=data.amount,
+            description=data.description,
+        )
+        if not result.get("success"):
+            return GatewayResponse(success=False, message=result.get("error", "Failed"))
+        now = datetime.now()
+        txn = Transactions(
+            user_id=str(current_user.id),
+            transaction_type="card",
+            external_id=result.get("external_id", ""),
+            xendit_id=result.get("payment_request_id", ""),
+            amount=data.amount,
+            currency="PHP",
+            status="pending",
+            description=data.description or "Card payment",
+            payment_url=result.get("checkout_url", ""),
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(txn)
+        await db.commit()
+        return GatewayResponse(success=True, message="Card payment created", data={
+            "transaction_id": txn.id,
+            "payment_request_id": result.get("payment_request_id", ""),
+            "checkout_url": result.get("checkout_url", ""),
+            "external_id": result.get("external_id", ""),
+            "amount": data.amount,
+        })
+    except Exception as e:
+        logger.error(f"Card payment error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ==================== FEE CALCULATION ====================
