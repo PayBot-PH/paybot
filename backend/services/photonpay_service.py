@@ -93,6 +93,10 @@ class PhotonPayService:
         self._access_token: Optional[str] = None
         self._token_expires_at: float = 0.0
 
+    def is_configured(self) -> bool:
+        """Return True if the PhotonPay credentials are set."""
+        return bool(self.app_id and self.app_secret)
+
     # ------------------------------------------------------------------
     # Authentication
     # ------------------------------------------------------------------

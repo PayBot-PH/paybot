@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePaymentEvents } from '@/hooks/usePaymentEvents';
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   FileText, QrCode, LinkIcon, Plus, Loader2, CheckCircle,
   Copy, ExternalLink, CreditCard, Building2, Smartphone, Store, ShoppingCart, Banknote,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -29,6 +30,47 @@ const TAB_LABELS: Record<string, string> = {
   wechat: 'WeChat',
 };
 
+/** Which tabs require which gateway to be configured */
+const TAB_GATEWAY: Record<string, 'xendit' | 'photonpay'> = {
+  invoice: 'xendit',
+  qr_code: 'xendit',
+  payment_link: 'xendit',
+  virtual_account: 'xendit',
+  ewallet: 'xendit',
+  retail_outlet: 'xendit',
+  card: 'xendit',
+  paylater: 'xendit',
+  alipay: 'photonpay',
+  wechat: 'photonpay',
+};
+
+interface GatewayStatus {
+  xendit: boolean;
+  paymongo: boolean;
+  photonpay: boolean;
+  any_configured: boolean;
+}
+
+/** Extract a user-readable error message from an API error (works for both
+ *  AxiosError and plain Error objects returned by client.apiCall.invoke). */
+function extractErrorMessage(err: unknown): string {
+  if (!err) return 'An unexpected error occurred';
+  // AxiosError-style: err.response.data.detail or err.response.data.message
+  const axiosErr = err as { response?: { data?: { detail?: string; message?: string; error?: string } } };
+  if (axiosErr.response?.data) {
+    return (
+      axiosErr.response.data.detail ||
+      axiosErr.response.data.message ||
+      axiosErr.response.data.error ||
+      'Request failed'
+    );
+  }
+  // Fallback: err.message
+  const errMsg = err as { message?: string };
+  if (errMsg.message) return errMsg.message;
+  return 'An unexpected error occurred';
+}
+
 export default function PaymentsHub() {
   const { user } = useAuth();
   const [tab, setTab] = useState('invoice');
@@ -43,8 +85,20 @@ export default function PaymentsHub() {
   const [paylaterProvider, setPaylaterProvider] = useState('PH_BILLEASE');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [gatewayStatus, setGatewayStatus] = useState<GatewayStatus | null>(null);
 
   usePaymentEvents({ enabled: !!user });
+
+  // Fetch gateway configuration status on mount
+  useEffect(() => {
+    client.apiCall.invoke({ url: '/api/v1/gateway/config-status', method: 'GET', data: {} })
+      .then((res) => {
+        if (res.data) setGatewayStatus(res.data as GatewayStatus);
+      })
+      .catch(() => {
+        // Silently ignore — status check is informational only
+      });
+  }, []);
 
   const handleCreate = async () => {
     if (!amount || parseFloat(amount) <= 0) { toast.error('Enter a valid amount'); return; }
@@ -104,10 +158,10 @@ export default function PaymentsHub() {
         setResult(res.data.data || res.data);
         toast.success(res.data.message || 'Payment created!');
       } else {
-        toast.error(res.data?.message || 'Failed');
+        toast.error(res.data?.message || res.data?.error || 'Payment creation failed');
       }
     } catch (err: unknown) {
-      toast.error((err as { data?: { detail?: string } })?.data?.detail || 'Failed');
+      toast.error(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -158,11 +212,39 @@ export default function PaymentsHub() {
   const needsCustomerName = ['invoice', 'payment_link', 'virtual_account', 'retail_outlet'];
   const needsCustomerEmail = ['invoice', 'payment_link'];
 
+  /** True when the current tab's gateway is not configured */
+  const currentGatewayMissing =
+    gatewayStatus !== null &&
+    !gatewayStatus[TAB_GATEWAY[tab] as keyof GatewayStatus];
+
   return (
     <Layout>
       <div className="max-w-5xl mx-auto">
         <h1 className="text-2xl font-bold text-white mb-2">Payments Hub</h1>
-        <p className="text-slate-400 text-sm mb-6">Create payments using all Xendit payment channels</p>
+        <p className="text-slate-400 text-sm mb-4">Create payments using all Xendit payment channels</p>
+
+        {/* Gateway configuration warnings */}
+        {gatewayStatus && !gatewayStatus.xendit && (
+          <div className="flex items-start gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 mb-4">
+            <AlertTriangle className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-yellow-300">
+              <span className="font-medium">Xendit API key not configured.</span>{' '}
+              Invoice, QR code, payment link, virtual account, e-wallet, retail outlet, card, and PayLater payments will fail.
+              Set <code className="bg-yellow-950/60 px-1 rounded text-xs">XENDIT_SECRET_KEY</code> in your environment variables.
+            </p>
+          </div>
+        )}
+        {gatewayStatus && !gatewayStatus.photonpay && (
+          <div className="flex items-start gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 mb-4">
+            <AlertTriangle className="h-4 w-4 text-yellow-400 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-yellow-300">
+              <span className="font-medium">PhotonPay credentials not configured.</span>{' '}
+              Alipay and WeChat Pay sessions will fail.
+              Set <code className="bg-yellow-950/60 px-1 rounded text-xs">PHOTONPAY_APP_ID</code> and{' '}
+              <code className="bg-yellow-950/60 px-1 rounded text-xs">PHOTONPAY_APP_SECRET</code> in your environment variables.
+            </p>
+          </div>
+        )}
 
         <Tabs value={tab} onValueChange={(v) => { setTab(v); setResult(null); }}>
           <TabsList className="bg-slate-800 border border-slate-700 mb-6 flex-wrap h-auto gap-1 p-1">
@@ -183,6 +265,18 @@ export default function PaymentsHub() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Per-tab gateway warning */}
+                {currentGatewayMissing && (
+                  <div className="flex items-start gap-2 rounded-md border border-orange-500/40 bg-orange-500/10 p-2">
+                    <AlertTriangle className="h-3.5 w-3.5 text-orange-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-xs text-orange-300">
+                      {TAB_GATEWAY[tab] === 'xendit'
+                        ? 'Xendit API key is not configured. This payment method will fail.'
+                        : 'PhotonPay credentials are not configured. This payment method will fail.'}
+                    </p>
+                  </div>
+                )}
+
                 <div>
                   <Label className="text-slate-300">Amount (PHP)</Label>
                   <Input type="number" step="0.01" min="1" placeholder="0.00" value={amount}
