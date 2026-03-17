@@ -3,6 +3,10 @@ builder = "DOCKERFILE"
 dockerfilePath = "backend/Dockerfile"
 
 [deploy]
+# Run database migrations before the new container starts serving traffic.
+# This enables zero-downtime deployments: the old container keeps handling
+# requests until migrations succeed and the new container passes the health check.
+preDeployCommand = "python -m alembic upgrade head"
 healthcheckPath = "/health"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
