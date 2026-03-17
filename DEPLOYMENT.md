@@ -490,13 +490,13 @@ The following variables are pre-configured with sensible defaults in `render.yam
 
 ### 8.3 Run Database Migrations
 
-Database migrations run **automatically** on each Render deployment via the `preDeployCommand` in `render.yaml`:
+Database migrations run **automatically** on each Render deployment via the Docker startup command in `backend/Dockerfile`:
 
 ```bash
-alembic upgrade head
+alembic upgrade head && uvicorn main:app ...
 ```
 
-This runs in the deployed container (at `/app/backend`) before the new version goes live. If the migration fails, Render aborts the deploy and keeps the previous version running.
+Alembic runs inside the container before uvicorn starts. If the migration fails, uvicorn never starts, the health check at `/health` fails, and Render keeps the previous version running.
 
 ### 8.4 Configure Webhooks
 
