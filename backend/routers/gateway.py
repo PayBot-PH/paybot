@@ -18,6 +18,7 @@ from models.wallet_transactions import Wallet_transactions
 from schemas.auth import UserResponse
 from services.xendit_service import XenditService
 from services.paymongo_service import PayMongoService
+from services.photonpay_service import PhotonPayService
 from services.event_bus import payment_event_bus
 
 logger = logging.getLogger(__name__)
@@ -628,7 +629,31 @@ async def calculate_fees(data: FeeCalcRequest):
     return result
 
 
-# ==================== XENDIT BALANCE ====================
+# ==================== GATEWAY CONFIG STATUS ====================
+@router.get("/config-status")
+async def get_gateway_config_status(
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Return which payment gateways have credentials configured.
+
+    Used by the frontend to show warnings when API keys are missing.
+    Does not expose the actual key values.
+    """
+    xendit_svc = XenditService()
+    paymongo_svc = PayMongoService()
+    photonpay_svc = PhotonPayService()
+    xendit_ok = xendit_svc.is_configured()
+    paymongo_ok = paymongo_svc.is_configured()
+    photonpay_ok = photonpay_svc.is_configured()
+
+    return {
+        "xendit": xendit_ok,
+        "paymongo": paymongo_ok,
+        "photonpay": photonpay_ok,
+        "any_configured": xendit_ok or paymongo_ok or photonpay_ok,
+    }
+
+
 @router.get("/xendit-balance")
 async def get_xendit_balance(
     current_user: UserResponse = Depends(get_current_user),

@@ -27,6 +27,16 @@ class XenditService:
         if not self.secret_key:
             logger.warning("XENDIT_SECRET_KEY not configured - Xendit API calls will fail")
 
+    def is_configured(self) -> bool:
+        """Return True if the Xendit secret key is set."""
+        return bool(self.secret_key)
+
+    def _require_key(self) -> Optional[Dict[str, Any]]:
+        """Return an error dict if the secret key is missing, else None."""
+        if not self.secret_key:
+            return {"success": False, "error": "Xendit API key is not configured. Please set XENDIT_SECRET_KEY in your environment variables."}
+        return None
+
     def _get_auth(self):
         return (self.secret_key, "")
 
@@ -36,6 +46,9 @@ class XenditService:
         customer_name: str = "", customer_email: str = "",
         external_id: str = "",
     ) -> Dict[str, Any]:
+        err = self._require_key()
+        if err:
+            return err
         if not external_id:
             external_id = f"inv-{uuid.uuid4().hex[:12]}"
         payload: Dict[str, Any] = {
@@ -82,6 +95,9 @@ class XenditService:
 
     # ==================== QR CODES ====================
     async def create_qr_code(self, amount: float, description: str = "", external_id: str = "") -> Dict[str, Any]:
+        err = self._require_key()
+        if err:
+            return err
         if not external_id:
             external_id = f"qr-{uuid.uuid4().hex[:12]}"
         callback_url = f"{settings.backend_url}/api/v1/xendit/webhook"
@@ -114,6 +130,9 @@ class XenditService:
     # ==================== PAYMENT LINKS ====================
     async def create_payment_link(self, amount: float, description: str = "",
                                    customer_name: str = "", customer_email: str = "", external_id: str = "") -> Dict[str, Any]:
+        err = self._require_key()
+        if err:
+            return err
         if not external_id:
             external_id = f"pl-{uuid.uuid4().hex[:12]}"
         payload: Dict[str, Any] = {"external_id": external_id, "amount": amount, "description": description or "Payment", "currency": "PHP"}
@@ -138,6 +157,9 @@ class XenditService:
     # ==================== VIRTUAL ACCOUNTS ====================
     async def create_virtual_account(self, amount: float, bank_code: str, name: str,
                                       external_id: str = "") -> Dict[str, Any]:
+        err = self._require_key()
+        if err:
+            return err
         if not external_id:
             external_id = f"va-{uuid.uuid4().hex[:12]}"
         payload = {
@@ -170,6 +192,9 @@ class XenditService:
         failure_redirect_url: str = "",
         cancel_redirect_url: str = "",
     ) -> Dict[str, Any]:
+        err = self._require_key()
+        if err:
+            return err
         if not external_id:
             external_id = f"ew-{uuid.uuid4().hex[:12]}"
         callback_url = f"{settings.backend_url}/api/v1/xendit/webhook"
@@ -209,6 +234,9 @@ class XenditService:
     async def create_disbursement(self, amount: float, bank_code: str,
                                    account_number: str, account_name: str,
                                    description: str = "", external_id: str = "") -> Dict[str, Any]:
+        err = self._require_key()
+        if err:
+            return err
         if not external_id:
             external_id = f"disb-{uuid.uuid4().hex[:12]}"
         callback_url = f"{settings.backend_url}/api/v1/xendit/webhook"
@@ -292,6 +320,9 @@ class XenditService:
         Supported channel codes: 7ELEVEN, 7ELEVEN_CLIQQ, CEBUANA, ECPAY,
         MLHUILLIER, PALAWAN, DP_NONBANK, POSIBLE, USSC.
         """
+        err = self._require_key()
+        if err:
+            return err
         if not external_id:
             external_id = f"otc-{uuid.uuid4().hex[:12]}"
         payload: Dict[str, Any] = {
@@ -344,6 +375,9 @@ class XenditService:
         Supported channel codes: PH_BILLEASE, PH_ATOME.
         Uses the same ewallets charges endpoint.
         """
+        err = self._require_key()
+        if err:
+            return err
         if not external_id:
             external_id = f"bnpl-{uuid.uuid4().hex[:12]}"
         callback_url = f"{settings.backend_url}/api/v1/xendit/webhook"
@@ -495,6 +529,9 @@ class XenditService:
         Returns a checkout URL where the customer enters card details securely.
         Xendit handles PCI compliance through its hosted payment page.
         """
+        err = self._require_key()
+        if err:
+            return err
         if not external_id:
             external_id = f"card-{uuid.uuid4().hex[:12]}"
         base_url = settings.backend_url
