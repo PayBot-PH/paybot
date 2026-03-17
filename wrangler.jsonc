@@ -1,14 +1,24 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Worker name — must match the name of your Cloudflare Workers service
   "name": "paybot-backend",
+  // Entry-point Worker script (handles /api/* proxy; static assets handled via ASSETS binding)
+  "main": "worker.ts",
   "compatibility_date": "2025-09-27",
   "observability": {
     "enabled": true
   },
+  // Static assets served directly from the built frontend.
+  // Run `npm run build` (or `pnpm run build` inside frontend/) before deploying.
   "assets": {
-    "directory": "frontend/dist"
+    "directory": "frontend/dist",
+    "binding": "ASSETS"
   },
   "compatibility_flags": [
     "nodejs_compat"
-  ]
+  ],
+  // Set BACKEND_URL as a secret via `wrangler secret put BACKEND_URL`
+  // or in the Cloudflare dashboard: Workers → paybot-backend → Settings → Variables.
+  // Example value: https://paybot-backend.onrender.com
+  "vars": {}
 }

@@ -1,12 +1,12 @@
 # PayBot Deployment Guide
 
-This guide covers deploying PayBot on **Railway**, **Render**, or **Cloudflare Pages** (frontend) with a PostgreSQL database.
+This guide covers deploying PayBot on **Railway**, **Render**, or **Cloudflare** (Pages or Workers) with a PostgreSQL database.
 
 ## Prerequisites
 
 - A GitHub account with access to the PayBot repository
 - A [Railway](https://railway.app) **or** [Render](https://render.com) account (for the backend)
-- Optionally a [Cloudflare](https://cloudflare.com) account (for the frontend)
+- Optionally a [Cloudflare](https://cloudflare.com) account (for the frontend — Pages or Workers)
 - A Xendit account for payment processing
 - A Telegram Bot Token (create via [@BotFather](https://t.me/botfather))
 
@@ -24,8 +24,9 @@ This guide covers deploying PayBot on **Railway**, **Render**, or **Cloudflare P
 7. [Troubleshooting](#7-troubleshooting)
 8. [Render Setup](#8-render-setup)
 
-### Cloudflare Pages
+### Cloudflare
 9. [Cloudflare Pages Setup](#9-cloudflare-pages-setup)
+10. [Cloudflare Workers Setup](#10-cloudflare-workers-setup)
 
 ---
 
@@ -605,12 +606,119 @@ After deploying, visit your Cloudflare Pages URL (e.g. `https://paybot.pages.dev
 
 ---
 
+## 10. Cloudflare Workers Setup
+
+[Cloudflare Workers](https://workers.cloudflare.com) is an alternative to Cloudflare Pages that runs the API proxy as a Worker script alongside the static frontend assets — all in a single deployment. The backend (FastAPI) still runs on Railway or Render; the Worker forwards every `/api/*` request to it.
+
+### Architecture
+
+```
+Browser → Cloudflare Worker  (worker.ts — serves static SPA + proxies /api/*)
+               ↓ /api/*
+          Railway / Render  (FastAPI backend)
+```
+
+### 10.1 When to use Workers instead of Pages
+
+| Feature | Cloudflare Pages | Cloudflare Workers |
+|--|--|--|
+| Hosting type | Static site + Pages Functions | Worker script + static assets |
+| API proxy | Pages Function (`functions/api/[[route]].ts`) | Worker script (`worker.ts`) |
+| Deployment command | `wrangler pages deploy` | `wrangler deploy` |
+| Local deploy | Via GitHub Actions | `npm run deploy` from repo root |
+| Custom logic | Pages Functions only | Full Worker API available |
+
+Use **Workers** if you need fine-grained control over request handling or want to colocate custom server-side logic with the frontend in a single Cloudflare deployment.
+
+### 10.2 Prerequisites
+
+- A deployed backend on Railway or Render (see sections 1–8 above)
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up)
+- [Node.js 20+](https://nodejs.org) and npm installed locally
+
+### 10.3 Initial Setup
+
+1. Install dependencies from the repo root:
+   ```bash
+   npm install
+   ```
+
+2. Log in to Cloudflare via the Wrangler CLI:
+   ```bash
+   npx wrangler login
+   ```
+
+3. Build the frontend:
+   ```bash
+   npm run build
+   ```
+
+4. Set the `BACKEND_URL` secret (your backend's public URL):
+   ```bash
+   npx wrangler secret put BACKEND_URL
+   # Enter the value when prompted, e.g.: https://paybot-backend.onrender.com
+   ```
+
+### 10.4 Deploy
+
+Run from the repo root:
+
+```bash
+npm run deploy
+```
+
+This builds the frontend (`frontend/dist/`) and uploads a new Worker version. Wrangler reads `wrangler.jsonc` for the Worker name and asset directory.
+
+To deploy and immediately activate in one step, use:
+
+```bash
+npx wrangler deploy
+```
+
+### 10.5 GitHub Actions Secrets Setup
+
+The deploy workflow automatically deploys to Cloudflare Workers on every push to `main` when the required secrets are present.
+
+**Add these secrets to your GitHub repository** (Settings → Secrets and variables → Actions, or under the `production` environment):
+
+| Secret | Description |
+|--------|-------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Workers: Edit** permission (shared with Pages job) |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID (found in the dashboard right sidebar) |
+| `CLOUDFLARE_WORKERS_NAME` | Name of the Cloudflare Worker, e.g. `paybot-backend` |
+
+> **Note:** If any of the three secrets above are missing, the Cloudflare Workers deploy step is skipped with a warning.
+
+After setting secrets, also configure `BACKEND_URL` as a Worker secret in the Cloudflare dashboard:
+**Workers & Pages → paybot-backend → Settings → Variables → Add variable** (type: secret).
+
+### 10.6 Custom Domain (optional)
+
+1. In your Worker → **Triggers** → **Add Custom Domain**
+2. Enter your domain (e.g. `app.yourdomain.com`) and follow the DNS instructions
+3. Update `ALLOWED_ORIGINS` on your backend to include the new domain:
+   ```
+   ALLOWED_ORIGINS=https://app.yourdomain.com
+   ```
+
+### 10.7 Verify the Deployment
+
+After deploying, visit your Worker URL (e.g. `https://paybot-backend.<your-subdomain>.workers.dev`) and:
+
+1. The login page should load
+2. Open browser DevTools → **Network** tab and confirm `/api/v1/...` requests return responses from the backend
+3. Sign in with Telegram to confirm authentication works end-to-end
+
+---
+
 ## Additional Resources
 
 - [Railway Documentation](https://docs.railway.app)
 - [Render Documentation](https://docs.render.com)
 - [Cloudflare Pages Documentation](https://developers.cloudflare.com/pages)
 - [Cloudflare Pages Functions](https://developers.cloudflare.com/pages/functions)
+- [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers)
+- [Wrangler CLI Documentation](https://developers.cloudflare.com/workers/wrangler)
 - [Alembic Documentation](https://alembic.sqlalchemy.org)
 - [FastAPI Documentation](https://fastapi.tiangolo.com)
 - [Xendit API Documentation](https://developers.xendit.co)
@@ -641,6 +749,6 @@ You should now have PayBot running on Railway, Render, or Cloudflare Pages:
 ✅ Webhooks configured for Xendit and Telegram  
 ✅ Health checks passing  
 ✅ Logs accessible for monitoring  
-✅ Frontend deployed to Cloudflare Pages (optional)  
+✅ Frontend deployed to Cloudflare Pages or Workers (optional)  
 
 Your PayBot application is now successfully deployed! 🚀

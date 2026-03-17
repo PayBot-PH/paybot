@@ -192,3 +192,72 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: frontend
           command: pages deploy dist --project-name=${{ secrets.CLOUDFLARE_PROJECT_NAME || 'paybot' }} --branch=main --commit-dirty=true
+
+  deploy-cloudflare-worker:
+    name: Deploy to Cloudflare Workers
+    runs-on: ubuntu-latest
+    needs: [test-backend, build-frontend]
+    permissions:
+      contents: read
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Cloudflare credentials
+        id: validate
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN secret is not set. Skipping Cloudflare Workers deployment. See DEPLOYMENT.md for setup instructions."
+            echo "has_credentials=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::CLOUDFLARE_ACCOUNT_ID secret is not set. Skipping Cloudflare Workers deployment. See DEPLOYMENT.md for setup instructions."
+            echo "has_credentials=false" >> "$GITHUB_OUTPUT"
+          elif [ -z "$CLOUDFLARE_WORKERS_NAME" ]; then
+            echo "::warning::CLOUDFLARE_WORKERS_NAME secret is not set. Skipping Cloudflare Workers deployment. See DEPLOYMENT.md for setup instructions."
+            echo "has_credentials=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_credentials=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_WORKERS_NAME: ${{ secrets.CLOUDFLARE_WORKERS_NAME }}
+
+      - name: Install pnpm
+        if: steps.validate.outputs.has_credentials == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: "8.10.0"
+
+      - name: Set up Node.js 20
+        if: steps.validate.outputs.has_credentials == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "pnpm"
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install root dependencies (wrangler)
+        if: steps.validate.outputs.has_credentials == 'true'
+        # Root package.json uses npm (not pnpm); wrangler lives here
+        run: npm ci
+
+      - name: Install frontend dependencies
+        if: steps.validate.outputs.has_credentials == 'true'
+        # Frontend uses pnpm (see frontend/pnpm-lock.yaml)
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        if: steps.validate.outputs.has_credentials == 'true'
+        working-directory: frontend
+        run: pnpm run build
+
+      - name: Deploy to Cloudflare Workers
+        if: steps.validate.outputs.has_credentials == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy --name=${{ secrets.CLOUDFLARE_WORKERS_NAME }}
