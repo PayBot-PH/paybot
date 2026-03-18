@@ -1,7 +1,7 @@
 """add performance indexes to frequently queried columns
 
-Revision ID: k1l2m3n4o5p6
-Revises: j1k2l3m4n5o6
+Revision ID: p1e2r3f4o5r6
+Revises: n1o2p3q4r5s6
 Create Date: 2026-03-04 06:30:00.000000
 
 """
@@ -12,8 +12,8 @@ from alembic import op
 from sqlalchemy import text
 
 
-revision: str = "k1l2m3n4o5p6"
-down_revision: Union[str, Sequence[str], None] = "j1k2l3m4n5o6"
+revision: str = "p1e2r3f4o5r6"
+down_revision: Union[str, Sequence[str], None] = "n1o2p3q4r5s6"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
