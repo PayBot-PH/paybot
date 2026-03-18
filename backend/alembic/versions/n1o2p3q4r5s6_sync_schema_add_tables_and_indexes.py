@@ -170,7 +170,7 @@ def upgrade() -> None:
         ("ix_kyc_verifications_id", "kyc_verifications"),
         ("ix_topup_requests_id", "topup_requests"),
     ):
-        if _index_exists(idx, tbl):
+        if _table_exists(tbl) and _index_exists(idx, tbl):
             op.drop_index(op.f(idx), table_name=tbl)
 
     # ── 5. Add reference_code index on topup_requests ─────────────────────
@@ -234,11 +234,11 @@ def upgrade() -> None:
         ("idx_wallets_user_currency", "wallets", ["user_id", "currency"]),
     ]
     for idx_name, tbl, cols in perf_indexes:
-        if not _index_exists(idx_name, tbl):
+        if _table_exists(tbl) and not _index_exists(idx_name, tbl):
             op.create_index(idx_name, tbl, cols, unique=False)
 
     # wallet_transactions composite index (three columns)
-    if not _index_exists("idx_wtxn_user_type_status", "wallet_transactions"):
+    if _table_exists("wallet_transactions") and not _index_exists("idx_wtxn_user_type_status", "wallet_transactions"):
         op.create_index(
             "idx_wtxn_user_type_status",
             "wallet_transactions",
@@ -268,11 +268,11 @@ def downgrade() -> None:
         ("idx_bot_logs_user_id", "bot_logs", None),
         ("idx_api_configs_user_id", "api_configs", None),
     ]:
-        if _index_exists(idx_name, tbl):
+        if _table_exists(tbl) and _index_exists(idx_name, tbl):
             op.drop_index(idx_name, table_name=tbl)
 
     # Restore reference_code index removal → recreate
-    if _index_exists("ix_topup_requests_reference_code", "topup_requests"):
+    if _table_exists("topup_requests") and _index_exists("ix_topup_requests_reference_code", "topup_requests"):
         op.drop_index(op.f("ix_topup_requests_reference_code"), table_name="topup_requests")
 
     # Restore ix_*_id indexes
@@ -282,14 +282,15 @@ def downgrade() -> None:
         ("ix_kyb_registrations_id", "kyb_registrations"),
         ("ix_admin_users_id", "admin_users"),
     ):
-        if not _index_exists(idx, tbl):
+        if _table_exists(tbl) and not _index_exists(idx, tbl):
             op.create_index(op.f(idx), tbl, ["id"], unique=False)
 
     # Restore named unique constraint on paymongo_webhook_events
-    with op.batch_alter_table("paymongo_webhook_events") as batch_op:
-        batch_op.create_unique_constraint(
-            "uq_paymongo_webhook_events_event_id", ["event_id"]
-        )
+    if _table_exists("paymongo_webhook_events"):
+        with op.batch_alter_table("paymongo_webhook_events") as batch_op:
+            batch_op.create_unique_constraint(
+                "uq_paymongo_webhook_events_event_id", ["event_id"]
+            )
 
     # Drop crypto_topup_requests
     if _table_exists("crypto_topup_requests"):
