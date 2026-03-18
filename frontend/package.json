@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
+    "@marsidev/react-turnstile": "^1.4.2",
     "@metagptx/vite-plugin-source-locator": "latest",
     "@metagptx/web-sdk": "^0.0.58",
     "@playwright/mcp": "^0.0.36",

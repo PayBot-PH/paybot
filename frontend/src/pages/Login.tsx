@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
+import { Turnstile } from '@marsidev/react-turnstile';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   ArrowRight, ChevronRight, CheckCircle2,
@@ -121,6 +122,8 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
   const usdtStats = getDailyUsdtStats();
   const widgetContainerRef = useRef<HTMLDivElement | null>(null);
   const loginSectionRef = useRef<HTMLDivElement>(null);
@@ -149,6 +152,7 @@ export default function Login() {
     const renderWidget = async () => {
       const u = await resolveBotUsername();
       if (!u) { setLocalError('Telegram sign-in is not configured. Please set TELEGRAM_BOT_USERNAME.'); return; }
+      if (turnstileSiteKey && !turnstileToken) return;
       if (!widgetContainerRef.current) return;
       setLocalError(null);
       window.onTelegramAuth = async (tgUser: TelegramWidgetUser) => {
@@ -173,7 +177,7 @@ export default function Login() {
       if (widgetContainerRef.current) widgetContainerRef.current.innerHTML = '';
       delete window.onTelegramAuth;
     };
-  }, [botUsername, loginWithTelegram]);
+  }, [botUsername, loginWithTelegram, turnstileToken, turnstileSiteKey]);
 
   if (user) return <Navigate to="/intro" replace />;
 
@@ -639,6 +643,16 @@ export default function Login() {
           </p>
 
           <div className="bg-[#0A1628]/80 border border-white/[0.10] rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/40 backdrop-blur">
+            {turnstileSiteKey && !turnstileToken && (
+              <div className="flex flex-col items-center mb-5 gap-3">
+                <p className="text-slate-400 text-xs">Please verify you are human</p>
+                <Turnstile
+                  siteKey={turnstileSiteKey}
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  options={{ theme: 'dark' }}
+                />
+              </div>
+            )}
             <div className="flex justify-center mb-5" ref={widgetContainerRef} />
             {submitting && (
               <div className="flex items-center justify-center gap-2 text-slate-300 text-sm mb-4">
