@@ -140,11 +140,57 @@
   .glass {
     @apply bg-white/[0.04] backdrop-blur-xl border border-white/[0.08];
   }
+  .glass-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    @apply rounded-xl backdrop-blur-sm transition-all duration-200;
+  }
+  .glass-card:hover {
+    border-color: hsl(var(--border) / 0.8);
+    box-shadow: 0 4px 24px -4px hsl(var(--primary) / 0.08);
+  }
   .glass-sidebar {
     background: hsl(var(--sidebar-background) / 0.95);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
   }
+
+  /* Page layout container */
+  .page-container {
+    @apply w-full max-w-7xl mx-auto;
+  }
+
+  /* Consistent stat card */
+  .stat-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border));
+    @apply rounded-xl transition-all duration-200;
+  }
+  .stat-card:hover {
+    border-color: hsl(var(--primary) / 0.3);
+    box-shadow: 0 4px 20px -4px hsl(var(--primary) / 0.12);
+    transform: translateY(-1px);
+  }
+
+  /* Shimmer skeleton animation */
+  .animate-shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted-foreground) / 0.15) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s ease-in-out infinite;
+  }
+
+  /* Stagger animations for grid children */
+  .stagger-children > *:nth-child(1)  { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2)  { animation-delay: 60ms; }
+  .stagger-children > *:nth-child(3)  { animation-delay: 120ms; }
+  .stagger-children > *:nth-child(4)  { animation-delay: 180ms; }
+  .stagger-children > *:nth-child(5)  { animation-delay: 240ms; }
+  .stagger-children > *:nth-child(6)  { animation-delay: 300ms; }
 
   /* Subtle gradient glow behind content */
   .glow-blue {

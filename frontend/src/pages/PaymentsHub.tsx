@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
+import PageHeader from '@/components/PageHeader';
 
 const TAB_LABELS: Record<string, string> = {
   invoice: 'Invoice',
@@ -220,8 +221,12 @@ export default function PaymentsHub() {
   return (
     <Layout>
       <div className="max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold text-white mb-2">Payments Hub</h1>
-        <p className="text-slate-400 text-sm mb-4">Create payments using all Xendit payment channels</p>
+        <PageHeader
+          title="Payments Hub"
+          subtitle="Create payments using all Xendit payment channels"
+          icon={<CreditCard className="h-5 w-5" />}
+          breadcrumb={['Payments', 'Hub']}
+        />
 
         {/* Gateway configuration warnings */}
         {gatewayStatus && !gatewayStatus.xendit && (
@@ -247,9 +252,9 @@ export default function PaymentsHub() {
         )}
 
         <Tabs value={tab} onValueChange={(v) => { setTab(v); setResult(null); }}>
-          <TabsList className="bg-slate-800 border border-slate-700 mb-6 flex-wrap h-auto gap-1 p-1">
+          <TabsList className="bg-muted border border-border mb-6 flex-wrap h-auto gap-1 p-1">
             {Object.entries(tabConfig).map(([key, cfg]) => (
-              <TabsTrigger key={key} value={key} className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
+              <TabsTrigger key={key} value={key} className="data-[state=active]:bg-card data-[state=active]:text-foreground text-muted-foreground">
                 <span className={cfg.color}>{cfg.icon}</span>
                 <span className="ml-2">{TAB_LABELS[key]}</span>
               </TabsTrigger>
@@ -257,9 +262,9 @@ export default function PaymentsHub() {
           </TabsList>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-[#1E293B] border-slate-700/50">
+            <Card className="glass-card">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2">
                   <span className={tabConfig[tab]?.color}>{tabConfig[tab]?.icon}</span>
                   Create {TAB_LABELS[tab]}
                 </CardTitle>
@@ -278,47 +283,47 @@ export default function PaymentsHub() {
                 )}
 
                 <div>
-                  <Label className="text-slate-300">Amount (PHP)</Label>
+                  <Label>Amount (PHP)</Label>
                   <Input type="number" step="0.01" min="1" placeholder="0.00" value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                    className="mt-1" />
                 </div>
 
                 {needsDescription.includes(tab) && (
                   <div>
-                    <Label className="text-slate-300">Description</Label>
+                    <Label>Description</Label>
                     <Textarea placeholder="Payment description..." value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 resize-none" rows={2} />
+                      className="mt-1 resize-none" rows={2} />
                   </div>
                 )}
 
                 {needsCustomerName.includes(tab) && (
                   <div>
-                    <Label className="text-slate-300">
+                    <Label>
                       Customer Name{tab === 'retail_outlet' ? ' *' : ''}
                     </Label>
                     <Input placeholder="John Doe" value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      className="mt-1" />
                   </div>
                 )}
 
                 {needsCustomerEmail.includes(tab) && (
                   <div>
-                    <Label className="text-slate-300">Customer Email</Label>
+                    <Label>Customer Email</Label>
                     <Input type="email" placeholder="john@example.com" value={customerEmail}
                       onChange={(e) => setCustomerEmail(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      className="mt-1" />
                   </div>
                 )}
 
                 {tab === 'virtual_account' && (
                   <div>
-                    <Label className="text-slate-300">Bank</Label>
+                    <Label>Bank</Label>
                     <Select value={bankCode} onValueChange={setBankCode}>
-                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent >
                         {VA_BANKS.map(b => (
                           <SelectItem key={b} value={b} className="text-white">{b}</SelectItem>
                         ))}
@@ -330,10 +335,10 @@ export default function PaymentsHub() {
                 {tab === 'ewallet' && (
                   <>
                     <div>
-                      <Label className="text-slate-300">E-Wallet Provider</Label>
+                      <Label>E-Wallet Provider</Label>
                       <Select value={ewalletProvider} onValueChange={setEwalletProvider}>
-                        <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-600">
+                        <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                        <SelectContent >
                           {EWALLET_PROVIDERS.map(([v, l]) => (
                             <SelectItem key={v} value={v} className="text-white">{l}</SelectItem>
                           ))}
@@ -341,47 +346,47 @@ export default function PaymentsHub() {
                       </Select>
                     </div>
                     <div>
-                      <Label className="text-slate-300">Mobile Number (optional)</Label>
+                      <Label>Mobile Number (optional)</Label>
                       <Input placeholder="+639XXXXXXXXX" value={mobileNumber}
                         onChange={(e) => setMobileNumber(e.target.value)}
-                        className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                        className="mt-1" />
                     </div>
                   </>
                 )}
 
                 {tab === 'retail_outlet' && (
                   <div>
-                    <Label className="text-slate-300">Retail Outlet / OTC Channel</Label>
+                    <Label>Retail Outlet / OTC Channel</Label>
                     <Select value={retailOutlet} onValueChange={setRetailOutlet}>
-                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent >
                         {RETAIL_OUTLETS.map(([v, l]) => (
                           <SelectItem key={v} value={v} className="text-white">{l}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-slate-500 mt-1">Customer pays cash at the selected retail outlet using the generated payment code.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Customer pays cash at the selected retail outlet using the generated payment code.</p>
                   </div>
                 )}
 
                 {tab === 'paylater' && (
                   <div>
-                    <Label className="text-slate-300">PayLater Provider</Label>
+                    <Label>PayLater Provider</Label>
                     <Select value={paylaterProvider} onValueChange={setPaylaterProvider}>
-                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent >
                         {PAYLATER_PROVIDERS.map(([v, l]) => (
                           <SelectItem key={v} value={v} className="text-white">{l}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-slate-500 mt-1">Buy Now, Pay Later — customer is redirected to the provider's app to complete payment.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Buy Now, Pay Later — customer is redirected to the provider's app to complete payment.</p>
                   </div>
                 )}
 
                 {tab === 'card' && (
-                  <div className="rounded-lg bg-slate-800/50 border border-slate-700 p-3">
-                    <p className="text-xs text-slate-400">
+                  <div className="rounded-lg bg-muted/50 border border-border p-3">
+                    <p className="text-xs text-muted-foreground">
                       <span className="text-pink-400 font-medium">🔒 Secure card payment</span> — Customer is redirected to a Xendit-hosted checkout page to enter card details (Visa, Mastercard, JCB, Amex). PCI-compliant.
                     </p>
                   </div>
@@ -393,14 +398,14 @@ export default function PaymentsHub() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#1E293B] border-slate-700/50">
-              <CardHeader><CardTitle className="text-white">Result</CardTitle></CardHeader>
+            <Card className="glass-card">
+              <CardHeader><CardTitle>Result</CardTitle></CardHeader>
               <CardContent>
                 {!result ? (
                   <div className="text-center py-12">
-                    <Banknote className="h-16 w-16 text-slate-600 mx-auto mb-4" />
-                    <p className="text-slate-400">Create a payment to see the result</p>
-                    <p className="text-slate-500 text-sm mt-2">Payment details and links will appear here</p>
+                    <Banknote className="h-16 w-16 text-muted-foreground/40 mx-auto mb-4" />
+                    <p className="text-muted-foreground">Create a payment to see the result</p>
+                    <p className="text-muted-foreground/60 text-sm mt-2">Payment details and links will appear here</p>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -412,15 +417,15 @@ export default function PaymentsHub() {
                       const isUrl = typeof value === 'string' && value.startsWith('http');
                       return (
                         <div key={key} className="space-y-1">
-                          <Label className="text-xs text-slate-400 uppercase tracking-wider">{key.replace(/_/g, ' ')}</Label>
+                          <Label className="text-xs text-muted-foreground uppercase tracking-wider">{key.replace(/_/g, ' ')}</Label>
                           <div className="flex items-center space-x-2">
                             {isUrl ? (
                               <a href={value as string} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-400 hover:text-blue-300 underline break-all flex-1">{value as string}</a>
                             ) : (
-                              <code className="text-sm text-white font-mono bg-slate-800 px-2 py-1 rounded break-all flex-1">{String(value)}</code>
+                              <code className="text-sm font-mono bg-muted px-2 py-1 rounded break-all flex-1">{String(value)}</code>
                             )}
-                            <button onClick={() => copy(String(value))} className="text-slate-500 hover:text-slate-300 flex-shrink-0"><Copy className="h-3.5 w-3.5" /></button>
-                            {isUrl && <a href={value as string} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 flex-shrink-0"><ExternalLink className="h-3.5 w-3.5" /></a>}
+                            <button onClick={() => copy(String(value))} className="text-muted-foreground/50 hover:text-foreground flex-shrink-0"><Copy className="h-3.5 w-3.5" /></button>
+                            {isUrl && <a href={value as string} target="_blank" rel="noopener noreferrer" className="text-muted-foreground/50 hover:text-foreground flex-shrink-0"><ExternalLink className="h-3.5 w-3.5" /></a>}
                           </div>
                         </div>
                       );

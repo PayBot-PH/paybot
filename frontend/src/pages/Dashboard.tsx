@@ -131,30 +131,28 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <Card className="bg-[#1E293B] border-slate-700/50 hover:border-slate-600/60 transition-all duration-200">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs text-slate-400 mb-1">{label}</p>
-            <p className={`text-2xl font-bold ${color} transition-all duration-300`}>
+    <div className="stat-card p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs text-muted-foreground mb-1">{label}</p>
+          <p className={`text-2xl font-bold ${color} transition-all duration-300`}>
+            {loading ? (
+              <span className="inline-block w-10 h-7 bg-muted/60 rounded animate-pulse" />
+            ) : value}
+          </p>
+          {sub && (
+            <p className="text-[11px] text-muted-foreground/70 mt-1 truncate">
               {loading ? (
-                <span className="inline-block w-10 h-7 bg-slate-700/60 rounded animate-pulse" />
-              ) : value}
+                <span className="inline-block w-20 h-3 bg-muted/40 rounded animate-pulse" />
+              ) : sub}
             </p>
-            {sub && (
-              <p className="text-[11px] text-slate-500 mt-1 truncate">
-                {loading ? (
-                  <span className="inline-block w-20 h-3 bg-slate-700/40 rounded animate-pulse" />
-                ) : sub}
-              </p>
-            )}
-          </div>
-          <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${color.includes('emerald') ? 'bg-emerald-500/15' : color.includes('amber') ? 'bg-amber-500/15' : color.includes('red') ? 'bg-red-500/15' : 'bg-blue-500/15'}`}>
-            {icon}
-          </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+        <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 ${color.includes('emerald') ? 'bg-emerald-500/15' : color.includes('amber') ? 'bg-amber-500/15' : color.includes('red') ? 'bg-red-500/15' : 'bg-blue-500/15'}`}>
+          {icon}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -230,7 +228,7 @@ export default function Dashboard() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#0B1120] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
       </div>
     );
@@ -459,10 +457,10 @@ export default function Dashboard() {
       ═══════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Quick Actions */}
-        <Card className="bg-[#1E293B] border-slate-700/50">
+        <Card className="glass-card">
           <CardHeader className="pb-3 pt-4 px-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
+              <CardTitle className="text-foreground text-sm font-semibold flex items-center gap-2">
                 <Zap className="h-4 w-4 text-blue-400" />
                 Quick Actions
               </CardTitle>
@@ -526,9 +524,9 @@ export default function Dashboard() {
         </Card>
 
         {/* Recent Transactions */}
-        <Card className="bg-[#1E293B] border-slate-700/50 lg:col-span-2">
+        <Card className="glass-card lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
-            <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
+            <CardTitle className="text-foreground text-sm font-semibold flex items-center gap-2">
               <FileText className="h-4 w-4 text-slate-400" />
               Recent Transactions
             </CardTitle>
@@ -543,23 +541,23 @@ export default function Dashboard() {
             {loading ? (
               <div className="space-y-2">
                 {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-800/40 animate-pulse">
-                    <div className="h-8 w-8 rounded-lg bg-slate-700/60 shrink-0" />
+                  <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/40 animate-pulse">
+                    <div className="h-8 w-8 rounded-lg bg-muted/60 shrink-0" />
                     <div className="flex-1 space-y-1.5">
-                      <div className="h-3 bg-slate-700/60 rounded w-2/3" />
-                      <div className="h-2.5 bg-slate-700/40 rounded w-1/3" />
+                      <div className="h-3 bg-muted/60 rounded w-2/3" />
+                      <div className="h-2.5 bg-muted/40 rounded w-1/3" />
                     </div>
-                    <div className="h-4 w-16 bg-slate-700/60 rounded" />
+                    <div className="h-4 w-16 bg-muted/60 rounded" />
                   </div>
                 ))}
               </div>
             ) : recentTxns.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="h-12 w-12 rounded-2xl bg-slate-700/40 flex items-center justify-center mb-3">
-                  <DollarSign className="h-6 w-6 text-slate-500" />
+                <div className="h-12 w-12 rounded-2xl bg-muted/40 flex items-center justify-center mb-3">
+                  <DollarSign className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <p className="text-slate-400 text-sm font-medium">No transactions yet</p>
-                <p className="text-slate-600 text-xs mt-1 mb-4">Create your first payment to get started</p>
+                <p className="text-muted-foreground text-sm font-medium">No transactions yet</p>
+                <p className="text-muted-foreground/60 text-xs mt-1 mb-4">Create your first payment to get started</p>
                 <Link to="/payments">
                   <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8">
                     <CreditCard className="h-3.5 w-3.5 mr-1.5" />
@@ -571,7 +569,7 @@ export default function Dashboard() {
               <div className="space-y-1.5">
                 {recentTxns.map((txn) => {
                   const sc = statusConfig[txn.status] || statusConfig.pending;
-                  const tc = typeConfig[txn.transaction_type] || { icon: <FileText className="h-3.5 w-3.5 text-slate-400" />, bg: 'bg-slate-500/10' };
+                  const tc = typeConfig[txn.transaction_type] || { icon: <FileText className="h-3.5 w-3.5 text-muted-foreground" />, bg: 'bg-muted/30' };
                   const isUpdated = updatedTxnIds.has(txn.id);
                   return (
                     <div
@@ -579,27 +577,27 @@ export default function Dashboard() {
                       className={`flex items-center justify-between p-2.5 rounded-lg transition-all duration-500 ${
                         isUpdated
                           ? 'bg-blue-500/10 ring-1 ring-blue-500/40 scale-[1.01]'
-                          : 'bg-slate-800/50 hover:bg-slate-800/80'
+                          : 'bg-muted/30 hover:bg-muted/50'
                       }`}
                     >
                       <div className="flex items-center space-x-2.5 min-w-0">
-                        <div className={`h-8 w-8 rounded-lg ${tc.bg} flex items-center justify-center shrink-0 border border-slate-600/30`}>
+                        <div className={`h-8 w-8 rounded-lg ${tc.bg} flex items-center justify-center shrink-0 border border-border/50`}>
                           {tc.icon}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-white truncate leading-tight">
+                          <p className="text-sm font-medium text-foreground truncate leading-tight">
                             {txn.description || txn.transaction_type.replace(/_/g, ' ')}
                           </p>
-                          <p className="text-xs text-slate-500 truncate mt-0.5">
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
                             {txn.external_id || `#${txn.id}`}
                             {txn.created_at && (
-                              <span className="ml-1.5 text-slate-600">· {formatTxnDate(txn.created_at)}</span>
+                              <span className="ml-1.5 text-muted-foreground/60">· {formatTxnDate(txn.created_at)}</span>
                             )}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 ml-2 shrink-0">
-                        <span className="text-sm font-mono font-semibold text-white">
+                        <span className="text-sm font-mono font-semibold text-foreground">
                           ₱{fmt(txn.amount)}
                         </span>
                         <Badge
@@ -624,17 +622,17 @@ export default function Dashboard() {
           REVENUE BREAKDOWN
       ═══════════════════════════════════════════════ */}
       {!loading && stats.total_amount > 0 && (
-        <div className="mt-4 bg-[#1E293B] border border-slate-700/50 rounded-2xl p-5">
+        <div className="mt-4 glass-card rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-white font-semibold text-sm">Revenue Breakdown</h2>
-              <p className="text-slate-500 text-xs mt-0.5">Paid vs Pending vs Expired</p>
+              <h2 className="text-foreground font-semibold text-sm">Revenue Breakdown</h2>
+              <p className="text-muted-foreground text-xs mt-0.5">Paid vs Pending vs Expired</p>
             </div>
             <Link to="/reports" className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors">
               Full report <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
-          <div className="flex rounded-full overflow-hidden h-2.5 mb-4 bg-slate-800">
+          <div className="flex rounded-full overflow-hidden h-2.5 mb-4 bg-muted">
             <div className="bg-emerald-400 transition-all duration-700"
               style={{ width: `${(stats.paid_amount / stats.total_amount) * 100}%` }} />
             <div className="bg-amber-400 transition-all duration-700"
@@ -650,9 +648,9 @@ export default function Dashboard() {
               <div key={r.label} className="flex items-start gap-2">
                 <span className={`h-2.5 w-2.5 rounded-full ${r.dot} mt-1 shrink-0`} />
                 <div>
-                  <p className="text-xs text-slate-500">{r.label}</p>
+                  <p className="text-xs text-muted-foreground">{r.label}</p>
                   <p className={`text-sm font-semibold ${r.color}`}>{r.count} txns</p>
-                  {r.amount > 0 && <p className="text-xs text-slate-600">₱{fmt(r.amount)}</p>}
+                  {r.amount > 0 && <p className="text-xs text-muted-foreground/60">₱{fmt(r.amount)}</p>}
                 </div>
               </div>
             ))}

@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
+import PageHeader from '@/components/PageHeader';
 
 export default function CreatePayment() {
   const { user } = useAuth();
@@ -101,13 +102,18 @@ export default function CreatePayment() {
   return (
     <Layout>
       <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold text-white mb-6">Create Payment</h1>
+        <PageHeader
+          title="Create Payment"
+          subtitle="Generate a new invoice, QR code or payment link"
+          icon={<Plus className="h-5 w-5" />}
+          breadcrumb={['Payments', 'Create']}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Form */}
-          <Card className="bg-[#1E293B] border-slate-700/50">
+          <Card className="glass-card">
             <CardHeader>
-              <CardTitle className="text-white flex items-center space-x-2">
+              <CardTitle className="flex items-center space-x-2">
                 <div className={`h-8 w-8 ${currentType.bg} rounded-lg flex items-center justify-center ${currentType.color}`}>
                   {currentType.icon}
                 </div>
@@ -117,25 +123,25 @@ export default function CreatePayment() {
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label className="text-slate-300">Payment Type</Label>
+                  <Label>Payment Type</Label>
                   <Select value={paymentType} onValueChange={setPaymentType}>
-                    <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                    <SelectTrigger className="mt-1">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-600">
-                      <SelectItem value="invoice" className="text-white">
+                    <SelectContent>
+                      <SelectItem value="invoice">
                         <div className="flex items-center space-x-2">
                           <FileText className="h-4 w-4 text-blue-400" />
                           <span>Invoice</span>
                         </div>
                       </SelectItem>
-                      <SelectItem value="qr_code" className="text-white">
+                      <SelectItem value="qr_code">
                         <div className="flex items-center space-x-2">
                           <QrCode className="h-4 w-4 text-purple-400" />
                           <span>QR Code</span>
                         </div>
                       </SelectItem>
-                      <SelectItem value="payment_link" className="text-white">
+                      <SelectItem value="payment_link">
                         <div className="flex items-center space-x-2">
                           <LinkIcon className="h-4 w-4 text-cyan-400" />
                           <span>Payment Link</span>
@@ -146,7 +152,7 @@ export default function CreatePayment() {
                 </div>
 
                 <div>
-                  <Label className="text-slate-300">Amount (PHP)</Label>
+                  <Label>Amount (PHP)</Label>
                   <Input
                     type="number"
                     step="0.01"
@@ -154,18 +160,18 @@ export default function CreatePayment() {
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                    className="mt-1"
                     required
                   />
                 </div>
 
                 <div>
-                  <Label className="text-slate-300">Description</Label>
+                  <Label>Description</Label>
                   <Textarea
                     placeholder="Payment description..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 resize-none"
+                    className="mt-1 resize-none"
                     rows={3}
                   />
                 </div>
@@ -173,22 +179,22 @@ export default function CreatePayment() {
                 {paymentType !== 'qr_code' && (
                   <>
                     <div>
-                      <Label className="text-slate-300">Customer Name</Label>
+                      <Label>Customer Name</Label>
                       <Input
                         placeholder="John Doe"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                        className="mt-1"
                       />
                     </div>
                     <div>
-                      <Label className="text-slate-300">Customer Email</Label>
+                      <Label>Customer Email</Label>
                       <Input
                         type="email"
                         placeholder="john@example.com"
                         value={customerEmail}
                         onChange={(e) => setCustomerEmail(e.target.value)}
-                        className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                        className="mt-1"
                       />
                     </div>
                   </>
@@ -216,17 +222,17 @@ export default function CreatePayment() {
           </Card>
 
           {/* Result */}
-          <Card className="bg-[#1E293B] border-slate-700/50">
+          <Card className="glass-card">
             <CardHeader>
-              <CardTitle className="text-white">Result</CardTitle>
+              <CardTitle>Result</CardTitle>
             </CardHeader>
             <CardContent>
               {!result ? (
                 <div className="text-center py-12">
-                  <div className="h-16 w-16 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Plus className="h-8 w-8 text-slate-500" />
+                  <div className="h-16 w-16 bg-muted/50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Plus className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <p className="text-slate-400">Create a payment to see the result here</p>
+                  <p className="text-muted-foreground">Create a payment to see the result here</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -240,7 +246,7 @@ export default function CreatePayment() {
                     const isUrl = typeof value === 'string' && (value.startsWith('http') || value.startsWith('https'));
                     return (
                       <div key={key} className="space-y-1">
-                        <Label className="text-xs text-slate-400 uppercase tracking-wider">
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                           {key.replace(/_/g, ' ')}
                         </Label>
                         <div className="flex items-center space-x-2">
@@ -254,18 +260,18 @@ export default function CreatePayment() {
                               {value as string}
                             </a>
                           ) : (
-                            <code className="text-sm text-white font-mono bg-slate-800 px-2 py-1 rounded break-all flex-1">
+                            <code className="text-sm font-mono bg-muted px-2 py-1 rounded break-all flex-1">
                               {String(value)}
                             </code>
                           )}
                           <button
                             onClick={() => copyToClipboard(String(value))}
-                            className="text-slate-500 hover:text-slate-300 flex-shrink-0"
+                            className="text-muted-foreground/50 hover:text-foreground flex-shrink-0"
                           >
                             <Copy className="h-3.5 w-3.5" />
                           </button>
                           {isUrl && (
-                            <a href={value as string} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 flex-shrink-0">
+                            <a href={value as string} target="_blank" rel="noopener noreferrer" className="text-muted-foreground/50 hover:text-foreground flex-shrink-0">
                               <ExternalLink className="h-3.5 w-3.5" />
                             </a>
                           )}
