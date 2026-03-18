@@ -5,7 +5,8 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-route
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import TopProgressBar from '@/components/TopProgressBar';
 import Dashboard from './pages/Dashboard';
 import Wallet from './pages/Wallet';
 import Transactions from './pages/Transactions';
@@ -72,6 +73,16 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// Wraps children in a div that re-mounts (and fades in) on every route change
+function PageFade({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+  return (
+    <div key={location.key} className="page-enter">
+      {children}
+    </div>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -80,6 +91,8 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <BrowserRouter>
+            <TopProgressBar />
+            <PageFade>
             <MaintenanceGuard>
             <Routes>
               <Route path="/intro" element={<BotIntro />} />
@@ -112,6 +125,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </MaintenanceGuard>
+          </PageFade>
           </BrowserRouter>
         </TooltipProvider>
         </AuthProvider>
