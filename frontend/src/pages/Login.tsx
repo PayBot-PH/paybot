@@ -78,16 +78,16 @@ function HeroCard({
   icon, name, amount, statusLabel, statusCls,
 }: { icon: React.ReactNode; name: string; amount: string; statusLabel: string; statusCls: string }) {
   return (
-    <div className="bg-[#0D1626]/90 backdrop-blur border border-white/10 rounded-2xl p-4 shadow-2xl">
+    <div className="bg-white/90 backdrop-blur border border-white/60 rounded-2xl p-4 shadow-lg">
       <div className="flex items-center gap-3 mb-3">
         {icon}
         <div>
-          <p className="text-white font-semibold text-sm">{name}</p>
-          <p className="text-slate-400 text-xs">Payment Method</p>
+          <p className="text-[#141414] font-semibold text-sm">{name}</p>
+          <p className="text-[#595959] text-xs">Payment Method</p>
         </div>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-white font-bold">{amount}</span>
+        <span className="text-[#141414] font-bold">{amount}</span>
         <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusCls}`}>{statusLabel}</span>
       </div>
     </div>
@@ -182,35 +182,35 @@ export default function Login() {
   if (user) return <Navigate to="/intro" replace />;
 
   return (
-    <div className="min-h-screen bg-[#040C18] text-white overflow-x-hidden">
+    <div className="min-h-screen bg-white text-[#141414] overflow-x-hidden">
 
       {/* ── HEADER ──────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 bg-[#040C18]/90 backdrop-blur-md border-b border-white/[0.06]">
+      <header className="sticky top-0 z-50 bg-white border-b border-[#E8EAED] shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
 
           {/* Brand */}
           <div className="flex items-center gap-2.5">
             <img src="/logo.svg" alt={APP_NAME} className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-xl" />
-            <span className="font-bold text-base sm:text-lg text-white tracking-tight">{APP_NAME}</span>
+            <span className="font-bold text-base sm:text-lg text-[#141414] tracking-tight">{APP_NAME}</span>
           </div>
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6 lg:gap-8">
-            <Link to="/features" className="text-slate-400 hover:text-white text-sm transition-colors">Features</Link>
-            <Link to="/pricing" className="text-slate-400 hover:text-white text-sm transition-colors">Pricing</Link>
-            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white text-sm transition-colors">Support</a>
+            <Link to="/features" className="text-[#595959] hover:text-[#1677FF] text-sm transition-colors">Features</Link>
+            <Link to="/pricing" className="text-[#595959] hover:text-[#1677FF] text-sm transition-colors">Pricing</Link>
+            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-[#595959] hover:text-[#1677FF] text-sm transition-colors">Support</a>
           </nav>
 
           <div className="flex items-center gap-2">
             <button
               onClick={scrollToLogin}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 sm:px-5 py-2 rounded-full transition-colors shadow-lg shadow-blue-600/25"
+              className="flex items-center gap-1.5 bg-[#1677FF] hover:bg-[#0e6ae8] text-white text-sm font-semibold px-4 sm:px-5 py-2 rounded-full transition-colors shadow-md shadow-blue-500/20"
             >
               Sign In <ArrowRight className="h-3.5 w-3.5" />
             </button>
             {/* Mobile hamburger */}
             <button
-              className="md:hidden p-1.5 text-slate-400 hover:text-white"
+              className="md:hidden p-1.5 text-[#595959] hover:text-[#141414]"
               onClick={() => setMobileNavOpen(v => !v)}
               aria-label="Toggle menu"
             >
@@ -221,19 +221,19 @@ export default function Login() {
 
         {/* Mobile nav drawer */}
         {mobileNavOpen && (
-          <div className="md:hidden border-t border-white/[0.06] bg-[#040C18]/95 px-4 py-4 space-y-1">
-            <Link to="/features" className="block py-2.5 text-slate-300 hover:text-white text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Features</Link>
-            <Link to="/pricing" className="block py-2.5 text-slate-300 hover:text-white text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Pricing</Link>
-            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="block py-2.5 text-slate-300 hover:text-white text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Support</a>
+          <div className="md:hidden border-t border-[#E8EAED] bg-white px-4 py-4 space-y-1">
+            <Link to="/features" className="block py-2.5 text-[#595959] hover:text-[#1677FF] text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Features</Link>
+            <Link to="/pricing" className="block py-2.5 text-[#595959] hover:text-[#1677FF] text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Pricing</Link>
+            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="block py-2.5 text-[#595959] hover:text-[#1677FF] text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Support</a>
           </div>
         )}
       </header>
 
       {/* ── HERO ────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#1677FF] to-[#0052CC]">
         {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[900px] h-[400px] sm:h-[500px] bg-blue-700/10 blur-[100px] sm:blur-[120px] rounded-full" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[900px] h-[400px] sm:h-[500px] bg-white/5 blur-[100px] sm:blur-[120px] rounded-full" />
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
@@ -242,39 +242,39 @@ export default function Login() {
             {/* Left — copy */}
             <div className="pt-12 pb-8 sm:pt-16 sm:pb-10 lg:py-24 text-center lg:text-left">
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 bg-blue-600/10 border border-blue-500/25 rounded-full px-3 sm:px-4 py-1.5 mb-5 sm:mb-6">
-                <span className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse" />
-                <span className="text-blue-300 text-xs font-semibold tracking-wide uppercase">Now live in the Philippines</span>
+              <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 sm:px-4 py-1.5 mb-5 sm:mb-6">
+                <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+                <span className="text-white text-xs font-semibold tracking-wide uppercase">Now live in the Philippines</span>
               </div>
 
               <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-extrabold text-white leading-[1.1] tracking-tight mb-5 sm:mb-6">
                 Accept{' '}
-                <span style={{ color: '#1677FF' }}>Alipay</span>,{' '}
-                <span style={{ color: '#07C160' }}>WeChat</span>,{' '}
-                <span style={{ color: '#007DC5' }}>GCash</span>
+                <span className="text-yellow-300">Alipay</span>,{' '}
+                <span className="text-green-300">WeChat</span>,{' '}
+                <span className="text-sky-200">GCash</span>
                 <br className="hidden sm:block" />{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+                <span className="text-white/90">
                   &amp; All PH Banks.
                 </span>
               </h1>
 
-              <p className="text-slate-400 text-base sm:text-lg leading-relaxed mb-7 sm:mb-8 max-w-lg mx-auto lg:mx-0">
+              <p className="text-blue-100 text-base sm:text-lg leading-relaxed mb-7 sm:mb-8 max-w-lg mx-auto lg:mx-0">
                 The unified Telegram payment platform for Philippine merchants. Accept from Chinese tourists,
                 GCash, Maya, GrabPay and all major PH banks — settle in{' '}
-                <span className="text-emerald-400 font-semibold">USDT same day</span>.
+                <span className="text-yellow-300 font-semibold">USDT same day</span>.
               </p>
 
               {/* CTAs */}
               <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8">
                 <button
                   onClick={scrollToLogin}
-                  className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-all shadow-xl shadow-blue-600/30 hover:shadow-blue-500/40 hover:-translate-y-0.5 w-full sm:w-auto"
+                  className="flex items-center justify-center gap-2 bg-white hover:bg-blue-50 text-[#1677FF] font-semibold px-7 py-3.5 rounded-full text-sm transition-all shadow-xl hover:-translate-y-0.5 w-full sm:w-auto"
                 >
                   Get Started Free <ArrowRight className="h-4 w-4" />
                 </button>
                 <Link
                   to="/features"
-                  className="flex items-center justify-center gap-2 bg-white/[0.05] hover:bg-white/[0.10] border border-white/[0.12] text-slate-300 hover:text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-all w-full sm:w-auto"
+                  className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-all w-full sm:w-auto"
                 >
                   View Features <ChevronRight className="h-4 w-4" />
                 </Link>
@@ -283,17 +283,17 @@ export default function Login() {
               {/* Trust badges */}
               <div className="flex flex-wrap items-center gap-2 justify-center lg:justify-start">
                 {[
-                  { img: '/logos/bsp.svg', alt: 'BSP Regulated',     bg: 'bg-blue-500/10 border-blue-500/20'     },
-                  { img: '/logos/pci.svg', alt: 'PCI DSS Compliant', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-                  { img: '/logos/dpo.svg', alt: 'NPC / DPO',         bg: 'bg-violet-500/10 border-violet-500/20'  },
+                  { img: '/logos/bsp.svg', alt: 'BSP Regulated',     bg: 'bg-white/10 border-white/20'  },
+                  { img: '/logos/pci.svg', alt: 'PCI DSS Compliant', bg: 'bg-white/10 border-white/20'  },
+                  { img: '/logos/dpo.svg', alt: 'NPC / DPO',         bg: 'bg-white/10 border-white/20'  },
                 ].map(({ img, alt, bg }) => (
-                  <div key={alt} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${bg} text-[11px] text-slate-300 font-medium`}>
+                  <div key={alt} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${bg} text-[11px] text-white font-medium`}>
                     <img src={img} alt={alt} className="h-4 w-auto" />
                     {alt}
                   </div>
                 ))}
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border bg-teal-500/10 border-teal-500/20 text-[11px] text-slate-300 font-medium">
-                  <Lock className="h-3 w-3 text-teal-400" />
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border bg-white/10 border-white/20 text-[11px] text-white font-medium">
+                  <Lock className="h-3 w-3 text-white" />
                   256-bit SSL
                 </div>
               </div>
@@ -302,27 +302,27 @@ export default function Login() {
             {/* Right — floating payment cards (desktop only) */}
             <div className="relative hidden lg:flex items-center justify-center py-16">
               <div className="relative w-full max-w-sm">
-                <div className="absolute inset-0 bg-blue-600/10 blur-3xl rounded-full" />
+                <div className="absolute inset-0 bg-white/10 blur-3xl rounded-full" />
                 <div className="relative space-y-3">
-                  <HeroCard icon={Logo.Alipay(40)}  name="Alipay QR"  amount="¥ 1,200.00" statusLabel="Accepted" statusCls="bg-blue-500/20 text-blue-300" />
+                  <HeroCard icon={Logo.Alipay(40)}  name="Alipay QR"  amount="¥ 1,200.00" statusLabel="Accepted" statusCls="bg-blue-100 text-blue-700" />
                   <div className="ml-6">
-                    <HeroCard icon={Logo.WeChat(40)} name="WeChat Pay" amount="¥ 880.00"   statusLabel="Settled"  statusCls="bg-emerald-500/20 text-emerald-300" />
+                    <HeroCard icon={Logo.WeChat(40)} name="WeChat Pay" amount="¥ 880.00"   statusLabel="Settled"  statusCls="bg-green-100 text-green-700" />
                   </div>
-                  <HeroCard icon={Logo.GCash(40)}   name="GCash"      amount="₱ 2,500.00" statusLabel="Accepted" statusCls="bg-sky-500/20 text-sky-300" />
+                  <HeroCard icon={Logo.GCash(40)}   name="GCash"      amount="₱ 2,500.00" statusLabel="Accepted" statusCls="bg-sky-100 text-sky-700" />
                   <div className="ml-8">
-                    <div className="bg-emerald-900/40 border border-emerald-500/30 rounded-2xl p-4 shadow-2xl">
+                    <div className="bg-white border border-[#E8EAED] rounded-2xl p-4 shadow-xl">
                       <div className="flex items-center gap-3">
                         {Logo.USDT(40)}
                         <div>
-                          <p className="text-emerald-300 font-bold">+$87.42 USDT</p>
-                          <p className="text-emerald-500 text-xs">T+0 Settlement • Today</p>
+                          <p className="text-[#52C41A] font-bold">+$87.42 USDT</p>
+                          <p className="text-[#595959] text-xs">T+0 Settlement • Today</p>
                         </div>
-                        <CheckCircle2 className="h-5 w-5 text-emerald-400 ml-auto" />
+                        <CheckCircle2 className="h-5 w-5 text-[#52C41A] ml-auto" />
                       </div>
                     </div>
                   </div>
                 </div>
-                <div className="absolute -top-3 -right-3 bg-emerald-500 rounded-full px-3 py-1 text-xs font-bold text-white shadow-lg flex items-center gap-1.5">
+                <div className="absolute -top-3 -right-3 bg-[#52C41A] rounded-full px-3 py-1 text-xs font-bold text-white shadow-lg flex items-center gap-1.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" /> LIVE
                 </div>
               </div>
@@ -331,7 +331,7 @@ export default function Login() {
 
           {/* Mobile — logo grid (shown instead of floating cards) */}
           <div className="lg:hidden pb-10">
-            <p className="text-center text-slate-500 text-xs font-semibold tracking-widest uppercase mb-4">Accepted payments</p>
+            <p className="text-center text-white/60 text-xs font-semibold tracking-widest uppercase mb-4">Accepted payments</p>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
               {[
                 { el: Logo.Alipay(44),    label: 'Alipay'    },
@@ -349,7 +349,7 @@ export default function Login() {
               ].map(({ el, label }) => (
                 <div key={label} className="flex flex-col items-center gap-1.5">
                   {el}
-                  <span className="text-slate-400 text-[10px] font-medium">{label}</span>
+                  <span className="text-white/70 text-[10px] font-medium">{label}</span>
                 </div>
               ))}
             </div>
@@ -358,7 +358,7 @@ export default function Login() {
       </section>
 
       {/* ── STATS ───────────────────────────────────────────────── */}
-      <section className="py-12 sm:py-16 border-b border-white/[0.05]">
+      <section className="py-12 sm:py-16 bg-[#F5F7FA] border-b border-[#E8EAED]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 text-center">
             {[
@@ -368,9 +368,9 @@ export default function Login() {
               { value: 'KYC',  label: 'KYB Verified',    sub: 'Compliance ready'               },
             ].map(({ value, label, sub }) => (
               <div key={label} className="py-2">
-                <p className="text-3xl sm:text-4xl font-extrabold text-white mb-1">{value}</p>
-                <p className="text-slate-300 font-semibold text-xs sm:text-sm mb-0.5">{label}</p>
-                <p className="text-slate-500 text-[11px] sm:text-xs">{sub}</p>
+                <p className="text-3xl sm:text-4xl font-extrabold text-[#1677FF] mb-1">{value}</p>
+                <p className="text-[#141414] font-semibold text-xs sm:text-sm mb-0.5">{label}</p>
+                <p className="text-[#595959] text-[11px] sm:text-xs">{sub}</p>
               </div>
             ))}
           </div>
@@ -378,13 +378,13 @@ export default function Login() {
       </section>
 
       {/* ── PAYMENT METHODS ─────────────────────────────────────── */}
-      <section id="payments" className="py-14 sm:py-20">
+      <section id="payments" className="py-14 sm:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10 sm:mb-14">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#141414] mb-3 sm:mb-4">
               One bot. Every payment network.
             </h2>
-            <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto">
+            <p className="text-[#595959] text-base sm:text-lg max-w-2xl mx-auto">
               Accept from Chinese tourists and Filipino customers through a single Telegram bot.
             </p>
           </div>
@@ -393,22 +393,22 @@ export default function Login() {
           <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
 
             {/* Alipay */}
-            <div className="relative bg-gradient-to-br from-[#0D1F4A] to-[#0A1530] border border-[#1677FF]/25 rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden group hover:border-[#1677FF]/50 transition-all hover:-translate-y-0.5">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-[#1677FF]/5 blur-3xl rounded-full" />
+            <div className="relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden group hover:border-[#1677FF]/40 hover:shadow-md transition-all hover:-translate-y-0.5">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-[#1677FF]/3 blur-3xl rounded-full" />
               <div className="relative">
                 <div className="flex items-center gap-4 mb-4 sm:mb-5">
                   {Logo.Alipay(52)}
                   <div>
-                    <h3 className="text-lg sm:text-xl font-bold text-white">Alipay QR</h3>
-                    <p className="text-slate-400 text-xs sm:text-sm">Chinese e-wallet · Cross-border</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-[#141414]">Alipay QR</h3>
+                    <p className="text-[#595959] text-xs sm:text-sm">Chinese e-wallet · Cross-border</p>
                   </div>
                 </div>
-                <p className="text-slate-400 text-sm leading-relaxed mb-5">
+                <p className="text-[#595959] text-sm leading-relaxed mb-5">
                   Generate dynamic QR codes for instant Alipay payments. Ideal for Chinese tourists — one of the world's largest digital wallets with 1B+ users.
                 </p>
                 <ul className="space-y-2">
                   {['Scan & pay in seconds', 'CNY multi-currency support', 'Real-time confirmation'].map(f => (
-                    <li key={f} className="flex items-center gap-2 text-slate-300 text-sm">
+                    <li key={f} className="flex items-center gap-2 text-[#141414] text-sm">
                       <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: '#1677FF' }} /> {f}
                     </li>
                   ))}
@@ -417,22 +417,22 @@ export default function Login() {
             </div>
 
             {/* WeChat Pay */}
-            <div className="relative bg-gradient-to-br from-[#0A2B1A] to-[#071A10] border border-[#07C160]/25 rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden group hover:border-[#07C160]/50 transition-all hover:-translate-y-0.5">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-[#07C160]/5 blur-3xl rounded-full" />
+            <div className="relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden group hover:border-[#07C160]/40 hover:shadow-md transition-all hover:-translate-y-0.5">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-[#07C160]/3 blur-3xl rounded-full" />
               <div className="relative">
                 <div className="flex items-center gap-4 mb-4 sm:mb-5">
                   {Logo.WeChat(52)}
                   <div>
-                    <h3 className="text-lg sm:text-xl font-bold text-white">WeChat Pay</h3>
-                    <p className="text-slate-400 text-xs sm:text-sm">Chinese super-app · 900M users</p>
+                    <h3 className="text-lg sm:text-xl font-bold text-[#141414]">WeChat Pay</h3>
+                    <p className="text-[#595959] text-xs sm:text-sm">Chinese super-app · 900M users</p>
                   </div>
                 </div>
-                <p className="text-slate-400 text-sm leading-relaxed mb-5">
+                <p className="text-[#595959] text-sm leading-relaxed mb-5">
                   Accept WeChat Pay QR payments from the world's most-used super-app. Tap into 900M+ active users and instant CNY settlements.
                 </p>
                 <ul className="space-y-2">
                   {['QR-code based checkout', 'CNY & multi-currency', 'Instant settlement'].map(f => (
-                    <li key={f} className="flex items-center gap-2 text-slate-300 text-sm">
+                    <li key={f} className="flex items-center gap-2 text-[#141414] text-sm">
                       <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: '#07C160' }} /> {f}
                     </li>
                   ))}
@@ -442,12 +442,11 @@ export default function Login() {
           </div>
 
           {/* PH E-Wallets */}
-          <div className="relative bg-gradient-to-br from-[#0A1E35] to-[#07141F] border border-[#007DC5]/25 rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden hover:border-[#007DC5]/40 transition-all mb-4 sm:mb-6">
-            <div className="absolute top-0 right-0 w-60 h-60 bg-[#007DC5]/4 blur-3xl rounded-full" />
+          <div className="relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden hover:shadow-md transition-all mb-4 sm:mb-6">
             <div className="relative">
               <div className="mb-4 sm:mb-5">
-                <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Philippine E-Wallets</h3>
-                <p className="text-slate-400 text-sm">Accept from all major Philippine digital wallets via PayMongo.</p>
+                <h3 className="text-lg sm:text-xl font-bold text-[#141414] mb-1">Philippine E-Wallets</h3>
+                <p className="text-[#595959] text-sm">Accept from all major Philippine digital wallets via PayMongo.</p>
               </div>
               <div className="flex flex-wrap gap-3 sm:gap-4 mb-5 sm:mb-6">
                 {[
@@ -455,9 +454,9 @@ export default function Login() {
                   { el: Logo.Maya(40),    label: 'Maya'    },
                   { el: Logo.GrabPay(40), label: 'GrabPay' },
                 ].map(({ el, label }) => (
-                  <div key={label} className="flex items-center gap-2.5 bg-white/[0.05] border border-white/[0.08] rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2.5">
+                  <div key={label} className="flex items-center gap-2.5 bg-[#F5F7FA] border border-[#E8EAED] rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2.5">
                     {el}
-                    <span className="text-slate-200 text-sm font-semibold">{label}</span>
+                    <span className="text-[#141414] text-sm font-semibold">{label}</span>
                   </div>
                 ))}
               </div>
@@ -468,7 +467,7 @@ export default function Login() {
                   '30M+ Maya users',
                   'GrabPay ecosystem integration',
                 ].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-slate-300 text-sm">
+                  <li key={f} className="flex items-center gap-2 text-[#141414] text-sm">
                     <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: '#007DC5' }} /> {f}
                   </li>
                 ))}
@@ -477,12 +476,11 @@ export default function Login() {
           </div>
 
           {/* PH Banks */}
-          <div id="banks" className="relative bg-gradient-to-br from-[#15101A] to-[#0E0B14] border border-purple-500/20 rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden hover:border-purple-500/35 transition-all">
-            <div className="absolute top-0 right-0 w-60 h-60 bg-purple-700/4 blur-3xl rounded-full" />
+          <div id="banks" className="relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden hover:shadow-md transition-all">
             <div className="relative">
               <div className="mb-4 sm:mb-5">
-                <h3 className="text-lg sm:text-xl font-bold text-white mb-1">Philippine Banks</h3>
-                <p className="text-slate-400 text-sm">InstaPay &amp; PESONet transfers from all major PH banks — accepted instantly via QR or payment link.</p>
+                <h3 className="text-lg sm:text-xl font-bold text-[#141414] mb-1">Philippine Banks</h3>
+                <p className="text-[#595959] text-sm">InstaPay &amp; PESONet transfers from all major PH banks — accepted instantly via QR or payment link.</p>
               </div>
               <div className="flex flex-wrap gap-2.5 sm:gap-3 mb-5 sm:mb-6">
                 {[
@@ -493,13 +491,13 @@ export default function Login() {
                   { el: Logo.RCBC(36),      label: 'RCBC'      },
                   { el: Logo.PSBank(36),    label: 'PSBank'    },
                 ].map(({ el, label }) => (
-                  <div key={label} className="flex items-center gap-2 bg-white/[0.04] border border-white/[0.07] rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-2">
+                  <div key={label} className="flex items-center gap-2 bg-[#F5F7FA] border border-[#E8EAED] rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-2">
                     {el}
-                    <span className="text-slate-300 text-xs sm:text-sm font-medium">{label}</span>
+                    <span className="text-[#141414] text-xs sm:text-sm font-medium">{label}</span>
                   </div>
                 ))}
-                <div className="flex items-center bg-white/[0.03] border border-white/[0.06] rounded-lg sm:rounded-xl px-3 py-2">
-                  <span className="text-slate-500 text-xs sm:text-sm">+100 more banks</span>
+                <div className="flex items-center bg-[#F5F7FA] border border-[#E8EAED] rounded-lg sm:rounded-xl px-3 py-2">
+                  <span className="text-[#595959] text-xs sm:text-sm">+100 more banks</span>
                 </div>
               </div>
               <ul className="grid sm:grid-cols-2 gap-2">
@@ -509,8 +507,8 @@ export default function Login() {
                   'QR Ph / payment links',
                   'Automatic reconciliation',
                 ].map(f => (
-                  <li key={f} className="flex items-center gap-2 text-slate-300 text-sm">
-                    <CheckCircle2 className="h-4 w-4 shrink-0 text-purple-400" /> {f}
+                  <li key={f} className="flex items-center gap-2 text-[#141414] text-sm">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-purple-500" /> {f}
                   </li>
                 ))}
               </ul>
@@ -520,23 +518,20 @@ export default function Login() {
       </section>
 
       {/* ── USDT SETTLEMENT ─────────────────────────────────────── */}
-      <section id="settlement" className="py-14 sm:py-20 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/30 via-transparent to-emerald-950/10 pointer-events-none" />
-        <div className="absolute -right-32 top-1/2 -translate-y-1/2 w-[400px] sm:w-[500px] h-[400px] sm:h-[500px] bg-emerald-700/6 blur-[120px] rounded-full" />
-
+      <section id="settlement" className="py-14 sm:py-20 relative overflow-hidden bg-[#F5F7FA]">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid lg:grid-cols-2 gap-10 sm:gap-14 items-center">
 
             {/* Visual ledger */}
             <div className="relative lg:order-1">
-              <div className="bg-[#0A1A12]/80 border border-emerald-500/20 rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-2xl">
+              <div className="bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-sm">
                 <div className="flex items-center gap-3 mb-5 sm:mb-6">
                   {Logo.USDT(44)}
                   <div>
-                    <p className="text-emerald-300 font-bold text-base sm:text-lg">USDT Settlement</p>
-                    <p className="text-slate-400 text-xs sm:text-sm">Tether • TRC-20 / ERC-20</p>
+                    <p className="text-[#141414] font-bold text-base sm:text-lg">USDT Settlement</p>
+                    <p className="text-[#595959] text-xs sm:text-sm">Tether • TRC-20 / ERC-20</p>
                   </div>
-                  <span className="ml-auto bg-emerald-500/20 text-emerald-300 text-xs font-bold px-2.5 sm:px-3 py-1 rounded-full border border-emerald-500/30">T+0</span>
+                  <span className="ml-auto bg-[#52C41A]/10 text-[#52C41A] text-xs font-bold px-2.5 sm:px-3 py-1 rounded-full border border-[#52C41A]/20">T+0</span>
                 </div>
                 <div className="space-y-2.5 sm:space-y-3 mb-5 sm:mb-6">
                   {[
@@ -544,22 +539,22 @@ export default function Login() {
                     { method: 'WeChat Pay',           amount: `+$${fmtUsd(usdtStats.wechat)} USDT`, time: 'Today 12:15' },
                     { method: 'GCash / PH Banks',     amount: `+$${fmtUsd(usdtStats.gcash)} USDT`,  time: 'Today 10:02' },
                   ].map(({ method, amount, time }) => (
-                    <div key={method} className="flex items-center justify-between bg-white/[0.03] border border-white/[0.06] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3">
+                    <div key={method} className="flex items-center justify-between bg-[#F5F7FA] border border-[#E8EAED] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3">
                       <div>
-                        <p className="text-white text-sm font-medium">{method}</p>
-                        <p className="text-slate-500 text-xs">{time}</p>
+                        <p className="text-[#141414] text-sm font-medium">{method}</p>
+                        <p className="text-[#595959] text-xs">{time}</p>
                       </div>
-                      <span className="text-emerald-400 font-bold text-sm">{amount}</span>
+                      <span className="text-[#52C41A] font-bold text-sm">{amount}</span>
                     </div>
                   ))}
                 </div>
-                <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex items-center justify-between">
+                <div className="bg-[#52C41A]/5 border border-[#52C41A]/20 rounded-xl sm:rounded-2xl p-3.5 sm:p-4 flex items-center justify-between">
                   <div>
-                    <p className="text-slate-400 text-xs mb-0.5">Total settled today</p>
-                    <p className="text-emerald-300 font-extrabold text-xl sm:text-2xl">${fmtUsd(usdtStats.total)} USDT</p>
+                    <p className="text-[#595959] text-xs mb-0.5">Total settled today</p>
+                    <p className="text-[#52C41A] font-extrabold text-xl sm:text-2xl">${fmtUsd(usdtStats.total)} USDT</p>
                   </div>
-                  <div className="h-10 w-10 sm:h-12 sm:w-12 bg-emerald-500/20 rounded-xl sm:rounded-2xl flex items-center justify-center">
-                    <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-400" />
+                  <div className="h-10 w-10 sm:h-12 sm:w-12 bg-[#52C41A]/10 rounded-xl sm:rounded-2xl flex items-center justify-center">
+                    <CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-[#52C41A]" />
                   </div>
                 </div>
               </div>
@@ -567,15 +562,15 @@ export default function Login() {
 
             {/* Copy */}
             <div className="lg:order-2">
-              <div className="inline-flex items-center gap-2 bg-emerald-600/10 border border-emerald-500/25 rounded-full px-3 sm:px-4 py-1.5 mb-5 sm:mb-6">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-emerald-300 text-xs font-semibold tracking-wide uppercase">T+0 Same-Day Settlement</span>
+              <div className="inline-flex items-center gap-2 bg-[#52C41A]/10 border border-[#52C41A]/25 rounded-full px-3 sm:px-4 py-1.5 mb-5 sm:mb-6">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#52C41A] animate-pulse" />
+                <span className="text-[#52C41A] text-xs font-semibold tracking-wide uppercase">T+0 Same-Day Settlement</span>
               </div>
-              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4 leading-tight">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#141414] mb-4 leading-tight">
                 Receive your earnings<br />
-                <span className="text-emerald-400">in USDT. Same day.</span>
+                <span className="text-[#52C41A]">in USDT. Same day.</span>
               </h2>
-              <p className="text-slate-400 text-base sm:text-lg leading-relaxed mb-7 sm:mb-8">
+              <p className="text-[#595959] text-base sm:text-lg leading-relaxed mb-7 sm:mb-8">
                 No waiting 3–5 business days. All your Alipay, WeChat Pay, GCash, Maya, and PH bank
                 collections are automatically converted and settled to your wallet in USDT at end of day.
               </p>
@@ -586,12 +581,12 @@ export default function Login() {
                   { title: 'Fully transparent',  desc: 'Every settlement is logged with a tx hash. Full audit trail in your dashboard.' },
                 ].map(({ title, desc }) => (
                   <div key={title} className="flex gap-3 sm:gap-4">
-                    <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                      <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-emerald-400" />
+                    <div className="h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-[#52C41A]/10 border border-[#52C41A]/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle2 className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-[#52C41A]" />
                     </div>
                     <div>
-                      <p className="text-white font-semibold text-sm mb-0.5">{title}</p>
-                      <p className="text-slate-400 text-sm">{desc}</p>
+                      <p className="text-[#141414] font-semibold text-sm mb-0.5">{title}</p>
+                      <p className="text-[#595959] text-sm">{desc}</p>
                     </div>
                   </div>
                 ))}
@@ -602,24 +597,24 @@ export default function Login() {
       </section>
 
       {/* ── HOW IT WORKS ────────────────────────────────────────── */}
-      <section className="py-14 sm:py-20 border-t border-white/[0.05]">
+      <section className="py-14 sm:py-20 border-t border-[#E8EAED] bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10 sm:mb-14">
-            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3 sm:mb-4">How it works</h2>
-            <p className="text-slate-400 text-base sm:text-lg">Three steps — from payment request to USDT settlement.</p>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-[#141414] mb-3 sm:mb-4">How it works</h2>
+            <p className="text-[#595959] text-base sm:text-lg">Three steps — from payment request to USDT settlement.</p>
           </div>
           <div className="grid sm:grid-cols-3 gap-4 sm:gap-8">
             {[
-              { step: '01', color: 'bg-blue-600',    border: 'border-blue-500/30',    accent: 'text-blue-400',    title: 'Choose a method', desc: 'Select Alipay, WeChat Pay, GCash, Maya, GrabPay or any PH bank. Share the QR or payment link.' },
-              { step: '02', color: 'bg-purple-600',  border: 'border-purple-500/30',  accent: 'text-purple-400',  title: 'Customer pays',   desc: 'Customer scans the QR or opens the link. You get an instant Telegram notification.' },
-              { step: '03', color: 'bg-emerald-600', border: 'border-emerald-500/30', accent: 'text-emerald-400', title: 'Receive USDT T+0', desc: 'Your balance is settled in USDT to your wallet by end of day. No waiting, no bank forms.' },
+              { step: '01', color: 'bg-[#1677FF]',  border: 'border-[#1677FF]/20',  accent: 'text-[#1677FF]',  title: 'Choose a method', desc: 'Select Alipay, WeChat Pay, GCash, Maya, GrabPay or any PH bank. Share the QR or payment link.' },
+              { step: '02', color: 'bg-purple-500', border: 'border-purple-200',    accent: 'text-purple-600', title: 'Customer pays',   desc: 'Customer scans the QR or opens the link. You get an instant Telegram notification.' },
+              { step: '03', color: 'bg-[#52C41A]',  border: 'border-[#52C41A]/20', accent: 'text-[#52C41A]',  title: 'Receive USDT T+0', desc: 'Your balance is settled in USDT to your wallet by end of day. No waiting, no bank forms.' },
             ].map(({ step, color, border, accent, title, desc }) => (
-              <div key={step} className={`bg-white/[0.02] border ${border} rounded-2xl p-5 sm:p-7 text-center`}>
-                <div className={`h-12 w-12 sm:h-14 sm:w-14 ${color} rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-5 shadow-lg`}>
+              <div key={step} className={`bg-white border ${border} rounded-2xl p-5 sm:p-7 text-center shadow-sm`}>
+                <div className={`h-12 w-12 sm:h-14 sm:w-14 ${color} rounded-xl sm:rounded-2xl flex items-center justify-center mx-auto mb-4 sm:mb-5 shadow-md`}>
                   <span className="text-white font-extrabold text-base sm:text-lg">{step}</span>
                 </div>
-                <h3 className={`font-bold text-white text-base sm:text-lg mb-2 ${accent}`}>{title}</h3>
-                <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+                <h3 className={`font-bold text-base sm:text-lg mb-2 ${accent}`}>{title}</h3>
+                <p className="text-[#595959] text-sm leading-relaxed">{desc}</p>
               </div>
             ))}
           </div>
@@ -627,61 +622,61 @@ export default function Login() {
       </section>
 
       {/* ── LOGIN ───────────────────────────────────────────────── */}
-      <section ref={loginSectionRef} className="py-16 sm:py-24 border-t border-white/[0.05] relative overflow-hidden">
+      <section ref={loginSectionRef} className="py-16 sm:py-24 bg-gradient-to-br from-[#1677FF] to-[#0052CC] relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] sm:w-[700px] h-[300px] sm:h-[400px] bg-blue-700/8 blur-[80px] sm:blur-[100px] rounded-full" />
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] sm:w-[700px] h-[300px] sm:h-[400px] bg-white/5 blur-[80px] sm:blur-[100px] rounded-full" />
         </div>
         <div className="relative max-w-md mx-auto px-4 sm:px-6 text-center">
-          <div className="inline-flex items-center gap-2 bg-blue-600/10 border border-blue-500/25 rounded-full px-3 sm:px-4 py-1.5 mb-4 sm:mb-5">
+          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-full px-3 sm:px-4 py-1.5 mb-4 sm:mb-5">
             <img src="/logo.svg" alt="" className="h-3.5 w-3.5 rounded" />
-            <span className="text-blue-300 text-xs font-semibold tracking-wide uppercase">Telegram Authentication</span>
+            <span className="text-white text-xs font-semibold tracking-wide uppercase">Telegram Authentication</span>
           </div>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-3">Ready to get started?</h2>
-          <p className="text-slate-400 text-sm sm:text-base mb-8 sm:mb-10">
+          <p className="text-blue-100 text-sm sm:text-base mb-8 sm:mb-10">
             Sign in with your authorized Telegram account to access the{' '}
             <span className="text-white font-medium">{APP_NAME}</span> dashboard.
           </p>
 
-          <div className="bg-[#0A1628]/80 border border-white/[0.10] rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/40 backdrop-blur">
+          <div className="bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-xl">
             {turnstileSiteKey && !turnstileToken && (
               <div className="flex flex-col items-center mb-5 gap-3">
-                <p className="text-slate-400 text-xs">Please verify you are human</p>
+                <p className="text-[#595959] text-xs">Please verify you are human</p>
                 <Turnstile
                   siteKey={turnstileSiteKey}
                   onSuccess={(token) => setTurnstileToken(token)}
-                  options={{ theme: 'dark' }}
+                  options={{ theme: 'light' }}
                 />
               </div>
             )}
             <div className="flex justify-center mb-5" ref={widgetContainerRef} />
             {submitting && (
-              <div className="flex items-center justify-center gap-2 text-slate-300 text-sm mb-4">
-                <span className="h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              <div className="flex items-center justify-center gap-2 text-[#595959] text-sm mb-4">
+                <span className="h-4 w-4 border-2 border-[#1677FF] border-t-transparent rounded-full animate-spin" />
                 Signing in…
               </div>
             )}
             {(localError || error) && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-red-400 text-sm mb-4">
+              <div className="bg-[#FF4D4F]/5 border border-[#FF4D4F]/20 rounded-xl px-4 py-3 text-[#FF4D4F] text-sm mb-4">
                 {localError || error}
               </div>
             )}
             {loading && !submitting && (
-              <p className="text-slate-500 text-sm text-center mb-4">Checking session…</p>
+              <p className="text-[#595959] text-sm text-center mb-4">Checking session…</p>
             )}
-            <div className="border-t border-white/[0.06] pt-4 sm:pt-5 space-y-3">
+            <div className="border-t border-[#E8EAED] pt-4 sm:pt-5 space-y-3">
               <Link
                 to="/register"
-                className="flex items-center justify-between w-full bg-emerald-500/8 hover:bg-emerald-500/15 border border-emerald-500/20 hover:border-emerald-500/35 text-emerald-300 hover:text-emerald-200 text-sm font-semibold py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl transition-all group"
+                className="flex items-center justify-between w-full bg-[#F5F7FA] hover:bg-[#E8F4FF] border border-[#E8EAED] hover:border-[#1677FF]/30 text-[#1677FF] hover:text-[#1677FF] text-sm font-semibold py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl transition-all group"
               >
                 <div className="flex items-center gap-2">
                   <UserPlus className="h-4 w-4" /> Create an account
                 </div>
-                <ChevronRight className="h-4 w-4 text-emerald-600 group-hover:text-emerald-400 transition-colors" />
+                <ChevronRight className="h-4 w-4 text-[#1677FF]/40 group-hover:text-[#1677FF] transition-colors" />
               </Link>
-              <p className="text-slate-600 text-xs text-center pt-1">
+              <p className="text-[#595959] text-xs text-center pt-1">
                 Need access?{' '}
                 <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer"
-                  className="text-sky-500 hover:text-sky-400 transition-colors">
+                  className="text-[#1677FF] hover:text-[#0e6ae8] transition-colors">
                   Contact @traxionpay
                 </a>
               </p>

@@ -175,15 +175,15 @@ export default function Layout({ children, connected }: LayoutProps) {
                     onClick={() => toggleGroup(group.key)}
                     className={`w-full flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
                       hasActiveChild
-                        ? 'text-blue-400 bg-blue-600/10'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                        ? 'text-[#1677FF] bg-blue-50'
+                        : 'text-gray-600 hover:text-[#1677FF] hover:bg-blue-50'
                     }`}
                     style={{ width: 'calc(100% - 1rem)' }}
                   >
                     <group.icon className="h-4 w-4 shrink-0" />
                     <span className="flex-1 truncate text-left">{group.label}</span>
                     {group.badge && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 text-orange-500 border border-orange-200">
                         {group.badge}
                       </span>
                     )}
@@ -202,14 +202,14 @@ export default function Layout({ children, connected }: LayoutProps) {
                             onClick={onNav}
                             className={`flex items-center gap-3 ml-5 mr-2 pl-4 pr-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 border-l-2 ${
                               active
-                                ? 'border-blue-500 bg-blue-600/10 text-blue-300'
-                                : 'border-border text-muted-foreground hover:text-foreground hover:bg-accent hover:border-blue-500/40'
+                                ? 'border-[#1677FF] bg-blue-50 text-[#1677FF]'
+                                : 'border-transparent text-gray-500 hover:text-[#1677FF] hover:bg-blue-50 hover:border-blue-200'
                             }`}
                           >
                             <Icon className="h-3.5 w-3.5 shrink-0" />
                             <span className="flex-1 truncate text-xs">{label}</span>
                             {badge && (
-                              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-orange-50 text-orange-500 border border-orange-200">
                                 {badge}
                               </span>
                             )}
@@ -232,14 +232,14 @@ export default function Layout({ children, connected }: LayoutProps) {
                 onClick={onNav}
                 className={`flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
                   active
-                    ? 'bg-blue-600 text-white'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    ? 'bg-blue-50 text-[#1677FF] font-semibold border-l-2 border-[#1677FF]'
+                    : 'text-gray-600 hover:text-[#1677FF] hover:bg-blue-50'
                 }`}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
                 <span className="flex-1 truncate">{item.label}</span>
                 {item.badge && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 text-orange-500 border border-orange-200">
                     {item.badge}
                   </span>
                 )}
@@ -282,7 +282,7 @@ export default function Layout({ children, connected }: LayoutProps) {
 
         {/* User */}
         <div className="shrink-0 border-t border-border p-3">
-          <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-muted">
+          <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-blue-50 border border-blue-100">
             <div className="h-7 w-7 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center shrink-0">
               {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-400" /> : <User className="h-3.5 w-3.5 text-blue-400" />}
             </div>
@@ -333,7 +333,7 @@ export default function Layout({ children, connected }: LayoutProps) {
       <div className="flex-1 flex flex-col min-h-0 md:ml-56">
 
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-background border-b border-border shrink-0">
+        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-white border-b border-border shadow-sm shrink-0">
           <button
             className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             onClick={() => setSidebarOpen(true)}
