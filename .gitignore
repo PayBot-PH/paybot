@@ -62,3 +62,9 @@ frontend/package-lock.json
 # Tool/platform artifacts
 .mgx/
 .railway/
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
