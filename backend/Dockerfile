@@ -12,6 +12,8 @@ RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the frontend source and build
 COPY frontend/ .
+ARG VITE_TURNSTILE_SITE_KEY
+ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 RUN pnpm build
 
 # ── Stage 2: Python backend ──────────────────────────────────────────────────
