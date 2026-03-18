@@ -134,12 +134,17 @@ def do_run_migrations(connection):
     with context.begin_transaction():
         context.run_migrations()
 
-
 async def run_migrations_online():
+    # Merge connect_timeout into connect_args so asyncpg doesn't hang on an
+    # unreachable DB host (e.g. Railway PostgreSQL not yet ready at boot).
+    _ca = dict(_engine_connect_args)
+    _url = config.get_main_option("sqlalchemy.url") or ""
+    if "postgresql" in _url or "postgres" in _url:
+        _ca.setdefault("timeout", 30)  # asyncpg: give up after 30s
     connectable = create_async_engine(
-        config.get_main_option("sqlalchemy.url"),
+        _url,
         poolclass=pool.NullPool,
-        connect_args=_engine_connect_args,
+        connect_args=_ca,
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

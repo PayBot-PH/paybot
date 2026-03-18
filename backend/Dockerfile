@@ -45,5 +45,5 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
 
-# Start the server — attempt migrations first (non-fatal), then start uvicorn
-CMD ["sh", "-c", "alembic upgrade head || echo 'Alembic migration failed, continuing...' ; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start the server — attempt migrations with a 60s timeout (non-fatal), then start uvicorn
+CMD ["sh", "-c", "timeout 60 alembic upgrade head || echo 'Alembic migration timed out or failed, continuing...' ; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
