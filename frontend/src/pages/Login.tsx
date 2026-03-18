@@ -78,7 +78,7 @@ function HeroCard({
   icon, name, amount, statusLabel, statusCls,
 }: { icon: React.ReactNode; name: string; amount: string; statusLabel: string; statusCls: string }) {
   return (
-    <div className="bg-white/90 backdrop-blur border border-white/60 rounded-2xl p-4 shadow-lg">
+    <div className="glass-effect rounded-2xl p-4 card-shadow-lg hover-scale animate-float">
       <div className="flex items-center gap-3 mb-3">
         {icon}
         <div>
@@ -204,7 +204,7 @@ export default function Login() {
           <div className="flex items-center gap-2">
             <button
               onClick={scrollToLogin}
-              className="flex items-center gap-1.5 bg-[#1677FF] hover:bg-[#0e6ae8] text-white text-sm font-semibold px-4 sm:px-5 py-2 rounded-full transition-colors shadow-md shadow-blue-500/20"
+              className="flex items-center gap-1.5 bg-[#1677FF] hover:bg-[#0e6ae8] text-white text-sm font-semibold px-4 sm:px-5 py-2 rounded-full transition-all hover-scale shadow-md shadow-blue-500/20"
             >
               Sign In <ArrowRight className="h-3.5 w-3.5" />
             </button>
@@ -268,13 +268,13 @@ export default function Login() {
               <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8">
                 <button
                   onClick={scrollToLogin}
-                  className="flex items-center justify-center gap-2 bg-white hover:bg-blue-50 text-[#1677FF] font-semibold px-7 py-3.5 rounded-full text-sm transition-all shadow-xl hover:-translate-y-0.5 w-full sm:w-auto"
+                  className="flex items-center justify-center gap-2 bg-white hover:bg-blue-50 text-[#1677FF] font-semibold px-7 py-3.5 rounded-full text-sm transition-all hover-scale card-shadow-lg w-full sm:w-auto"
                 >
                   Get Started Free <ArrowRight className="h-4 w-4" />
                 </button>
                 <Link
                   to="/features"
-                  className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-all w-full sm:w-auto"
+                  className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-semibold px-7 py-3.5 rounded-full text-sm transition-all hover-scale w-full sm:w-auto"
                 >
                   View Features <ChevronRight className="h-4 w-4" />
                 </Link>
