@@ -156,7 +156,7 @@ function PermissionBadge({
       className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium transition-all duration-150
         ${active
           ? activeStyles[color] || 'bg-blue-500/15 border-blue-500/30 text-blue-400'
-          : 'bg-slate-800/60 border-slate-700/40 text-slate-500'
+          : 'bg-muted/60 border-border/40 text-slate-500'
         }
         ${interactive ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
     >
@@ -178,7 +178,7 @@ function TabBar({
   return (
     <div className="mb-6">
       {/* Mobile: 2-column grid — all tabs visible at a glance, no horizontal scroll */}
-      <div className="sm:hidden grid grid-cols-2 gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1">
+      <div className="sm:hidden grid grid-cols-2 gap-1 bg-muted/50 border border-border/50 rounded-xl p-1">
         {tabs.map((tab, idx) => (
           <button
             key={tab.id}
@@ -204,7 +204,7 @@ function TabBar({
       </div>
 
       {/* Desktop: horizontal scrollable row with hidden scrollbar */}
-      <div className="hidden sm:flex items-center gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="hidden sm:flex items-center gap-1 bg-muted/50 border border-border/50 rounded-xl p-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -254,8 +254,8 @@ function AdminCard({
   return (
     <Card className={`border transition-all duration-200 ${
       admin.is_active
-        ? 'bg-[#1E293B] border-slate-700/50 hover:border-slate-600/60'
-        : 'bg-slate-900/50 border-slate-700/30 opacity-60'
+        ? 'glass-card hover:border-border/60'
+        : 'bg-slate-900/50 border-border/30 opacity-60'
     }`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3 mb-3">
@@ -286,7 +286,7 @@ function AdminCard({
                 <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
                   admin.is_active
                     ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
-                    : 'bg-slate-700/40 border-slate-600/40 text-slate-500'
+                    : 'bg-slate-700/40 border-border/40 text-slate-500'
                 }`}>
                   {admin.is_active ? 'Active' : 'Inactive'}
                 </Badge>
@@ -388,7 +388,7 @@ function UserManagementTab({
     return (
       <div className="space-y-2">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-14 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+          <div key={i} className="h-14 rounded-xl bg-[#1E293B] border border-border/50 animate-pulse" />
         ))}
       </div>
     );
@@ -396,7 +396,7 @@ function UserManagementTab({
 
   if (users.length === 0) {
     return (
-      <Card className="bg-[#1E293B] border-slate-700/50">
+      <Card className="glass-card">
         <CardContent className="flex flex-col items-center justify-center py-14 text-center">
           <div className="h-14 w-14 rounded-2xl bg-slate-700/40 flex items-center justify-center mb-3">
             <Users className="h-7 w-7 text-slate-500" />
@@ -418,7 +418,7 @@ function UserManagementTab({
         <span className="text-right w-24">Role</span>
       </div>
       {users.map((user) => (
-        <Card key={user.id} className="bg-[#1E293B] border-slate-700/50 hover:border-slate-600/60 transition-all duration-150">
+        <Card key={user.id} className="glass-card hover:border-border/60 transition-all duration-150">
           <CardContent className="p-4">
             <div className="flex items-center justify-between gap-3">
               {/* Identity */}
@@ -426,7 +426,7 @@ function UserManagementTab({
                 <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${
                   user.role === 'admin'
                     ? 'bg-blue-500/15 border border-blue-500/25'
-                    : 'bg-slate-700/50 border border-slate-600/40'
+                    : 'bg-slate-700/50 border border-border/40'
                 }`}>
                   {user.role === 'admin'
                     ? <ShieldCheck className="h-4 w-4 text-blue-400" />
@@ -468,7 +468,7 @@ function UserManagementTab({
                   <Badge className={`text-[10px] px-2 h-5 border ${
                     user.role === 'admin'
                       ? 'bg-blue-500/15 border-blue-500/25 text-blue-400'
-                      : 'bg-slate-700/40 border-slate-600/40 text-slate-400'
+                      : 'bg-slate-700/40 border-border/40 text-slate-400'
                   }`}>
                     {user.role}
                   </Badge>
@@ -495,7 +495,7 @@ function RoleSelector({
 
   const roles = [
     { value: 'admin', label: 'Admin', color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/25' },
-    { value: 'user', label: 'User', color: 'text-slate-400', bg: 'bg-slate-700/40 border-slate-600/40' },
+    { value: 'user', label: 'User', color: 'text-slate-400', bg: 'bg-slate-700/40 border-border/40' },
   ];
   const current = roles.find((r) => r.value === currentRole) || roles[1];
 
@@ -515,7 +515,7 @@ function RoleSelector({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-1 z-20 bg-slate-800 border border-slate-700/60 rounded-lg shadow-xl overflow-hidden min-w-[100px]">
+          <div className="absolute right-0 mt-1 z-20 bg-slate-800 border border-border/60 rounded-lg shadow-xl overflow-hidden min-w-[100px]">
             {roles.map((r) => (
               <button
                 key={r.value}
@@ -592,7 +592,7 @@ function RoleManagementTab({
       {rolesLoading && (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-xl bg-slate-800/40 border border-slate-700/50 animate-pulse" />
+            <div key={i} className="h-32 rounded-xl bg-muted/40 border border-border/50 animate-pulse" />
           ))}
         </div>
       )}
@@ -604,7 +604,7 @@ function RoleManagementTab({
         const activeAdmins = admins.filter((a) => a.is_active);
 
         return (
-          <Card key={preset.id} className="bg-[#1E293B] border-slate-700/50">
+          <Card key={preset.id} className="glass-card">
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex items-center gap-3">
@@ -656,7 +656,7 @@ function RoleManagementTab({
                           key={admin.id}
                           onClick={() => applyRole(preset, admin)}
                           disabled={!!applying}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs text-slate-300 hover:bg-slate-700/60 hover:text-white transition-all duration-150 disabled:opacity-50"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border/50 text-xs text-slate-300 hover:bg-slate-700/60 hover:text-white transition-all duration-150 disabled:opacity-50"
                         >
                           {isApplying ? (
                             <div className="h-3 w-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
@@ -700,8 +700,8 @@ function RequestCard({
   return (
     <Card className={`border transition-colors duration-150 ${
       isPending
-        ? 'bg-[#1E293B] border-slate-700/50 hover:border-teal-500/30'
-        : 'bg-slate-900/40 border-slate-700/30'
+        ? 'glass-card hover:border-teal-500/30'
+        : 'bg-slate-900/40 border-border/30'
     }`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
@@ -841,7 +841,7 @@ function CryptoRequestsTab({
     return (
       <div className="space-y-2">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-20 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+          <div key={i} className="h-20 rounded-xl bg-[#1E293B] border border-border/50 animate-pulse" />
         ))}
       </div>
     );
@@ -849,7 +849,7 @@ function CryptoRequestsTab({
 
   if (requests.length === 0) {
     return (
-      <Card className="bg-[#1E293B] border-slate-700/50">
+      <Card className="glass-card">
         <CardContent className="flex flex-col items-center justify-center py-14 text-center">
           <div className="h-14 w-14 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-3">
             <Bitcoin className="h-7 w-7 text-teal-500" />
@@ -972,7 +972,7 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
     return (
       <div className="space-y-2">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+          <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-border/50 animate-pulse" />
         ))}
       </div>
     );
@@ -980,7 +980,7 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
 
   if (wallets.length === 0) {
     return (
-      <Card className="bg-[#1E293B] border-slate-700/50">
+      <Card className="glass-card">
         <CardContent className="flex flex-col items-center justify-center py-14 text-center">
           <div className="h-14 w-14 rounded-2xl bg-slate-700/40 flex items-center justify-center mb-3">
             <WalletIcon className="h-7 w-7 text-slate-500" />
@@ -998,7 +998,7 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
         {wallets.length} USD wallet{wallets.length !== 1 ? 's' : ''} — use Credit/Debit to adjust balances
       </p>
       {wallets.map(w => (
-        <Card key={w.wallet_id} className="bg-[#1E293B] border-slate-700/50">
+        <Card key={w.wallet_id} className="glass-card">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -1028,14 +1028,14 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
                   placeholder="Amount"
                   value={adjustAmount[w.user_id] || ''}
                   onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                  className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+                  className="flex-1 bg-muted/60 border border-border/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
                 />
                 <input
                   type="text"
                   placeholder="Note (optional)"
                   value={adjustNote[w.user_id] || ''}
                   onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                  className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+                  className="flex-1 bg-muted/60 border border-border/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
                 />
               </div>
               <div className="flex gap-2">
@@ -1285,14 +1285,14 @@ export default function AdminManagement() {
 
         {/* Maintenance Mode Toggle (super admin only) */}
         {isSuperAdmin && (
-          <Card className={`mb-5 border ${maintenanceMode ? 'bg-amber-950/30 border-amber-500/30' : 'bg-[#1E293B] border-slate-700/50'}`}>
+          <Card className={`mb-5 border ${maintenanceMode ? 'bg-amber-950/30 border-amber-500/30' : 'glass-card'}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                   <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
                     maintenanceMode
                       ? 'bg-amber-500/15 border-amber-500/30'
-                      : 'bg-slate-700/40 border-slate-600/40'
+                      : 'bg-slate-700/40 border-border/40'
                   }`}>
                     <WrenchIcon className={`h-4 w-4 ${maintenanceMode ? 'text-amber-400' : 'text-slate-400'}`} />
                   </div>
@@ -1371,7 +1371,7 @@ export default function AdminManagement() {
                         placeholder="e.g. 123456789"
                         value={form.telegram_id}
                         onChange={e => setForm(f => ({ ...f, telegram_id: e.target.value }))}
-                        className="w-full bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
+                        className="w-full bg-muted/60 border border-border/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
                       />
                     </div>
                     <div>
@@ -1381,7 +1381,7 @@ export default function AdminManagement() {
                         placeholder="@username"
                         value={form.telegram_username}
                         onChange={e => setForm(f => ({ ...f, telegram_username: e.target.value }))}
-                        className="w-full bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
+                        className="w-full bg-muted/60 border border-border/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
                       />
                     </div>
                     <div>
@@ -1391,7 +1391,7 @@ export default function AdminManagement() {
                         placeholder="Full name"
                         value={form.name}
                         onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                        className="w-full bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
+                        className="w-full bg-muted/60 border border-border/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
                       />
                     </div>
                   </div>
@@ -1414,7 +1414,7 @@ export default function AdminManagement() {
                             type="checkbox"
                             checked={form[key as keyof typeof form] as boolean}
                             onChange={e => setForm(f => ({ ...f, [key]: e.target.checked }))}
-                            className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0"
+                            className="h-3.5 w-3.5 rounded border-border bg-slate-800 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0"
                           />
                           <span className="text-xs text-slate-300">{label}</span>
                         </label>
@@ -1448,11 +1448,11 @@ export default function AdminManagement() {
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+                  <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-border/50 animate-pulse" />
                 ))}
               </div>
             ) : admins.length === 0 ? (
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardContent className="flex flex-col items-center justify-center py-14 text-center">
                   <div className="h-14 w-14 rounded-2xl bg-slate-700/40 flex items-center justify-center mb-3">
                     <ShieldCheck className="h-7 w-7 text-slate-500" />

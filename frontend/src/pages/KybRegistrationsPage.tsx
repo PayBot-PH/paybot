@@ -114,7 +114,7 @@ export default function KybRegistrationsPage() {
           </div>
           <button
             onClick={fetchRegistrations}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-border px-3 py-1.5 rounded-lg transition-colors shrink-0"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
@@ -144,7 +144,7 @@ export default function KybRegistrationsPage() {
         {loading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-4 animate-pulse">
+              <div key={i} className="bg-[#0F172A] border border-border/40 rounded-2xl p-4 animate-pulse">
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 rounded-xl bg-slate-700/50" />
                   <div className="flex-1 space-y-2">
@@ -156,7 +156,7 @@ export default function KybRegistrationsPage() {
             ))}
           </div>
         ) : registrations.length === 0 ? (
-          <div className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-12 flex flex-col items-center text-center">
+          <div className="bg-[#0F172A] border border-border/40 rounded-2xl p-12 flex flex-col items-center text-center">
             <div className="h-12 w-12 bg-slate-800 rounded-2xl flex items-center justify-center mb-3">
               <ClipboardList className="h-6 w-6 text-slate-600" />
             </div>
@@ -172,7 +172,7 @@ export default function KybRegistrationsPage() {
               const isExpanded = expandedId === reg.id;
 
               return (
-                <div key={reg.id} className="bg-[#0F172A] border border-slate-700/40 rounded-2xl overflow-hidden">
+                <div key={reg.id} className="bg-[#0F172A] border border-border/40 rounded-2xl overflow-hidden">
                   <div className="p-4 flex items-start gap-4">
                     <div className="h-10 w-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
                       <ClipboardList className="h-5 w-5 text-blue-400" />
@@ -198,14 +198,14 @@ export default function KybRegistrationsPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => setExpandedId(isExpanded ? null : reg.id)}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 transition-colors flex items-center gap-1"
+                        className="text-xs px-3 py-1.5 rounded-lg border border-border text-slate-300 hover:border-slate-400 transition-colors flex items-center gap-1"
                       >
                         Details {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                       </button>
                       {reg.status === 'pending_review' && (
                         <button
                           onClick={() => { setActiveId(isActive ? null : reg.id); setRejectMode(false); setRejectReason(''); setError(''); }}
-                          className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 transition-colors"
+                          className="text-xs px-3 py-1.5 rounded-lg border border-border text-slate-300 hover:border-slate-400 transition-colors"
                         >
                           {isActive ? 'Cancel' : 'Review'}
                         </button>
@@ -215,7 +215,7 @@ export default function KybRegistrationsPage() {
 
                   {/* KYB Details */}
                   {isExpanded && (
-                    <div className="px-4 pb-4 border-t border-slate-700/40 pt-3">
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         <div>
                           <p className="text-slate-500 text-xs mb-0.5">Full Name</p>
@@ -255,7 +255,7 @@ export default function KybRegistrationsPage() {
 
                   {/* Action panel */}
                   {isActive && reg.status === 'pending_review' && (
-                    <div className="px-4 pb-4 border-t border-slate-700/40 pt-3">
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3">
                       {rejectMode ? (
                         <>
                           <p className="text-slate-400 text-xs mb-2">Rejection reason:</p>
@@ -263,12 +263,12 @@ export default function KybRegistrationsPage() {
                             value={rejectReason}
                             onChange={e => setRejectReason(e.target.value)}
                             placeholder="e.g. Invalid ID photo, incomplete information"
-                            className="w-full bg-slate-800/60 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 mb-3"
+                            className="w-full bg-muted/60 border border-border/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 mb-3"
                           />
                           <div className="flex gap-2">
                             <button
                               onClick={() => setRejectMode(false)}
-                              className="flex-1 py-2 rounded-xl border border-slate-600 text-slate-300 hover:border-slate-400 text-sm transition-colors"
+                              className="flex-1 py-2 rounded-xl border border-border text-slate-300 hover:border-slate-400 text-sm transition-colors"
                             >
                               Back
                             </button>

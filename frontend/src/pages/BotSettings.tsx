@@ -187,7 +187,7 @@ function TutorialOverlay({ onDone }: { onDone: () => void }) {
   };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="relative w-full max-w-md bg-[#0F1B2D] border border-slate-700/60 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md bg-[#0F1B2D] border border-border/60 rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
           <div className="flex items-center gap-2"><Bot className="h-5 w-5 text-blue-400" /><span className="text-white font-bold text-sm">Bot Setup Guide</span></div>
           <button onClick={onDone} className="text-slate-400 hover:text-slate-200 transition-colors"><X className="h-4 w-4" /></button>
@@ -462,7 +462,7 @@ export default function BotSettings() {
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-slate-800/60 border border-slate-700/50 p-1 h-auto flex-wrap gap-1">
+          <TabsList className="bg-muted/60 border border-border/50 p-1 h-auto flex-wrap gap-1">
             <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400 gap-1.5">
               <Settings className="h-3.5 w-3.5" /> Overview
             </TabsTrigger>
@@ -505,11 +505,11 @@ export default function BotSettings() {
                         <Badge className="ml-auto bg-emerald-500/20 text-emerald-400 border-emerald-500/30 border text-[10px]">ACTIVE</Badge>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-slate-800/60 rounded-lg p-2.5"><p className="text-[10px] text-slate-500 mb-0.5">Bot Name</p><p className="text-sm text-white font-medium">{cloneInfo.bot_name}</p></div>
-                        <div className="bg-slate-800/60 rounded-lg p-2.5"><p className="text-[10px] text-slate-500 mb-0.5">Username</p><p className="text-sm text-blue-400 font-mono">@{cloneInfo.bot_username}</p></div>
+                        <div className="bg-muted/60 rounded-lg p-2.5"><p className="text-[10px] text-slate-500 mb-0.5">Bot Name</p><p className="text-sm text-white font-medium">{cloneInfo.bot_name}</p></div>
+                        <div className="bg-muted/60 rounded-lg p-2.5"><p className="text-[10px] text-slate-500 mb-0.5">Username</p><p className="text-sm text-blue-400 font-mono">@{cloneInfo.bot_username}</p></div>
                       </div>
                       {cloneInfo.webhook_url && (
-                        <div className="bg-slate-800/60 rounded-lg p-2.5">
+                        <div className="bg-muted/60 rounded-lg p-2.5">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-[10px] text-slate-500">Webhook URL</p>
                             <button onClick={() => copyToClipboard(cloneInfo.webhook_url!, 'Webhook URL copied')} className="text-slate-400 hover:text-white"><Copy className="h-3 w-3" /></button>
@@ -526,7 +526,7 @@ export default function BotSettings() {
                       <div className="relative flex-1">
                         <Input type={showToken ? 'text' : 'password'} placeholder="1234567890:AAF..." value={cloneToken}
                           onChange={(e) => { setCloneToken(e.target.value); setCloneValidated(null); }}
-                          className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 pr-9 font-mono text-sm" />
+                          className="bg-muted border-border placeholder:text-muted-foreground pr-9 font-mono text-sm" />
                         <button type="button" onClick={() => setShowToken(!showToken)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
                           {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
@@ -548,7 +548,7 @@ export default function BotSettings() {
                       </Button>
                     </div>
                   )}
-                  <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50">
+                  <div className="bg-muted/40 rounded-xl p-3 border border-border/50">
                     <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wide mb-2">Quick steps</p>
                     <ol className="space-y-1">
                       {['Open Telegram -> @BotFather -> /newbot', 'Choose a name and @username', 'Copy the token, paste above, click Validate', 'Click Setup Webhook -- done!'].map((s, i) => (
@@ -562,7 +562,7 @@ export default function BotSettings() {
               </Card>
 
               {/* Webhook Status */}
-              <Card className={`border ${webhookInfo === null ? 'bg-[#1E293B] border-slate-700/50' : webhookInfo.is_registered ? 'bg-emerald-900/20 border-emerald-500/40' : 'bg-red-900/20 border-red-500/40'}`}>
+              <Card className={`border ${webhookInfo === null ? 'glass-card' : webhookInfo.is_registered ? 'bg-emerald-900/20 border-emerald-500/40' : 'bg-red-900/20 border-red-500/40'}`}>
                 <CardHeader>
                   <CardTitle className="text-white flex items-center space-x-2">
                     <Webhook className="h-5 w-5 text-purple-400" /><span>Webhook Status</span>
@@ -575,7 +575,7 @@ export default function BotSettings() {
                   : webhookInfo ? (
                     <>
                       {!webhookInfo.token_configured && <div className="flex items-start space-x-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3"><AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" /><p className="text-xs text-red-300">TELEGRAM_BOT_TOKEN is not set.</p></div>}
-                      <div className="bg-slate-800/60 rounded-lg p-3 space-y-1"><p className="text-xs text-slate-400">Current webhook URL</p><p className="text-xs font-mono text-white break-all">{webhookInfo.webhook_url || <span className="text-red-400 italic">none</span>}</p></div>
+                      <div className="bg-muted/60 rounded-lg p-3 space-y-1"><p className="text-xs text-slate-400">Current webhook URL</p><p className="text-xs font-mono text-white break-all">{webhookInfo.webhook_url || <span className="text-red-400 italic">none</span>}</p></div>
                       {webhookInfo.pending_update_count > 0 && <div className="flex items-center space-x-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2"><AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" /><p className="text-xs text-amber-300">{webhookInfo.pending_update_count} pending update(s)</p></div>}
                       {webhookInfo.last_error_message && <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2"><p className="text-xs text-red-300">Last error: {webhookInfo.last_error_message}</p></div>}
                       <p className="text-xs text-slate-400">{webhookInfo.message}</p>
@@ -593,7 +593,7 @@ export default function BotSettings() {
               </Card>
 
               {/* Bot Information */}
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white flex items-center space-x-2"><Bot className="h-5 w-5 text-blue-400" /><span>Bot Information</span></CardTitle></CardHeader>
                 <CardContent>
                   {botLoading ? <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-blue-400" /></div>
@@ -604,7 +604,7 @@ export default function BotSettings() {
                         <div><p className="font-medium text-white">{botInfo.first_name}</p><p className="text-sm text-slate-400">@{botInfo.username}</p></div>
                         <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 border ml-auto"><CheckCircle className="h-3 w-3 mr-1" /> Connected</Badge>
                       </div>
-                      <div className="bg-slate-800/50 rounded-lg p-3"><p className="text-xs text-slate-400">Bot ID</p><code className="text-sm text-white font-mono">{botInfo.id}</code></div>
+                      <div className="bg-muted/50 rounded-lg p-3"><p className="text-xs text-slate-400">Bot ID</p><code className="text-sm text-white font-mono">{botInfo.id}</code></div>
                       <Button onClick={fetchBotInfo} variant="outline" size="sm" className="w-full border-slate-500 text-slate-200 hover:text-white hover:bg-slate-700">Refresh Info</Button>
                     </div>
                   ) : (
@@ -625,21 +625,21 @@ export default function BotSettings() {
           {/* CONTROLS */}
           <TabsContent value="controls" className="space-y-6 mt-0">
             {!user ? (
-              <Card className="bg-[#1E293B] border-slate-700/50"><CardContent className="py-12 text-center"><p className="text-slate-400 mb-4">Log in to manage bot controls</p><Button onClick={() => login()} className="bg-blue-600 hover:bg-blue-700 text-white">Log In</Button></CardContent></Card>
+              <Card className="glass-card"><CardContent className="py-12 text-center"><p className="text-slate-400 mb-4">Log in to manage bot controls</p><Button onClick={() => login()} className="bg-blue-600 hover:bg-blue-700 text-white">Log In</Button></CardContent></Card>
             ) : configLoading ? <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-blue-400" /></div>
             : (
               <>
                 <UnsavedBar />
 
                 {/* Bot Status */}
-                <Card className="bg-[#1E293B] border-slate-700/50">
+                <Card className="glass-card">
                   <CardHeader><CardTitle className="text-white flex items-center gap-2"><Power className="h-5 w-5 text-emerald-400" />Bot Status</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
                     <p className="text-sm text-slate-400">Control whether your bot is accepting commands from users.</p>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {(['active', 'inactive', 'maintenance'] as const).map((status) => (
                         <button key={status} onClick={() => setLocalConfig(prev => ({ ...prev, bot_status: status }))}
-                          className={`rounded-xl border p-4 text-left transition-all ${localConfig.bot_status === status ? status === 'active' ? 'border-emerald-500/60 bg-emerald-500/10' : status === 'maintenance' ? 'border-amber-500/60 bg-amber-500/10' : 'border-red-500/60 bg-red-500/10' : 'border-slate-700/50 bg-slate-800/30 hover:border-slate-600'}`}>
+                          className={`rounded-xl border p-4 text-left transition-all ${localConfig.bot_status === status ? status === 'active' ? 'border-emerald-500/60 bg-emerald-500/10' : status === 'maintenance' ? 'border-amber-500/60 bg-amber-500/10' : 'border-red-500/60 bg-red-500/10' : 'border-border/50 bg-slate-800/30 hover:border-border'}`}>
                           <div className="flex items-center gap-2 mb-1">
                             {status === 'active' && <CheckCircle className="h-4 w-4 text-emerald-400" />}
                             {status === 'inactive' && <XCircle className="h-4 w-4 text-red-400" />}
@@ -655,7 +655,7 @@ export default function BotSettings() {
                 </Card>
 
                 {/* Maintenance Mode */}
-                <Card className="bg-[#1E293B] border-slate-700/50">
+                <Card className="glass-card">
                   <CardHeader><CardTitle className="text-white flex items-center gap-2"><Wrench className="h-5 w-5 text-amber-400" />Maintenance Mode</CardTitle></CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -675,14 +675,14 @@ export default function BotSettings() {
                 </Card>
 
                 {/* Webhook Configuration */}
-                <Card className="bg-[#1E293B] border-slate-700/50">
+                <Card className="glass-card">
                   <CardHeader><CardTitle className="text-white flex items-center space-x-2"><Webhook className="h-5 w-5 text-purple-400" /><span>Webhook Configuration</span></CardTitle></CardHeader>
                   <CardContent className="space-y-4">
                     <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-start space-x-2">
                       <Info className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />
-                      <p className="text-xs text-blue-300">Set webhook to: <code className="bg-slate-800 px-1 rounded">https://your-app-url/api/v1/telegram/webhook</code></p>
+                      <p className="text-xs text-blue-300">Set webhook to: <code className="bg-muted px-1 rounded">https://your-app-url/api/v1/telegram/webhook</code></p>
                     </div>
-                    <div><Label className="text-slate-300">Webhook URL</Label><Input placeholder="https://your-domain.com/api/v1/telegram/webhook" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <div><Label className="text-slate-300">Webhook URL</Label><Input placeholder="https://your-domain.com/api/v1/telegram/webhook" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                     <Button onClick={handleSetWebhook} disabled={webhookLoading} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
                       {webhookLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Setting Webhook...</> : <><Webhook className="h-4 w-4 mr-2" />Set Webhook</>}
                     </Button>
@@ -702,12 +702,12 @@ export default function BotSettings() {
           {/* MESSAGES */}
           <TabsContent value="messages" className="space-y-6 mt-0">
             {!user ? (
-              <Card className="bg-[#1E293B] border-slate-700/50"><CardContent className="py-12 text-center"><p className="text-slate-400 mb-4">Log in to edit message templates</p><Button onClick={() => login()} className="bg-blue-600 hover:bg-blue-700 text-white">Log In</Button></CardContent></Card>
+              <Card className="glass-card"><CardContent className="py-12 text-center"><p className="text-slate-400 mb-4">Log in to edit message templates</p><Button onClick={() => login()} className="bg-blue-600 hover:bg-blue-700 text-white">Log In</Button></CardContent></Card>
             ) : configLoading ? <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-blue-400" /></div>
             : (
               <>
                 <UnsavedBar />
-                <div className="bg-slate-800/40 rounded-xl p-3 border border-slate-700/50 flex items-start gap-2">
+                <div className="bg-muted/40 rounded-xl p-3 border border-border/50 flex items-start gap-2">
                   <Info className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
                   <p className="text-xs text-slate-400">Supported placeholders: <code className="bg-slate-700 px-1 rounded text-slate-300">{'{name}'}</code> <code className="bg-slate-700 px-1 rounded text-slate-300">{'{amount}'}</code> <code className="bg-slate-700 px-1 rounded text-slate-300">{'{description}'}</code> <code className="bg-slate-700 px-1 rounded text-slate-300">{'{external_id}'}</code>. Leave any field empty to use the built-in default.</p>
                 </div>
@@ -720,14 +720,14 @@ export default function BotSettings() {
                   { field: 'payment_pending_message' as const, title: 'Payment Pending Message', icon: <Loader2 className="h-4 w-4 text-amber-400" />, desc: 'Sent when a payment is awaiting confirmation.', rows: 6 },
                   { field: 'maintenance_message' as const, title: 'Maintenance Message', icon: <Wrench className="h-4 w-4 text-amber-400" />, desc: 'Sent to all users when bot is in maintenance mode.', rows: 4 },
                 ].map(({ field, title, icon, desc, rows }) => (
-                  <Card key={field} className="bg-[#1E293B] border-slate-700/50">
+                  <Card key={field} className="glass-card">
                     <CardHeader className="pb-3">
                       <CardTitle className="text-white flex items-center gap-2 text-base">{icon}{title}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       <p className="text-xs text-slate-400">{desc}</p>
                       <Textarea value={localConfig[field]} onChange={(e) => setLocalConfig(prev => ({ ...prev, [field]: e.target.value }))}
-                        placeholder="Leave empty to use default..." className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 font-mono text-xs resize-y" rows={rows} />
+                        placeholder="Leave empty to use default..." className="bg-muted border-border placeholder:text-muted-foreground font-mono text-xs resize-y" rows={rows} />
                       <div className="flex justify-between items-center">
                         <span className="text-[11px] text-slate-500">{localConfig[field].length} chars</span>
                         <Button size="sm" variant="outline" onClick={() => setDefaultTemplate(field)} className="border-slate-500 text-slate-300 hover:text-white text-xs gap-1">
@@ -750,7 +750,7 @@ export default function BotSettings() {
 
           {/* COMMANDS */}
           <TabsContent value="commands" className="space-y-4 mt-0">
-            <Card className="bg-[#1E293B] border-slate-700/50">
+            <Card className="glass-card">
               <CardHeader><CardTitle className="text-white flex items-center gap-2"><Terminal className="h-5 w-5 text-cyan-400" />Available Bot Commands</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-sm text-slate-400 mb-4">All commands built into your bot. These are always active for users.</p>
@@ -759,9 +759,9 @@ export default function BotSettings() {
                     const cmds = BOT_COMMANDS.filter(c => c.category === cat);
                     const isExpanded = expandedCategories[cat];
                     return (
-                      <div key={cat} className="border border-slate-700/50 rounded-xl overflow-hidden">
+                      <div key={cat} className="border border-border/50 rounded-xl overflow-hidden">
                         <button onClick={() => setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }))}
-                          className="w-full flex items-center justify-between px-4 py-3 bg-slate-800/50 hover:bg-slate-800 transition-colors">
+                          className="w-full flex items-center justify-between px-4 py-3 bg-muted/50 hover:bg-slate-800 transition-colors">
                           <div className="flex items-center gap-2">
                             <Hash className="h-3.5 w-3.5 text-slate-400" />
                             <span className="text-white font-medium text-sm">{cat}</span>
@@ -788,12 +788,12 @@ export default function BotSettings() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#1E293B] border-slate-700/50">
+            <Card className="glass-card">
               <CardHeader><CardTitle className="text-white flex items-center gap-2 text-base"><Bot className="h-4 w-4 text-blue-400" />Register with BotFather</CardTitle></CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-xs text-slate-400">Paste the list below to @BotFather using <code className="bg-slate-800 px-1 rounded">/setcommands</code> to enable autocomplete for users.</p>
+                <p className="text-xs text-slate-400">Paste the list below to @BotFather using <code className="bg-muted px-1 rounded">/setcommands</code> to enable autocomplete for users.</p>
                 <div className="relative">
-                  <pre className="bg-slate-900 border border-slate-700/50 rounded-lg p-4 text-[11px] text-slate-300 font-mono overflow-x-auto leading-relaxed whitespace-pre-wrap">
+                  <pre className="bg-slate-900 border border-border/50 rounded-lg p-4 text-[11px] text-slate-300 font-mono overflow-x-auto leading-relaxed whitespace-pre-wrap">
                     {BOT_COMMANDS.map(c => `${c.cmd.replace('/', '')} - ${c.desc}`).join('\n')}
                   </pre>
                   <button onClick={() => copyToClipboard(BOT_COMMANDS.map(c => `${c.cmd.replace('/', '')} - ${c.desc}`).join('\n'), 'Command list copied!')}
@@ -812,7 +812,7 @@ export default function BotSettings() {
 
           {/* TESTING */}
           <TabsContent value="testing" className="space-y-6 mt-0">
-            <Card className="bg-[#1E293B] border-slate-700/50">
+            <Card className="glass-card">
               <CardHeader><CardTitle className="text-white flex items-center space-x-2"><FlaskConical className="h-5 w-5 text-green-400" /><span>Test Bot Connection</span></CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-sm text-slate-400">Confirm the bot token is configured and Telegram API is reachable.</p>
@@ -832,7 +832,7 @@ export default function BotSettings() {
               </CardContent>
             </Card>
 
-            <Card className="bg-[#1E293B] border-slate-700/50 ring-1 ring-amber-500/20">
+            <Card className="glass-card ring-1 ring-amber-500/20">
               <CardHeader>
                 <CardTitle className="text-white flex items-center space-x-2">
                   <Zap className="h-5 w-5 text-amber-400" /><span>Simulate Webhook</span>
@@ -848,8 +848,8 @@ export default function BotSettings() {
                   <div>
                     <Label className="text-slate-300">Transaction Type</Label>
                     <Select value={simType} onValueChange={setSimType}>
-                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectTrigger className="mt-1 bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-muted border-border">
                         <SelectItem value="invoice" className="text-blue-400">Invoice</SelectItem>
                         <SelectItem value="qr_code" className="text-purple-400">QR Code</SelectItem>
                         <SelectItem value="payment_link" className="text-cyan-400">Payment Link</SelectItem>
@@ -861,8 +861,8 @@ export default function BotSettings() {
                   <div>
                     <Label className="text-slate-300">Target Status</Label>
                     <Select value={simStatus} onValueChange={setSimStatus}>
-                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectTrigger className="mt-1 bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-muted border-border">
                         <SelectItem value="paid" className="text-emerald-400">Paid</SelectItem>
                         <SelectItem value="expired" className="text-red-400">Expired</SelectItem>
                         <SelectItem value="pending" className="text-amber-400">Pending</SelectItem>
@@ -871,25 +871,25 @@ export default function BotSettings() {
                   </div>
                   <div>
                     <Label className="text-slate-300">Amount (PHP)</Label>
-                    <Input type="number" placeholder="1000" value={simAmount} onChange={(e) => setSimAmount(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" min="1" />
+                    <Input type="number" placeholder="1000" value={simAmount} onChange={(e) => setSimAmount(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" min="1" />
                   </div>
                 </div>
-                <div><Label className="text-slate-300">Description (optional)</Label><Input placeholder="Test payment for order #123" value={simDescription} onChange={(e) => setSimDescription(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                <div><Label className="text-slate-300">Description (optional)</Label><Input placeholder="Test payment for order #123" value={simDescription} onChange={(e) => setSimDescription(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                 <Button onClick={handleSimulateWebhook} disabled={simLoading} className="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium">
                   {simLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</> : <><Zap className="h-4 w-4 mr-2" />Send Test Event</>}
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="bg-[#1E293B] border-slate-700/50">
+            <Card className="glass-card">
               <CardHeader><CardTitle className="text-white flex items-center space-x-2"><Send className="h-5 w-5 text-cyan-400" /><span>Send Test Message</span></CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div><Label className="text-slate-300">Chat ID</Label><Input placeholder="Telegram chat ID" value={chatId} onChange={(e) => setChatId(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                  <div><Label className="text-slate-300">Chat ID</Label><Input placeholder="Telegram chat ID" value={chatId} onChange={(e) => setChatId(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div className="md:col-span-2">
                     <Label className="text-slate-300">Message</Label>
                     <div className="flex mt-1 space-x-2">
-                      <Textarea placeholder="Type your test message..." value={testMessage} onChange={(e) => setTestMessage(e.target.value)} className="bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 resize-none" rows={1} />
+                      <Textarea placeholder="Type your test message..." value={testMessage} onChange={(e) => setTestMessage(e.target.value)} className="bg-muted border-border placeholder:text-muted-foreground resize-none" rows={1} />
                       <Button onClick={handleSendMessage} disabled={sendLoading} className="bg-cyan-600 hover:bg-cyan-700 text-white shrink-0">
                         {sendLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                       </Button>
