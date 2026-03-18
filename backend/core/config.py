@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     # API Keys
     telegram_bot_token: str = ""
     telegram_bot_username: str = ""
+    cloudflare_turnstile_site_key: str = ""
+    cloudflare_turnstile_secret_key: str = ""
     xendit_secret_key: str = ""
 
     # PayMongo API

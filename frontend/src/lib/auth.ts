@@ -10,6 +10,10 @@ export interface TelegramWidgetUser {
   photo_url?: string;
 }
 
+interface TelegramLoginPayload extends TelegramWidgetUser {
+  turnstile_token?: string;
+}
+
 export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
 export const setStoredToken = (token: string) => localStorage.setItem(TOKEN_KEY, token);
 export const clearStoredToken = () => localStorage.removeItem(TOKEN_KEY);
@@ -53,13 +57,18 @@ export const authApi = {
     throw new Error('Legacy login is disabled. Use Telegram sign-in.');
   },
 
-  async loginWithTelegram(user: TelegramWidgetUser) {
+  async loginWithTelegram(user: TelegramWidgetUser, turnstileToken?: string) {
+    const payload: TelegramLoginPayload = {
+      ...user,
+      ...(turnstileToken ? { turnstile_token: turnstileToken } : {}),
+    };
+
     const response = await fetch('/api/v1/auth/telegram-login-widget', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(user),
+      body: JSON.stringify(payload),
     });
 
     if (!response.ok) {

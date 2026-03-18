@@ -42,6 +42,7 @@ class TelegramWidgetLoginRequest(BaseModel):
     last_name: Optional[str] = None
     username: Optional[str] = None
     photo_url: Optional[str] = None
+    turnstile_token: Optional[str] = None
 
 
 class TokenExchangeResponse(BaseModel):

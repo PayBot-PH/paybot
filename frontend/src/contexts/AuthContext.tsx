@@ -32,7 +32,7 @@ interface AuthContextType {
   loading: boolean;
   error: string | null;
   login: (userId?: string, password?: string) => Promise<void>;
-  loginWithTelegram: (user: TelegramWidgetUser) => Promise<void>;
+  loginWithTelegram: (user: TelegramWidgetUser, turnstileToken?: string) => Promise<void>;
   logout: () => Promise<void>;
   refetch: () => Promise<void>;
   isAdmin: boolean;
@@ -89,10 +89,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [checkAuthStatus]);
 
-  const loginWithTelegram = useCallback(async (telegramUser: TelegramWidgetUser) => {
+  const loginWithTelegram = useCallback(async (telegramUser: TelegramWidgetUser, turnstileToken?: string) => {
     try {
       setError(null);
-      await authApi.loginWithTelegram(telegramUser);
+      await authApi.loginWithTelegram(telegramUser, turnstileToken);
       await checkAuthStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Telegram login failed');

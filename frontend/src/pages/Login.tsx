@@ -10,7 +10,20 @@ import { APP_NAME, SUPPORT_URL } from '@/lib/brand';
 import AppFooter from '@/components/AppFooter';
 
 declare global {
-  interface Window { onTelegramAuth?: (user: TelegramWidgetUser) => void; }
+  interface Window {
+    onTelegramAuth?: (user: TelegramWidgetUser) => void;
+    turnstile?: {
+      render: (container: HTMLElement | string, options: {
+        sitekey: string;
+        callback?: (token: string) => void;
+        'expired-callback'?: () => void;
+        'error-callback'?: () => void;
+        theme?: 'light' | 'dark' | 'auto';
+        appearance?: 'always' | 'execute' | 'interaction-only';
+      }) => string;
+      remove: (widgetId: string) => void;
+    };
+  }
 }
 
 /* ─── Logo helpers ─────────────────────────────────────────────── */
@@ -123,10 +136,16 @@ export default function Login() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const usdtStats = getDailyUsdtStats();
   const widgetContainerRef = useRef<HTMLDivElement | null>(null);
+  const turnstileContainerRef = useRef<HTMLDivElement | null>(null);
+  const turnstileTokenRef = useRef<string>('');
   const loginSectionRef = useRef<HTMLDivElement>(null);
   const [botUsername, setBotUsername] = useState<string>(
     (import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim()
   );
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState<string>(
+    (import.meta.env.VITE_CLOUDFLARE_TURNSTILE_SITE_KEY || '').trim()
+  );
+  const [turnstileReady, setTurnstileReady] = useState<boolean>(!turnstileSiteKey);
 
   const scrollToLogin = () => {
     setMobileNavOpen(false);
@@ -135,25 +154,101 @@ export default function Login() {
 
   useEffect(() => {
     let canceled = false;
-    const resolveBotUsername = async () => {
-      if (botUsername) return botUsername;
+    let turnstileWidgetId: string | null = null;
+
+    const resolveLoginConfig = async () => {
+      if (botUsername && turnstileSiteKey) {
+        return { botUsername, turnstileSiteKey };
+      }
+
       try {
         const res = await fetch('/api/v1/auth/telegram-login-config');
-        if (!res.ok) return '';
+        if (!res.ok) {
+          return { botUsername, turnstileSiteKey };
+        }
+
         const data = await res.json();
         const ru = (data?.bot_username || '').toString().trim();
+        const siteKey = (data?.turnstile_site_key || '').toString().trim();
         if (!canceled && ru) setBotUsername(ru);
-        return ru;
-      } catch { return ''; }
+        if (!canceled && siteKey) setTurnstileSiteKey(siteKey);
+        return {
+          botUsername: ru || botUsername,
+          turnstileSiteKey: siteKey || turnstileSiteKey,
+        };
+      } catch {
+        return { botUsername, turnstileSiteKey };
+      }
     };
+
+    const ensureTurnstileScript = async () => {
+      if (window.turnstile) return true;
+
+      let script = document.querySelector<HTMLScriptElement>('script[data-turnstile-script="true"]');
+      if (!script) {
+        script = document.createElement('script');
+        script.async = true;
+        script.defer = true;
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.dataset.turnstileScript = 'true';
+        document.head.appendChild(script);
+      }
+
+      for (let attempt = 0; attempt < 40; attempt += 1) {
+        if (window.turnstile) return true;
+        await new Promise((resolve) => window.setTimeout(resolve, 100));
+      }
+
+      return false;
+    };
+
     const renderWidget = async () => {
-      const u = await resolveBotUsername();
+      const config = await resolveLoginConfig();
+      const u = config.botUsername;
       if (!u) { setLocalError('Telegram sign-in is not configured. Please set TELEGRAM_BOT_USERNAME.'); return; }
       if (!widgetContainerRef.current) return;
+
+      turnstileTokenRef.current = '';
+      if (config.turnstileSiteKey) {
+        setTurnstileReady(false);
+        const isTurnstileLoaded = await ensureTurnstileScript();
+        if (!isTurnstileLoaded || !window.turnstile || !turnstileContainerRef.current) {
+          setLocalError('Security check could not be loaded. Please refresh and try again.');
+          return;
+        }
+
+        turnstileContainerRef.current.innerHTML = '';
+        turnstileWidgetId = window.turnstile.render(turnstileContainerRef.current, {
+          sitekey: config.turnstileSiteKey,
+          theme: 'dark',
+          appearance: 'always',
+          callback: (token: string) => {
+            turnstileTokenRef.current = token;
+            setTurnstileReady(true);
+            setLocalError(null);
+          },
+          'expired-callback': () => {
+            turnstileTokenRef.current = '';
+            setTurnstileReady(false);
+          },
+          'error-callback': () => {
+            turnstileTokenRef.current = '';
+            setTurnstileReady(false);
+            setLocalError('Security check failed to initialize. Please refresh and try again.');
+          },
+        });
+      } else {
+        setTurnstileReady(true);
+      }
+
       setLocalError(null);
       window.onTelegramAuth = async (tgUser: TelegramWidgetUser) => {
+        if (config.turnstileSiteKey && !turnstileTokenRef.current) {
+          setLocalError('Complete the security check before signing in.');
+          return;
+        }
         setSubmitting(true); setLocalError(null);
-        await loginWithTelegram(tgUser);
+        await loginWithTelegram(tgUser, turnstileTokenRef.current || undefined);
         setSubmitting(false);
       };
       widgetContainerRef.current.innerHTML = '';
@@ -171,9 +266,11 @@ export default function Login() {
     return () => {
       canceled = true;
       if (widgetContainerRef.current) widgetContainerRef.current.innerHTML = '';
+      if (turnstileWidgetId && window.turnstile) window.turnstile.remove(turnstileWidgetId);
+      if (turnstileContainerRef.current) turnstileContainerRef.current.innerHTML = '';
       delete window.onTelegramAuth;
     };
-  }, [botUsername, loginWithTelegram]);
+  }, [botUsername, loginWithTelegram, turnstileSiteKey]);
 
   if (user) return <Navigate to="/intro" replace />;
 
@@ -639,7 +736,22 @@ export default function Login() {
           </p>
 
           <div className="bg-[#0A1628]/80 border border-white/[0.10] rounded-2xl sm:rounded-3xl p-6 sm:p-8 shadow-2xl shadow-black/40 backdrop-blur">
-            <div className="flex justify-center mb-5" ref={widgetContainerRef} />
+            {turnstileSiteKey && (
+              <div className="mb-5 rounded-2xl border border-cyan-400/20 bg-cyan-500/5 px-4 py-4 text-left">
+                <p className="text-sm font-semibold text-cyan-100">Security Check</p>
+                <p className="mt-1 text-sm text-slate-400">
+                  Complete the Cloudflare Turnstile challenge before Telegram sign-in is enabled.
+                </p>
+                <div ref={turnstileContainerRef} className="mt-4 min-h-[72px]" />
+                {!turnstileReady && (
+                  <p className="mt-3 text-xs text-slate-500">Waiting for security check completion.</p>
+                )}
+              </div>
+            )}
+            <div
+              className={`mb-5 flex justify-center transition-opacity ${turnstileReady ? 'opacity-100' : 'pointer-events-none opacity-40'}`}
+              ref={widgetContainerRef}
+            />
             {submitting && (
               <div className="flex items-center justify-center gap-2 text-slate-300 text-sm mb-4">
                 <span className="h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />

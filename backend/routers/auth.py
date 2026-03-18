@@ -8,7 +8,7 @@ from typing import Optional
 from urllib.parse import urlencode
 
 import httpx
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from core.auth import (
     IDTokenValidationError,
     build_authorization_url,
@@ -42,6 +42,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
 logger = logging.getLogger(__name__)
+
+
+class TurnstileVerifyResponse(BaseModel):
+    success: bool
+    challenge_ts: Optional[str] = None
+    hostname: Optional[str] = None
+    error_codes: list[str] = Field(default_factory=list)
 
 
 def _local_patch(url: str) -> str:
@@ -140,6 +147,39 @@ def _verify_telegram_widget_payload(payload: TelegramWidgetLoginRequest, bot_tok
     return hmac.compare_digest(computed_hash, payload.hash)
 
 
+async def _verify_turnstile_token(turnstile_token: str, remote_ip: Optional[str] = None) -> bool:
+    secret_key = str(getattr(settings, "cloudflare_turnstile_secret_key", "") or "").strip()
+    if not secret_key:
+        return True
+
+    token = turnstile_token.strip()
+    if not token:
+        return False
+
+    verification_payload = {
+        "secret": secret_key,
+        "response": token,
+    }
+    if remote_ip:
+        verification_payload["remoteip"] = remote_ip
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data=verification_payload,
+            )
+        response.raise_for_status()
+        verification = TurnstileVerifyResponse.model_validate(response.json())
+    except Exception as exc:
+        logger.warning("[turnstile] Verification request failed: %s", exc)
+        return False
+
+    if not verification.success:
+        logger.info("[turnstile] Verification rejected: %s", verification.error_codes)
+    return verification.success
+
+
 @router.post("/telegram-login", response_model=TokenExchangeResponse)
 async def telegram_login_legacy_disabled():
     """Legacy endpoint intentionally disabled: use Telegram Login Widget flow instead."""
@@ -150,7 +190,7 @@ async def telegram_login_legacy_disabled():
 
 
 @router.post("/telegram-login-widget", response_model=TokenExchangeResponse)
-async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSession = Depends(get_db)):
+async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """Telegram Login Widget admin login with Telegram-signed payload validation."""
     bot_token = str(getattr(settings, "telegram_bot_token", "") or "")
     allowed_admin_ids, allowed_admin_usernames = _get_allowed_telegram_admin_ids()
@@ -197,6 +237,21 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
 
     if not _verify_telegram_widget_payload(payload, bot_token):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram login payload")
+
+    turnstile_secret_key = str(getattr(settings, "cloudflare_turnstile_secret_key", "") or "").strip()
+    if turnstile_secret_key:
+        request_client_host = request.client.host if request.client else ""
+        forwarded_for = (
+            request.headers.get("cf-connecting-ip")
+            or request.headers.get("x-forwarded-for")
+            or request_client_host
+        )
+        remote_ip = forwarded_for.split(",", 1)[0].strip() if forwarded_for else None
+        if not await _verify_turnstile_token(payload.turnstile_token or "", remote_ip=remote_ip):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Turnstile verification failed. Please complete the security check and try again.",
+            )
 
     display_name = " ".join(part for part in [payload.first_name, payload.last_name] if part).strip()
     if not display_name:
@@ -284,12 +339,24 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
     return TokenExchangeResponse(token=app_token)
 
 
+def _telegram_login_config_payload(bot_username: str) -> dict[str, str]:
+    payload = {"bot_username": bot_username.lstrip("@")}
+    turnstile_site_key = (
+        os.getenv("VITE_CLOUDFLARE_TURNSTILE_SITE_KEY")
+        or settings.cloudflare_turnstile_site_key
+        or ""
+    ).strip()
+    if turnstile_site_key:
+        payload["turnstile_site_key"] = turnstile_site_key
+    return payload
+
+
 @router.get("/telegram-login-config")
 async def telegram_login_config():
     """Provide Telegram Login Widget config at runtime."""
     configured_username = (os.getenv("VITE_TELEGRAM_BOT_USERNAME") or settings.telegram_bot_username or "").strip()
     if configured_username:
-        return {"bot_username": configured_username.lstrip("@")}
+        return _telegram_login_config_payload(configured_username)
 
     bot_token = str(getattr(settings, "telegram_bot_token", "") or "")
     if not bot_token:
@@ -313,7 +380,7 @@ async def telegram_login_config():
             detail="Telegram bot username is unavailable",
         )
 
-    return {"bot_username": username}
+    return _telegram_login_config_payload(username)
 
 
 @router.get("/login")

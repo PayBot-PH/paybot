@@ -559,6 +559,8 @@ After the initial deploy, go to your Pages project → **Settings** → **Enviro
 |----------|-------------|-------------|
 | `BACKEND_URL` | Production | Public URL of your backend, e.g. `https://paybot-backend.onrender.com` or `https://your-backend.railway.app` |
 | `VITE_TELEGRAM_BOT_USERNAME` | Production | Your bot username without `@`, e.g. `mypaybot` (used by Telegram Login Widget) |
+| `VITE_CLOUDFLARE_TURNSTILE_SITE_KEY` | Production | Cloudflare Turnstile site key for browser-side challenge rendering |
+| `CLOUDFLARE_TURNSTILE_SECRET_KEY` | Production | Cloudflare Turnstile secret key for backend verification of login challenges |
 
 > **Note:** Variables prefixed with `VITE_` are embedded into the frontend bundle at build time. `BACKEND_URL` (no prefix) is read at runtime by the Cloudflare Pages Function proxy and is never exposed to the browser.
 
