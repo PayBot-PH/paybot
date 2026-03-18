@@ -26,15 +26,34 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Read DATABASE_URL from environment variable
-database_url = os.environ.get("DATABASE_URL")
+database_url = os.environ.get("DATABASE_URL", "").strip()
+
+# Try to build DATABASE_URL from individual PG vars (Railway/Render set these separately)
+if not database_url:
+    _pghost = os.environ.get("PGHOST", "").strip()
+    _pgport = os.environ.get("PGPORT", "5432").strip()
+    _pguser = os.environ.get("PGUSER", "").strip()
+    _pgpassword = os.environ.get("PGPASSWORD", "").strip()
+    _pgdatabase = os.environ.get("PGDATABASE", "").strip()
+    if _pghost and _pguser and _pgdatabase:
+        import urllib.parse as _urlparse
+        database_url = (
+            f"postgresql://{_urlparse.quote(_pguser, safe='')}:{_urlparse.quote(_pgpassword, safe='')}"
+            f"@{_pghost}:{_pgport}/{_pgdatabase}"
+        )
+
 if not database_url:
     # Fall back to settings default (e.g. SQLite for local dev)
     try:
         from core.config import settings as _settings
-        database_url = _settings.database_url
+        database_url = _settings.database_url or ""
     except (ImportError, AttributeError, Exception) as _e:
         import logging as _logging
         _logging.getLogger(__name__).warning("Could not load settings for database URL: %s", _e)
+
+if not database_url:
+    # Last resort: use local SQLite so migrations don't crash the container
+    database_url = "sqlite+aiosqlite:///./paybot.db"
 
 # connect_args to pass to create_async_engine (used for SSL on PostgreSQL)
 _engine_connect_args: dict = {}
@@ -93,13 +112,15 @@ if database_url:
         for _libpq_param in ("sslcert", "sslkey", "sslrootcert", "sslcrl", "gssencmode", "channel_binding"):
             _query.pop(_libpq_param, None)
         url = url.set(query=_query)
-        database_url = str(url)
-
-        # Determine whether to use SSL.
+        database_url = url.render_as_string(hide_password=False)
         # Render (and most managed PG hosts) require SSL even when the conn
         # string has no sslmode param. Use SSL for any non-local host.
         _host = str(url.host or "")
-        _is_local = _host in ("localhost", "127.0.0.1", "::1", "") or _host.endswith(".local")
+        _is_local = (
+            _host in ("localhost", "127.0.0.1", "::1", "")
+            or _host.endswith(".local")
+            or _host.endswith(".railway.internal")
+        )
         _wants_ssl = _sslmode in ("require", "verify-ca", "verify-full", "prefer") or not _is_local
 
         if _wants_ssl:
@@ -112,7 +133,7 @@ if database_url:
             )
     elif url.drivername == "sqlite":
         url = url.set(drivername="sqlite+aiosqlite")
-        database_url = str(url)
+        database_url = url.render_as_string(hide_password=False)
     config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = Base.metadata

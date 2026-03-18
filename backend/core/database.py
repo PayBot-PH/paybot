@@ -73,7 +73,7 @@ class DatabaseManager:
             logger.warning(f"Unknown database driver: {drivername}")
             return raw_url
 
-        normalized = str(url)
+        normalized = url.render_as_string(hide_password=False)
         if normalized != raw_url:
             logger.warning("Adjusted database URL driver for async compatibility")
         return normalized

@@ -6,6 +6,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import { useEffect, useState } from 'react';
+import LoadingScreen from '@/components/LoadingScreen';
 import Dashboard from './pages/Dashboard';
 import Wallet from './pages/Wallet';
 import Transactions from './pages/Transactions';
@@ -76,13 +77,18 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-const App = () => (
+const App = () => {
+  const [appReady, setAppReady] = useState(false);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
         <TooltipProvider>
           <Toaster />
+          {!appReady && <LoadingScreen onDone={() => setAppReady(true)} duration={1800} />}
+          <div style={{ visibility: appReady ? 'visible' : 'hidden' }}>
           <BrowserRouter>
             <MaintenanceGuard>
             <Routes>
@@ -118,11 +124,13 @@ const App = () => (
             </Routes>
           </MaintenanceGuard>
           </BrowserRouter>
+          </div>
         </TooltipProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
