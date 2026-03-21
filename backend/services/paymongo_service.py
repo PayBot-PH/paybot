@@ -357,6 +357,65 @@ class PayMongoService:
             description=description, success_url=success_url, failed_url=failed_url,
         )
 
+    async def create_payment_from_source(
+        self,
+        source_id: str,
+        amount: float,
+        currency: str = "PHP",
+        description: str = "",
+    ) -> Dict[str, Any]:
+        """Create a PayMongo payment from a chargeable source (Alipay / WeChat Pay).
+
+        This must be called after receiving a ``source.chargeable`` webhook so that
+        PayMongo actually captures the funds from the user.  Without this call the
+        source expires and the merchant never receives the money.
+
+        Args:
+            source_id:   ID of the chargeable PayMongo source (e.g. "src_xxx").
+            amount:      Payment amount in PHP (e.g. 500.00).
+            currency:    ISO-4217 currency code (default: "PHP").
+            description: Human-readable payment description.
+
+        Returns:
+            On success: {"success": True, "payment_id": str, "status": str}
+            On failure: {"success": False, "error": str}
+        """
+        amount_centavos = int(round(amount * 100))
+        payload = {
+            "data": {
+                "attributes": {
+                    "amount": amount_centavos,
+                    "currency": currency,
+                    "source": {"id": source_id, "type": "source"},
+                    "description": description or "Payment",
+                }
+            }
+        }
+        try:
+            async with httpx.AsyncClient() as client:
+                r = await client.post(
+                    f"{PAYMONGO_BASE_URL}/payments",
+                    json=payload,
+                    auth=self._get_auth(),
+                    timeout=30.0,
+                )
+                r.raise_for_status()
+                data = r.json().get("data", {})
+                attrs = data.get("attributes", {})
+                return {
+                    "success": True,
+                    "payment_id": data.get("id", ""),
+                    "status": attrs.get("status", ""),
+                    "amount": amount,
+                    "currency": currency,
+                }
+        except httpx.HTTPStatusError as e:
+            logger.error("PayMongo create_payment_from_source failed: %s", e.response.text)
+            return {"success": False, "error": e.response.text}
+        except Exception as e:
+            logger.error("PayMongo create_payment_from_source error: %s", str(e))
+            return {"success": False, "error": str(e)}
+
     async def get_source(self, source_id: str) -> Dict[str, Any]:
         """Retrieve a PayMongo source by ID."""
         try:
