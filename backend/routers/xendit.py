@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from dependencies.auth import get_current_user
 from models.transactions import Transactions
+from models.disbursements import Disbursements
+from models.refunds import Refunds
 from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from schemas.auth import UserResponse
@@ -522,4 +524,311 @@ async def get_transaction_stats(
         )
     except Exception as e:
         logger.error(f"Error getting transaction stats: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ==================== ADDITIONAL SCHEMAS ====================
+
+class CreateVARequest(BaseModel):
+    amount: float
+    bank_code: str
+    name: str
+
+
+class CreateEWalletRequest(BaseModel):
+    amount: float
+    channel_code: str
+    mobile_number: str = ""
+
+
+class CreateDisbursementRequest(BaseModel):
+    amount: float
+    bank_code: str
+    account_number: str
+    account_name: str
+    description: str = ""
+
+
+class CreateRefundRequest(BaseModel):
+    transaction_id: int
+    amount: float
+    reason: str = ""
+
+
+class FeeCalcRequest(BaseModel):
+    amount: float
+    method: str
+
+
+# ==================== BALANCE ====================
+
+@router.get("/balance")
+async def get_xendit_balance(
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Get Xendit account balance"""
+    try:
+        service = XenditService()
+        result = await service.get_balance()
+        if not result.get("success"):
+            raise HTTPException(status_code=502, detail=result.get("error", "Failed to fetch balance"))
+        return {"success": True, "balance": result.get("balance", 0), "currency": "PHP"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching Xendit balance: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== AVAILABLE BANKS ====================
+
+@router.get("/available-banks")
+async def get_available_banks(
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Get list of available banks for virtual accounts and disbursements"""
+    try:
+        service = XenditService()
+        result = await service.get_available_banks()
+        if not result.get("success"):
+            raise HTTPException(status_code=502, detail=result.get("error", "Failed to fetch banks"))
+        return {"success": True, "banks": result.get("banks", [])}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching available banks: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== FEE CALCULATOR ====================
+
+@router.post("/calculate-fees")
+async def calculate_fees(
+    data: FeeCalcRequest,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Calculate estimated fees for a payment method"""
+    try:
+        service = XenditService()
+        result = service.calculate_fees(amount=data.amount, method=data.method)
+        return {"success": True, **result}
+    except Exception as e:
+        logger.error(f"Error calculating fees: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== VIRTUAL ACCOUNT ====================
+
+@router.post("/create-virtual-account", response_model=PaymentResponse)
+async def create_virtual_account(
+    data: CreateVARequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a virtual account payment"""
+    try:
+        service = XenditService()
+        result = await service.create_virtual_account(
+            amount=data.amount,
+            bank_code=data.bank_code,
+            name=data.name,
+        )
+        if not result.get("success"):
+            return PaymentResponse(success=False, message=result.get("error", "Failed to create virtual account"))
+        now = datetime.now()
+        txn = Transactions(
+            user_id=str(current_user.id),
+            transaction_type="virtual_account",
+            external_id=result.get("external_id", ""),
+            xendit_id=result.get("va_id", ""),
+            amount=data.amount,
+            currency="PHP",
+            status="pending",
+            description=f"VA: {data.bank_code} — {data.name}",
+            customer_name=data.name,
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(txn)
+        await db.commit()
+        await db.refresh(txn)
+        return PaymentResponse(
+            success=True,
+            message="Virtual account created successfully",
+            data={
+                "transaction_id": txn.id,
+                "va_id": result.get("va_id", ""),
+                "account_number": result.get("account_number", ""),
+                "bank_code": data.bank_code,
+                "external_id": result.get("external_id", ""),
+                "amount": data.amount,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error creating virtual account: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== E-WALLET CHARGE ====================
+
+@router.post("/create-ewallet-charge", response_model=PaymentResponse)
+async def create_ewallet_charge(
+    data: CreateEWalletRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create an e-wallet charge"""
+    try:
+        service = XenditService()
+        result = await service.create_ewallet_charge(
+            amount=data.amount,
+            channel_code=data.channel_code,
+            mobile_number=data.mobile_number,
+        )
+        if not result.get("success"):
+            return PaymentResponse(success=False, message=result.get("error", "Failed to create e-wallet charge"))
+        now = datetime.now()
+        txn = Transactions(
+            user_id=str(current_user.id),
+            transaction_type="ewallet",
+            external_id=result.get("external_id", ""),
+            xendit_id=result.get("charge_id", ""),
+            amount=data.amount,
+            currency="PHP",
+            status="pending",
+            description=f"E-Wallet: {data.channel_code}",
+            payment_url=result.get("checkout_url", ""),
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(txn)
+        await db.commit()
+        await db.refresh(txn)
+        return PaymentResponse(
+            success=True,
+            message="E-wallet charge created successfully",
+            data={
+                "transaction_id": txn.id,
+                "charge_id": result.get("charge_id", ""),
+                "checkout_url": result.get("checkout_url", ""),
+                "external_id": result.get("external_id", ""),
+                "amount": data.amount,
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error creating e-wallet charge: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== DISBURSEMENT ====================
+
+@router.post("/create-disbursement", response_model=PaymentResponse)
+async def create_disbursement(
+    data: CreateDisbursementRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create a bank disbursement (send money)"""
+    try:
+        service = XenditService()
+        result = await service.create_disbursement(
+            amount=data.amount,
+            bank_code=data.bank_code,
+            account_number=data.account_number,
+            account_name=data.account_name,
+            description=data.description,
+        )
+        if not result.get("success"):
+            return PaymentResponse(success=False, message=result.get("error", "Failed to create disbursement"))
+        now = datetime.now()
+        disb = Disbursements(
+            user_id=str(current_user.id),
+            external_id=result.get("external_id", ""),
+            xendit_id=result.get("disbursement_id", ""),
+            amount=data.amount,
+            currency="PHP",
+            bank_code=data.bank_code,
+            account_number=data.account_number,
+            account_name=data.account_name,
+            description=data.description or "Disbursement",
+            status="pending",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(disb)
+        await db.commit()
+        await db.refresh(disb)
+        return PaymentResponse(
+            success=True,
+            message="Disbursement created successfully",
+            data={
+                "disbursement_id": disb.id,
+                "xendit_id": result.get("disbursement_id", ""),
+                "external_id": result.get("external_id", ""),
+                "amount": data.amount,
+                "status": result.get("status", "pending"),
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error creating disbursement: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== REFUND ====================
+
+@router.post("/create-refund", response_model=PaymentResponse)
+async def create_refund(
+    data: CreateRefundRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Refund a transaction"""
+    try:
+        # Look up the original transaction
+        result = await db.execute(
+            select(Transactions).where(
+                Transactions.id == data.transaction_id,
+                Transactions.user_id == str(current_user.id),
+            )
+        )
+        txn = result.scalar_one_or_none()
+        if not txn:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+
+        service = XenditService()
+        refund_result = await service.create_refund(
+            invoice_id=txn.xendit_id or txn.external_id,
+            amount=data.amount,
+            reason=data.reason,
+        )
+        if not refund_result.get("success"):
+            return PaymentResponse(success=False, message=refund_result.get("error", "Failed to create refund"))
+
+        now = datetime.now()
+        refund = Refunds(
+            user_id=str(current_user.id),
+            transaction_id=txn.id,
+            xendit_id=refund_result.get("refund_id", ""),
+            amount=data.amount,
+            reason=data.reason or "REQUESTED_BY_CUSTOMER",
+            status="pending",
+            created_at=now,
+            updated_at=now,
+        )
+        db.add(refund)
+        await db.commit()
+        await db.refresh(refund)
+        return PaymentResponse(
+            success=True,
+            message="Refund created successfully",
+            data={
+                "refund_id": refund.id,
+                "xendit_id": refund_result.get("refund_id", ""),
+                "amount": data.amount,
+                "status": refund_result.get("status", "pending"),
+            },
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating refund: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
