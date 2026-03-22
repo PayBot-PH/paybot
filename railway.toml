@@ -9,7 +9,4 @@ restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 preDeployCommand = "cd /app/backend && (alembic upgrade head || echo 'Migration skipped')"
 
-[deploy.envs]
-ENVIRONMENT = "production"
-LOG_LEVEL = "info"
-PYTHONUNBUFFERED = "1"
+
