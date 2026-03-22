@@ -88,7 +88,7 @@ if database_url:
         for _libpq_param in ("sslcert", "sslkey", "sslrootcert", "sslcrl", "gssencmode", "channel_binding"):
             _query.pop(_libpq_param, None)
         url = url.set(query=_query)
-        database_url = str(url)
+        database_url = url.render_as_string(hide_password=False)
 
         # Determine whether to use SSL.
         # Use asyncpg's built-in ssl='prefer' mode for all non-local, non-disabled
@@ -109,7 +109,7 @@ if database_url:
             )
     elif url.drivername == "sqlite":
         url = url.set(drivername="sqlite+aiosqlite")
-        database_url = str(url)
+        database_url = url.render_as_string(hide_password=False)
     config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = Base.metadata
