@@ -141,7 +141,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
         </div>
 
         {/* ── PAYMENT BRANDS ROW ───────────────────────────────── */}
-        <div className="border-t border-white/[0.05] py-6">
+        <div className="border-t border-white/[0.08] py-6">
           <p className="text-slate-600 text-[10px] font-semibold uppercase tracking-widest text-center mb-4">
             Accepted payment networks
           </p>
@@ -163,7 +163,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
         </div>
 
         {/* ── BOTTOM BAR: copyright ────────────────────────────── */}
-        <div className="border-t border-white/[0.05] py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="border-t border-white/[0.08] py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-slate-600 text-xs text-center sm:text-left">
             &copy; {new Date().getFullYear()} <span className="text-muted-foreground">{COMPANY_NAME}</span>. All rights reserved.
           </p>
