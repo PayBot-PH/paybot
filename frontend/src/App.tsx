@@ -2,11 +2,12 @@ import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
 import React, { useEffect, useState } from 'react';
 import TopProgressBar from '@/components/TopProgressBar';
+import AppLoadingScreen from '@/components/AppLoadingScreen';
 import Dashboard from './pages/Dashboard';
 import Wallet from './pages/Wallet';
 import Transactions from './pages/Transactions';
@@ -83,6 +84,58 @@ function PageFade({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * Renders the full app shell only after the initial auth check completes.
+ * Must be rendered inside BrowserRouter so TopProgressBar / PageFade can call useLocation().
+ */
+function AuthAwareShell() {
+  const { loading } = useAuth();
+
+  if (loading) return <AppLoadingScreen />;
+
+  return (
+    <>
+      <TopProgressBar />
+      {/* MaintenanceGuard is intentionally outside PageFade so it does not
+          remount (and re-fetch) on every navigation. */}
+      <MaintenanceGuard>
+        <PageFade>
+          <Routes>
+            <Route path="/intro" element={<BotIntro />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/features" element={<Features />} />
+            <Route path="/pricing" element={<Pricing />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/auth/error" element={<AuthError />} />
+            <Route path="/logout-callback" element={<LogoutCallbackPage />} />
+            <Route path="/maintenance" element={<MaintenancePage />} />
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/wallet" element={<Wallet />} />
+            <Route path="/transactions" element={<Transactions />} />
+            <Route path="/create-payment" element={<CreatePayment />} />
+            <Route path="/payments" element={<PaymentsHub />} />
+            <Route path="/scan-qrph" element={<ScanQRPH />} />
+            <Route path="/disbursements" element={<DisbursementsPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/bot-settings" element={<BotSettings />} />
+            <Route path="/admin-management" element={<RequireSuperAdmin><AdminManagement /></RequireSuperAdmin>} />
+            <Route path="/bot-messages" element={<ProtectedAdminRoute><BotMessagesPage /></ProtectedAdminRoute>} />
+            <Route path="/topup-requests" element={<RequireSuperAdmin><TopupRequestsPage /></RequireSuperAdmin>} />
+            <Route path="/usdt-send-requests" element={<RequireSuperAdmin><UsdtSendRequestsPage /></RequireSuperAdmin>} />
+            <Route path="/bank-deposits" element={<RequireSuperAdmin><BankDepositsPage /></RequireSuperAdmin>} />
+            <Route path="/kyb-registrations" element={<RequireSuperAdmin><KybRegistrationsPage /></RequireSuperAdmin>} />
+            <Route path="/kyc-verifications" element={<RequireSuperAdmin><KycVerificationsPage /></RequireSuperAdmin>} />
+            <Route path="/roles" element={<RequireSuperAdmin><RolesPage /></RequireSuperAdmin>} />
+            <Route path="/policies" element={<Policies />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </PageFade>
+      </MaintenanceGuard>
+    </>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
@@ -91,41 +144,7 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <BrowserRouter>
-            <TopProgressBar />
-            <PageFade>
-            <MaintenanceGuard>
-            <Routes>
-              <Route path="/intro" element={<BotIntro />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/features" element={<Features />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
-              <Route path="/auth/error" element={<AuthError />} />
-              <Route path="/logout-callback" element={<LogoutCallbackPage />} />
-              <Route path="/maintenance" element={<MaintenancePage />} />
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/wallet" element={<Wallet />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/create-payment" element={<CreatePayment />} />
-              <Route path="/payments" element={<PaymentsHub />} />
-              <Route path="/scan-qrph" element={<ScanQRPH />} />
-              <Route path="/disbursements" element={<DisbursementsPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/bot-settings" element={<BotSettings />} />
-              <Route path="/admin-management" element={<RequireSuperAdmin><AdminManagement /></RequireSuperAdmin>} />
-              <Route path="/bot-messages" element={<ProtectedAdminRoute><BotMessagesPage /></ProtectedAdminRoute>} />
-              <Route path="/topup-requests" element={<RequireSuperAdmin><TopupRequestsPage /></RequireSuperAdmin>} />
-              <Route path="/usdt-send-requests" element={<RequireSuperAdmin><UsdtSendRequestsPage /></RequireSuperAdmin>} />
-              <Route path="/bank-deposits" element={<RequireSuperAdmin><BankDepositsPage /></RequireSuperAdmin>} />
-              <Route path="/kyb-registrations" element={<RequireSuperAdmin><KybRegistrationsPage /></RequireSuperAdmin>} />
-              <Route path="/kyc-verifications" element={<RequireSuperAdmin><KycVerificationsPage /></RequireSuperAdmin>} />
-              <Route path="/roles" element={<RequireSuperAdmin><RolesPage /></RequireSuperAdmin>} />
-              <Route path="/policies" element={<Policies />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </MaintenanceGuard>
-          </PageFade>
+            <AuthAwareShell />
           </BrowserRouter>
         </TooltipProvider>
         </AuthProvider>
