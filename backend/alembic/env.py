@@ -6,6 +6,7 @@ import asyncio
 import importlib
 import os
 import pkgutil
+import ssl as _ssl_module
 from logging.config import fileConfig
 
 import models
@@ -25,15 +26,34 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Read DATABASE_URL from environment variable
-database_url = os.environ.get("DATABASE_URL")
+database_url = os.environ.get("DATABASE_URL", "").strip()
+
+# Try to build DATABASE_URL from individual PG vars (Railway/Render set these separately)
+if not database_url:
+    _pghost = os.environ.get("PGHOST", "").strip()
+    _pgport = os.environ.get("PGPORT", "5432").strip()
+    _pguser = os.environ.get("PGUSER", "").strip()
+    _pgpassword = os.environ.get("PGPASSWORD", "").strip()
+    _pgdatabase = os.environ.get("PGDATABASE", "").strip()
+    if _pghost and _pguser and _pgdatabase:
+        import urllib.parse as _urlparse
+        database_url = (
+            f"postgresql://{_urlparse.quote(_pguser, safe='')}:{_urlparse.quote(_pgpassword, safe='')}"
+            f"@{_pghost}:{_pgport}/{_pgdatabase}"
+        )
+
 if not database_url:
     # Fall back to settings default (e.g. SQLite for local dev)
     try:
         from core.config import settings as _settings
-        database_url = _settings.database_url
+        database_url = _settings.database_url or ""
     except (ImportError, AttributeError, Exception) as _e:
         import logging as _logging
         _logging.getLogger(__name__).warning("Could not load settings for database URL: %s", _e)
+
+if not database_url:
+    # Last resort: use local SQLite so migrations don't crash the container
+    database_url = "sqlite+aiosqlite:///./paybot.db"
 
 # connect_args to pass to create_async_engine (used for SSL on PostgreSQL)
 _engine_connect_args: dict = {}
@@ -81,35 +101,39 @@ if database_url:
     if url.drivername in ("postgresql", "postgres"):
         url = url.set(drivername="postgresql+asyncpg")
 
-        # asyncpg does not accept libpq query parameters — strip them all.
-        # sslmode is captured so we can honour an explicit 'disable' request.
+        # asyncpg does not accept sslmode as a query parameter (that is a
+        # libpq/psycopg2 concept). Strip it from the URL and convert to an
+        # ssl.SSLContext passed via connect_args so the connection succeeds on
+        # hosts that enforce TLS (e.g. Render, Railway, Heroku Postgres).
+        # asyncpg does not accept libpq query parameters — strip them all and
+        # convert sslmode into a proper ssl.SSLContext via connect_args.
         _query = dict(url.query)
         _sslmode = _query.pop("sslmode", None)
         for _libpq_param in ("sslcert", "sslkey", "sslrootcert", "sslcrl", "gssencmode", "channel_binding"):
             _query.pop(_libpq_param, None)
         url = url.set(query=_query)
-        database_url = str(url)
-
-        # Determine whether to use SSL.
-        # Use asyncpg's built-in ssl='prefer' mode for all non-local, non-disabled
-        # connections.  This attempts TLS but gracefully falls back to an
-        # unencrypted connection when the server declines (e.g. Railway internal),
-        # avoiding the ssl_is_advisory=False trap from passing a custom SSLContext
-        # in asyncpg >= 0.30 which made SSL mandatory and broke Render deploys.
+        database_url = url.render_as_string(hide_password=False)
+        # Render (and most managed PG hosts) require SSL even when the conn
+        # string has no sslmode param. Use SSL for any non-local host.
         _host = str(url.host or "")
-        _is_local = _host in ("localhost", "127.0.0.1", "::1", "") or _host.endswith(".local")
-        _wants_ssl = not _is_local and _sslmode != "disable"
+        _is_local = (
+            _host in ("localhost", "127.0.0.1", "::1", "")
+            or _host.endswith(".local")
+            or _host.endswith(".railway.internal")
+        )
+        _wants_ssl = _sslmode in ("require", "verify-ca", "verify-full", "prefer") or not _is_local
 
         if _wants_ssl:
-            # ssl='prefer': attempt TLS (no cert verification), fall back to
-            # plaintext if the server declines — works for Render, Railway, etc.
-            _engine_connect_args["ssl"] = "prefer"
+            _ssl_ctx = _ssl_module.create_default_context()
+            _ssl_ctx.check_hostname = False
+            _ssl_ctx.verify_mode = _ssl_module.CERT_NONE
+            _engine_connect_args["ssl"] = _ssl_ctx
             _alembic_logger.info(
-                "asyncpg: ssl=prefer for host=%s (sslmode=%s)", _host, _sslmode or "not-set"
+                "asyncpg: enabling SSL for host=%s (sslmode=%s)", _host, _sslmode or "not-set"
             )
     elif url.drivername == "sqlite":
         url = url.set(drivername="sqlite+aiosqlite")
-        database_url = str(url)
+        database_url = url.render_as_string(hide_password=False)
     config.set_main_option("sqlalchemy.url", database_url)
 
 target_metadata = Base.metadata
@@ -134,17 +158,12 @@ def do_run_migrations(connection):
     with context.begin_transaction():
         context.run_migrations()
 
+
 async def run_migrations_online():
-    # Merge connect_timeout into connect_args so asyncpg doesn't hang on an
-    # unreachable DB host (e.g. Railway PostgreSQL not yet ready at boot).
-    _ca = dict(_engine_connect_args)
-    _url = config.get_main_option("sqlalchemy.url") or ""
-    if "postgresql" in _url or "postgres" in _url:
-        _ca.setdefault("timeout", 30)  # asyncpg: give up after 30s
     connectable = create_async_engine(
-        _url,
+        config.get_main_option("sqlalchemy.url"),
         poolclass=pool.NullPool,
-        connect_args=_ca,
+        connect_args=_engine_connect_args,
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
@@ -152,7 +171,12 @@ async def run_migrations_online():
 
 
 def run_migrations():
-    asyncio.run(run_migrations_online())
+    try:
+        # If there is no event loop currently, use asyncio.run directly
+        loop = asyncio.get_running_loop()
+        loop.create_task(run_migrations_online())
+    except RuntimeError:
+        asyncio.run(run_migrations_online())
 
 
 run_migrations()

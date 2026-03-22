@@ -249,7 +249,7 @@ export default function ScanQRPH() {
 
         {/* Step 1 — Capture */}
         {!qrData && !result && (
-          <Card className="bg-[#1E293B] border-slate-700/50">
+          <Card className="glass-card">
             <CardHeader>
               <CardTitle className="text-white text-base flex items-center gap-2">
                 <ScanLine className="h-4 w-4 text-blue-400" />
@@ -316,7 +316,7 @@ export default function ScanQRPH() {
 
         {/* Step 2 — Review & Pay */}
         {qrData && !result && (
-          <Card className="bg-[#1E293B] border-slate-700/50">
+          <Card className="glass-card">
             <CardHeader>
               <CardTitle className="text-white text-base flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -330,7 +330,7 @@ export default function ScanQRPH() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Parsed QRPH info */}
-              <div className="rounded-lg bg-slate-800/60 p-4 space-y-2 text-sm">
+              <div className="rounded-lg bg-muted/60 p-4 space-y-2 text-sm">
                 {qrData.merchantName && (
                   <div className="flex justify-between">
                     <span className="text-slate-400">Merchant</span>
@@ -372,7 +372,7 @@ export default function ScanQRPH() {
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                  className="mt-1 bg-muted border-border placeholder:text-muted-foreground"
                 />
               </div>
 
@@ -382,7 +382,7 @@ export default function ScanQRPH() {
                   placeholder="Payment note"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                  className="mt-1 bg-muted border-border placeholder:text-muted-foreground"
                 />
               </div>
 
@@ -401,7 +401,7 @@ export default function ScanQRPH() {
 
         {/* Step 3 — Result */}
         {result && (
-          <Card className="bg-[#1E293B] border-slate-700/50">
+          <Card className="glass-card">
             <CardHeader>
               <CardTitle className="text-white text-base flex items-center justify-between">
                 <span className="flex items-center gap-2">

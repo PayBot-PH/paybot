@@ -80,6 +80,10 @@ class PayMongoService:
     def _get_auth(self):
         return (self.secret_key, "")
 
+    def is_configured(self) -> bool:
+        """Return True if the PayMongo secret key is set."""
+        return bool(self.secret_key)
+
     # ------------------------------------------------------------------
     # Webhook signature verification
     # ------------------------------------------------------------------

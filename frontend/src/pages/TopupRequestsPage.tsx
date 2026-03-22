@@ -122,7 +122,7 @@ export default function TopupRequestsPage() {
             <p className="text-slate-500 text-sm mt-0.5">Review and approve USDT TRC20 → PHP wallet top-ups</p>
           </div>
           <button onClick={fetchRequests}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0">
+            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-border px-3 py-1.5 rounded-lg transition-colors shrink-0">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
         </div>
@@ -145,7 +145,7 @@ export default function TopupRequestsPage() {
                       onChange={e => setRateInput(e.target.value)}
                       step="0.01"
                       min="0.01"
-                      className="w-28 bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500/50"
+                      className="w-28 bg-slate-800 border border-border rounded-lg px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500/50"
                     />
                     <span className="text-slate-400 text-xs">PHP per USDT</span>
                   </div>
@@ -165,14 +165,14 @@ export default function TopupRequestsPage() {
                   </button>
                   <button
                     onClick={() => { setRateEditMode(false); setRateInput(String(usdtPhpRate)); }}
-                    className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:text-white transition-colors">
+                    className="text-xs px-3 py-1.5 rounded-lg border border-border text-slate-400 hover:text-white transition-colors">
                     Cancel
                   </button>
                 </>
               ) : (
                 <button
                   onClick={() => setRateEditMode(true)}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-400 hover:text-white transition-colors">
+                  className="text-xs px-3 py-1.5 rounded-lg border border-border text-slate-400 hover:text-white transition-colors">
                   Edit Rate
                 </button>
               )}
@@ -199,7 +199,7 @@ export default function TopupRequestsPage() {
         {loading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-4 animate-pulse">
+              <div key={i} className="bg-[#0F172A] border border-border/40 rounded-2xl p-4 animate-pulse">
                 <div className="flex items-center gap-4">
                   <div className="h-10 w-10 rounded-xl bg-slate-700/50" />
                   <div className="flex-1 space-y-2">
@@ -211,7 +211,7 @@ export default function TopupRequestsPage() {
             ))}
           </div>
         ) : requests.length === 0 ? (
-          <div className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-12 flex flex-col items-center text-center">
+          <div className="bg-[#0F172A] border border-border/40 rounded-2xl p-12 flex flex-col items-center text-center">
             <div className="h-12 w-12 bg-slate-800 rounded-2xl flex items-center justify-center mb-3">
               <DollarSign className="h-6 w-6 text-slate-600" />
             </div>
@@ -224,7 +224,7 @@ export default function TopupRequestsPage() {
               const isActive = activeId === req.id;
               const phpEquivalent = (req.amount_usdt * usdtPhpRate).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               return (
-                <div key={req.id} className="bg-[#0F172A] border border-slate-700/40 rounded-2xl overflow-hidden">
+                <div key={req.id} className="bg-[#0F172A] border border-border/40 rounded-2xl overflow-hidden">
                   <div className="p-4 flex items-start gap-4">
                     <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
                       <DollarSign className="h-5 w-5 text-emerald-400" />
@@ -262,7 +262,7 @@ export default function TopupRequestsPage() {
                     {req.status === 'pending' && (
                       <div className="flex items-center gap-2 shrink-0">
                         <button onClick={() => setActiveId(isActive ? null : req.id)}
-                          className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 transition-colors">
+                          className="text-xs px-3 py-1.5 rounded-lg border border-border text-slate-300 hover:border-slate-400 transition-colors">
                           {isActive ? 'Cancel' : 'Review'}
                         </button>
                       </div>
@@ -271,7 +271,7 @@ export default function TopupRequestsPage() {
 
                   {/* Action panel */}
                   {isActive && req.status === 'pending' && (
-                    <div className="px-4 pb-4 border-t border-slate-700/40 pt-3">
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3">
                       <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2 mb-3 text-xs text-blue-300">
                         💱 Approving will credit <strong>₱{phpEquivalent} PHP</strong> to the user's wallet
                         {' '}(${req.amount_usdt.toFixed(2)} USDT × ₱{usdtPhpRate.toFixed(2)} rate)
@@ -280,7 +280,7 @@ export default function TopupRequestsPage() {
                       <input
                         value={note} onChange={e => setNote(e.target.value)}
                         placeholder="e.g. Receipt verified, transaction confirmed"
-                        className="w-full bg-slate-800/60 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 mb-3"
+                        className="w-full bg-muted/60 border border-border/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 mb-3"
                       />
                       <div className="flex gap-2">
                         <button onClick={() => doAction(req.id, 'approve')}

@@ -1,23 +1,32 @@
 # PayBot Deployment Guide
 
-This guide covers deploying PayBot on **Railway** with a managed PostgreSQL database.
+This guide covers deploying PayBot on **Railway**, **Render**, or **Cloudflare** (Pages or Workers) with a PostgreSQL database.
 
 ## Prerequisites
 
 - A GitHub account with access to the PayBot repository
-- A [Railway](https://railway.app) account
+- A [Railway](https://railway.app) **or** [Render](https://render.com) account (for the backend)
+- Optionally a [Cloudflare](https://cloudflare.com) account (for the frontend — Pages or Workers)
 - A Xendit account for payment processing
 - A Telegram Bot Token (create via [@BotFather](https://t.me/botfather))
 
 ## Table of Contents
 
+### Railway
 1. [Railway Setup](#1-railway-setup)
 2. [Environment Variables Setup](#2-environment-variables-setup)
 3. [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup)
 4. [Database Migration](#4-database-migration)
 5. [Webhook Configuration](#5-webhook-configuration)
 6. [Post-Deployment Steps](#6-post-deployment-steps)
+
+### Render
 7. [Troubleshooting](#7-troubleshooting)
+8. [Render Setup](#8-render-setup)
+
+### Cloudflare
+9. [Cloudflare Pages Setup](#9-cloudflare-pages-setup)
+10. [Cloudflare Workers Setup](#10-cloudflare-workers-setup)
 
 ---
 
@@ -29,7 +38,7 @@ This guide covers deploying PayBot on **Railway** with a managed PostgreSQL data
 2. Click **"New Project"**
 3. Select **"Deploy from GitHub repo"**
 4. Authenticate with GitHub if prompted
-5. Select the `PayBot-PH/paybot` repository
+5. Select the `csphi/paybot` repository
 6. Railway will detect the `railway.toml` configuration automatically
 
 ### 1.2 Add PostgreSQL Database
@@ -44,7 +53,7 @@ This guide covers deploying PayBot on **Railway** with a managed PostgreSQL data
 
 Railway will automatically create services based on your `railway.toml` configuration:
 
-- **Backend Service**: Runs the FastAPI application (with the React admin UI served as static files)
+- **Backend Service**: Runs the FastAPI application
 - **Database**: PostgreSQL database
 
 ### 1.4 Get the DATABASE_URL
@@ -71,47 +80,43 @@ Railway will automatically create services based on your `railway.toml` configur
 | `DATABASE_URL` | PostgreSQL connection string (auto-added by Railway) | `postgresql://user:pass@host:5432/db` |
 | `TELEGRAM_BOT_TOKEN` | Your Telegram bot token | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11` |
 | `XENDIT_SECRET_KEY` | Your Xendit API secret key | `xnd_production_...` |
-| `PYTHON_BACKEND_URL` | Your Railway backend public URL (for Telegram webhook) | `https://paybot-backend-production-84b2.up.railway.app` |
+| `PYTHON_BACKEND_URL` | Your Railway backend public URL (for Telegram webhook) | `https://your-backend.railway.app` |
 | `JWT_SECRET_KEY` | Secret key for signing JWT tokens | Run `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `ADMIN_USER_PASSWORD` | Password for admin dashboard login | `your_secure_password` |
-| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric IDs or `@usernames` allowed as admin | Find your numeric ID via [@userinfobot](https://t.me/userinfobot); use `@username` format if you prefer (e.g. `@yourname,123456789`) |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram user IDs allowed as admin | `123456789,987654321` |
 
 #### Optional Variables:
 
 | Variable Name | Description | Default Value |
 |--------------|-------------|---------------|
+| `CUSTOM_DOMAIN` | Your custom domain name — auto-configures backend URL and CORS | Empty |
 | `ENVIRONMENT` | Application environment | `production` |
 | `DEBUG` | Enable debug mode | `false` |
 | `PORT` | Server port (auto-set by Railway) | `8000` |
 | `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins | Empty (allows all) |
 | `JWT_ALGORITHM` | JWT signing algorithm | `HS256` |
 | `JWT_EXPIRE_MINUTES` | JWT token expiry in minutes | `60` |
-| `TELEGRAM_BOT_USERNAME` | Bot username without `@` — required for the Telegram Login Widget | — |
-| `TELEGRAM_BOT_OWNER_ID` | Super-admin Telegram user ID (approves KYB registrations) | — |
-
-#### Payment Gateway Secrets (add the ones you need):
-
-| Variable | Description |
-|----------|-------------|
-| `PAYMONGO_SECRET_KEY` | PayMongo secret key (cards, GCash, GrabPay, Maya, Alipay, WeChat via PayMongo) |
-| `PAYMONGO_PUBLIC_KEY` | PayMongo public key |
-| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret for signature verification |
-| `PAYMONGO_MODE` | PayMongo mode (`live` or `test`) |
-| `PHOTONPAY_APP_ID` | PhotonPay App ID (Alipay / WeChat Pay via PhotonPay) |
-| `PHOTONPAY_APP_SECRET` | PhotonPay App Secret |
-| `PHOTONPAY_SITE_ID` | PhotonPay Site ID (Collection → Site Management) |
-| `PHOTONPAY_RSA_PRIVATE_KEY` | Merchant RSA private key (PKCS#8 PEM) for signing requests |
-| `PHOTONPAY_RSA_PUBLIC_KEY` | PhotonPay platform RSA public key for webhook verification |
-| `TRANSFI_API_KEY` | TransFi Checkout API key (Alipay / WeChat Pay via TransFi) |
-| `TRANSFI_WEBHOOK_SECRET` | TransFi HMAC-SHA256 webhook secret |
-| `TRANSFI_BASE_URL` | TransFi API base URL |
 
 #### Example ALLOWED_ORIGINS:
 ```
-ALLOWED_ORIGINS=https://paybot-backend-production-84b2.up.railway.app,http://localhost:3000
+ALLOWED_ORIGINS=https://your-frontend.railway.app,http://localhost:3000
 ```
 
-### 2.2 Frontend Environment Variables
+#### Using a Custom Domain
+
+If you have registered your own domain (e.g. `drl-developers.info`) and pointed it at your deployed service, set **only** `CUSTOM_DOMAIN` instead of configuring `PYTHON_BACKEND_URL` and `ALLOWED_ORIGINS` separately:
+
+```
+CUSTOM_DOMAIN=drl-developers.info
+```
+
+PayBot will automatically:
+- Use `https://drl-developers.info` as the backend URL for Telegram webhooks and QR-code image links.
+- Add `https://drl-developers.info` to the CORS allowed-origins list so the admin dashboard loads correctly.
+
+You do **not** need to set `PYTHON_BACKEND_URL` or `ALLOWED_ORIGINS` when `CUSTOM_DOMAIN` is configured — though you can still add extra origins to `ALLOWED_ORIGINS` if needed (e.g. `http://localhost:3000` for local development).
+
+### 2.2 Frontend Environment Variables (if deploying frontend separately)
 
 The frontend is served directly by the backend as a static SPA, so no separate frontend deployment is needed. All requests to `/api/...` are handled by the backend, and the React app is served from the same URL.
 
@@ -156,8 +161,30 @@ The workflow uses the `production` environment in GitHub Actions. You can add se
 |-------------|-------------|
 | `RAILWAY_TOKEN` | Railway project token (see [step 3.1](#31-generate-a-railway-project-token)) |
 | `RAILWAY_SERVICE` | Exact name of the Railway service to deploy (e.g. `backend`) |
+| `RENDER_DEPLOY_HOOK_URL` | Render deploy hook URL (see [step 3.3](#33-render-deploy-hook-optional)) |
 
 > **Note:** If either `RAILWAY_TOKEN` or `RAILWAY_SERVICE` is missing or empty, the deployment step will be skipped with a warning message pointing to this guide. To find your service name, open your Railway project dashboard and note the name shown on the service card.
+
+---
+
+### 3.3 Render Deploy Hook (optional)
+
+If you also want GitHub Actions to automatically redeploy your Render service on every push to `main`, add a Render deploy hook URL as a GitHub secret named `RENDER_DEPLOY_HOOK_URL`.
+
+**How to get the deploy hook URL:**
+
+1. Log in to [Render](https://render.com)
+2. Open your **paybot-backend** service
+3. Go to **Settings** → **Deploy Hook**
+4. Copy the hook URL (it looks like `https://api.render.com/deploy/srv-<id>?key=<key>`)
+
+**Add it as a GitHub secret:**
+
+1. Go to your GitHub repository → **Settings** → **Environments** → **production**
+2. Under **"Environment secrets"**, click **"Add secret"**
+3. Name: `RENDER_DEPLOY_HOOK_URL`, Value: the URL you copied above
+
+> **Note:** If `RENDER_DEPLOY_HOOK_URL` is not set, the Render deploy step is silently skipped — no errors, just a warning. This lets you use Railway-only or Render-only without changing the workflow.
 
 ---
 
@@ -206,56 +233,34 @@ To see migration history:
 railway run alembic history
 ```
 
----
-
 ## 5. Webhook Configuration
 
 After deployment, you need to configure webhooks for external services.
 
-### 5.1 Get Your Backend URL
+### 4.1 Get Your Backend URL
 
 1. Go to your Railway backend service
 2. Click on the **"Settings"** tab
 3. Find the **"Public Networking"** section
-4. Copy your **Railway domain** (e.g., `https://paybot-backend-production-84b2.up.railway.app`)
+4. Copy your **Railway domain** (e.g., `https://your-backend.railway.app`)
 
-### 5.2 Xendit Webhook Setup
+### 4.2 Xendit Webhook Setup
 
 1. Log in to your [Xendit Dashboard](https://dashboard.xendit.co)
 2. Go to **Settings** → **Webhooks**
 3. Add a new webhook URL:
    ```
-   https://paybot-backend-production-84b2.up.railway.app/api/v1/xendit/webhook
+   https://your-backend.railway.app/api/v1/xendit/webhook
    ```
 4. Select the events you want to receive:
    - `payment.succeeded`
    - `payment.failed`
    - `invoice.paid`
    - `invoice.expired`
+
 5. Save the webhook configuration
 
-### 5.3 PayMongo Webhook Setup
-
-1. Log in to [PayMongo Dashboard](https://dashboard.paymongo.com) → **Developers → Webhooks**
-2. Create a webhook pointing to:
-   ```
-   https://paybot-backend-production-84b2.up.railway.app/api/v1/paymongo/webhook
-   ```
-3. Enable events: `source.chargeable`, `checkout_session.payment.paid`, `checkout_session.payment.failed`, `payment.paid`, `payment.failed`
-4. Copy the **signing secret** → set as `PAYMONGO_WEBHOOK_SECRET`
-
-### 5.4 TransFi Webhook Setup
-
-1. Log in to your [TransFi Checkout dashboard](https://checkout-dashboard.transfi.com)
-2. Go to **Settings** → **Integration** (or **Webhooks**)
-3. Add a new webhook URL:
-   ```
-   https://<your-railway-domain>/api/v1/transfi/webhook
-   ```
-4. Copy the **webhook secret** and set it as `TRANSFI_WEBHOOK_SECRET` in your environment variables.
-5. Save the webhook configuration.
-
-### 5.5 Telegram Webhook Setup
+### 4.3 Telegram Webhook Setup
 
 The Telegram webhook is automatically registered on startup when `PYTHON_BACKEND_URL` is set. To set it up manually:
 
@@ -263,7 +268,7 @@ The Telegram webhook is automatically registered on startup when `PYTHON_BACKEND
 curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
   -H "Content-Type: application/json" \
   -d '{
-    "url": "https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook"
+    "url": "https://your-backend.railway.app/api/v1/telegram/webhook"
   }'
 ```
 
@@ -284,7 +289,7 @@ curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
 Check the health endpoint:
 
 ```bash
-curl https://paybot-backend-production-84b2.up.railway.app/health
+curl https://your-backend.railway.app/health
 ```
 
 Expected response:
@@ -294,11 +299,11 @@ Expected response:
 }
 ```
 
-### 6.2 Verify Frontend is Running
+### 6.2 Verify Frontend is Running (if deployed)
 
-Open your Railway backend URL in a browser:
+Open your frontend URL in a browser:
 ```
-https://paybot-backend-production-84b2.up.railway.app
+https://your-frontend.railway.app
 ```
 
 ### 6.3 Check Database Connection
@@ -399,7 +404,7 @@ railway logs
 **Solution**:
 1. Add your frontend URL to `ALLOWED_ORIGINS` environment variable:
    ```
-   ALLOWED_ORIGINS=https://paybot-backend-production-84b2.up.railway.app,http://localhost:3000
+   ALLOWED_ORIGINS=https://your-frontend.railway.app,http://localhost:3000
    ```
 
 #### Port Binding Issues
@@ -421,12 +426,12 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
    ```
 2. Check if the URL is accessible:
    ```bash
-   curl https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook
+   curl https://your-backend.railway.app/api/v1/telegram/webhook
    ```
 3. Delete and reset the webhook:
    ```bash
    curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/deleteWebhook"
-   curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" -d "url=https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook"
+   curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" -d "url=https://your-backend.railway.app/api/v1/telegram/webhook"
    ```
 
 #### Admin Login Issues
@@ -440,9 +445,282 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 ---
 
+## 8. Render Setup
+
+[Render](https://render.com) is an alternative cloud platform that can host the PayBot backend and a managed PostgreSQL database. The `render.yaml` file at the root of the repository defines everything Render needs to provision your services automatically.
+
+### 8.1 One-click Deploy
+
+1. Log in to [Render](https://render.com)
+2. Click **"New"** → **"Blueprint"**
+3. Connect your GitHub account and select the `csphi/paybot` repository
+4. Render detects `render.yaml` and shows a preview of the services it will create:
+   - **paybot-backend** – Web service (Docker, FastAPI)
+   - **paybot-db** – Managed PostgreSQL database
+5. Click **"Apply"**
+
+Render will build the Docker image defined in `backend/Dockerfile`, provision a free-tier PostgreSQL database, and wire `DATABASE_URL` automatically.
+
+### 8.2 Set Required Environment Variables
+
+After the initial deploy, go to the **paybot-backend** service → **Environment** tab and add the following secrets (marked `sync: false` in `render.yaml`, so they are never auto-populated):
+
+| Variable | Description |
+|----------|-------------|
+| `PYTHON_BACKEND_URL` | Your Render public URL, e.g. `https://paybot-backend.onrender.com` — **optional**: Render automatically sets `RENDER_EXTERNAL_URL`, which the app uses as a fallback when `PYTHON_BACKEND_URL` is not provided |
+| `TELEGRAM_BOT_TOKEN` | Token from [@BotFather](https://t.me/botfather) |
+| `TELEGRAM_BOT_USERNAME` | Your bot's username without `@`, e.g. `mypaybot` (used by Telegram Login Widget) |
+| `XENDIT_SECRET_KEY` | Xendit API secret key |
+| `JWT_SECRET_KEY` | Random secret – run `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ADMIN_USER_PASSWORD` | Password for the admin dashboard |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric user IDs or `@usernames` allowed as admin |
+| `ALLOWED_ORIGINS` | Comma-separated allowed CORS origins (optional) |
+| `TELEGRAM_BOT_OWNER_ID` | Telegram numeric user ID of the bot owner (super admin for KYB approvals, optional) |
+| `PAYMONGO_SECRET_KEY` | PayMongo secret key — required for Alipay, WeChat Pay, GCash, Maya, and card payments (optional) |
+| `PAYMONGO_PUBLIC_KEY` | PayMongo public key (optional) |
+| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret for signature verification (optional) |
+
+The following variables are pre-configured with sensible defaults in `render.yaml` and do not need to be set manually unless you want to override them:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `JWT_ALGORITHM` | `HS256` | JWT signing algorithm |
+| `JWT_EXPIRE_MINUTES` | `60` | JWT token expiry in minutes |
+| `ENVIRONMENT` | `production` | Application environment |
+| `PAYMONGO_MODE` | `live` | PayMongo API mode (`live` for production, `test` for sandbox) |
+
+### 8.3 Run Database Migrations
+
+Database migrations run **automatically** on each Render deployment via the Docker startup command in `backend/Dockerfile`:
+
+```bash
+alembic upgrade head && uvicorn main:app ...
+```
+
+Alembic runs inside the container before uvicorn starts. If the migration fails, uvicorn never starts, the health check at `/health` fails, and Render keeps the previous version running.
+
+### 8.4 Configure Webhooks
+
+Follow the same steps as [Section 5](#5-webhook-configuration) in the Railway guide, substituting your Render URL (e.g. `https://paybot-backend.onrender.com`) for `https://your-backend.railway.app`.
+
+### 8.5 Verify the Deployment
+
+```bash
+curl https://paybot-backend.onrender.com/health
+```
+
+Expected response:
+```json
+{"status": "healthy"}
+```
+
+> **Note on free-tier cold starts:** Render's free plan spins down idle services after 15 minutes of inactivity. The first request after a cold start may take up to 30 seconds. Upgrade to a paid plan to keep the service always-on.
+
+---
+
+## 9. Cloudflare Pages Setup
+
+[Cloudflare Pages](https://pages.cloudflare.com) hosts the React frontend as a globally-distributed static site. The backend (API) continues to run on Railway or Render — Cloudflare Pages Functions transparently proxy every `/api/*` request to it, so the frontend code requires no changes.
+
+### Architecture
+
+```
+Browser → Cloudflare Pages (static SPA)
+              ↓ /api/*  (Pages Function proxy)
+         Railway / Render  (FastAPI backend)
+```
+
+### 9.1 Prerequisites
+
+- A deployed backend on Railway or Render (see sections above)
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up)
+
+### 9.2 Create a Cloudflare Pages Project
+
+1. Log in to the [Cloudflare dashboard](https://dash.cloudflare.com)
+2. Go to **Workers & Pages** → **Create application** → **Pages**
+3. Click **Connect to Git**, authenticate with GitHub, and select the `paybot` repository
+4. Configure the build settings:
+
+   | Setting | Value |
+   |---------|-------|
+   | **Root directory** | `frontend` |
+   | **Build command** | `pnpm install --frozen-lockfile && pnpm run build` |
+   | **Build output directory** | `dist` |
+   | **Node.js version** | `20` |
+
+5. Click **Save and Deploy** — Cloudflare will run the build and publish the site
+
+### 9.3 Set Environment Variables in Cloudflare Pages
+
+After the initial deploy, go to your Pages project → **Settings** → **Environment variables** and add:
+
+| Variable | Environment | Description |
+|----------|-------------|-------------|
+| `BACKEND_URL` | Production | Public URL of your backend, e.g. `https://paybot-backend.onrender.com` or `https://your-backend.railway.app` |
+| `VITE_TELEGRAM_BOT_USERNAME` | Production | Your bot username without `@`, e.g. `mypaybot` (used by Telegram Login Widget) |
+| `VITE_CLOUDFLARE_TURNSTILE_SITE_KEY` | Production | Cloudflare Turnstile site key for browser-side challenge rendering |
+| `CLOUDFLARE_TURNSTILE_SECRET_KEY` | Production | Cloudflare Turnstile secret key for backend verification of login challenges |
+
+> **Note:** Variables prefixed with `VITE_` are embedded into the frontend bundle at build time. `BACKEND_URL` (no prefix) is read at runtime by the Cloudflare Pages Function proxy and is never exposed to the browser.
+
+After adding variables, trigger a new deployment (**Deployments** → **Retry deployment**) so the build picks up the new `VITE_*` values.
+
+### 9.4 GitHub Actions Secrets Setup
+
+The deploy workflow automatically deploys to Cloudflare Pages on every push to `main` when the required secrets are present.
+
+**Add these secrets to your GitHub repository** (Settings → Secrets and variables → Actions, or under the `production` environment):
+
+| Secret | Description |
+|--------|-------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Cloudflare Pages: Edit** permission |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID (found in the dashboard right sidebar) |
+| `CLOUDFLARE_PROJECT_NAME` | Name of the Cloudflare Pages project (defaults to `paybot` if not set) |
+
+**How to create the API token:**
+
+1. Go to [Cloudflare API Tokens](https://dash.cloudflare.com/profile/api-tokens)
+2. Click **Create Token** → **Use template** → **Edit Cloudflare Workers**
+3. Under **Permissions**, ensure **Cloudflare Pages: Edit** is included
+4. Set **Account Resources** to your account
+5. Click **Continue to Summary** → **Create Token**
+6. Copy and save the token as `CLOUDFLARE_API_TOKEN` in GitHub Secrets
+
+> **Note:** If `CLOUDFLARE_API_TOKEN` or `CLOUDFLARE_ACCOUNT_ID` is missing, the Cloudflare deploy step is skipped with a warning — this lets you use Railway-only or Render-only without changing the workflow.
+
+### 9.5 Custom Domain (optional)
+
+1. In your Pages project → **Custom domains** → **Set up a custom domain**
+2. Enter your domain (e.g. `app.yourdomain.com`) and follow the DNS instructions
+3. Update `ALLOWED_ORIGINS` on your backend to include the new domain:
+   ```
+   ALLOWED_ORIGINS=https://app.yourdomain.com,https://paybot.pages.dev
+   ```
+
+### 9.6 Verify the Deployment
+
+After deploying, visit your Cloudflare Pages URL (e.g. `https://paybot.pages.dev`) and:
+
+1. The login page should load
+2. Open the browser DevTools → **Network** tab and confirm `/api/v1/...` requests return responses from the backend
+3. Sign in with Telegram to confirm authentication works end-to-end
+
+---
+
+## 10. Cloudflare Workers Setup
+
+[Cloudflare Workers](https://workers.cloudflare.com) is an alternative to Cloudflare Pages that runs the API proxy as a Worker script alongside the static frontend assets — all in a single deployment. The backend (FastAPI) still runs on Railway or Render; the Worker forwards every `/api/*` request to it.
+
+### Architecture
+
+```
+Browser → Cloudflare Worker  (worker.ts — serves static SPA + proxies /api/*)
+               ↓ /api/*
+          Railway / Render  (FastAPI backend)
+```
+
+### 10.1 When to use Workers instead of Pages
+
+| Feature | Cloudflare Pages | Cloudflare Workers |
+|--|--|--|
+| Hosting type | Static site + Pages Functions | Worker script + static assets |
+| API proxy | Pages Function (`functions/api/[[route]].ts`) | Worker script (`worker.ts`) |
+| Deployment command | `wrangler pages deploy` | `wrangler deploy` |
+| Local deploy | Via GitHub Actions | `npm run deploy` from repo root |
+| Custom logic | Pages Functions only | Full Worker API available |
+
+Use **Workers** if you need fine-grained control over request handling or want to colocate custom server-side logic with the frontend in a single Cloudflare deployment.
+
+### 10.2 Prerequisites
+
+- A deployed backend on Railway or Render (see sections 1–8 above)
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up)
+- [Node.js 20+](https://nodejs.org) and npm installed locally
+
+### 10.3 Initial Setup
+
+1. Install dependencies from the repo root:
+   ```bash
+   npm install
+   ```
+
+2. Log in to Cloudflare via the Wrangler CLI:
+   ```bash
+   npx wrangler login
+   ```
+
+3. Build the frontend:
+   ```bash
+   npm run build
+   ```
+
+4. Set the `BACKEND_URL` secret (your backend's public URL):
+   ```bash
+   npx wrangler secret put BACKEND_URL
+   # Enter the value when prompted, e.g.: https://paybot-backend.onrender.com
+   ```
+
+### 10.4 Deploy
+
+Run from the repo root:
+
+```bash
+npm run deploy
+```
+
+This builds the frontend (`frontend/dist/`) and uploads a new Worker version. Wrangler reads `wrangler.jsonc` for the Worker name and asset directory.
+
+To deploy and immediately activate in one step, use:
+
+```bash
+npx wrangler deploy
+```
+
+### 10.5 GitHub Actions Secrets Setup
+
+The deploy workflow automatically deploys to Cloudflare Workers on every push to `main` when the required secrets are present.
+
+**Add these secrets to your GitHub repository** (Settings → Secrets and variables → Actions, or under the `production` environment):
+
+| Secret | Description |
+|--------|-------------|
+| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with **Workers: Edit** permission (shared with Pages job) |
+| `CLOUDFLARE_ACCOUNT_ID` | Your Cloudflare account ID (found in the dashboard right sidebar) |
+| `CLOUDFLARE_WORKERS_NAME` | Name of the Cloudflare Worker, e.g. `paybot-backend` |
+
+> **Note:** If any of the three secrets above are missing, the Cloudflare Workers deploy step is skipped with a warning.
+
+After setting secrets, also configure `BACKEND_URL` as a Worker secret in the Cloudflare dashboard:
+**Workers & Pages → paybot-backend → Settings → Variables → Add variable** (type: secret).
+
+### 10.6 Custom Domain (optional)
+
+1. In your Worker → **Triggers** → **Add Custom Domain**
+2. Enter your domain (e.g. `app.yourdomain.com`) and follow the DNS instructions
+3. Update `ALLOWED_ORIGINS` on your backend to include the new domain:
+   ```
+   ALLOWED_ORIGINS=https://app.yourdomain.com
+   ```
+
+### 10.7 Verify the Deployment
+
+After deploying, visit your Worker URL (e.g. `https://paybot-backend.<your-subdomain>.workers.dev`) and:
+
+1. The login page should load
+2. Open browser DevTools → **Network** tab and confirm `/api/v1/...` requests return responses from the backend
+3. Sign in with Telegram to confirm authentication works end-to-end
+
+---
+
 ## Additional Resources
 
 - [Railway Documentation](https://docs.railway.app)
+- [Render Documentation](https://docs.render.com)
+- [Cloudflare Pages Documentation](https://developers.cloudflare.com/pages)
+- [Cloudflare Pages Functions](https://developers.cloudflare.com/pages/functions)
+- [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers)
+- [Wrangler CLI Documentation](https://developers.cloudflare.com/workers/wrangler)
 - [Alembic Documentation](https://alembic.sqlalchemy.org)
 - [FastAPI Documentation](https://fastapi.tiangolo.com)
 - [Xendit API Documentation](https://developers.xendit.co)
@@ -454,7 +732,7 @@ uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
 
 If you encounter any issues:
 
-1. Check the service logs (Railway: **Deployments** tab) for detailed error messages
+1. Check the service logs (Railway: **Deployments** tab; Render: **Logs** tab) for detailed error messages
 2. Review the [Troubleshooting](#7-troubleshooting) section
 3. Consult the official documentation links above
 4. Open an issue on the GitHub repository
@@ -463,15 +741,16 @@ If you encounter any issues:
 
 ## Summary
 
-You should now have PayBot running on Railway:
+You should now have PayBot running on Railway, Render, or Cloudflare Pages:
 
-✅ Backend service running and healthy  
+✅ Backend service running on Railway or Render  
 ✅ PostgreSQL database provisioned and connected  
-✅ Database migrations applied automatically on every deploy  
-✅ Environment variables and secrets configured  
+✅ Database migrations applied  
+✅ Environment variables configured  
 ✅ JWT authentication configured for admin dashboard  
-✅ Webhooks configured for Xendit, PayMongo, and Telegram  
+✅ Webhooks configured for Xendit and Telegram  
 ✅ Health checks passing  
 ✅ Logs accessible for monitoring  
+✅ Frontend deployed to Cloudflare Pages or Workers (optional)  
 
 Your PayBot application is now successfully deployed! 🚀

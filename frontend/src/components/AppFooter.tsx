@@ -38,7 +38,7 @@ const PAYMENT_BRANDS = [
 ];
 
 const NAV_LINKS = [
-  { label: 'Home',     to: '/login' },
+  { label: 'Home',     to: '/home' },
   { label: 'Features', to: '/features' },
   { label: 'Pricing',  to: '/pricing' },
   { label: 'Policies', to: '/policies' },

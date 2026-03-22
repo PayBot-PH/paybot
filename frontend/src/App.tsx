@@ -5,8 +5,8 @@ import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-route
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
-import React, { useEffect, useState } from 'react';
-import TopProgressBar from '@/components/TopProgressBar';
+import { useEffect, useState } from 'react';
+import LoadingScreen from '@/components/LoadingScreen';
 import Dashboard from './pages/Dashboard';
 import Wallet from './pages/Wallet';
 import Transactions from './pages/Transactions';
@@ -37,11 +37,12 @@ import NotFound from './pages/NotFound';
 import MaintenancePage from './pages/MaintenancePage';
 import BotIntro from './pages/BotIntro';
 import ScanQRPH from './pages/ScanQRPH';
+import WelcomePage from './pages/Index';
 
 const queryClient = new QueryClient();
 
 // Paths that should remain accessible even during maintenance
-const MAINTENANCE_EXEMPT_PATHS = ['/intro', '/login', '/register', '/features', '/pricing', '/auth/callback', '/auth/error', '/logout-callback', '/maintenance'];
+const MAINTENANCE_EXEMPT_PATHS = ['/home', '/intro', '/login', '/register', '/features', '/pricing', '/auth/callback', '/auth/error', '/logout-callback', '/maintenance'];
 
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -50,7 +51,10 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetch('/api/v1/app-settings/maintenance')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
         setMaintenanceMode(!!data.maintenance_mode);
       })
@@ -73,28 +77,22 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Wraps children in a div that re-mounts (and fades in) on every route change
-function PageFade({ children }: { children: React.ReactNode }) {
-  const location = useLocation();
-  return (
-    <div key={location.key} className="page-enter">
-      {children}
-    </div>
-  );
-}
+const App = () => {
+  const [appReady, setAppReady] = useState(false);
 
-const App = () => (
+  return (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
         <TooltipProvider>
           <Toaster />
+          {!appReady && <LoadingScreen onDone={() => setAppReady(true)} duration={1800} />}
+          <div style={{ visibility: appReady ? 'visible' : 'hidden' }}>
           <BrowserRouter>
-            <TopProgressBar />
-            <PageFade>
             <MaintenanceGuard>
             <Routes>
+              <Route path="/home" element={<WelcomePage />} />
               <Route path="/intro" element={<BotIntro />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
@@ -125,13 +123,14 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
           </MaintenanceGuard>
-          </PageFade>
           </BrowserRouter>
+          </div>
         </TooltipProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;

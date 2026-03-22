@@ -32,7 +32,7 @@ class KybRegistration(Base):
     id_photo_file_id = Column(String(256), nullable=True)
 
     # Overall status — values: "in_progress" | "pending_review" | "approved" | "rejected"
-    status = Column(String(32), nullable=False, default="in_progress", server_default="in_progress", index=True)
+    status = Column(String(32), nullable=False, default="in_progress", server_default="in_progress")
     rejection_reason = Column(String(512), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

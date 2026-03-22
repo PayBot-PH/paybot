@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from core.database import get_db
 from dependencies.auth import get_current_user
 from models.bank_deposit_requests import BankDepositRequest
@@ -26,6 +27,10 @@ _PAYBOT_ACCOUNTS: dict[str, dict[str, str]] = {
     "GoTyme Digital Bank": {"number": "012116012891", "name": "PayBot PH"},
     "Security Bank Corporation": {"number": "0000068888173", "name": "PayBot PH"},
     "Asia United Bank": {"number": "934105321485", "name": "PayBot PH"},
+    "PayMongo (InstaPay/PESONet)": {
+        "number": settings.paymongo_account_number,
+        "name": settings.paymongo_account_name,
+    },
 }
 
 # Directory for uploaded bank transfer receipts (relative to this file's package root)

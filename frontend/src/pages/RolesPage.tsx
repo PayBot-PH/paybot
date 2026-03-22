@@ -96,7 +96,7 @@ function PermissionBadge({ active, label, color }: { active: boolean; label: str
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-medium bg-slate-800/40 border-slate-700/30 text-slate-600 line-through">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-medium bg-muted/40 border-border/30 text-slate-600 line-through">
       {label}
     </span>
   );
@@ -240,7 +240,7 @@ export default function RolesPage() {
         {rolesLoading && (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-36 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+              <div key={i} className="h-36 rounded-xl bg-[#1E293B] border border-border/50 animate-pulse" />
             ))}
           </div>
         )}
@@ -253,7 +253,7 @@ export default function RolesPage() {
               const icon = ROLE_ICONS[role.id] ?? <Shield className="h-4 w-4 text-blue-400" />;
 
               return (
-                <Card key={role.id} className="bg-[#1E293B] border-slate-700/50">
+                <Card key={role.id} className="glass-card">
                   <CardContent className="p-4">
                     {/* Role header */}
                     <div className="flex items-center gap-3 mb-3">
@@ -291,7 +291,7 @@ export default function RolesPage() {
                     {/* Apply to admin — super admin only */}
                     {isSuperAdmin && (
                       adminsLoading ? (
-                        <div className="h-8 rounded-lg bg-slate-800/40 animate-pulse" />
+                        <div className="h-8 rounded-lg bg-muted/40 animate-pulse" />
                       ) : activeAdmins.length > 0 ? (
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
@@ -306,7 +306,7 @@ export default function RolesPage() {
                                   key={admin.id}
                                   onClick={() => applyRole(role, admin)}
                                   disabled={!!applying}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs text-slate-300 hover:bg-slate-700/60 hover:text-white transition-all duration-150 disabled:opacity-50"
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border/50 text-xs text-slate-300 hover:bg-slate-700/60 hover:text-white transition-all duration-150 disabled:opacity-50"
                                 >
                                   {isApplying ? (
                                     <div className="h-3 w-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />

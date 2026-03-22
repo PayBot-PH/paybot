@@ -398,6 +398,8 @@ curl https://your-domain.com/api/v1/telegram/bot-info
 |----------|-------------|----------|
 | `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather | ✅ |
 | `TELEGRAM_BOT_USERNAME` | Bot username (without @) | ✅ |
+| `CLOUDFLARE_TURNSTILE_SITE_KEY` | Turnstile site key for browser challenge rendering | ❌ |
+| `CLOUDFLARE_TURNSTILE_SECRET_KEY` | Turnstile secret key for backend token verification | ❌ |
 | `TELEGRAM_ADMIN_IDS` | Comma-separated super-admin Telegram IDs | ✅ |
 | `JWT_SECRET_KEY` | Secret key for JWT signing | ✅ |
 | `XENDIT_SECRET_KEY` | Xendit API secret key | ✅ |

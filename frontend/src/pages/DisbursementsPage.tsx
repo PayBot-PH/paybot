@@ -182,7 +182,7 @@ export default function DisbursementsPage() {
         <h1 className="text-2xl font-bold text-white mb-6">Money Management</h1>
 
         <Tabs value={mainTab} onValueChange={setMainTab}>
-          <TabsList className="bg-slate-800 border border-slate-700 mb-6 flex-wrap h-auto gap-1 p-1">
+          <TabsList className="bg-muted border border-border mb-6 flex-wrap h-auto gap-1 p-1">
             <TabsTrigger value="disbursements" className="data-[state=active]:bg-slate-700 data-[state=active]:text-white text-slate-400">
               <Send className="h-4 w-4 mr-1 text-emerald-400" />Disbursements
             </TabsTrigger>
@@ -200,36 +200,36 @@ export default function DisbursementsPage() {
           {/* DISBURSEMENTS TAB */}
           <TabsContent value="disbursements">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white flex items-center"><Send className="h-5 w-5 mr-2 text-emerald-400" />Create Disbursement</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div><Label className="text-slate-300">Amount (₱)</Label>
-                    <Input type="number" placeholder="0.00" value={dAmount} onChange={e => setDAmount(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input type="number" placeholder="0.00" value={dAmount} onChange={e => setDAmount(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Bank</Label>
                     <Select value={dBank} onValueChange={setDBank}>
-                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectTrigger className="mt-1 bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-muted border-border">
                         {['BDO', 'BPI', 'UNIONBANK', 'RCBC', 'CHINABANK', 'PNB', 'METROBANK'].map(b => <SelectItem key={b} value={b} className="text-white">{b}</SelectItem>)}
                       </SelectContent>
                     </Select></div>
                   <div><Label className="text-slate-300">Account Number</Label>
-                    <Input placeholder="1234567890" value={dAccount} onChange={e => setDAccount(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="1234567890" value={dAccount} onChange={e => setDAccount(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Account Name</Label>
-                    <Input placeholder="Juan Dela Cruz" value={dName} onChange={e => setDName(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="Juan Dela Cruz" value={dName} onChange={e => setDName(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Description</Label>
-                    <Input placeholder="Salary payout" value={dDesc} onChange={e => setDDesc(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="Salary payout" value={dDesc} onChange={e => setDDesc(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <Button onClick={handleDisburse} disabled={dLoading} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">
                     {dLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Send className="h-4 w-4 mr-2" />}Send Money
                   </Button>
                 </CardContent>
               </Card>
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white">Recent Disbursements</CardTitle></CardHeader>
                 <CardContent>
                   {listLoading ? <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-blue-400" /></div> :
                   disbursements.length === 0 ? <p className="text-slate-400 text-center py-8">No disbursements yet</p> :
                   <div className="space-y-2 max-h-[500px] overflow-y-auto">{disbursements.slice(0, 15).map(d => (
-                    <div key={d.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                    <div key={d.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div className="min-w-0 flex-1 mr-3">
                         <p className="text-sm text-white truncate">{d.account_name} ({d.bank_code})</p>
                         <p className="text-xs text-slate-500 truncate">{d.description || d.external_id}</p>
@@ -248,27 +248,27 @@ export default function DisbursementsPage() {
           {/* REFUNDS TAB */}
           <TabsContent value="refunds">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white flex items-center"><RotateCcw className="h-5 w-5 mr-2 text-orange-400" />Process Refund</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div><Label className="text-slate-300">Transaction ID</Label>
-                    <Input type="number" placeholder="123" value={rTxnId} onChange={e => setRTxnId(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input type="number" placeholder="123" value={rTxnId} onChange={e => setRTxnId(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Refund Amount (₱)</Label>
-                    <Input type="number" placeholder="0.00" value={rAmount} onChange={e => setRAmount(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input type="number" placeholder="0.00" value={rAmount} onChange={e => setRAmount(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Reason</Label>
-                    <Input placeholder="Customer requested" value={rReason} onChange={e => setRReason(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="Customer requested" value={rReason} onChange={e => setRReason(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <Button onClick={handleRefund} disabled={rLoading} className="w-full bg-orange-600 hover:bg-orange-700 text-white">
                     {rLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RotateCcw className="h-4 w-4 mr-2" />}Process Refund
                   </Button>
                 </CardContent>
               </Card>
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white">Refund History</CardTitle></CardHeader>
                 <CardContent>
                   {listLoading ? <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-blue-400" /></div> :
                   refunds.length === 0 ? <p className="text-slate-400 text-center py-8">No refunds yet</p> :
                   <div className="space-y-2 max-h-[500px] overflow-y-auto">{refunds.slice(0, 15).map(r => (
-                    <div key={r.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                    <div key={r.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div className="min-w-0 flex-1 mr-3">
                         <p className="text-sm text-white">Txn #{r.transaction_id} — {r.refund_type}</p>
                         <p className="text-xs text-slate-500 truncate">{r.reason || 'No reason'}</p>
@@ -287,36 +287,36 @@ export default function DisbursementsPage() {
           {/* SUBSCRIPTIONS TAB */}
           <TabsContent value="subscriptions">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white flex items-center"><CalendarDays className="h-5 w-5 mr-2 text-purple-400" />Create Subscription</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div><Label className="text-slate-300">Plan Name</Label>
-                    <Input placeholder="Premium Monthly" value={sPlan} onChange={e => setSPlan(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="Premium Monthly" value={sPlan} onChange={e => setSPlan(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Amount (₱)</Label>
-                    <Input type="number" placeholder="999" value={sAmount} onChange={e => setSAmount(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input type="number" placeholder="999" value={sAmount} onChange={e => setSAmount(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Interval</Label>
                     <Select value={sInterval} onValueChange={setSInterval}>
-                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectTrigger className="mt-1 bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-muted border-border">
                         {['daily', 'weekly', 'monthly', 'yearly'].map(i => <SelectItem key={i} value={i} className="text-white capitalize">{i}</SelectItem>)}
                       </SelectContent>
                     </Select></div>
                   <div><Label className="text-slate-300">Customer Name</Label>
-                    <Input placeholder="John" value={sCustName} onChange={e => setSCustName(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="John" value={sCustName} onChange={e => setSCustName(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Customer Email</Label>
-                    <Input placeholder="john@example.com" value={sCustEmail} onChange={e => setSCustEmail(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="john@example.com" value={sCustEmail} onChange={e => setSCustEmail(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <Button onClick={handleSubscribe} disabled={sLoading} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
                     {sLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}Create Subscription
                   </Button>
                 </CardContent>
               </Card>
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white">Active Subscriptions</CardTitle></CardHeader>
                 <CardContent>
                   {listLoading ? <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-blue-400" /></div> :
                   subscriptions.length === 0 ? <p className="text-slate-400 text-center py-8">No subscriptions yet</p> :
                   <div className="space-y-2 max-h-[500px] overflow-y-auto">{subscriptions.map(s => (
-                    <div key={s.id} className="p-3 bg-slate-800/50 rounded-lg">
+                    <div key={s.id} className="p-3 bg-muted/50 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm font-medium text-white">{s.plan_name}</p>
                         {statusBadge(s.status)}
@@ -345,29 +345,29 @@ export default function DisbursementsPage() {
           {/* CUSTOMERS TAB */}
           <TabsContent value="customers">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white flex items-center"><Users className="h-5 w-5 mr-2 text-cyan-400" />Add Customer</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
                   <div><Label className="text-slate-300">Name</Label>
-                    <Input placeholder="Juan Dela Cruz" value={cName} onChange={e => setCName(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="Juan Dela Cruz" value={cName} onChange={e => setCName(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Email</Label>
-                    <Input placeholder="juan@example.com" value={cEmail} onChange={e => setCEmail(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="juan@example.com" value={cEmail} onChange={e => setCEmail(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Phone</Label>
-                    <Input placeholder="+639XXXXXXXXX" value={cPhone} onChange={e => setCPhone(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="+639XXXXXXXXX" value={cPhone} onChange={e => setCPhone(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <div><Label className="text-slate-300">Notes</Label>
-                    <Input placeholder="VIP customer" value={cNotes} onChange={e => setCNotes(e.target.value)} className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" /></div>
+                    <Input placeholder="VIP customer" value={cNotes} onChange={e => setCNotes(e.target.value)} className="mt-1 bg-muted border-border placeholder:text-muted-foreground" /></div>
                   <Button onClick={handleAddCustomer} disabled={cLoading} className="w-full bg-cyan-600 hover:bg-cyan-700 text-white">
                     {cLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}Add Customer
                   </Button>
                 </CardContent>
               </Card>
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white">Customer List</CardTitle></CardHeader>
                 <CardContent>
                   {listLoading ? <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-blue-400" /></div> :
                   customers.length === 0 ? <p className="text-slate-400 text-center py-8">No customers yet</p> :
                   <div className="space-y-2 max-h-[500px] overflow-y-auto">{customers.map(c => (
-                    <div key={c.id} className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg">
+                    <div key={c.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                       <div className="min-w-0 flex-1 mr-3">
                         <p className="text-sm font-medium text-white">{c.name}</p>
                         <p className="text-xs text-slate-500">{c.email || c.phone || 'No contact'}</p>

@@ -94,8 +94,8 @@ export default function ReportsPage() {
           <h1 className="text-2xl font-bold text-white">Reports & Analytics</h1>
           <div className="flex items-center gap-3">
             <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-full sm:w-[140px] bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-600">
+              <SelectTrigger className="w-full sm:w-[140px] bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-muted border-border">
                 <SelectItem value="daily" className="text-white">Daily</SelectItem>
                 <SelectItem value="weekly" className="text-white">Weekly</SelectItem>
                 <SelectItem value="monthly" className="text-white">Monthly</SelectItem>
@@ -169,7 +169,7 @@ export default function ReportsPage() {
 
             {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
@@ -182,7 +182,7 @@ export default function ReportsPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
@@ -195,7 +195,7 @@ export default function ReportsPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
@@ -214,7 +214,7 @@ export default function ReportsPage() {
 
             {/* Breakdowns */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white">Payment Method Breakdown</CardTitle></CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -244,7 +244,7 @@ export default function ReportsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="glass-card">
                 <CardHeader><CardTitle className="text-white">Status Breakdown</CardTitle></CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -281,20 +281,20 @@ export default function ReportsPage() {
             </div>
 
             {/* Fee Calculator */}
-            <Card className="bg-[#1E293B] border-slate-700/50">
+            <Card className="glass-card">
               <CardHeader><CardTitle className="text-white flex items-center"><Calculator className="h-5 w-5 mr-2 text-yellow-400" />Fee Calculator</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label className="text-slate-300">Amount (₱)</Label>
                     <Input type="number" placeholder="1000" value={feeAmount} onChange={e => setFeeAmount(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      className="mt-1 bg-muted border-border placeholder:text-muted-foreground" />
                   </div>
                   <div>
                     <Label className="text-slate-300">Payment Method</Label>
                     <Select value={feeMethod} onValueChange={setFeeMethod}>
-                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectTrigger className="mt-1 bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-muted border-border">
                         {[['invoice', 'Invoice'], ['qr_code', 'QR Code'], ['ewallet', 'E-Wallet'],
                           ['virtual_account', 'Virtual Account'], ['card', 'Card'], ['disbursement', 'Disbursement']].map(([v, l]) => (
                           <SelectItem key={v} value={v} className="text-white">{l}</SelectItem>
@@ -309,7 +309,7 @@ export default function ReportsPage() {
                   </div>
                 </div>
                 {feeResult && (
-                  <div className="mt-4 p-4 bg-slate-800/50 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="mt-4 p-4 bg-muted/50 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div><p className="text-xs text-slate-400">Amount</p><p className="text-lg font-bold text-white">{fmt(feeResult.amount)}</p></div>
                     <div><p className="text-xs text-slate-400">Fee</p><p className="text-lg font-bold text-red-400">{fmt(feeResult.fee)}</p></div>
                     <div><p className="text-xs text-slate-400">Net Amount</p><p className="text-lg font-bold text-emerald-400">{fmt(feeResult.net_amount)}</p></div>

@@ -40,17 +40,70 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from dependencies.auth import get_current_user
+from models.admin_users import AdminUser
 from models.paymongo_webhook_events import PaymongoWebhookEvent
 from models.transactions import Transactions
 from models.wallet_transactions import Wallet_transactions
 from models.wallets import Wallets
 from schemas.auth import UserResponse
+from services.bot_settings import Bot_settingsService
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
+from services.telegram_service import TelegramService
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/paymongo", tags=["paymongo"])
+
+
+async def _send_payment_notification(db: AsyncSession, txn: Transactions, new_status: str) -> None:
+    """Send a Telegram notification to the merchant when payment status changes."""
+    if not txn.telegram_chat_id:
+        return
+    try:
+        settings_svc = Bot_settingsService(db)
+        admin_user = None
+        try:
+            chat_id_str = str(txn.telegram_chat_id)
+            adm_res = await db.execute(
+                select(AdminUser).where(AdminUser.telegram_id == chat_id_str)
+            )
+            admin_user = adm_res.scalar_one_or_none()
+        except Exception as e:
+            logger.warning(f"Could not look up admin user for chat {txn.telegram_chat_id}: {e}")
+
+        cfg = None
+        if admin_user:
+            try:
+                cfg_result = await settings_svc.get_list(skip=0, limit=1, user_id=str(admin_user.id))
+                if cfg_result["total"] > 0:
+                    cfg = cfg_result["items"][0]
+            except Exception as e:
+                logger.warning(f"Could not retrieve bot_settings for user {admin_user.id}: {e}")
+
+        tmpl = None
+        if cfg:
+            if new_status == "paid":
+                tmpl = cfg.payment_success_message
+            elif new_status in ("expired", "failed"):
+                tmpl = cfg.payment_failed_message
+            elif new_status == "pending":
+                tmpl = cfg.payment_pending_message
+
+        if not tmpl:
+            return
+
+        msg = (
+            tmpl
+            .replace("{name}", txn.customer_name or "")
+            .replace("{amount}", f"{txn.amount:,.2f}" if txn.amount is not None else "")
+            .replace("{description}", txn.description or "")
+            .replace("{external_id}", txn.external_id or "")
+        )
+        tg = TelegramService()
+        await tg.send_message(str(txn.telegram_chat_id), msg)
+    except Exception as e:
+        logger.error(f"Failed to send payment notification: {e}")
 
 
 # ---------- Schemas ----------
@@ -274,7 +327,7 @@ async def paymongo_webhook(
       skipped so the wallet is never double-credited.
     * On success events the user's PHP wallet is credited via an immutable
       ledger entry and a real-time SSE event is broadcast.
-    * On failure/cancel events the failure is logged.
+    * On failure/cancel events the wallet_topups record is marked failed.
 
     Configure in PayMongo dashboard:
       URL   : https://<your-domain>/api/v1/paymongo/webhook
@@ -395,12 +448,14 @@ async def _handle_source_chargeable(
             "user_id": txn.user_id,
         })
 
-        if old_status != "paid" and txn.user_id:
-            await _credit_wallet(
-                db, txn.user_id, txn.amount if txn.amount is not None else amount,
-                note=f"PayMongo payment received: {txn.description or txn.external_id}",
-                reference_id=txn.external_id or source_id,
-            )
+        if old_status != "paid":
+            await _send_payment_notification(db, txn, "paid")
+            if txn.user_id:
+                await _credit_wallet(
+                    db, txn.user_id, txn.amount if txn.amount is not None else amount,
+                    note=f"PayMongo payment received: {txn.description or txn.external_id}",
+                    reference_id=txn.external_id or source_id,
+                )
     else:
         logger.warning(
             "No transaction found for PayMongo source %s / ref %s",
@@ -435,6 +490,7 @@ async def _handle_payment_paid(
         txn.status = "paid"
         txn.updated_at = datetime.now()
         await db.flush()
+        await _send_payment_notification(db, txn, "paid")
         await _credit_wallet(
             db, txn.user_id, txn.amount if txn.amount is not None else amount,
             note=f"PayMongo checkout payment: {txn.description or reference_number}",
@@ -451,7 +507,7 @@ async def _handle_payment_paid(
 async def _handle_payment_failed(
     db: AsyncSession, resource: dict, attrs: dict
 ) -> None:
-    """Log failure events."""
+    """Log failure events — no wallet_topups to update."""
     source_id = resource.get("id", "")
     reference_number = attrs.get("metadata", {}).get("reference_number", "")
     logger.info(

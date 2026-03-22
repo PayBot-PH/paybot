@@ -74,6 +74,8 @@ class Settings(BaseSettings):
     # API Keys
     telegram_bot_token: str = ""
     telegram_bot_username: str = ""
+    cloudflare_turnstile_site_key: str = ""
+    cloudflare_turnstile_secret_key: str = ""
     xendit_secret_key: str = ""
 
     # PayMongo API
@@ -81,6 +83,15 @@ class Settings(BaseSettings):
     paymongo_public_key: str = ""
     paymongo_webhook_secret: str = ""
     paymongo_mode: str = "test"  # "test" or "live"
+    # PayMongo wallet top-up via InstaPay / PESONet
+    paymongo_bank_name: str = "paymongo"
+    paymongo_account_name: str = "DRL TECHS. COMPUTER SOFTWARE TRADING"
+    paymongo_account_number: str = "655716460543"
+
+    # Xendit bank deposit account (shown in /deposit command)
+    xendit_bank_name: str = ""
+    xendit_account_name: str = ""
+    xendit_account_number: str = ""
 
     # PhotonPay API (Alipay / WeChat Pay collection)
     # Credentials from PhotonPay merchant portal (Settings > Developer)
@@ -111,6 +122,11 @@ class Settings(BaseSettings):
     # Bot owner: the single Telegram user ID that is the super admin of the bot.
     # Only this user can approve/reject KYB registrations and manage bot admins.
     telegram_bot_owner_id: str = ""
+
+    # Custom domain — set this to your own domain (e.g. "drl-developers.info") to
+    # automatically configure the backend URL and CORS without touching any other variable.
+    # The https:// scheme is added automatically if omitted.
+    custom_domain: str = ""
 
     # JWT configuration
     jwt_secret_key: str = ""
@@ -144,7 +160,13 @@ class Settings(BaseSettings):
                 "PYTHON_BACKEND_URL", f"https://{self.lambda_function_name}.execute-api.{self.aws_region}.amazonaws.com"
             )
         else:
-            # 1. Explicit override (highest priority)
+            # 0. Custom domain (highest priority) — normalize to a full https:// URL
+            if self.custom_domain:
+                domain = self.custom_domain.strip().rstrip("/")
+                if not domain.startswith("http://") and not domain.startswith("https://"):
+                    domain = f"https://{domain}"
+                return domain
+            # 1. Explicit URL override (second priority after custom_domain)
             explicit_url = os.environ.get("PYTHON_BACKEND_URL", "")
             if explicit_url:
                 return explicit_url

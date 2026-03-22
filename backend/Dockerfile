@@ -12,8 +12,6 @@ RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the frontend source and build
 COPY frontend/ .
-ARG VITE_TURNSTILE_SITE_KEY
-ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 RUN pnpm build
 
 # ── Stage 2: Python backend ──────────────────────────────────────────────────
@@ -45,5 +43,7 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
 
-# Start the server — attempt migrations with a 60s timeout (non-fatal), then start uvicorn
-CMD ["sh", "-c", "timeout 60 alembic upgrade head || echo 'Alembic migration timed out or failed, continuing...' ; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start the server — run migrations first, then start uvicorn.
+# Using && so a failed migration aborts startup; Railway will keep the old
+# container running until the new one passes the /health check.
+CMD ["sh", "-c", "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]

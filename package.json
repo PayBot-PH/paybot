@@ -1,0 +1,13 @@
+{
+  "name": "paybot",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "npx pnpm@8.10.0 --dir frontend install --frozen-lockfile && npx pnpm@8.10.0 --dir frontend run build",
+    "build": "npx pnpm@8.10.0 --dir frontend install --frozen-lockfile && npx pnpm@8.10.0 --dir frontend run build",
+    "deploy": "npm run build && npx wrangler versions upload"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

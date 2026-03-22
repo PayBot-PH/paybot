@@ -1,0 +1,53 @@
+services:
+  - type: web
+    name: paybot-backend
+    runtime: docker
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_BACKEND_URL
+        sync: false
+      - key: CUSTOM_DOMAIN
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        sync: false
+      - key: XENDIT_SECRET_KEY
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRE_MINUTES
+        value: "60"
+      - key: ADMIN_USER_PASSWORD
+        sync: false
+      - key: TELEGRAM_ADMIN_IDS
+        sync: false
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: paybot-db
+          property: connectionString
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: TELEGRAM_BOT_OWNER_ID
+        sync: false
+      - key: PAYMONGO_SECRET_KEY
+        sync: false
+      - key: PAYMONGO_PUBLIC_KEY
+        sync: false
+      - key: PAYMONGO_WEBHOOK_SECRET
+        sync: false
+      - key: PAYMONGO_MODE
+        value: live
+
+databases:
+  - name: paybot-db
+    plan: free
+    databaseName: paybot
+    user: paybot
