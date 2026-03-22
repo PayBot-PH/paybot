@@ -156,7 +156,7 @@ function PermissionBadge({
       className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium transition-all duration-150
         ${active
           ? activeStyles[color] || 'bg-blue-500/15 border-blue-500/30 text-blue-400'
-          : 'bg-slate-800/60 border-slate-700/40 text-slate-500'
+          : 'bg-muted/60 border-slate-700/40 text-muted-foreground'
         }
         ${interactive ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
     >
@@ -178,7 +178,7 @@ function TabBar({
   return (
     <div className="mb-6">
       {/* Mobile: 2-column grid — all tabs visible at a glance, no horizontal scroll */}
-      <div className="sm:hidden grid grid-cols-2 gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1">
+      <div className="sm:hidden grid grid-cols-2 gap-1 bg-muted/50 border border-border rounded-xl p-1">
         {tabs.map((tab, idx) => (
           <button
             key={tab.id}
@@ -187,14 +187,14 @@ function TabBar({
               ${tabs.length % 2 !== 0 && idx === tabs.length - 1 ? 'col-span-2' : ''}
               ${active === tab.id
                 ? 'bg-slate-700 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+                : 'text-muted-foreground hover:text-slate-200 hover:bg-muted/40'
               }`}
           >
             {tab.icon}
             <span className="truncate">{tab.label}</span>
             {tab.count !== undefined && (
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
-                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-slate-700/60 text-slate-400'
+                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-muted/60 text-muted-foreground'
               }`}>
                 {tab.count}
               </span>
@@ -204,7 +204,7 @@ function TabBar({
       </div>
 
       {/* Desktop: horizontal scrollable row with hidden scrollbar */}
-      <div className="hidden sm:flex items-center gap-1 bg-slate-800/50 border border-slate-700/50 rounded-xl p-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="hidden sm:flex items-center gap-1 bg-muted/50 border border-border rounded-xl p-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -212,14 +212,14 @@ function TabBar({
             className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap shrink-0
               ${active === tab.id
                 ? 'bg-slate-700 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+                : 'text-muted-foreground hover:text-slate-200 hover:bg-muted/40'
               }`}
           >
             {tab.icon}
             <span>{tab.label}</span>
             {tab.count !== undefined && (
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-slate-700/60 text-slate-400'
+                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-muted/60 text-muted-foreground'
               }`}>
                 {tab.count}
               </span>
@@ -254,7 +254,7 @@ function AdminCard({
   return (
     <Card className={`border transition-all duration-200 ${
       admin.is_active
-        ? 'bg-[#1E293B] border-slate-700/50 hover:border-slate-600/60'
+        ? 'bg-card border-border hover:border-border'
         : 'bg-slate-900/50 border-slate-700/30 opacity-60'
     }`}>
       <CardContent className="p-4">
@@ -286,12 +286,12 @@ function AdminCard({
                 <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
                   admin.is_active
                     ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
-                    : 'bg-slate-700/40 border-slate-600/40 text-slate-500'
+                    : 'bg-muted/40 border-slate-600/40 text-muted-foreground'
                 }`}>
                   {admin.is_active ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
-              <p className="text-[11px] text-slate-500 mt-0.5">TG: {admin.telegram_id}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">TG: {admin.telegram_id}</p>
             </div>
           </div>
 
@@ -311,7 +311,7 @@ function AdminCard({
               <button
                 onClick={() => onDelete(admin)}
                 title="Remove admin"
-                className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
               >
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -388,7 +388,7 @@ function UserManagementTab({
     return (
       <div className="space-y-2">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-14 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+          <div key={i} className="h-14 rounded-xl bg-[#1E293B] border border-border animate-pulse" />
         ))}
       </div>
     );
@@ -396,13 +396,13 @@ function UserManagementTab({
 
   if (users.length === 0) {
     return (
-      <Card className="bg-[#1E293B] border-slate-700/50">
+      <Card className="bg-card border-border">
         <CardContent className="flex flex-col items-center justify-center py-14 text-center">
-          <div className="h-14 w-14 rounded-2xl bg-slate-700/40 flex items-center justify-center mb-3">
-            <Users className="h-7 w-7 text-slate-500" />
+          <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center mb-3">
+            <Users className="h-7 w-7 text-muted-foreground" />
           </div>
           <p className="text-white font-semibold text-sm">No users yet</p>
-          <p className="text-slate-500 text-xs mt-1">Users will appear here once they log in.</p>
+          <p className="text-muted-foreground text-xs mt-1">Users will appear here once they log in.</p>
         </CardContent>
       </Card>
     );
@@ -411,14 +411,14 @@ function UserManagementTab({
   return (
     <div className="space-y-2">
       {/* Header row */}
-      <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
+      <div className="hidden sm:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
         <span>User</span>
         <span className="text-right">Created</span>
         <span className="text-right">Last Login</span>
         <span className="text-right w-24">Role</span>
       </div>
       {users.map((user) => (
-        <Card key={user.id} className="bg-[#1E293B] border-slate-700/50 hover:border-slate-600/60 transition-all duration-150">
+        <Card key={user.id} className="bg-card border-border hover:border-border transition-all duration-150">
           <CardContent className="p-4">
             <div className="flex items-center justify-between gap-3">
               {/* Identity */}
@@ -430,7 +430,7 @@ function UserManagementTab({
                 }`}>
                   {user.role === 'admin'
                     ? <ShieldCheck className="h-4 w-4 text-blue-400" />
-                    : <User className="h-4 w-4 text-slate-400" />
+                    : <User className="h-4 w-4 text-muted-foreground" />
                   }
                 </div>
                 <div className="min-w-0">
@@ -440,8 +440,8 @@ function UserManagementTab({
                     </span>
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <Mail className="h-3 w-3 text-slate-500 shrink-0" />
-                    <span className="text-[11px] text-slate-500 truncate">{user.email}</span>
+                    <Mail className="h-3 w-3 text-muted-foreground shrink-0" />
+                    <span className="text-[11px] text-muted-foreground truncate">{user.email}</span>
                   </div>
                 </div>
               </div>
@@ -449,7 +449,7 @@ function UserManagementTab({
               {/* Meta + Role */}
               <div className="flex items-center gap-3 shrink-0">
                 <div className="hidden sm:flex flex-col items-end gap-0.5">
-                  <div className="flex items-center gap-1 text-[11px] text-slate-500">
+                  <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Clock className="h-3 w-3" />
                     {formatDate(user.created_at)}
                   </div>
@@ -468,7 +468,7 @@ function UserManagementTab({
                   <Badge className={`text-[10px] px-2 h-5 border ${
                     user.role === 'admin'
                       ? 'bg-blue-500/15 border-blue-500/25 text-blue-400'
-                      : 'bg-slate-700/40 border-slate-600/40 text-slate-400'
+                      : 'bg-muted/40 border-slate-600/40 text-muted-foreground'
                   }`}>
                     {user.role}
                   </Badge>
@@ -495,7 +495,7 @@ function RoleSelector({
 
   const roles = [
     { value: 'admin', label: 'Admin', color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/25' },
-    { value: 'user', label: 'User', color: 'text-slate-400', bg: 'bg-slate-700/40 border-slate-600/40' },
+    { value: 'user', label: 'User', color: 'text-muted-foreground', bg: 'bg-muted/40 border-slate-600/40' },
   ];
   const current = roles.find((r) => r.value === currentRole) || roles[1];
 
@@ -515,12 +515,12 @@ function RoleSelector({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-1 z-20 bg-slate-800 border border-slate-700/60 rounded-lg shadow-xl overflow-hidden min-w-[100px]">
+          <div className="absolute right-0 mt-1 z-20 bg-muted border border-slate-700/60 rounded-lg shadow-xl overflow-hidden min-w-[100px]">
             {roles.map((r) => (
               <button
                 key={r.value}
                 onClick={() => { setOpen(false); if (r.value !== currentRole) onChange(r.value); }}
-                className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors hover:bg-slate-700/60 ${r.color} ${r.value === currentRole ? 'bg-slate-700/40' : ''}`}
+                className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors hover:bg-muted/60 ${r.color} ${r.value === currentRole ? 'bg-muted/40' : ''}`}
               >
                 {r.label}
                 {r.value === currentRole && <Check className="inline h-3 w-3 ml-1 opacity-60" />}
@@ -583,7 +583,7 @@ function RoleManagementTab({
       {/* Info banner */}
       <div className="flex items-start gap-2.5 bg-blue-500/8 border border-blue-500/20 rounded-lg px-4 py-3">
         <Shield className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-        <p className="text-xs text-slate-400 leading-relaxed">
+        <p className="text-xs text-muted-foreground leading-relaxed">
           Role presets are permission templates. Applying a preset to an admin instantly updates all their permissions to match the role. You can still fine-tune individual permissions afterward in the Admin Users tab.
         </p>
       </div>
@@ -592,7 +592,7 @@ function RoleManagementTab({
       {rolesLoading && (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-xl bg-slate-800/40 border border-slate-700/50 animate-pulse" />
+            <div key={i} className="h-32 rounded-xl bg-muted/40 border border-border animate-pulse" />
           ))}
         </div>
       )}
@@ -604,7 +604,7 @@ function RoleManagementTab({
         const activeAdmins = admins.filter((a) => a.is_active);
 
         return (
-          <Card key={preset.id} className="bg-[#1E293B] border-slate-700/50">
+          <Card key={preset.id} className="bg-card border-border">
             <CardContent className="p-4">
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div className="flex items-center gap-3">
@@ -618,7 +618,7 @@ function RoleManagementTab({
                         PRESET
                       </Badge>
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">{preset.description}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{preset.description}</p>
                   </div>
                 </div>
               </div>
@@ -644,7 +644,7 @@ function RoleManagementTab({
               {/* Apply to admin */}
               {isSuperAdmin && activeAdmins.length > 0 && (
                 <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
                     Apply to admin
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -656,12 +656,12 @@ function RoleManagementTab({
                           key={admin.id}
                           onClick={() => applyRole(preset, admin)}
                           disabled={!!applying}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs text-slate-300 hover:bg-slate-700/60 hover:text-white transition-all duration-150 disabled:opacity-50"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-slate-300 hover:bg-muted/60 hover:text-white transition-all duration-150 disabled:opacity-50"
                         >
                           {isApplying ? (
                             <div className="h-3 w-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
                           ) : (
-                            <User className="h-3 w-3 text-slate-500" />
+                            <User className="h-3 w-3 text-muted-foreground" />
                           )}
                           {admin.name || admin.telegram_username || `ID: ${admin.telegram_id}`}
                         </button>
@@ -700,7 +700,7 @@ function RequestCard({
   return (
     <Card className={`border transition-colors duration-150 ${
       isPending
-        ? 'bg-[#1E293B] border-slate-700/50 hover:border-teal-500/30'
+        ? 'bg-card border-border hover:border-teal-500/30'
         : 'bg-slate-900/40 border-slate-700/30'
     }`}>
       <CardContent className="p-4">
@@ -736,7 +736,7 @@ function RequestCard({
                   {req.network}
                 </Badge>
               </div>
-              <p className="text-[10px] text-slate-500 font-mono truncate mt-0.5" title={req.tx_hash}>
+              <p className="text-[10px] text-muted-foreground font-mono truncate mt-0.5" title={req.tx_hash}>
                 TX: {req.tx_hash}
               </p>
               <div className="flex items-center gap-3 mt-1">
@@ -841,7 +841,7 @@ function CryptoRequestsTab({
     return (
       <div className="space-y-2">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-20 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+          <div key={i} className="h-20 rounded-xl bg-[#1E293B] border border-border animate-pulse" />
         ))}
       </div>
     );
@@ -849,13 +849,13 @@ function CryptoRequestsTab({
 
   if (requests.length === 0) {
     return (
-      <Card className="bg-[#1E293B] border-slate-700/50">
+      <Card className="bg-card border-border">
         <CardContent className="flex flex-col items-center justify-center py-14 text-center">
           <div className="h-14 w-14 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-3">
             <Bitcoin className="h-7 w-7 text-teal-500" />
           </div>
           <p className="text-white font-semibold text-sm">No crypto top-up requests</p>
-          <p className="text-slate-500 text-xs mt-1">Requests submitted by users will appear here.</p>
+          <p className="text-muted-foreground text-xs mt-1">Requests submitted by users will appear here.</p>
         </CardContent>
       </Card>
     );
@@ -892,7 +892,7 @@ function CryptoRequestsTab({
 
       {reviewed.length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
             Reviewed ({reviewed.length})
           </p>
           <div className="space-y-2">
@@ -972,7 +972,7 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
     return (
       <div className="space-y-2">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+          <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-border animate-pulse" />
         ))}
       </div>
     );
@@ -980,13 +980,13 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
 
   if (wallets.length === 0) {
     return (
-      <Card className="bg-[#1E293B] border-slate-700/50">
+      <Card className="bg-card border-border">
         <CardContent className="flex flex-col items-center justify-center py-14 text-center">
-          <div className="h-14 w-14 rounded-2xl bg-slate-700/40 flex items-center justify-center mb-3">
-            <WalletIcon className="h-7 w-7 text-slate-500" />
+          <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center mb-3">
+            <WalletIcon className="h-7 w-7 text-muted-foreground" />
           </div>
           <p className="text-white font-semibold text-sm">No USD wallets yet</p>
-          <p className="text-slate-500 text-xs mt-1">USD wallets are created when users top up their balance.</p>
+          <p className="text-muted-foreground text-xs mt-1">USD wallets are created when users top up their balance.</p>
         </CardContent>
       </Card>
     );
@@ -994,11 +994,11 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-slate-400 text-xs">
+      <p className="text-muted-foreground text-xs">
         {wallets.length} USD wallet{wallets.length !== 1 ? 's' : ''} — use Credit/Debit to adjust balances
       </p>
       {wallets.map(w => (
-        <Card key={w.wallet_id} className="bg-[#1E293B] border-slate-700/50">
+        <Card key={w.wallet_id} className="bg-card border-border">
           <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -1009,12 +1009,12 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
                   <p className="text-white font-semibold text-sm truncate">
                     {w.telegram_username ? `@${w.telegram_username}` : w.user_id}
                   </p>
-                  <p className="text-slate-500 text-xs">{w.user_id}</p>
+                  <p className="text-muted-foreground text-xs">{w.user_id}</p>
                 </div>
               </div>
               <div className="text-right shrink-0">
                 <p className="text-teal-400 font-bold text-lg">${w.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                <p className="text-slate-500 text-[10px]">USD</p>
+                <p className="text-muted-foreground text-[10px]">USD</p>
               </div>
             </div>
 
@@ -1028,14 +1028,14 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
                   placeholder="Amount"
                   value={adjustAmount[w.user_id] || ''}
                   onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                  className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+                  className="flex-1 bg-muted/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
                 />
                 <input
                   type="text"
                   placeholder="Note (optional)"
                   value={adjustNote[w.user_id] || ''}
                   onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                  className="flex-1 bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+                  className="flex-1 bg-muted/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
                 />
               </div>
               <div className="flex gap-2">
@@ -1255,7 +1255,7 @@ export default function AdminManagement() {
             </div>
             <div className="min-w-0">
               <h1 className="text-lg font-bold text-white truncate">Admin Management</h1>
-              <p className="text-slate-500 text-xs mt-0.5 truncate">
+              <p className="text-muted-foreground text-xs mt-0.5 truncate">
                 {admins.length} admin{admins.length !== 1 ? 's' : ''} — {activeAdmins.length} active
               </p>
             </div>
@@ -1285,16 +1285,16 @@ export default function AdminManagement() {
 
         {/* Maintenance Mode Toggle (super admin only) */}
         {isSuperAdmin && (
-          <Card className={`mb-5 border ${maintenanceMode ? 'bg-amber-950/30 border-amber-500/30' : 'bg-[#1E293B] border-slate-700/50'}`}>
+          <Card className={`mb-5 border ${maintenanceMode ? 'bg-amber-950/30 border-amber-500/30' : 'bg-card border-border'}`}>
             <CardContent className="p-4">
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                   <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
                     maintenanceMode
                       ? 'bg-amber-500/15 border-amber-500/30'
-                      : 'bg-slate-700/40 border-slate-600/40'
+                      : 'bg-muted/40 border-slate-600/40'
                   }`}>
-                    <WrenchIcon className={`h-4 w-4 ${maintenanceMode ? 'text-amber-400' : 'text-slate-400'}`} />
+                    <WrenchIcon className={`h-4 w-4 ${maintenanceMode ? 'text-amber-400' : 'text-muted-foreground'}`} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -1309,7 +1309,7 @@ export default function AdminManagement() {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
                       {maintenanceMode
                         ? 'All pages are currently disabled — users see the maintenance notice.'
                         : 'System is operational. Toggle on to show a maintenance notice to all users.'}
@@ -1365,39 +1365,39 @@ export default function AdminManagement() {
                 <CardContent className="px-4 pb-4 space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="text-xs text-slate-400 mb-1.5 block">Telegram ID <span className="text-red-400">*</span></label>
+                      <label className="text-xs text-muted-foreground mb-1.5 block">Telegram ID <span className="text-red-400">*</span></label>
                       <input
                         type="text"
                         placeholder="e.g. 123456789"
                         value={form.telegram_id}
                         onChange={e => setForm(f => ({ ...f, telegram_id: e.target.value }))}
-                        className="w-full bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
+                        className="w-full bg-muted/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-slate-400 mb-1.5 block">Username</label>
+                      <label className="text-xs text-muted-foreground mb-1.5 block">Username</label>
                       <input
                         type="text"
                         placeholder="@username"
                         value={form.telegram_username}
                         onChange={e => setForm(f => ({ ...f, telegram_username: e.target.value }))}
-                        className="w-full bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
+                        className="w-full bg-muted/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="text-xs text-slate-400 mb-1.5 block">Display Name</label>
+                      <label className="text-xs text-muted-foreground mb-1.5 block">Display Name</label>
                       <input
                         type="text"
                         placeholder="Full name"
                         value={form.name}
                         onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                        className="w-full bg-slate-800/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
+                        className="w-full bg-muted/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="text-xs text-slate-400 mb-2 block font-medium">Permissions</label>
+                    <label className="text-xs text-muted-foreground mb-2 block font-medium">Permissions</label>
                     <div className="flex flex-wrap gap-2">
                       <label className="flex items-center gap-2 cursor-pointer select-none">
                         <div
@@ -1406,7 +1406,7 @@ export default function AdminManagement() {
                         >
                           <div className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${form.is_super_admin ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
                         </div>
-                        <span className={`text-xs font-semibold ${form.is_super_admin ? 'text-amber-400' : 'text-slate-400'}`}>Super Admin</span>
+                        <span className={`text-xs font-semibold ${form.is_super_admin ? 'text-amber-400' : 'text-muted-foreground'}`}>Super Admin</span>
                       </label>
                       {PERMISSION_KEYS.map(({ key, label }) => (
                         <label key={key} className="flex items-center gap-2 cursor-pointer select-none">
@@ -1414,7 +1414,7 @@ export default function AdminManagement() {
                             type="checkbox"
                             checked={form[key as keyof typeof form] as boolean}
                             onChange={e => setForm(f => ({ ...f, [key]: e.target.checked }))}
-                            className="h-3.5 w-3.5 rounded border-slate-600 bg-slate-800 text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0"
+                            className="h-3.5 w-3.5 rounded border-slate-600 bg-muted text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0"
                           />
                           <span className="text-xs text-slate-300">{label}</span>
                         </label>
@@ -1435,7 +1435,7 @@ export default function AdminManagement() {
                       variant="ghost"
                       size="sm"
                       onClick={() => { setShowAdd(false); setForm(defaultForm); }}
-                      className="text-slate-400 hover:text-white text-xs"
+                      className="text-muted-foreground hover:text-white text-xs"
                     >
                       Cancel
                     </Button>
@@ -1448,17 +1448,17 @@ export default function AdminManagement() {
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+                  <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-border animate-pulse" />
                 ))}
               </div>
             ) : admins.length === 0 ? (
-              <Card className="bg-[#1E293B] border-slate-700/50">
+              <Card className="bg-card border-border">
                 <CardContent className="flex flex-col items-center justify-center py-14 text-center">
-                  <div className="h-14 w-14 rounded-2xl bg-slate-700/40 flex items-center justify-center mb-3">
-                    <ShieldCheck className="h-7 w-7 text-slate-500" />
+                  <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center mb-3">
+                    <ShieldCheck className="h-7 w-7 text-muted-foreground" />
                   </div>
                   <p className="text-white font-semibold text-sm">No admins yet</p>
-                  <p className="text-slate-500 text-xs mt-1">Add your first admin to grant dashboard access.</p>
+                  <p className="text-muted-foreground text-xs mt-1">Add your first admin to grant dashboard access.</p>
                 </CardContent>
               </Card>
             ) : (
@@ -1478,7 +1478,7 @@ export default function AdminManagement() {
                   <>
                     <div className="flex items-center gap-2 pt-2">
                       <div className="h-px flex-1 bg-slate-700/50" />
-                      <span className="text-[10px] text-slate-500 uppercase tracking-widest font-semibold">Inactive</span>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Inactive</span>
                       <div className="h-px flex-1 bg-slate-700/50" />
                     </div>
                     {inactiveAdmins.map(admin => (
