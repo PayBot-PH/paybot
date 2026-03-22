@@ -82,6 +82,8 @@ def setup_logging():
     # Set log levels for specific modules
     logging.getLogger("uvicorn").setLevel(log_level)
     logging.getLogger("fastapi").setLevel(log_level)
+    # Avoid leaking request URLs (can contain bot tokens) from verbose HTTP client logs.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
 
     # Log configuration details
     logger = logging.getLogger(__name__)
@@ -99,7 +101,6 @@ async def lifespan(app: FastAPI):
         key
         for key, value in {
             "TELEGRAM_BOT_TOKEN": settings.telegram_bot_token,
-            "XENDIT_SECRET_KEY": settings.xendit_secret_key,
         }.items()
         if not value
     ]
@@ -121,18 +122,27 @@ async def lifespan(app: FastAPI):
             "invalidated on restart. Set JWT_SECRET_KEY for production use."
         )
 
+    # Xendit is optional in some deployments (e.g., PayMongo-only).
+    if not settings.xendit_secret_key:
+        logger.warning("XENDIT_SECRET_KEY is not set. Xendit-based payment features will be unavailable.")
+
     # MODULE_STARTUP_START
+    db_ready = False
     try:
         await initialize_database()
         await initialize_admin_user()
+        db_ready = True
     except Exception as e:
         logger.error(f"Database startup failed (app will run in degraded mode): {e}")
 
-    try:
-        from services.mock_data import initialize_mock_data
-        await initialize_mock_data()
-    except Exception as e:
-        logger.warning(f"Mock data initialization skipped: {e}")
+    if db_ready:
+        try:
+            from services.mock_data import initialize_mock_data
+            await initialize_mock_data()
+        except Exception as e:
+            logger.warning(f"Mock data initialization skipped: {e}")
+    else:
+        logger.warning("Skipping mock data initialization because database is not ready.")
     # MODULE_STARTUP_END
 
     # Auto-register Telegram webhook and bot commands if backend URL is configured
