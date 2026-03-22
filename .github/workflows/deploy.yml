@@ -87,15 +87,28 @@ jobs:
             RAILWAY_SERVICE="${{ vars.RAILWAY_SERVICE }}"
           fi
 
+          RAILWAY_SERVICE_ID="${{ secrets.RAILWAY_SERVICE_ID }}"
+          if [ -z "$RAILWAY_SERVICE_ID" ]; then
+            RAILWAY_SERVICE_ID="${{ vars.RAILWAY_SERVICE_ID }}"
+          fi
+
+          # Use service name when available, otherwise service ID.
+          SERVICE_SELECTOR="$RAILWAY_SERVICE"
+          if [ -z "$SERVICE_SELECTOR" ]; then
+            SERVICE_SELECTOR="$RAILWAY_SERVICE_ID"
+          fi
+
+          # Last-resort fallback to known PayBot Railway service ID.
+          if [ -z "$SERVICE_SELECTOR" ]; then
+            SERVICE_SELECTOR="18690ed0-bfdb-45f0-81bf-cad54841b2aa"
+          fi
+
           if [ -z "$RAILWAY_TOKEN" ]; then
             echo "::warning::RAILWAY_TOKEN is not set in Secrets or Variables. Skipping deployment. See DEPLOYMENT.md for setup instructions."
             echo "has_token=false" >> "$GITHUB_OUTPUT"
-          elif [ -z "$RAILWAY_SERVICE" ]; then
-            echo "::warning::RAILWAY_SERVICE is not set in Secrets or Variables. Skipping deployment. Set RAILWAY_SERVICE to the exact Railway service name. See DEPLOYMENT.md for setup instructions."
-            echo "has_token=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_token=true" >> "$GITHUB_OUTPUT"
-            echo "service_name=$RAILWAY_SERVICE" >> "$GITHUB_OUTPUT"
+            echo "service_name=$SERVICE_SELECTOR" >> "$GITHUB_OUTPUT"
             echo "token=$RAILWAY_TOKEN" >> "$GITHUB_OUTPUT"
           fi
 
