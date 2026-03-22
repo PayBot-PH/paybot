@@ -11,22 +11,22 @@ class AdminUser(Base):
     telegram_id = Column(String(64), unique=True, index=True, nullable=False)
     telegram_username = Column(String(128), nullable=True)
     name = Column(String(256), nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    is_super_admin = Column(Boolean, default=False, nullable=False)
+    is_active = Column(Boolean, default=True, server_default='true', nullable=False)
+    is_super_admin = Column(Boolean, default=False, server_default='false', nullable=False)
 
     # Granular permissions
-    can_manage_payments = Column(Boolean, default=True, nullable=False)
-    can_manage_disbursements = Column(Boolean, default=True, nullable=False)
-    can_view_reports = Column(Boolean, default=True, nullable=False)
-    can_manage_wallet = Column(Boolean, default=True, nullable=False)
-    can_manage_transactions = Column(Boolean, default=True, nullable=False)
-    can_manage_bot = Column(Boolean, default=False, nullable=False)
-    can_approve_topups = Column(Boolean, default=False, nullable=False)
+    can_manage_payments = Column(Boolean, default=True, server_default='true', nullable=False)
+    can_manage_disbursements = Column(Boolean, default=True, server_default='true', nullable=False)
+    can_view_reports = Column(Boolean, default=True, server_default='true', nullable=False)
+    can_manage_wallet = Column(Boolean, default=True, server_default='true', nullable=False)
+    can_manage_transactions = Column(Boolean, default=True, server_default='true', nullable=False)
+    can_manage_bot = Column(Boolean, default=False, server_default='false', nullable=False)
+    can_approve_topups = Column(Boolean, default=False, server_default='false', nullable=False)
 
     # PIN authentication (sha256 hex digest of salt:pin)
     pin_hash = Column(String(128), nullable=True)
     pin_salt = Column(String(64), nullable=True)
-    pin_failed_attempts = Column(Integer, default=0, nullable=False)
+    pin_failed_attempts = Column(Integer, default=0, server_default='0', nullable=False)
     pin_locked_until = Column(DateTime(timezone=True), nullable=True)
 
     added_by = Column(String(64), nullable=True)   # telegram_id of who added

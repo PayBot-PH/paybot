@@ -14,7 +14,7 @@ class TopupRequest(Base):
     currency = Column(String, default="USD", nullable=False, server_default="USD")
     reference_code = Column(String, nullable=True, index=True)
     receipt_file_id = Column(String, nullable=True)   # Telegram file_id of uploaded receipt
-    status = Column(String, default="pending", nullable=False)  # pending | approved | rejected
+    status = Column(String, default="pending", server_default="pending", nullable=False)  # pending | approved | rejected
     note = Column(String, nullable=True)              # admin rejection note
     approved_by = Column(String, nullable=True)       # admin telegram_id
     created_at = Column(DateTime(timezone=True), server_default=func.now())
