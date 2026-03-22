@@ -16,17 +16,17 @@ class CustomRole(Base):
     name = Column(String(128), unique=True, nullable=False)
     description = Column(String(512), nullable=True)
     color = Column(String(32), default="blue", server_default="blue", nullable=False)
-    is_system = Column(Boolean, default=False, server_default=sa.text("0"), nullable=False)  # built-in, cannot be deleted
+    is_system = Column(Boolean, default=False, server_default=sa.text("false"), nullable=False)  # built-in, cannot be deleted
 
     # Permission set
-    is_super_admin = Column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
-    can_manage_payments = Column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
-    can_manage_disbursements = Column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
-    can_view_reports = Column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
-    can_manage_wallet = Column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
-    can_manage_transactions = Column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
-    can_manage_bot = Column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
-    can_approve_topups = Column(Boolean, default=False, server_default=sa.text("0"), nullable=False)
+    is_super_admin = Column(Boolean, default=False, server_default=sa.text("false"), nullable=False)
+    can_manage_payments = Column(Boolean, default=False, server_default=sa.text("false"), nullable=False)
+    can_manage_disbursements = Column(Boolean, default=False, server_default=sa.text("false"), nullable=False)
+    can_view_reports = Column(Boolean, default=False, server_default=sa.text("false"), nullable=False)
+    can_manage_wallet = Column(Boolean, default=False, server_default=sa.text("false"), nullable=False)
+    can_manage_transactions = Column(Boolean, default=False, server_default=sa.text("false"), nullable=False)
+    can_manage_bot = Column(Boolean, default=False, server_default=sa.text("false"), nullable=False)
+    can_approve_topups = Column(Boolean, default=False, server_default=sa.text("false"), nullable=False)
 
     created_by = Column(String(64), nullable=True)  # telegram_id of creator
     created_at = Column(DateTime(timezone=True), server_default=func.now())
