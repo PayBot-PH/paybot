@@ -33,7 +33,9 @@ from models.topup_requests import TopupRequest
 from models.bank_deposit_requests import BankDepositRequest
 from models.usdt_send_requests import UsdtSendRequest
 from models.kyb_registrations import KybRegistration
+from models.kyc_verifications import KycVerification
 from models.admin_users import AdminUser
+from models.custom_roles import CustomRole
 from routers.app_settings import get_usdt_php_rate
 
 logger = logging.getLogger(__name__)
@@ -371,6 +373,7 @@ def _start_kb() -> dict:
             [{"text": "💳 /invoice"}, {"text": "📱 /qr"}, {"text": "🔗 /link"}],
             [{"text": "🏦 /va"}, {"text": "📱 /ewallet"}, {"text": "🔴 /alipay"}],
             [{"text": "💰 /balance"}, {"text": "💸 /disburse"}, {"text": "📊 /report"}],
+            [{"text": "📷 /scanqr"}, {"text": "🏦 /deposit"}, {"text": "📥 /topup"}],
             [{"text": "📋 /list"}, {"text": "💱 /fees"}, {"text": "❓ /help"}],
         ],
         "resize_keyboard": True,
@@ -402,12 +405,15 @@ def _welcome_en(name: str = "") -> str:
         f"  /ewallet [amt] [provider] — E-wallet (GCash, Maya, GrabPay)\n"
         f"  /alipay [amt] [desc] — Alipay QR (via PhotonPay)\n"
         f"  /wechat [amt] [desc] — WeChat QR (via PhotonPay)\n\n"
+        f"📷 <b>Pay via QRPH</b>\n"
+        f"  /scanqr — Scan &amp; pay a merchant QRPH\n\n"
         f"💸 <b>Send Money</b>\n"
         f"  /disburse [amt] [bank] [acct] [name] — Bank transfer\n"
         f"  /refund [id] [amt] — Refund a payment\n\n"
         f"💰 <b>PHP Wallet</b>\n"
         f"  /balance — View balances &amp; history\n"
         f"  /topup [amt] — Top up PHP wallet via USDT (auto-converted)\n"
+        f"  /deposit — Submit bank/e-wallet transfer deposit\n"
         f"  /send [amt] [to] — Send funds to another user\n"
         f"  /withdraw [amt] — Withdraw\n\n"
         f"💵 <b>USD Wallet (USDT TRC20)</b>\n"
@@ -419,6 +425,7 @@ def _welcome_en(name: str = "") -> str:
         f"  /list — Recent transactions\n"
         f"  /report [daily|weekly|monthly]\n"
         f"  /fees [amt] [method] — Fee calculator\n"
+        f"  /subscribe [amt] [plan] — Create subscription\n"
         f"  /cancel [id] — Cancel pending payment\n"
         f"  /remind [id] — Send payment reminder\n\n"
         f"💡 <b>Tip:</b> Type any command or /help to see everything you can do!"
@@ -439,12 +446,15 @@ def _welcome_zh(name: str = "") -> str:
         f"  /ewallet [金额] [提供商] — 电子钱包（GCash、Maya、GrabPay）\n"
         f"  /alipay [金额] [说明] — 支付宝收款\n"
         f"  /wechat [金额] [说明] — 微信支付收款\n\n"
+        f"📷 <b>扫码付款（QRPH）</b>\n"
+        f"  /scanqr — 扫描并支付商家 QRPH\n\n"
         f"💸 <b>转账</b>\n"
         f"  /disburse [金额] [银行] [账号] [姓名] — 银行转账\n"
         f"  /refund [ID] [金额] — 退款\n\n"
         f"💰 <b>PHP 钱包</b>\n"
         f"  /balance — 查看余额及历史\n"
         f"  /topup [金额] — 通过 USDT 充值至 PHP 钱包（自动换汇）\n"
+        f"  /deposit — 提交银行/电子钱包转账充值\n"
         f"  /send [金额] [接收方] — 向用户转账\n"
         f"  /withdraw [金额] — 提现\n\n"
         f"💵 <b>USD 钱包（USDT TRC20）</b>\n"
@@ -456,6 +466,7 @@ def _welcome_zh(name: str = "") -> str:
         f"  /list — 近期交易记录\n"
         f"  /report [daily|weekly|monthly]\n"
         f"  /fees [金额] [方式] — 费用计算\n"
+        f"  /subscribe [金额] [计划] — 创建订阅\n"
         f"  /cancel [ID] — 取消待付款项\n"
         f"  /remind [ID] — 发送付款提醒\n\n"
         f"💡 <b>提示：</b>输入任意命令或 /help 查看全部功能！"
@@ -614,6 +625,48 @@ async def _is_authorized_admin(db: AsyncSession, chat_id: str) -> bool:
     except Exception as e:
         logger.warning("DB admin check failed: %s", e)
         return False
+
+
+async def _get_admin_user_record(db: AsyncSession, chat_id: str) -> Optional[AdminUser]:
+    try:
+        res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id, AdminUser.is_active.is_(True)))
+        return res.scalar_one_or_none()
+    except Exception as e:
+        logger.warning("Failed to load admin user record for %s: %s", chat_id, e)
+        return None
+
+
+async def _is_super_admin_chat(db: AsyncSession, chat_id: str) -> bool:
+    owner_id = _get_bot_owner_id()
+    if owner_id and chat_id == owner_id:
+        return True
+    admin = await _get_admin_user_record(db, chat_id)
+    return bool(admin and admin.is_super_admin)
+
+
+async def _ensure_super_admin_chat(tg: "TelegramService", db: AsyncSession, chat_id: str) -> bool:
+    if await _is_super_admin_chat(db, chat_id):
+        return True
+    await tg.send_message(chat_id, "❌ This command is only available to super admins.")
+    return False
+
+
+async def _get_or_create_wallet(db: AsyncSession, user_id: str, currency: str) -> Wallets:
+    res = await db.execute(select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == currency))
+    wallet = res.scalar_one_or_none()
+    if wallet:
+        return wallet
+    now = datetime.now()
+    wallet = Wallets(user_id=user_id, balance=0.0, currency=currency, created_at=now, updated_at=now)
+    db.add(wallet)
+    await db.flush()
+    return wallet
+
+
+def _short_address(address: str) -> str:
+    if len(address) <= 14:
+        return address
+    return f"{address[:8]}...{address[-4:]}"
 
 
 async def _get_or_create_kyb(db: AsyncSession, chat_id: str, username: str) -> "KybRegistration":
@@ -3007,7 +3060,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 "📲 /ewallet [amt] [provider] — E-Wallet\n"
                 "🔴 /alipay [amt] [desc] — Alipay QR (PhotonPay)\n"
                 "🟢 /wechat [amt] [desc] — WeChat QR (PhotonPay)\n"
-                "📷 /scanqr [qr_string] [amt] — Pay via QRPH scan\n\n"
+                "📷 /scanqr — Scan &amp; pay via QRPH\n\n"
                 "💡 Example: /invoice 500 Coffee order"
             )
             await tg.send_message(chat_id, menu)

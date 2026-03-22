@@ -41,6 +41,7 @@ BOT_COMMANDS = [
     {"command": "refund", "description": "Process a refund"},
     {"command": "status", "description": "Check payment status"},
     {"command": "list", "description": "View recent transactions"},
+    {"command": "cancel", "description": "Cancel a pending payment"},
     {"command": "balance", "description": "Check wallet balance"},
     {"command": "usdbalance", "description": "Check USD wallet balance"},
     {"command": "send", "description": "Transfer to another user"},
