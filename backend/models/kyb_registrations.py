@@ -21,7 +21,7 @@ class KybRegistration(Base):
     telegram_username = Column(String(128), nullable=True)
 
     # KYB step tracking — values: "full_name" | "phone" | "address" | "bank" | "id_photo" | "done"
-    step = Column(String(32), nullable=False, default="full_name")
+    step = Column(String(32), nullable=False, default="full_name", server_default="full_name")
 
     # Collected KYB answers
     full_name = Column(String(256), nullable=True)
@@ -32,7 +32,7 @@ class KybRegistration(Base):
     id_photo_file_id = Column(String(256), nullable=True)
 
     # Overall status — values: "in_progress" | "pending_review" | "approved" | "rejected"
-    status = Column(String(32), nullable=False, default="in_progress", index=True)
+    status = Column(String(32), nullable=False, default="in_progress", server_default="in_progress", index=True)
     rejection_reason = Column(String(512), nullable=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())

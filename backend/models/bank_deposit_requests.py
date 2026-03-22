@@ -14,7 +14,7 @@ class BankDepositRequest(Base):
     account_number = Column(String, nullable=False)   # mobile/bank account used to send
     amount_php = Column(Float, nullable=False)        # PHP amount deposited
     receipt_file_id = Column(String, nullable=True)   # Telegram file_id of uploaded receipt
-    status = Column(String, default="pending", nullable=False)  # pending | approved | rejected
+    status = Column(String, default="pending", server_default="pending", nullable=False)  # pending | approved | rejected
     note = Column(String, nullable=True)              # admin note
     approved_by = Column(String, nullable=True)       # admin telegram_id
     created_at = Column(DateTime(timezone=True), server_default=func.now())
