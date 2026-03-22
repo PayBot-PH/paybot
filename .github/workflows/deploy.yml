@@ -73,26 +73,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate Railway token
+      - name: Check Railway token
         id: validate
         run: |
-          # Use environment secrets, fallback to repository secrets
-          RAILWAY_TOKEN="${{ secrets.RAILWAY_TOKEN }}"
-          RAILWAY_SERVICE="${{ secrets.RAILWAY_SERVICE }}"
-
-          if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "::warning::RAILWAY_TOKEN secret is not set. Skipping deployment. See DEPLOYMENT.md for setup instructions."
-            echo "has_token=false" >> "$GITHUB_OUTPUT"
-          elif [ -z "$RAILWAY_SERVICE" ]; then
-            echo "::warning::RAILWAY_SERVICE secret is not set. Skipping deployment. Set RAILWAY_SERVICE to the exact Railway service name. See DEPLOYMENT.md for setup instructions."
+          if [ -z "${{ secrets.RAILWAY_TOKEN }}" ]; then
+            echo "::warning::RAILWAY_TOKEN secret is not set. Skipping deployment."
             echo "has_token=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_token=true" >> "$GITHUB_OUTPUT"
-            echo "service_name=$RAILWAY_SERVICE" >> "$GITHUB_OUTPUT"
           fi
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
 
       - name: Install Railway CLI
         if: steps.validate.outputs.has_token == 'true'
@@ -103,13 +92,12 @@ jobs:
         run: |
           set -euo pipefail
           ARGS=(up --ci)
-          SERVICE="${{ steps.validate.outputs.service_name }}"
-          if [ -n "$SERVICE" ]; then
-            ARGS+=(--service "$SERVICE")
+          # RAILWAY_SERVICE is optional — if set, target that specific service;
+          # otherwise Railway CLI auto-detects the single service in the project.
+          if [ -n "${{ secrets.RAILWAY_SERVICE }}" ]; then
+            ARGS+=(--service "${{ secrets.RAILWAY_SERVICE }}")
           fi
+          echo "Running: railway ${ARGS[*]}"
           railway "${ARGS[@]}"
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-
-
