@@ -48,4 +48,4 @@ ENV ENVIRONMENT=production
 ENV LOG_LEVEL=info
 
 # Start the server — attempt migrations with a 60s timeout (non-fatal), then start uvicorn
-CMD ["sh", "-c", "timeout 60 alembic upgrade head || echo 'Alembic migration timed out or failed, continuing...' ; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info --no-access-log"]
+CMD ["sh", "-c", "timeout 60 alembic upgrade head || echo 'Alembic migration timed out or failed, continuing...' ; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info --no-access-log --log-config /app/backend/uvicorn_logging.json"]

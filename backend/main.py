@@ -2,6 +2,7 @@ import importlib
 import logging
 import os
 import pkgutil
+import sys
 import traceback
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -61,7 +62,7 @@ def setup_logging():
     # Configure log format
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
-    handlers: list[logging.Handler] = [logging.StreamHandler()]
+    handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]
 
     # Only write log files in non-production environments (Railway has ephemeral fs)
     if not is_production:
