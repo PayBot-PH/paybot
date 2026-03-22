@@ -105,7 +105,7 @@ export default function CreatePayment() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Form */}
-          <Card className="bg-[#1E293B] border-slate-700/50">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-white flex items-center space-x-2">
                 <div className={`h-8 w-8 ${currentType.bg} rounded-lg flex items-center justify-center ${currentType.color}`}>
@@ -119,10 +119,10 @@ export default function CreatePayment() {
                 <div>
                   <Label className="text-slate-300">Payment Type</Label>
                   <Select value={paymentType} onValueChange={setPaymentType}>
-                    <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                    <SelectTrigger className="mt-1 bg-muted border-slate-600 text-white">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-slate-800 border-slate-600">
+                    <SelectContent className="bg-muted border-slate-600">
                       <SelectItem value="invoice" className="text-white">
                         <div className="flex items-center space-x-2">
                           <FileText className="h-4 w-4 text-blue-400" />
@@ -154,7 +154,7 @@ export default function CreatePayment() {
                     placeholder="0.00"
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                    className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                     required
                   />
                 </div>
@@ -165,7 +165,7 @@ export default function CreatePayment() {
                     placeholder="Payment description..."
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 resize-none"
+                    className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground resize-none"
                     rows={3}
                   />
                 </div>
@@ -178,7 +178,7 @@ export default function CreatePayment() {
                         placeholder="John Doe"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                        className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                       />
                     </div>
                     <div>
@@ -188,7 +188,7 @@ export default function CreatePayment() {
                         placeholder="john@example.com"
                         value={customerEmail}
                         onChange={(e) => setCustomerEmail(e.target.value)}
-                        className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                        className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                       />
                     </div>
                   </>
@@ -216,7 +216,7 @@ export default function CreatePayment() {
           </Card>
 
           {/* Result */}
-          <Card className="bg-[#1E293B] border-slate-700/50">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-white">Result</CardTitle>
             </CardHeader>
@@ -224,9 +224,9 @@ export default function CreatePayment() {
               {!result ? (
                 <div className="text-center py-12">
                   <div className="h-16 w-16 bg-slate-700/50 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Plus className="h-8 w-8 text-slate-500" />
+                    <Plus className="h-8 w-8 text-muted-foreground" />
                   </div>
-                  <p className="text-slate-400">Create a payment to see the result here</p>
+                  <p className="text-muted-foreground">Create a payment to see the result here</p>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -240,7 +240,7 @@ export default function CreatePayment() {
                     const isUrl = typeof value === 'string' && (value.startsWith('http') || value.startsWith('https'));
                     return (
                       <div key={key} className="space-y-1">
-                        <Label className="text-xs text-slate-400 uppercase tracking-wider">
+                        <Label className="text-xs text-muted-foreground uppercase tracking-wider">
                           {key.replace(/_/g, ' ')}
                         </Label>
                         <div className="flex items-center space-x-2">
@@ -254,18 +254,18 @@ export default function CreatePayment() {
                               {value as string}
                             </a>
                           ) : (
-                            <code className="text-sm text-white font-mono bg-slate-800 px-2 py-1 rounded break-all flex-1">
+                            <code className="text-sm text-white font-mono bg-muted px-2 py-1 rounded break-all flex-1">
                               {String(value)}
                             </code>
                           )}
                           <button
                             onClick={() => copyToClipboard(String(value))}
-                            className="text-slate-500 hover:text-slate-300 flex-shrink-0"
+                            className="text-muted-foreground hover:text-slate-300 flex-shrink-0"
                           >
                             <Copy className="h-3.5 w-3.5" />
                           </button>
                           {isUrl && (
-                            <a href={value as string} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-slate-300 flex-shrink-0">
+                            <a href={value as string} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-slate-300 flex-shrink-0">
                               <ExternalLink className="h-3.5 w-3.5" />
                             </a>
                           )}

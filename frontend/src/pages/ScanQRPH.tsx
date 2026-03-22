@@ -242,14 +242,14 @@ export default function ScanQRPH() {
             <QrCode className="h-6 w-6 text-blue-400" />
             Scan / Upload QRPH
           </h1>
-          <p className="text-slate-400 text-sm">
+          <p className="text-muted-foreground text-sm">
             Scan a merchant's QRPH code with your camera or upload an image to send payment.
           </p>
         </div>
 
         {/* Step 1 — Capture */}
         {!qrData && !result && (
-          <Card className="bg-[#1E293B] border-slate-700/50">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-white text-base flex items-center gap-2">
                 <ScanLine className="h-4 w-4 text-blue-400" />
@@ -316,7 +316,7 @@ export default function ScanQRPH() {
 
         {/* Step 2 — Review & Pay */}
         {qrData && !result && (
-          <Card className="bg-[#1E293B] border-slate-700/50">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-white text-base flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -330,28 +330,28 @@ export default function ScanQRPH() {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Parsed QRPH info */}
-              <div className="rounded-lg bg-slate-800/60 p-4 space-y-2 text-sm">
+              <div className="rounded-lg bg-muted/60 p-4 space-y-2 text-sm">
                 {qrData.merchantName && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Merchant</span>
+                    <span className="text-muted-foreground">Merchant</span>
                     <span className="text-white font-medium">{qrData.merchantName}</span>
                   </div>
                 )}
                 {qrData.merchantCity && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">City</span>
+                    <span className="text-muted-foreground">City</span>
                     <span className="text-white">{qrData.merchantCity}</span>
                   </div>
                 )}
                 {qrData.currency && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Currency</span>
+                    <span className="text-muted-foreground">Currency</span>
                     <Badge variant="outline" className="text-blue-400 border-blue-400/30">{qrData.currency}</Badge>
                   </div>
                 )}
                 {qrData.referenceNumber && (
                   <div className="flex justify-between">
-                    <span className="text-slate-400">Reference</span>
+                    <span className="text-muted-foreground">Reference</span>
                     <code className="text-xs text-slate-300 bg-slate-900 px-1.5 py-0.5 rounded">{qrData.referenceNumber}</code>
                   </div>
                 )}
@@ -372,7 +372,7 @@ export default function ScanQRPH() {
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                  className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                 />
               </div>
 
@@ -382,7 +382,7 @@ export default function ScanQRPH() {
                   placeholder="Payment note"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                  className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                 />
               </div>
 
@@ -401,7 +401,7 @@ export default function ScanQRPH() {
 
         {/* Step 3 — Result */}
         {result && (
-          <Card className="bg-[#1E293B] border-slate-700/50">
+          <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="text-white text-base flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -418,8 +418,8 @@ export default function ScanQRPH() {
                 if (!value || key === 'success') return null;
                 return (
                   <div key={key} className="space-y-0.5">
-                    <p className="text-xs text-slate-400 uppercase tracking-wider">{key.replace(/_/g, ' ')}</p>
-                    <code className="text-sm text-white font-mono bg-slate-800 px-2 py-1 rounded block break-all">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wider">{key.replace(/_/g, ' ')}</p>
+                    <code className="text-sm text-white font-mono bg-muted px-2 py-1 rounded block break-all">
                       {String(value)}
                     </code>
                   </div>

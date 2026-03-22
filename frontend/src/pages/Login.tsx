@@ -58,7 +58,7 @@ function ImgIcon({
 
 /* Convenience wrappers */
 const Logo = {
-  Alipay:    (s = 40) => <SiIcon  src="/logos/alipay.svg"    alt="Alipay"     bg="#1677FF" size={s} />,
+  Alipay:    (s = 40) => <SiIcon  src="/logos/alipay.svg"    alt="Alipay"     bg="#0070FF" size={s} />,
   WeChat:    (s = 40) => <SiIcon  src="/logos/wechat.svg"    alt="WeChat Pay" bg="#07C160" size={s} />,
   GCash:     (s = 40) => <ImgIcon src="/logos/gcash.svg"     alt="GCash"      size={s} />,
   Maya:      (s = 40) => <ImgIcon src="/logos/maya.svg"      alt="Maya"       size={s} />,
@@ -196,15 +196,15 @@ export default function Login() {
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-6 lg:gap-8">
-            <Link to="/features" className="text-[#595959] hover:text-[#1677FF] text-sm transition-colors">Features</Link>
-            <Link to="/pricing" className="text-[#595959] hover:text-[#1677FF] text-sm transition-colors">Pricing</Link>
-            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-[#595959] hover:text-[#1677FF] text-sm transition-colors">Support</a>
+            <Link to="/features" className="text-[#595959] hover:text-[#0070FF] text-sm transition-colors">Features</Link>
+            <Link to="/pricing" className="text-[#595959] hover:text-[#0070FF] text-sm transition-colors">Pricing</Link>
+            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-[#595959] hover:text-[#0070FF] text-sm transition-colors">Support</a>
           </nav>
 
           <div className="flex items-center gap-2">
             <button
               onClick={scrollToLogin}
-              className="flex items-center gap-1.5 bg-[#1677FF] hover:bg-[#0e6ae8] text-white text-sm font-semibold px-4 sm:px-5 py-2 rounded-full transition-all hover-scale shadow-md shadow-blue-500/20"
+              className="flex items-center gap-1.5 bg-[#0070FF] hover:bg-[#005FDD] text-white text-sm font-semibold px-4 sm:px-5 py-2 rounded-full transition-all hover-scale shadow-md shadow-blue-500/20"
             >
               Sign In <ArrowRight className="h-3.5 w-3.5" />
             </button>
@@ -222,15 +222,15 @@ export default function Login() {
         {/* Mobile nav drawer */}
         {mobileNavOpen && (
           <div className="md:hidden border-t border-[#E8EAED] bg-white px-4 py-4 space-y-1">
-            <Link to="/features" className="block py-2.5 text-[#595959] hover:text-[#1677FF] text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Features</Link>
-            <Link to="/pricing" className="block py-2.5 text-[#595959] hover:text-[#1677FF] text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Pricing</Link>
-            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="block py-2.5 text-[#595959] hover:text-[#1677FF] text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Support</a>
+            <Link to="/features" className="block py-2.5 text-[#595959] hover:text-[#0070FF] text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Features</Link>
+            <Link to="/pricing" className="block py-2.5 text-[#595959] hover:text-[#0070FF] text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Pricing</Link>
+            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="block py-2.5 text-[#595959] hover:text-[#0070FF] text-sm font-medium transition-colors" onClick={() => setMobileNavOpen(false)}>Support</a>
           </div>
         )}
       </header>
 
       {/* ── HERO ────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-[#1677FF] to-[#0052CC]">
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#0070FF] to-[#0047CC]">
         {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] sm:w-[900px] h-[400px] sm:h-[500px] bg-white/5 blur-[100px] sm:blur-[120px] rounded-full" />
@@ -268,7 +268,7 @@ export default function Login() {
               <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8">
                 <button
                   onClick={scrollToLogin}
-                  className="flex items-center justify-center gap-2 bg-white hover:bg-blue-50 text-[#1677FF] font-semibold px-7 py-3.5 rounded-full text-sm transition-all hover-scale card-shadow-lg w-full sm:w-auto"
+                  className="flex items-center justify-center gap-2 bg-white hover:bg-blue-50 text-[#0070FF] font-semibold px-7 py-3.5 rounded-full text-sm transition-all hover-scale card-shadow-lg w-full sm:w-auto"
                 >
                   Get Started Free <ArrowRight className="h-4 w-4" />
                 </button>
@@ -368,7 +368,7 @@ export default function Login() {
               { value: 'KYC',  label: 'KYB Verified',    sub: 'Compliance ready'               },
             ].map(({ value, label, sub }) => (
               <div key={label} className="py-2">
-                <p className="text-3xl sm:text-4xl font-extrabold text-[#1677FF] mb-1">{value}</p>
+                <p className="text-3xl sm:text-4xl font-extrabold text-[#0070FF] mb-1">{value}</p>
                 <p className="text-[#141414] font-semibold text-xs sm:text-sm mb-0.5">{label}</p>
                 <p className="text-[#595959] text-[11px] sm:text-xs">{sub}</p>
               </div>
@@ -393,8 +393,8 @@ export default function Login() {
           <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
 
             {/* Alipay */}
-            <div className="relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden group hover:border-[#1677FF]/40 hover:shadow-md transition-all hover:-translate-y-0.5">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-[#1677FF]/3 blur-3xl rounded-full" />
+            <div className="relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden group hover:border-[#0070FF]/40 hover:shadow-md transition-all hover:-translate-y-0.5">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-[#0070FF]/3 blur-3xl rounded-full" />
               <div className="relative">
                 <div className="flex items-center gap-4 mb-4 sm:mb-5">
                   {Logo.Alipay(52)}
@@ -409,7 +409,7 @@ export default function Login() {
                 <ul className="space-y-2">
                   {['Scan & pay in seconds', 'CNY multi-currency support', 'Real-time confirmation'].map(f => (
                     <li key={f} className="flex items-center gap-2 text-[#141414] text-sm">
-                      <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: '#1677FF' }} /> {f}
+                      <CheckCircle2 className="h-4 w-4 shrink-0" style={{ color: '#0070FF' }} /> {f}
                     </li>
                   ))}
                 </ul>
@@ -605,7 +605,7 @@ export default function Login() {
           </div>
           <div className="grid sm:grid-cols-3 gap-4 sm:gap-8">
             {[
-              { step: '01', color: 'bg-[#1677FF]',  border: 'border-[#1677FF]/20',  accent: 'text-[#1677FF]',  title: 'Choose a method', desc: 'Select Alipay, WeChat Pay, GCash, Maya, GrabPay or any PH bank. Share the QR or payment link.' },
+              { step: '01', color: 'bg-[#0070FF]',  border: 'border-[#0070FF]/20',  accent: 'text-[#0070FF]',  title: 'Choose a method', desc: 'Select Alipay, WeChat Pay, GCash, Maya, GrabPay or any PH bank. Share the QR or payment link.' },
               { step: '02', color: 'bg-purple-500', border: 'border-purple-200',    accent: 'text-purple-600', title: 'Customer pays',   desc: 'Customer scans the QR or opens the link. You get an instant Telegram notification.' },
               { step: '03', color: 'bg-[#52C41A]',  border: 'border-[#52C41A]/20', accent: 'text-[#52C41A]',  title: 'Receive USDT T+0', desc: 'Your balance is settled in USDT to your wallet by end of day. No waiting, no bank forms.' },
             ].map(({ step, color, border, accent, title, desc }) => (
@@ -622,7 +622,7 @@ export default function Login() {
       </section>
 
       {/* ── LOGIN ───────────────────────────────────────────────── */}
-      <section ref={loginSectionRef} className="py-16 sm:py-24 bg-gradient-to-br from-[#1677FF] to-[#0052CC] relative overflow-hidden">
+      <section ref={loginSectionRef} className="py-16 sm:py-24 bg-gradient-to-br from-[#0070FF] to-[#0047CC] relative overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] sm:w-[700px] h-[300px] sm:h-[400px] bg-white/5 blur-[80px] sm:blur-[100px] rounded-full" />
         </div>
@@ -651,7 +651,7 @@ export default function Login() {
             <div className="flex justify-center mb-5" ref={widgetContainerRef} />
             {submitting && (
               <div className="flex items-center justify-center gap-2 text-[#595959] text-sm mb-4">
-                <span className="h-4 w-4 border-2 border-[#1677FF] border-t-transparent rounded-full animate-spin" />
+                <span className="h-4 w-4 border-2 border-[#0070FF] border-t-transparent rounded-full animate-spin" />
                 Signing in…
               </div>
             )}
@@ -666,17 +666,17 @@ export default function Login() {
             <div className="border-t border-[#E8EAED] pt-4 sm:pt-5 space-y-3">
               <Link
                 to="/register"
-                className="flex items-center justify-between w-full bg-[#F5F7FA] hover:bg-[#E8F4FF] border border-[#E8EAED] hover:border-[#1677FF]/30 text-[#1677FF] hover:text-[#1677FF] text-sm font-semibold py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl transition-all group"
+                className="flex items-center justify-between w-full bg-[#F5F7FA] hover:bg-[#E8F4FF] border border-[#E8EAED] hover:border-[#0070FF]/30 text-[#0070FF] hover:text-[#0070FF] text-sm font-semibold py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl transition-all group"
               >
                 <div className="flex items-center gap-2">
                   <UserPlus className="h-4 w-4" /> Create an account
                 </div>
-                <ChevronRight className="h-4 w-4 text-[#1677FF]/40 group-hover:text-[#1677FF] transition-colors" />
+                <ChevronRight className="h-4 w-4 text-[#0070FF]/40 group-hover:text-[#0070FF] transition-colors" />
               </Link>
               <p className="text-[#595959] text-xs text-center pt-1">
                 Need access?{' '}
                 <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer"
-                  className="text-[#1677FF] hover:text-[#0e6ae8] transition-colors">
+                  className="text-[#0070FF] hover:text-[#005FDD] transition-colors">
                   Contact @traxionpay
                 </a>
               </p>

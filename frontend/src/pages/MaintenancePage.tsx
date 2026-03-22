@@ -10,10 +10,10 @@ export default function MaintenancePage() {
           </div>
         </div>
         <h1 className="text-3xl font-bold text-white mb-3">Under Maintenance</h1>
-        <p className="text-slate-400 text-base mb-2">
+        <p className="text-muted-foreground text-base mb-2">
           The system is currently undergoing scheduled maintenance.
         </p>
-        <p className="text-slate-500 text-sm">
+        <p className="text-muted-foreground text-sm">
           We'll be back shortly. Thank you for your patience.
         </p>
       </div>

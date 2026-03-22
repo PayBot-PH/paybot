@@ -54,7 +54,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
   const isAdmin = variant === 'admin';
 
   return (
-    <footer className={`relative overflow-hidden ${isAdmin ? 'border-t border-slate-700/50 bg-[#0B1120]' : 'border-t border-white/[0.06] bg-[#040C18]'}`}>
+    <footer className={`relative overflow-hidden ${isAdmin ? 'border-t border-border bg-[#0B1120]' : 'border-t border-white/[0.06] bg-[#040C18]'}`}>
       {/* Decorative gradient glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -bottom-32 left-1/4 w-96 h-96 bg-blue-700/8 blur-[100px] rounded-full" />
@@ -74,10 +74,10 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
               </div>
               <div>
                 <p className="text-white font-bold text-base leading-tight">{APP_NAME}</p>
-                <p className="text-slate-500 text-xs">{APP_TAGLINE}</p>
+                <p className="text-muted-foreground text-xs">{APP_TAGLINE}</p>
               </div>
             </Link>
-            <p className="text-slate-400 text-sm leading-relaxed max-w-sm">
+            <p className="text-muted-foreground text-sm leading-relaxed max-w-sm">
               The unified Telegram payment platform for Philippine merchants. Accept Alipay, WeChat Pay,
               GCash, Maya, and all major PH banks — settle in USDT same day.
             </p>
@@ -95,13 +95,13 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
 
           {/* Navigation column */}
           <div>
-            <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mb-4">Platform</p>
+            <p className="text-muted-foreground text-xs font-semibold uppercase tracking-widest mb-4">Platform</p>
             <ul className="space-y-2.5">
               {NAV_LINKS.map(({ label, to }) => (
                 <li key={label}>
                   <Link
                     to={to}
-                    className="text-slate-500 hover:text-slate-200 text-sm transition-colors"
+                    className="text-muted-foreground hover:text-slate-200 text-sm transition-colors"
                   >
                     {label}
                   </Link>
@@ -112,27 +112,27 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
 
           {/* Legal & compliance column */}
           <div>
-            <p className="text-slate-400 text-xs font-semibold uppercase tracking-widest mb-4">Compliance</p>
+            <p className="text-muted-foreground text-xs font-semibold uppercase tracking-widest mb-4">Compliance</p>
             <ul className="space-y-3">
               <li className="flex items-center gap-2">
                 <img src="/logos/bsp.svg" alt="BSP" className="h-5 w-auto opacity-80" />
-                <span className="text-slate-500 text-xs">BSP Regulated</span>
+                <span className="text-muted-foreground text-xs">BSP Regulated</span>
               </li>
               <li className="flex items-center gap-2">
                 <img src="/logos/pci.svg" alt="PCI DSS" className="h-5 w-auto opacity-80" />
-                <span className="text-slate-500 text-xs">PCI DSS Compliant</span>
+                <span className="text-muted-foreground text-xs">PCI DSS Compliant</span>
               </li>
               <li className="flex items-center gap-2">
                 <img src="/logos/dpo.svg" alt="DPO / NPC" className="h-5 w-auto opacity-80" />
-                <span className="text-slate-500 text-xs">NPC / DPO Registered</span>
+                <span className="text-muted-foreground text-xs">NPC / DPO Registered</span>
               </li>
               <li className="flex items-center gap-2">
                 <Shield className="h-4 w-4 text-teal-400/80 shrink-0" />
-                <span className="text-slate-500 text-xs">256-bit TLS Encryption</span>
+                <span className="text-muted-foreground text-xs">256-bit TLS Encryption</span>
               </li>
               <li className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-blue-400/80 shrink-0" />
-                <Link to="/policies" className="text-slate-500 hover:text-slate-300 text-xs transition-colors">
+                <Link to="/policies" className="text-muted-foreground hover:text-slate-300 text-xs transition-colors">
                   Privacy Policy & Terms
                 </Link>
               </li>
@@ -153,7 +153,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
                 title={name}
               >
                 {el}
-                <span className="text-slate-400 text-[10px] font-medium whitespace-nowrap">{name}</span>
+                <span className="text-muted-foreground text-[10px] font-medium whitespace-nowrap">{name}</span>
               </div>
             ))}
             <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.05] rounded-md px-2 py-1">
@@ -165,7 +165,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
         {/* ── BOTTOM BAR: copyright ────────────────────────────────── */}
         <div className="border-t border-white/[0.05] py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-slate-600 text-xs text-center sm:text-left">
-            © {new Date().getFullYear()} <span className="text-slate-500">{COMPANY_NAME}</span>. All rights reserved.
+            © {new Date().getFullYear()} <span className="text-muted-foreground">{COMPANY_NAME}</span>. All rights reserved.
           </p>
           <div className="flex items-center gap-1.5 bg-teal-500/8 border border-teal-500/20 rounded-full px-3 py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse shrink-0" />

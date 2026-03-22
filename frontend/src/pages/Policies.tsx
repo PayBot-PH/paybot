@@ -23,7 +23,7 @@ export default function Policies() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-white">{COMPANY_NAME} — Policies</h1>
-          <p className="text-slate-400 text-sm">Legal policies governing the use of {APP_NAME}</p>
+          <p className="text-muted-foreground text-sm">Legal policies governing the use of {APP_NAME}</p>
         </div>
       </div>
 
@@ -36,7 +36,7 @@ export default function Policies() {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === tab.id
                 ? 'bg-blue-600 text-white'
-                : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'
+                : 'bg-muted text-muted-foreground hover:text-white hover:bg-slate-700'
             }`}
           >
             {tab.icon}
@@ -46,13 +46,13 @@ export default function Policies() {
       </div>
 
       {/* Content */}
-      <Card className="bg-[#1E293B] border-slate-700/50">
+      <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="text-white flex items-center gap-2">
             {tabs.find((t) => t.id === activeTab)?.icon}
             {tabs.find((t) => t.id === activeTab)?.label}
           </CardTitle>
-          <p className="text-slate-400 text-xs">Last updated: February 2026 · {COMPANY_NAME}</p>
+          <p className="text-muted-foreground text-xs">Last updated: February 2026 · {COMPANY_NAME}</p>
         </CardHeader>
         <CardContent className="prose prose-invert prose-sm max-w-none text-slate-300 space-y-5">
           {activeTab === 'terms' && <TermsOfService />}
@@ -76,7 +76,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function TermsOfService() {
   return (
     <>
-      <p className="text-slate-400 text-sm">
+      <p className="text-muted-foreground text-sm">
         These Terms of Service ("Terms") govern your access to and use of the {APP_NAME} platform
         operated by <strong className="text-white">{COMPANY_NAME}</strong>. By accessing or using
         the platform, you agree to be bound by these Terms.
@@ -177,7 +177,7 @@ function TermsOfService() {
 function PrivacyPolicy() {
   return (
     <>
-      <p className="text-slate-400 text-sm">
+      <p className="text-muted-foreground text-sm">
         {COMPANY_NAME} is committed to protecting your personal data in accordance with the
         Philippine <strong className="text-white">Data Privacy Act of 2012 (RA 10173)</strong>.
         This policy explains how we collect, use, and protect your information.
@@ -261,7 +261,7 @@ function PrivacyPolicy() {
 function RefundPolicy() {
   return (
     <>
-      <p className="text-slate-400 text-sm">
+      <p className="text-muted-foreground text-sm">
         This Refund Policy outlines the conditions under which{' '}
         <strong className="text-white">{COMPANY_NAME}</strong> processes refunds for payments made
         through the {APP_NAME} platform.

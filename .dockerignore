@@ -1,63 +1,25 @@
-# Node.js
-node_modules/
-frontend/node_modules/
-npm-debug.log*
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-venv/
-.venv/
-env/
-ENV/
-*.egg-info/
-
-# Environment variables
-.env
-.env.local
-.env.*.local
-*.env
-
-# Logs
-logs/
-*.log
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-
-# Build artifacts (frontend is built from source in the Docker build stage)
-frontend/dist/
-build/
-dist/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Git
-.git/
-.gitignore
-
-# CI/CD
-.github/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Docker
-.dockerignore
-Dockerfile
-docker-compose.yml
+**/.classpath
+**/.dockerignore
+**/.env
+**/.git
+**/.gitignore
+**/.project
+**/.settings
+**/.toolstarget
+**/.vs
+**/.vscode
+**/*.*proj.user
+**/*.dbmdl
+**/*.jfm
+**/bin
+**/charts
+**/docker-compose*
+**/compose*
+**/Dockerfile*
+**/node_modules
+**/npm-debug.log
+**/obj
+**/secrets.dev.yaml
+**/values.dev.yaml
+LICENSE
+README.md

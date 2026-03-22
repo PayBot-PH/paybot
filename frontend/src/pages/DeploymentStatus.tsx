@@ -70,11 +70,11 @@ function ServiceCard({ name, data }: { name: string; data: ServiceStatus }) {
     : (data.configured ? 'Configured' : 'Not configured');
 
   const badgeCls = isHealthy
-    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
-    : 'bg-red-500/15 text-red-400 border-red-500/25';
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    : 'bg-red-50 text-red-700 border-red-200';
 
   return (
-    <Card className="bg-slate-800/60 border-slate-700/50">
+    <Card className="bg-muted/60 border-border">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
@@ -83,12 +83,12 @@ function ServiceCard({ name, data }: { name: string; data: ServiceStatus }) {
             </div>
             <div className="min-w-0">
               <p className="text-sm font-semibold text-white">{meta.label}</p>
-              <p className="text-xs text-slate-400 truncate">{meta.description}</p>
+              <p className="text-xs text-muted-foreground truncate">{meta.description}</p>
               {data.mode && (
-                <p className="text-xs text-slate-500 mt-0.5">Mode: <span className="text-slate-300">{data.mode}</span></p>
+                <p className="text-xs text-muted-foreground mt-0.5">Mode: <span className="text-slate-300">{data.mode}</span></p>
               )}
               {data.username && (
-                <p className="text-xs text-slate-500 mt-0.5">Username: <span className="text-slate-300">@{data.username}</span></p>
+                <p className="text-xs text-muted-foreground mt-0.5">Username: <span className="text-slate-300">@{data.username}</span></p>
               )}
             </div>
           </div>
@@ -141,7 +141,7 @@ export default function DeploymentStatus() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-white">Deployment Status</h1>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-muted-foreground">
                   {lastRefreshed
                     ? `Last checked at ${lastRefreshed.toLocaleTimeString()}`
                     : 'Checking services…'}
@@ -170,7 +170,7 @@ export default function DeploymentStatus() {
                   <p className={`text-lg font-bold ${overallOk ? 'text-emerald-300' : 'text-red-300'}`}>
                     {overallOk ? 'All Systems Operational' : 'Service Degraded'}
                   </p>
-                  <p className="text-sm text-slate-400">
+                  <p className="text-sm text-muted-foreground">
                     {data.app_name} v{data.version} · {data.environment} · {data.platform}
                   </p>
                 </div>
@@ -192,7 +192,7 @@ export default function DeploymentStatus() {
           {loading && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <Card key={i} className="bg-slate-800/60 border-slate-700/50 animate-pulse">
+                <Card key={i} className="bg-muted/60 border-border animate-pulse">
                   <CardContent className="p-4 h-20" />
                 </Card>
               ))}
@@ -203,7 +203,7 @@ export default function DeploymentStatus() {
           {!loading && data && (
             <>
               <div>
-                <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wide mb-3">Services</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Services</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {Object.entries(data.services).map(([name, svc]) => (
                     <ServiceCard key={name} name={name} data={svc} />
@@ -212,7 +212,7 @@ export default function DeploymentStatus() {
               </div>
 
               {/* Summary counts */}
-              <Card className="bg-slate-800/60 border-slate-700/50">
+              <Card className="bg-muted/60 border-border">
                 <CardHeader className="pb-2 pt-4 px-4">
                   <CardTitle className="text-sm font-semibold text-slate-300">Summary</CardTitle>
                 </CardHeader>
@@ -228,15 +228,15 @@ export default function DeploymentStatus() {
                         <>
                           <div className="text-center pr-4">
                             <p className="text-2xl font-bold text-white">{services.length}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">Total</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Total</p>
                           </div>
                           <div className="text-center px-4">
                             <p className="text-2xl font-bold text-emerald-400">{configured}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">Healthy / Configured</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Healthy / Configured</p>
                           </div>
                           <div className="text-center pl-4">
                             <p className="text-2xl font-bold text-red-400">{notConfigured}</p>
-                            <p className="text-xs text-slate-400 mt-0.5">Issues</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Issues</p>
                           </div>
                         </>
                       );

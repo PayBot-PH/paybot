@@ -76,23 +76,28 @@ jobs:
       - name: Validate Railway token
         id: validate
         run: |
-          # Use environment secrets, fallback to repository secrets
+          # Prefer Secrets, fallback to repository Variables.
           RAILWAY_TOKEN="${{ secrets.RAILWAY_TOKEN }}"
+          if [ -z "$RAILWAY_TOKEN" ]; then
+            RAILWAY_TOKEN="${{ vars.RAILWAY_TOKEN }}"
+          fi
+
           RAILWAY_SERVICE="${{ secrets.RAILWAY_SERVICE }}"
+          if [ -z "$RAILWAY_SERVICE" ]; then
+            RAILWAY_SERVICE="${{ vars.RAILWAY_SERVICE }}"
+          fi
 
           if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "::warning::RAILWAY_TOKEN secret is not set. Skipping deployment. See DEPLOYMENT.md for setup instructions."
+            echo "::warning::RAILWAY_TOKEN is not set in Secrets or Variables. Skipping deployment. See DEPLOYMENT.md for setup instructions."
             echo "has_token=false" >> "$GITHUB_OUTPUT"
           elif [ -z "$RAILWAY_SERVICE" ]; then
-            echo "::warning::RAILWAY_SERVICE secret is not set. Skipping deployment. Set RAILWAY_SERVICE to the exact Railway service name. See DEPLOYMENT.md for setup instructions."
+            echo "::warning::RAILWAY_SERVICE is not set in Secrets or Variables. Skipping deployment. Set RAILWAY_SERVICE to the exact Railway service name. See DEPLOYMENT.md for setup instructions."
             echo "has_token=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_token=true" >> "$GITHUB_OUTPUT"
             echo "service_name=$RAILWAY_SERVICE" >> "$GITHUB_OUTPUT"
+            echo "token=$RAILWAY_TOKEN" >> "$GITHUB_OUTPUT"
           fi
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_SERVICE: ${{ secrets.RAILWAY_SERVICE }}
 
       - name: Install Railway CLI
         if: steps.validate.outputs.has_token == 'true'
@@ -109,7 +114,7 @@ jobs:
           fi
           railway "${ARGS[@]}"
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ steps.validate.outputs.token }}
 
 
 

@@ -16,9 +16,9 @@ interface UsdtSendRequest {
 }
 
 const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
-  pending:  { color: 'bg-amber-500/15 text-amber-400 border-amber-500/25',       icon: <Clock className="h-3.5 w-3.5" /> },
-  approved: { color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', icon: <CheckCircle className="h-3.5 w-3.5" /> },
-  denied:   { color: 'bg-red-500/15 text-red-400 border-red-500/25',             icon: <XCircle className="h-3.5 w-3.5" /> },
+  pending:  { color: 'bg-amber-50 text-amber-700 border-amber-200',       icon: <Clock className="h-3.5 w-3.5" /> },
+  approved: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  denied:   { color: 'bg-red-50 text-red-700 border-red-200',             icon: <XCircle className="h-3.5 w-3.5" /> },
 };
 
 const fmt_time = (s: string | null) => s ? new Date(s).toLocaleString() : '—';
@@ -118,10 +118,10 @@ export default function UsdtSendRequestsPage() {
                 <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pendingCount}</span>
               )}
             </h1>
-            <p className="text-slate-500 text-sm mt-0.5">Approve or deny USDT TRC20 outgoing transfer requests</p>
+            <p className="text-muted-foreground text-sm mt-0.5">Approve or deny USDT TRC20 outgoing transfer requests</p>
           </div>
           <button onClick={fetchRequests}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0">
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
         </div>
@@ -132,7 +132,7 @@ export default function UsdtSendRequestsPage() {
           {['pending', 'approved', 'denied', ''].map((s) => (
             <button key={s || 'all'} onClick={() => setFilter(s)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                filter === s ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+                filter === s ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground hover:text-white'
               }`}>
               {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
             </button>
@@ -160,10 +160,10 @@ export default function UsdtSendRequestsPage() {
           </div>
         ) : requests.length === 0 ? (
           <div className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-12 flex flex-col items-center text-center">
-            <div className="h-12 w-12 bg-slate-800 rounded-2xl flex items-center justify-center mb-3">
+            <div className="h-12 w-12 bg-muted rounded-2xl flex items-center justify-center mb-3">
               <Send className="h-6 w-6 text-slate-600" />
             </div>
-            <p className="text-slate-400 font-medium">No {filter || ''} send requests</p>
+            <p className="text-muted-foreground font-medium">No {filter || ''} send requests</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -184,13 +184,13 @@ export default function UsdtSendRequestsPage() {
                           {sc.icon} {req.status}
                         </span>
                       </div>
-                      <p className="text-slate-400 text-sm mt-0.5">
+                      <p className="text-muted-foreground text-sm mt-0.5">
                         <span className="text-teal-400 font-bold">${req.amount.toFixed(2)} USDT</span>
                         {' · '}Request #{req.id}
                         {' · '}{fmt_time(req.created_at)}
                       </p>
                       <p className="text-slate-600 text-xs mt-0.5 font-mono break-all">{req.to_address}</p>
-                      {req.note && <p className="text-slate-500 text-xs mt-1">Note: {req.note}</p>}
+                      {req.note && <p className="text-muted-foreground text-xs mt-1">Note: {req.note}</p>}
                       {req.status === 'denied' && req.denial_reason && (
                         <div className="flex items-start gap-1.5 mt-1.5">
                           <ShieldAlert className="h-3 w-3 text-red-400 shrink-0 mt-0.5" />
@@ -235,7 +235,7 @@ export default function UsdtSendRequestsPage() {
                             onChange={e => setDenialReason(e.target.value)}
                             placeholder="Explain why this request is being denied (required)…"
                             rows={3}
-                            className="w-full bg-slate-800/60 border border-red-500/30 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-red-500/60 mb-3 resize-none"
+                            className="w-full bg-muted/60 border border-red-500/30 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-red-500/60 mb-3 resize-none"
                           />
                           {error && <p className="text-red-400 text-xs mb-2">{error}</p>}
                           <div className="flex gap-2">
@@ -255,7 +255,7 @@ export default function UsdtSendRequestsPage() {
                         </>
                       ) : (
                         <>
-                          <p className="text-slate-400 text-sm mb-3">
+                          <p className="text-muted-foreground text-sm mb-3">
                             Approve sending <span className="text-teal-400 font-bold">${req.amount.toFixed(2)} USDT</span> to{' '}
                             <span className="font-mono text-slate-300">{shortAddr}</span>? This will deduct from the user's USD wallet.
                           </p>

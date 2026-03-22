@@ -490,7 +490,7 @@ export default function Wallet() {
         <div className="text-center space-y-6 max-w-md px-6">
           <WalletIcon className="h-16 w-16 text-blue-400 mx-auto" />
           <h1 className="text-3xl font-bold text-white">Wallet</h1>
-          <p className="text-slate-400">Sign in to access your wallet</p>
+          <p className="text-muted-foreground">Sign in to access your wallet</p>
           <Button onClick={() => login()} size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8">
             Sign In
           </Button>
@@ -562,41 +562,41 @@ export default function Wallet() {
         </div>
 
         {/* Actions: Withdraw / Disburse / Top Up */}
-        <Card className="bg-[#1E293B] border-slate-700/50 mb-6">
+        <Card className="bg-card border-border mb-6">
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="w-full rounded-none rounded-t-lg bg-slate-800/60 border-b border-slate-700 h-14 p-0 gap-0">
+              <TabsList className="w-full rounded-none rounded-t-lg bg-muted/60 border-b border-slate-700 h-14 p-0 gap-0">
                 <TabsTrigger
                   value="withdraw"
-                  className="flex-1 h-full rounded-none rounded-tl-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-amber-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                  className="flex-1 h-full rounded-none rounded-tl-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-amber-400 text-muted-foreground flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <ArrowUpFromLine className="h-4 w-4 shrink-0" />
                   <span>Withdraw</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="disburse"
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-muted-foreground flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <Building2 className="h-4 w-4 shrink-0" />
                   <span>Disburse</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="topup"
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-blue-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-blue-400 text-muted-foreground flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <PlusCircle className="h-4 w-4 shrink-0" />
                   <span>Top Up</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="send-usd"
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-muted-foreground flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <Send className="h-4 w-4 shrink-0" />
                   <span>Send USD</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="send-usdt"
-                  className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-teal-400 text-slate-400 flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                  className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-teal-400 text-muted-foreground flex-col gap-0.5 py-2 text-[10px] sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <Bitcoin className="h-4 w-4 shrink-0" />
                   <span>Send USDT</span>
@@ -610,15 +610,15 @@ export default function Wallet() {
                     <Label className="text-slate-300 text-sm">Amount (₱)</Label>
                     <Input type="number" placeholder="0.00" value={withdrawAmount}
                       onChange={e => setWithdrawAmount(e.target.value)} min="1"
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
                   </div>
                   <div>
                     <Label className="text-slate-300 text-sm">Bank</Label>
                     <Select value={withdrawBank} onValueChange={setWithdrawBank}>
-                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white">
+                      <SelectTrigger className="mt-1 bg-muted border-slate-600 text-white">
                         <SelectValue placeholder="Select bank…" />
                       </SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600 max-h-64">
+                      <SelectContent className="bg-muted border-slate-600 max-h-64">
                         {(bankOptions.length > 0 ? bankOptions : BANKS.map(b => ({ name: b, code: b }))).map(b => (
                           <SelectItem key={b.code} value={b.code} className="text-white">{b.name}</SelectItem>
                         ))}
@@ -629,13 +629,13 @@ export default function Wallet() {
                     <Label className="text-slate-300 text-sm">Account Number</Label>
                     <Input placeholder="Enter account number" value={withdrawAccount}
                       onChange={e => setWithdrawAccount(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
                   </div>
                   <div>
                     <Label className="text-slate-300 text-sm">Note (optional)</Label>
                     <Input placeholder="Withdrawal note" value={withdrawNote}
                       onChange={e => setWithdrawNote(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
                   </div>
                 </div>
                 <Button onClick={handleWithdraw} disabled={withdrawLoading}
@@ -653,13 +653,13 @@ export default function Wallet() {
                     <Label className="text-slate-300 text-sm">Amount (₱)</Label>
                     <Input type="number" placeholder="0.00" value={dAmount}
                       onChange={e => setDAmount(e.target.value)} min="1"
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
                   </div>
                   <div>
                     <Label className="text-slate-300 text-sm">Bank</Label>
                     <Select value={dBank} onValueChange={setDBank}>
-                      <SelectTrigger className="mt-1 bg-slate-800 border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-600">
+                      <SelectTrigger className="mt-1 bg-muted border-slate-600 text-white"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-muted border-slate-600">
                         {(bankOptions.length > 0 ? bankOptions : BANKS.map(b => ({ name: b, code: b }))).map(b => (
                           <SelectItem key={b.code} value={b.code} className="text-white">{b.name}</SelectItem>
                         ))}
@@ -670,19 +670,19 @@ export default function Wallet() {
                     <Label className="text-slate-300 text-sm">Account Number</Label>
                     <Input placeholder="1234567890" value={dAccount}
                       onChange={e => setDAccount(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
                   </div>
                   <div>
                     <Label className="text-slate-300 text-sm">Account Name</Label>
                     <Input placeholder="Juan Dela Cruz" value={dName}
                       onChange={e => setDName(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
                   </div>
                   <div className="sm:col-span-2">
                     <Label className="text-slate-300 text-sm">Description (optional)</Label>
                     <Input placeholder="Salary payout, etc." value={dDesc}
                       onChange={e => setDDesc(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500" />
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
                   </div>
                 </div>
                 <Button onClick={handleDisburse} disabled={dLoading}
@@ -709,7 +709,7 @@ export default function Wallet() {
                 {/* Crypto (USDT TRC20) Top Up Panel */}
                 <div className="p-4 sm:p-6 space-y-5">
                   {/* Deposit Address Card */}
-                  <div className="bg-slate-800/60 border border-teal-500/20 rounded-xl p-4">
+                  <div className="bg-muted/60 border border-teal-500/20 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <Bitcoin className="h-4 w-4 text-teal-400" />
                       <span className="text-teal-300 text-sm font-semibold">USDT Deposit Address</span>
@@ -730,14 +730,14 @@ export default function Wallet() {
                         </div>
                         {/* Address + Copy */}
                         <div className="flex-1 min-w-0 w-full">
-                          <p className="text-slate-400 text-xs mb-1.5">Send USDT (TRC20) to:</p>
+                          <p className="text-muted-foreground text-xs mb-1.5">Send USDT (TRC20) to:</p>
                           <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-600/50 rounded-lg px-3 py-2">
                             <code className="text-teal-300 text-xs font-mono break-all flex-1">
                               {cryptoDepositInfo.address}
                             </code>
                             <button
                               onClick={handleCopyAddress}
-                              className="shrink-0 text-slate-400 hover:text-teal-400 transition-colors"
+                              className="shrink-0 text-muted-foreground hover:text-teal-400 transition-colors"
                               title="Copy address"
                             >
                               {addressCopied ? <Check className="h-4 w-4 text-teal-400" /> : <Copy className="h-4 w-4" />}
@@ -763,7 +763,7 @@ export default function Wallet() {
                     <p className="text-slate-300 text-sm font-medium mb-3">Submit Transaction Proof</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <Label className="text-slate-400 text-xs">Amount Sent (USDT)</Label>
+                        <Label className="text-muted-foreground text-xs">Amount Sent (USDT)</Label>
                         <Input
                           type="number"
                           placeholder="e.g. 50.00"
@@ -771,24 +771,24 @@ export default function Wallet() {
                           onChange={e => setCryptoAmount(e.target.value)}
                           min="0.01"
                           step="0.01"
-                          className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                          className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                         />
                       </div>
                       <div>
-                        <Label className="text-slate-400 text-xs">Network</Label>
+                        <Label className="text-muted-foreground text-xs">Network</Label>
                         <Input
                           value="TRC20 (TRON)"
                           readOnly
-                          className="mt-1 bg-slate-800/40 border-slate-600/40 text-slate-400 cursor-not-allowed"
+                          className="mt-1 bg-muted/40 border-slate-600/40 text-muted-foreground cursor-not-allowed"
                         />
                       </div>
                       <div className="sm:col-span-2">
-                        <Label className="text-slate-400 text-xs">Transaction Hash (TxID)</Label>
+                        <Label className="text-muted-foreground text-xs">Transaction Hash (TxID)</Label>
                         <Input
                           placeholder="Paste your transaction hash here"
                           value={cryptoTxHash}
                           onChange={e => setCryptoTxHash(e.target.value)}
-                          className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 font-mono text-xs"
+                          className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground font-mono text-xs"
                         />
                       </div>
                     </div>
@@ -801,7 +801,7 @@ export default function Wallet() {
                         ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Submitting...</>
                         : <><Bitcoin className="h-4 w-4 mr-2" />Submit Topup Request</>}
                     </Button>
-                    <p className="text-slate-500 text-xs text-center mt-2">
+                    <p className="text-muted-foreground text-xs text-center mt-2">
                       An admin will verify your transaction and credit your USD wallet.
                     </p>
                   </div>
@@ -809,10 +809,10 @@ export default function Wallet() {
                   {/* Crypto Request History */}
                   {cryptoRequests.length > 0 && (
                     <div>
-                      <p className="text-slate-400 text-xs font-medium mb-2 uppercase tracking-wider">Your Requests</p>
+                      <p className="text-muted-foreground text-xs font-medium mb-2 uppercase tracking-wider">Your Requests</p>
                       <div className="space-y-2">
                         {cryptoRequests.slice(0, 5).map(req => (
-                          <div key={req.id} className="flex items-center justify-between bg-slate-800/40 border border-slate-700/30 rounded-lg px-3 py-2.5">
+                          <div key={req.id} className="flex items-center justify-between bg-muted/40 border border-slate-700/30 rounded-lg px-3 py-2.5">
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-white text-sm font-medium">${req.amount_usdt.toFixed(2)} USDT</span>
@@ -826,7 +826,7 @@ export default function Wallet() {
                                   {req.status}
                                 </span>
                               </div>
-                              <p className="text-slate-500 text-[10px] font-mono truncate mt-0.5 max-w-[200px]">{req.tx_hash}</p>
+                              <p className="text-muted-foreground text-[10px] font-mono truncate mt-0.5 max-w-[200px]">{req.tx_hash}</p>
                             </div>
                             <div className="text-right ml-2 shrink-0">
                               {req.status === 'pending'
@@ -871,7 +871,7 @@ export default function Wallet() {
                           className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
                             topupDialogMethod === 'ubp'
                               ? 'border-blue-500 bg-blue-500/10'
-                              : 'border-slate-600 hover:border-slate-500 bg-slate-800/40'
+                              : 'border-slate-600 hover:border-slate-500 bg-muted/40'
                           }`}
                         >
                           <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center text-white font-extrabold text-sm">UB</div>
@@ -882,7 +882,7 @@ export default function Wallet() {
                           className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
                             topupDialogMethod === 'bank'
                               ? 'border-blue-500 bg-blue-500/10'
-                              : 'border-slate-600 hover:border-slate-500 bg-slate-800/40'
+                              : 'border-slate-600 hover:border-slate-500 bg-muted/40'
                           }`}
                         >
                           <Building2 className="w-9 h-9 text-blue-400" />
@@ -896,23 +896,23 @@ export default function Wallet() {
                           <p className="text-slate-300 text-sm">Please follow these steps:</p>
                           <ol className="space-y-2.5 text-sm text-slate-300">
                             <li className="flex gap-3">
-                              <span className="text-slate-500 shrink-0 w-4 text-right">1.</span>
+                              <span className="text-muted-foreground shrink-0 w-4 text-right">1.</span>
                               <span>Log in to your <strong className="text-white">UnionBank (UBP)</strong> account</span>
                             </li>
                             <li className="flex gap-3">
-                              <span className="text-slate-500 shrink-0 w-4 text-right">2.</span>
+                              <span className="text-muted-foreground shrink-0 w-4 text-right">2.</span>
                               <span>Go to <strong className="text-white">Pay Bills (UBP Online)</strong> or <strong className="text-white">Bills Payment (UBP The Portal)</strong> section</span>
                             </li>
                             <li className="flex gap-3">
-                              <span className="text-slate-500 shrink-0 w-4 text-right">3.</span>
+                              <span className="text-muted-foreground shrink-0 w-4 text-right">3.</span>
                               <span>Click <strong className="text-white">Select Biller</strong> and go to the <strong className="text-white">Biller List</strong> section</span>
                             </li>
                             <li className="flex gap-3">
-                              <span className="text-slate-500 shrink-0 w-4 text-right">4.</span>
+                              <span className="text-muted-foreground shrink-0 w-4 text-right">4.</span>
                               <span>Select biller name <strong className="text-white">"XENDIT BALANCE TOP-UP"</strong></span>
                             </li>
                             <li className="flex gap-3 items-start">
-                              <span className="text-slate-500 shrink-0 w-4 text-right">5.</span>
+                              <span className="text-muted-foreground shrink-0 w-4 text-right">5.</span>
                               <span className="flex items-center gap-2 flex-wrap">
                                 Enter your payment code:
                                 {/* Payment code for the Xendit account associated with this platform */}
@@ -926,7 +926,7 @@ export default function Wallet() {
                                       toast.error('Could not copy to clipboard');
                                     });
                                   }}
-                                  className="text-slate-400 hover:text-blue-400 transition-colors"
+                                  className="text-muted-foreground hover:text-blue-400 transition-colors"
                                   title="Copy payment code"
                                 >
                                   {paymentCodeCopied ? <Check className="h-3.5 w-3.5 text-blue-400" /> : <Copy className="h-3.5 w-3.5" />}
@@ -934,15 +934,15 @@ export default function Wallet() {
                               </span>
                             </li>
                             <li className="flex gap-3">
-                              <span className="text-slate-500 shrink-0 w-4 text-right">6.</span>
+                              <span className="text-muted-foreground shrink-0 w-4 text-right">6.</span>
                               <span>Enter the amount you want to top-up</span>
                             </li>
                             <li className="flex gap-3">
-                              <span className="text-slate-500 shrink-0 w-4 text-right">7.</span>
+                              <span className="text-muted-foreground shrink-0 w-4 text-right">7.</span>
                               <span>Indicate the date you want to process the top-up. Note that you can either top-up right away or create a one-time or recurring schedule.</span>
                             </li>
                             <li className="flex gap-3">
-                              <span className="text-slate-500 shrink-0 w-4 text-right">8.</span>
+                              <span className="text-muted-foreground shrink-0 w-4 text-right">8.</span>
                               <span>Review the details and click <strong className="text-white">Pay</strong> to continue</span>
                             </li>
                           </ol>
@@ -968,8 +968,8 @@ export default function Wallet() {
                                 {TOPUP_BANKS.map((b) => (
                                   <tr key={b.bank}>
                                     <td className="px-3 py-2.5 text-slate-300 text-xs">{b.bank}</td>
-                                    <td className="px-3 py-2.5 text-slate-400 text-xs">{b.name}</td>
-                                    <td className="px-3 py-2.5 text-slate-400 text-xs font-mono">{b.number}</td>
+                                    <td className="px-3 py-2.5 text-muted-foreground text-xs">{b.name}</td>
+                                    <td className="px-3 py-2.5 text-muted-foreground text-xs font-mono">{b.number}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -1019,14 +1019,14 @@ export default function Wallet() {
                             placeholder="e.g. 5000"
                             value={topupAmount}
                             onChange={(e) => setTopupAmount(e.target.value)}
-                            className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-500 focus-visible:ring-blue-500"
+                            className="bg-muted/50 border-slate-600 text-white placeholder:text-muted-foreground focus-visible:ring-blue-500"
                           />
                         </div>
 
                         <div className="space-y-1.5">
                           <Label className="text-blue-400 text-sm font-medium">Top Up to</Label>
                           <Select value={topupToBank} onValueChange={setTopupToBank}>
-                            <SelectTrigger className="bg-slate-800/50 border-slate-600 text-white focus:ring-blue-500">
+                            <SelectTrigger className="bg-muted/50 border-slate-600 text-white focus:ring-blue-500">
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-[#1E293B] border-slate-700 text-white">
@@ -1040,7 +1040,7 @@ export default function Wallet() {
                         <div className="space-y-1.5">
                           <Label className="text-blue-400 text-sm font-medium">Top Up Method</Label>
                           <Select value={topupTransferMethod} onValueChange={setTopupTransferMethod}>
-                            <SelectTrigger className="bg-slate-800/50 border-slate-600 text-white focus:ring-blue-500">
+                            <SelectTrigger className="bg-muted/50 border-slate-600 text-white focus:ring-blue-500">
                               <SelectValue placeholder="Select..." />
                             </SelectTrigger>
                             <SelectContent className="bg-[#1E293B] border-slate-700 text-white">
@@ -1097,27 +1097,27 @@ export default function Wallet() {
                         <p className="text-slate-300 text-sm leading-relaxed">
                           Please complete this bank transfer using the details below. Once done, proceed to upload your receipt.
                         </p>
-                        <div className="rounded-lg border border-slate-600/50 bg-slate-800/40 divide-y divide-slate-600/30 text-sm">
+                        <div className="rounded-lg border border-slate-600/50 bg-muted/40 divide-y divide-slate-600/30 text-sm">
                           <div className="flex items-center justify-between px-4 py-2.5">
-                            <span className="text-slate-400">Amount</span>
+                            <span className="text-muted-foreground">Amount</span>
                             <span className="text-white font-semibold">₱{parseFloat(topupAmount || '0').toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                           </div>
                           <div className="flex items-center justify-between px-4 py-2.5">
-                            <span className="text-slate-400">Bank</span>
+                            <span className="text-muted-foreground">Bank</span>
                             <span className="text-white">{topupToBank}</span>
                           </div>
                           <div className="flex items-center justify-between px-4 py-2.5">
-                            <span className="text-slate-400">Account Name</span>
+                            <span className="text-muted-foreground">Account Name</span>
                             <span className="text-white">{TOPUP_BANKS.find((b) => b.bank === topupToBank)?.name ?? 'PayBot PH'}</span>
                           </div>
                           <div className="flex items-center justify-between px-4 py-2.5">
-                            <span className="text-slate-400">Account Number</span>
+                            <span className="text-muted-foreground">Account Number</span>
                             <span className="text-white font-mono">
                               {TOPUP_BANKS.find((b) => b.bank === topupToBank)?.number ?? '—'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between px-4 py-2.5">
-                            <span className="text-slate-400">Method</span>
+                            <span className="text-muted-foreground">Method</span>
                             <span className="text-white capitalize">{topupTransferMethod.replace('_', ' ')}</span>
                           </div>
                         </div>
@@ -1147,8 +1147,8 @@ export default function Wallet() {
                           Upload your transfer receipt so our team can verify and credit your balance.
                         </p>
                         <div className="space-y-1.5">
-                          <Label className="text-slate-300 text-sm font-medium">Receipt / Screenshot <span className="text-slate-500 font-normal">(required)</span></Label>
-                          <label className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-blue-500/60 bg-slate-800/30 cursor-pointer transition-colors">
+                          <Label className="text-slate-300 text-sm font-medium">Receipt / Screenshot <span className="text-muted-foreground font-normal">(required)</span></Label>
+                          <label className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-blue-500/60 bg-muted/30 cursor-pointer transition-colors">
                             <input
                               type="file"
                               accept="image/*,application/pdf"
@@ -1162,19 +1162,19 @@ export default function Wallet() {
                               </span>
                             ) : (
                               <>
-                                <ArrowDownToLine className="h-6 w-6 text-slate-500" />
-                                <span className="text-slate-400 text-xs text-center">Click to select image or PDF receipt</span>
+                                <ArrowDownToLine className="h-6 w-6 text-muted-foreground" />
+                                <span className="text-muted-foreground text-xs text-center">Click to select image or PDF receipt</span>
                               </>
                             )}
                           </label>
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-slate-300 text-sm font-medium">Reference / Trace Number <span className="text-slate-500 font-normal">(optional)</span></Label>
+                          <Label className="text-slate-300 text-sm font-medium">Reference / Trace Number <span className="text-muted-foreground font-normal">(optional)</span></Label>
                           <Input
                             placeholder="e.g. 123456789"
                             value={topupRefNumber}
                             onChange={(e) => setTopupRefNumber(e.target.value)}
-                            className="bg-slate-800/50 border-slate-600 text-white placeholder:text-slate-500 focus-visible:ring-blue-500"
+                            className="bg-muted/50 border-slate-600 text-white placeholder:text-muted-foreground focus-visible:ring-blue-500"
                           />
                         </div>
                       </div>
@@ -1251,15 +1251,15 @@ export default function Wallet() {
                   <div>
                     <Label className="text-slate-300 text-sm">Recipient Telegram Username</Label>
                     <div className="relative mt-1">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">@</span>
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
                       <Input
                         placeholder="username"
                         value={sendUsdUsername}
                         onChange={e => setSendUsdUsername(e.target.value.replace(/^@/, ''))}
-                        className="pl-7 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                        className="pl-7 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                       />
                     </div>
-                    <p className="text-slate-500 text-xs mt-1">Enter the Telegram username of the recipient (without @)</p>
+                    <p className="text-muted-foreground text-xs mt-1">Enter the Telegram username of the recipient (without @)</p>
                   </div>
                   <div>
                     <Label className="text-slate-300 text-sm">Amount (USD)</Label>
@@ -1270,7 +1270,7 @@ export default function Wallet() {
                       onChange={e => setSendUsdAmount(e.target.value)}
                       min="0.01"
                       step="0.01"
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                     />
                   </div>
                   <div>
@@ -1279,12 +1279,12 @@ export default function Wallet() {
                       placeholder="Payment for..."
                       value={sendUsdNote}
                       onChange={e => setSendUsdNote(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                     />
                   </div>
                 </div>
 
-                <div className="bg-slate-800/50 rounded-lg p-3 text-xs text-slate-400">
+                <div className="bg-muted/50 rounded-lg p-3 text-xs text-muted-foreground">
                   Funds are transferred instantly from your USD wallet to the recipient's USD wallet. The recipient must be a registered user.
                 </div>
 
@@ -1327,7 +1327,7 @@ export default function Wallet() {
                       placeholder="e.g. TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
                       value={sendUsdtAddress}
                       onChange={e => setSendUsdtAddress(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500 font-mono text-sm"
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground font-mono text-sm"
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1340,7 +1340,7 @@ export default function Wallet() {
                         onChange={e => setSendUsdtAmount(e.target.value)}
                         min="0.01"
                         step="0.01"
-                        className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                        className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                       />
                     </div>
                     <div>
@@ -1348,7 +1348,7 @@ export default function Wallet() {
                       <Input
                         value="TRC20 (TRON)"
                         readOnly
-                        className="mt-1 bg-slate-800/40 border-slate-600/40 text-slate-400 cursor-not-allowed"
+                        className="mt-1 bg-muted/40 border-slate-600/40 text-muted-foreground cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -1358,7 +1358,7 @@ export default function Wallet() {
                       placeholder="Purpose of transfer"
                       value={sendUsdtNote}
                       onChange={e => setSendUsdtNote(e.target.value)}
-                      className="mt-1 bg-slate-800 border-slate-600 text-white placeholder:text-slate-500"
+                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
                     />
                   </div>
                 </div>
@@ -1376,13 +1376,13 @@ export default function Wallet() {
                 {/* Send Request History */}
                 {sendUsdtRequests.length > 0 && (
                   <div>
-                    <p className="text-slate-400 text-xs font-medium mb-2 uppercase tracking-wider">Your Send Requests</p>
+                    <p className="text-muted-foreground text-xs font-medium mb-2 uppercase tracking-wider">Your Send Requests</p>
                     <div className="space-y-2">
                       {sendUsdtRequests.slice(0, 5).map(req => (
                         <div key={req.id} className={`rounded-xl border overflow-hidden ${
                           req.status === 'denied' ? 'border-red-500/25' : 'border-slate-700/30'
                         }`}>
-                          <div className="flex items-center justify-between bg-slate-800/40 px-3 py-2.5">
+                          <div className="flex items-center justify-between bg-muted/40 px-3 py-2.5">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-white text-sm font-medium">${req.amount.toFixed(2)} USDT</span>
@@ -1396,7 +1396,7 @@ export default function Wallet() {
                                   {req.status}
                                 </span>
                               </div>
-                              <p className="text-slate-500 text-[10px] font-mono truncate mt-0.5 max-w-[200px]">
+                              <p className="text-muted-foreground text-[10px] font-mono truncate mt-0.5 max-w-[200px]">
                                 → {req.to_address}
                               </p>
                             </div>
@@ -1426,7 +1426,7 @@ export default function Wallet() {
             </Tabs>
           </CardContent>
         </Card>
-        <Card className="bg-[#1E293B] border-slate-700/50">
+        <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <CardTitle className="text-white flex items-center space-x-2 text-base">
               <TrendingUp className="h-5 w-5 text-blue-400" />
@@ -1444,14 +1444,14 @@ export default function Wallet() {
             ) : transactions.length === 0 ? (
               <div className="text-center py-10">
                 <WalletIcon className="h-12 w-12 text-slate-600 mx-auto mb-3" />
-                <p className="text-slate-400">No wallet transactions yet</p>
+                <p className="text-muted-foreground">No wallet transactions yet</p>
               </div>
             ) : (
               <div className="space-y-2">
                 {transactions.map((txn) => {
                   const config = txnTypeConfig[txn.transaction_type] || {
-                    label: txn.transaction_type, color: 'text-slate-400',
-                    icon: <WalletIcon className="h-4 w-4 text-slate-400" />, sign: '',
+                    label: txn.transaction_type, color: 'text-muted-foreground',
+                    icon: <WalletIcon className="h-4 w-4 text-muted-foreground" />, sign: '',
                   };
                   const isCredit = txn.transaction_type === 'top_up' || txn.transaction_type === 'receive' || txn.transaction_type === 'crypto_topup';
                   const isCrypto = txn.transaction_type === 'crypto_topup' || txn.transaction_type === 'usdt_send';
@@ -1461,7 +1461,7 @@ export default function Wallet() {
                     ? <Clock className="h-3 w-3 text-amber-400" />
                     : <XCircle className="h-3 w-3 text-red-400" />;
                   return (
-                    <div key={txn.id} className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors">
+                    <div key={txn.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                       <div className="flex items-center space-x-3 min-w-0">
                         <div className="h-9 w-9 rounded-lg bg-slate-700/50 flex items-center justify-center shrink-0">
                           {config.icon}
@@ -1471,7 +1471,7 @@ export default function Wallet() {
                             <p className="text-sm font-medium text-white">{config.label}</p>
                             {statusIcon}
                           </div>
-                          <p className="text-xs text-slate-500 truncate">
+                          <p className="text-xs text-muted-foreground truncate">
                             {txn.note || txn.recipient || txn.reference_id || `#${txn.id}`}
                           </p>
                         </div>
@@ -1481,7 +1481,7 @@ export default function Wallet() {
                           {config.sign}{isCrypto ? '$' : '₱'}{txn.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                         </p>
                         {txn.balance_after != null && (
-                          <p className="text-[10px] text-slate-500">
+                          <p className="text-[10px] text-muted-foreground">
                             Bal: {isCrypto ? '$' : '₱'}{txn.balance_after.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </p>
                         )}

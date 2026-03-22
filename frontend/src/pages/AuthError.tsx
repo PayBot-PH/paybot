@@ -53,11 +53,11 @@ export default function AuthErrorPage() {
           </h1>
 
           {/* Error description */}
-          <p className="text-base text-slate-400">{errorMessage}</p>
+          <p className="text-base text-muted-foreground">{errorMessage}</p>
 
           {/* Countdown提示 */}
           <div className="pt-2">
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               {countdown > 0 ? (
                 <>
                   Will automatically return to the home page in{' '}

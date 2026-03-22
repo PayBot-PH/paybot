@@ -1,5 +1,7 @@
 # ── Stage 1: Build the React frontend ───────────────────────────────────────
-FROM node:20-alpine AS frontend-builder
+FROM cgr.dev/chainguard/node:latest-dev AS frontend-builder
+
+USER root
 
 WORKDIR /app/frontend
 
@@ -12,21 +14,20 @@ RUN pnpm install --frozen-lockfile
 
 # Copy the rest of the frontend source and build
 COPY frontend/ .
-ARG VITE_TURNSTILE_SITE_KEY
-ENV VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 RUN pnpm build
 
 # ── Stage 2: Python backend ──────────────────────────────────────────────────
-FROM python:3.11-slim
+FROM python:3.11-alpine3.21
 
 WORKDIR /app/backend
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
+RUN apk add --no-cache \
+    build-base \
     postgresql-client \
-    libzbar0 \
-    && rm -rf /var/lib/apt/lists/*
+    zbar \
+    libffi-dev \
+    openssl-dev
 
 # Copy requirements file and install Python dependencies
 COPY backend/requirements.txt ./requirements.txt
@@ -44,6 +45,7 @@ EXPOSE 8000
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
+ENV LOG_LEVEL=info
 
 # Start the server — attempt migrations with a 60s timeout (non-fatal), then start uvicorn
-CMD ["sh", "-c", "timeout 60 alembic upgrade head || echo 'Alembic migration timed out or failed, continuing...' ; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "timeout 60 alembic upgrade head || echo 'Alembic migration timed out or failed, continuing...' ; uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info --no-access-log"]

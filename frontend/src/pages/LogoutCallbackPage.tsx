@@ -29,10 +29,10 @@ const LogoutCallbackPage: React.FC = () => {
         <h2 className="text-2xl font-bold text-white mb-2">
           Logout Successful
         </h2>
-        <p className="text-slate-400 mb-4">
+        <p className="text-muted-foreground mb-4">
           You have been successfully logged out.
         </p>
-        <p className="text-sm text-slate-500">Redirecting to home page...</p>
+        <p className="text-sm text-muted-foreground">Redirecting to home page...</p>
       </div>
     </div>
   );

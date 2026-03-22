@@ -73,7 +73,7 @@ const BADGE_COLORS: Record<string, string> = {
   yellow: 'bg-yellow-500/15 border-yellow-500/25 text-yellow-400',
   indigo: 'bg-indigo-500/15 border-indigo-500/25 text-indigo-400',
   cyan: 'bg-cyan-500/15 border-cyan-500/25 text-cyan-400',
-  slate: 'bg-slate-500/15 border-slate-500/25 text-slate-400',
+  slate: 'bg-slate-500/15 border-slate-500/25 text-muted-foreground',
   teal: 'bg-teal-500/15 border-teal-500/25 text-teal-400',
 };
 
@@ -96,7 +96,7 @@ function PermissionBadge({ active, label, color }: { active: boolean; label: str
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-medium bg-slate-800/40 border-slate-700/30 text-slate-600 line-through">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-medium bg-muted/40 border-slate-700/30 text-slate-600 line-through">
       {label}
     </span>
   );
@@ -185,7 +185,7 @@ export default function RolesPage() {
             </div>
             <div className="min-w-0">
               <h1 className="text-lg font-bold text-white truncate">Role Management</h1>
-              <p className="text-slate-500 text-xs mt-0.5 truncate">
+              <p className="text-muted-foreground text-xs mt-0.5 truncate">
                 {rolesLoading
                   ? 'Loading…'
                   : `${roles.length} role preset${roles.length !== 1 ? 's' : ''} available`}
@@ -197,7 +197,7 @@ export default function RolesPage() {
             variant="ghost"
             size="sm"
             disabled={isLoading}
-            className="text-slate-400 hover:text-white gap-1.5 text-xs shrink-0"
+            className="text-muted-foreground hover:text-white gap-1.5 text-xs shrink-0"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
@@ -229,7 +229,7 @@ export default function RolesPage() {
         {/* Info Banner */}
         <div className="flex items-start gap-2.5 bg-blue-500/8 border border-blue-500/20 rounded-lg px-4 py-3 mb-5">
           <Shield className="h-4 w-4 text-blue-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-slate-400 leading-relaxed">
+          <p className="text-xs text-muted-foreground leading-relaxed">
             Role presets are permission templates fetched from the server. Applying a preset to an admin instantly
             updates all their permissions to match the role. You can still fine-tune individual permissions afterward
             in the Admin Management page.
@@ -240,7 +240,7 @@ export default function RolesPage() {
         {rolesLoading && (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-36 rounded-xl bg-[#1E293B] border border-slate-700/50 animate-pulse" />
+              <div key={i} className="h-36 rounded-xl bg-[#1E293B] border border-border animate-pulse" />
             ))}
           </div>
         )}
@@ -253,7 +253,7 @@ export default function RolesPage() {
               const icon = ROLE_ICONS[role.id] ?? <Shield className="h-4 w-4 text-blue-400" />;
 
               return (
-                <Card key={role.id} className="bg-[#1E293B] border-slate-700/50">
+                <Card key={role.id} className="bg-card border-border">
                   <CardContent className="p-4">
                     {/* Role header */}
                     <div className="flex items-center gap-3 mb-3">
@@ -267,7 +267,7 @@ export default function RolesPage() {
                             PRESET
                           </Badge>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">{role.description}</p>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">{role.description}</p>
                       </div>
                     </div>
 
@@ -291,10 +291,10 @@ export default function RolesPage() {
                     {/* Apply to admin — super admin only */}
                     {isSuperAdmin && (
                       adminsLoading ? (
-                        <div className="h-8 rounded-lg bg-slate-800/40 animate-pulse" />
+                        <div className="h-8 rounded-lg bg-muted/40 animate-pulse" />
                       ) : activeAdmins.length > 0 ? (
                         <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2">
                             Apply to admin
                           </p>
                           <div className="flex flex-wrap gap-2">
@@ -306,12 +306,12 @@ export default function RolesPage() {
                                   key={admin.id}
                                   onClick={() => applyRole(role, admin)}
                                   disabled={!!applying}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/50 text-xs text-slate-300 hover:bg-slate-700/60 hover:text-white transition-all duration-150 disabled:opacity-50"
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-slate-300 hover:bg-muted/60 hover:text-white transition-all duration-150 disabled:opacity-50"
                                 >
                                   {isApplying ? (
                                     <div className="h-3 w-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
                                   ) : (
-                                    <User className="h-3 w-3 text-slate-500" />
+                                    <User className="h-3 w-3 text-muted-foreground" />
                                   )}
                                   {admin.name || admin.telegram_username || `ID: ${admin.telegram_id}`}
                                 </button>

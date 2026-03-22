@@ -55,40 +55,38 @@ def setup_logging():
     if os.environ.get("IS_LAMBDA") == "true":
         return
 
-    # Create the logs directory
-    log_dir = "logs"
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-
-    # Generate log filename with timestamp
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = f"{log_dir}/app_{timestamp}.log"
+    is_production = os.getenv("ENVIRONMENT", "production").lower() not in ("dev", "development", "local")
+    log_level = logging.INFO if is_production else logging.DEBUG
 
     # Configure log format
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
+    handlers: list[logging.Handler] = [logging.StreamHandler()]
+
+    # Only write log files in non-production environments (Railway has ephemeral fs)
+    if not is_production:
+        log_dir = "logs"
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file = f"{log_dir}/app_{timestamp}.log"
+        handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
+
     # Configure the root logger
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=log_level,
         format=log_format,
-        handlers=[
-            # File handler
-            logging.FileHandler(log_file, encoding="utf-8"),
-            # Console handler
-            logging.StreamHandler(),
-        ],
+        handlers=handlers,
     )
 
     # Set log levels for specific modules
-    logging.getLogger("uvicorn").setLevel(logging.DEBUG)
-    logging.getLogger("fastapi").setLevel(logging.DEBUG)
+    logging.getLogger("uvicorn").setLevel(log_level)
+    logging.getLogger("fastapi").setLevel(log_level)
 
     # Log configuration details
     logger = logging.getLogger(__name__)
     logger.info("=== Logging system initialized ===")
-    logger.info(f"Log file: {log_file}")
-    logger.info("Log level: INFO")
-    logger.info(f"Timestamp: {timestamp}")
+    logger.info(f"Log level: {'INFO' if is_production else 'DEBUG'} (environment: {'production' if is_production else 'development'})")
 
 
 @asynccontextmanager
