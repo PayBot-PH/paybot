@@ -67,17 +67,17 @@ const defaultStats: Stats = {
 };
 
 const statusConfig: Record<string, { color: string; dot: string }> = {
-  paid:    { color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', dot: 'bg-emerald-400' },
-  pending: { color: 'bg-amber-500/15 text-amber-400 border-amber-500/25',    dot: 'bg-amber-400' },
-  expired: { color: 'bg-red-500/15 text-red-400 border-red-500/25',          dot: 'bg-red-400' },
+  paid:    { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
+  pending: { color: 'bg-amber-50 text-amber-700 border-amber-200',    dot: 'bg-amber-500' },
+  expired: { color: 'bg-red-50 text-red-700 border-red-200',          dot: 'bg-red-500' },
 };
 
 const typeConfig: Record<string, { icon: React.ReactNode; bg: string }> = {
-  invoice:      { icon: <FileText className="h-3.5 w-3.5 text-blue-400" />,   bg: 'bg-blue-500/10' },
-  qr_code:      { icon: <QrCode className="h-3.5 w-3.5 text-purple-400" />,   bg: 'bg-purple-500/10' },
-  payment_link: { icon: <LinkIcon className="h-3.5 w-3.5 text-cyan-400" />,   bg: 'bg-cyan-500/10' },
-  alipay_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-red-400" />,      bg: 'bg-red-500/10' },
-  wechat_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-green-400" />,    bg: 'bg-green-500/10' },
+  invoice:      { icon: <FileText className="h-3.5 w-3.5 text-blue-600" />,   bg: 'bg-blue-50' },
+  qr_code:      { icon: <QrCode className="h-3.5 w-3.5 text-purple-600" />,   bg: 'bg-purple-50' },
+  payment_link: { icon: <LinkIcon className="h-3.5 w-3.5 text-cyan-600" />,   bg: 'bg-cyan-50' },
+  alipay_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-red-600" />,      bg: 'bg-red-50' },
+  wechat_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-green-600" />,    bg: 'bg-green-50' },
 };
 
 const fmt = (n: number) => n.toLocaleString('en-PH', { minimumFractionDigits: 2 });
@@ -131,20 +131,20 @@ function StatCard({
   loading: boolean;
 }) {
   return (
-    <Card className="bg-[#1E293B] border-slate-700/50 hover:border-slate-600/60 transition-all duration-200">
+    <Card className="bg-card border-border hover:border-border transition-all duration-200">
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <p className="text-xs text-slate-400 mb-1">{label}</p>
+            <p className="text-xs text-muted-foreground mb-1">{label}</p>
             <p className={`text-2xl font-bold ${color} transition-all duration-300`}>
               {loading ? (
-                <span className="inline-block w-10 h-7 bg-slate-700/60 rounded animate-pulse" />
+                <span className="inline-block w-10 h-7 bg-muted/60 rounded animate-pulse" />
               ) : value}
             </p>
             {sub && (
-              <p className="text-[11px] text-slate-500 mt-1 truncate">
+              <p className="text-[11px] text-muted-foreground mt-1 truncate">
                 {loading ? (
-                  <span className="inline-block w-20 h-3 bg-slate-700/40 rounded animate-pulse" />
+                  <span className="inline-block w-20 h-3 bg-muted/40 rounded animate-pulse" />
                 ) : sub}
               </p>
             )}
@@ -230,7 +230,7 @@ export default function Dashboard() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#0B1120] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
       </div>
     );
@@ -257,7 +257,7 @@ export default function Dashboard() {
       ═══════════════════════════════════════════════ */}
       <div className="relative overflow-hidden rounded-2xl mb-6">
         {/* Multi-layer gradient background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0F2547] via-[#1a3a6b] to-[#0c1e40]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#0070FF] via-[#0047CC] to-[#0033AA]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(59,130,246,0.25),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(99,102,241,0.15),transparent_60%)]" />
         {/* Decorative grid */}
@@ -281,7 +281,7 @@ export default function Dashboard() {
                     {greeting.text}{userName ? `, ${userName}` : ''}
                   </h1>
                 </div>
-                <p className="text-slate-400 text-sm max-w-lg leading-relaxed">
+                <p className="text-muted-foreground text-sm max-w-lg leading-relaxed">
                   {APP_DESCRIPTION}
                 </p>
               </div>
@@ -311,13 +311,13 @@ export default function Dashboard() {
                 <p className="text-2xl font-bold text-white">
                   {loading ? <span className="inline-block w-10 h-7 bg-white/10 rounded animate-pulse" /> : stats.total_count}
                 </p>
-                <p className="text-slate-400 text-[11px] mt-0.5">Total Txns</p>
+                <p className="text-blue-100/80 text-[11px] mt-0.5">Total Txns</p>
               </div>
               <div className="text-center px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.10]">
                 <p className="text-2xl font-bold text-emerald-400">
                   {loading ? <span className="inline-block w-10 h-7 bg-white/10 rounded animate-pulse" /> : stats.paid_count}
                 </p>
-                <p className="text-slate-400 text-[11px] mt-0.5">Completed</p>
+                <p className="text-blue-100/80 text-[11px] mt-0.5">Completed</p>
               </div>
               <div className="text-center px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.10]">
                 <p className="text-2xl font-bold text-blue-400">
@@ -326,14 +326,14 @@ export default function Dashboard() {
                     : `₱${fmtShort(stats.paid_amount)}`
                   }
                 </p>
-                <p className="text-slate-400 text-[11px] mt-0.5">Revenue</p>
+                <p className="text-blue-100/80 text-[11px] mt-0.5">Revenue</p>
               </div>
 
               {/* Refresh */}
               <button
                 onClick={() => { setLoading(true); fetchData().finally(() => setLoading(false)); }}
                 disabled={loading}
-                className="h-9 w-9 flex items-center justify-center rounded-xl bg-white/[0.08] border border-white/[0.12] text-slate-400 hover:text-white hover:bg-white/[0.14] transition-all duration-150 disabled:opacity-40"
+                className="h-9 w-9 flex items-center justify-center rounded-xl bg-white/[0.08] border border-white/[0.12] text-muted-foreground hover:text-white hover:bg-white/[0.14] transition-all duration-150 disabled:opacity-40"
                 title="Refresh data"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -349,7 +349,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 xl:grid-cols-6 gap-3 mb-6">
         {/* Wallet Balance */}
         <Link to="/wallet" className="col-span-1 block group">
-          <Card className="h-full bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 border-0 shadow-lg shadow-blue-900/30 hover:shadow-blue-700/40 hover:scale-[1.02] transition-all duration-200 cursor-pointer">
+          <Card className="h-full bg-gradient-to-br from-[#0070FF] via-[#0047CC] to-[#0033AA] border-0 shadow-lg shadow-blue-900/30 hover:shadow-blue-700/40 hover:scale-[1.02] transition-all duration-200 cursor-pointer">
             <CardContent className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-sm font-medium text-blue-200">Wallet Balance</p>
@@ -396,14 +396,14 @@ export default function Dashboard() {
         </Link>
 
         <StatCard label="Total Transactions" value={stats.total_count} sub={`₱${fmt(stats.total_amount || 0)}`}
-          icon={<TrendingUp className="h-5 w-5 text-blue-400" />} color="text-white" loading={loading} />
+          icon={<TrendingUp className="h-5 w-5 text-blue-600" />} color="text-white" loading={loading} />
         <StatCard label="Paid" value={stats.paid_count} sub={`₱${fmt(stats.paid_amount || 0)}`}
-          icon={<CheckCircle className="h-5 w-5 text-emerald-400" />} color="text-emerald-400" loading={loading} />
+          icon={<CheckCircle className="h-5 w-5 text-emerald-600" />} color="text-emerald-600" loading={loading} />
         <StatCard label="Pending" value={stats.pending_count} sub={`₱${fmt(stats.pending_amount || 0)}`}
-          icon={<Clock className="h-5 w-5 text-amber-400" />} color="text-amber-400" loading={loading} />
+          icon={<Clock className="h-5 w-5 text-amber-600" />} color="text-amber-600" loading={loading} />
         <StatCard label="Expired" value={stats.expired_count}
           sub={stats.expired_count > 0 ? `of ${stats.total_count} total` : undefined}
-          icon={<Banknote className="h-5 w-5 text-red-400" />} color="text-red-400" loading={loading} />
+          icon={<Banknote className="h-5 w-5 text-red-600" />} color="text-red-600" loading={loading} />
       </div>
 
       {/* ═══════════════════════════════════════════════
@@ -419,7 +419,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h2 className="text-white font-bold text-sm">USDT Settlement</h2>
-                <p className="text-slate-500 text-[11px]">Daily volume · TRC-20 · Resets at midnight</p>
+                <p className="text-muted-foreground text-[11px]">Daily volume · TRC-20 · Resets at midnight</p>
               </div>
             </div>
             <span className="text-[10px] font-bold bg-teal-500/10 border border-teal-500/25 text-teal-400 px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -429,26 +429,26 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
             <div>
-              <p className="text-[11px] text-slate-500 mb-1">Total Settled</p>
+              <p className="text-[11px] text-muted-foreground mb-1">Total Settled</p>
               <p className="text-2xl font-bold text-teal-400">${fmtUsd(usdtStats.settlement)}</p>
-              <p className="text-[10px] text-slate-600 mt-0.5">USDT TRC-20</p>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">USDT TRC-20</p>
             </div>
             <div>
-              <p className="text-[11px] text-slate-500 mb-1">Transactions</p>
+              <p className="text-[11px] text-muted-foreground mb-1">Transactions</p>
               <p className="text-2xl font-bold text-white">{usdtStats.txnCount}</p>
-              <p className="text-[10px] text-slate-600 mt-0.5">processed today</p>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">processed today</p>
             </div>
             <div>
-              <p className="text-[11px] text-slate-500 mb-1">Avg per Txn</p>
+              <p className="text-[11px] text-muted-foreground mb-1">Avg per Txn</p>
               <p className="text-2xl font-bold text-white">${fmtUsd(usdtStats.settlement / usdtStats.txnCount)}</p>
-              <p className="text-[10px] text-slate-600 mt-0.5">USDT average</p>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">USDT average</p>
             </div>
             <div>
-              <p className="text-[11px] text-slate-500 mb-1">24h Change</p>
+              <p className="text-[11px] text-muted-foreground mb-1">24h Change</p>
               <p className={`text-2xl font-bold ${usdtStats.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                 {usdtStats.change >= 0 ? '+' : ''}{usdtStats.change.toFixed(1)}%
               </p>
-              <p className="text-[10px] text-slate-600 mt-0.5">vs yesterday</p>
+              <p className="text-[10px] text-muted-foreground/70 mt-0.5">vs yesterday</p>
             </div>
           </div>
         </div>
@@ -459,11 +459,11 @@ export default function Dashboard() {
       ═══════════════════════════════════════════════ */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Quick Actions */}
-        <Card className="bg-[#1E293B] border-slate-700/50">
+        <Card className="bg-card border-border">
           <CardHeader className="pb-3 pt-4 px-4">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
-                <Zap className="h-4 w-4 text-blue-400" />
+              <CardTitle className="text-foreground text-sm font-semibold flex items-center gap-2">
+                <Zap className="h-4 w-4 text-primary" />
                 Quick Actions
               </CardTitle>
               {isSuperAdmin && (
@@ -506,7 +506,7 @@ export default function Dashboard() {
 
               {permissions?.can_manage_bot && (
                 <Link to="/bot-settings" className="block">
-                  <button className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border bg-slate-600/10 border-slate-500/20 text-slate-300 hover:bg-slate-600/20 hover:border-slate-500/40 transition-all duration-150 text-left">
+                  <button className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border bg-muted/50 border-border text-foreground/70 hover:bg-muted hover:border-border transition-all duration-150 text-left">
                     <Bot className="h-3.5 w-3.5 shrink-0" />
                     <span className="text-xs font-medium">Bot Settings</span>
                   </button>
@@ -526,10 +526,10 @@ export default function Dashboard() {
         </Card>
 
         {/* Recent Transactions */}
-        <Card className="bg-[#1E293B] border-slate-700/50 lg:col-span-2">
+        <Card className="bg-card border-border lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
-            <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
-              <FileText className="h-4 w-4 text-slate-400" />
+            <CardTitle className="text-foreground text-sm font-semibold flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
               Recent Transactions
             </CardTitle>
             <Link to="/transactions">
@@ -543,23 +543,23 @@ export default function Dashboard() {
             {loading ? (
               <div className="space-y-2">
                 {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-slate-800/40 animate-pulse">
-                    <div className="h-8 w-8 rounded-lg bg-slate-700/60 shrink-0" />
+                  <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/40 animate-pulse">
+                    <div className="h-8 w-8 rounded-lg bg-muted/60 shrink-0" />
                     <div className="flex-1 space-y-1.5">
-                      <div className="h-3 bg-slate-700/60 rounded w-2/3" />
-                      <div className="h-2.5 bg-slate-700/40 rounded w-1/3" />
+                      <div className="h-3 bg-muted/60 rounded w-2/3" />
+                      <div className="h-2.5 bg-muted/40 rounded w-1/3" />
                     </div>
-                    <div className="h-4 w-16 bg-slate-700/60 rounded" />
+                    <div className="h-4 w-16 bg-muted/60 rounded" />
                   </div>
                 ))}
               </div>
             ) : recentTxns.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="h-12 w-12 rounded-2xl bg-slate-700/40 flex items-center justify-center mb-3">
-                  <DollarSign className="h-6 w-6 text-slate-500" />
+                <div className="h-12 w-12 rounded-2xl bg-muted/40 flex items-center justify-center mb-3">
+                  <DollarSign className="h-6 w-6 text-muted-foreground" />
                 </div>
-                <p className="text-slate-400 text-sm font-medium">No transactions yet</p>
-                <p className="text-slate-600 text-xs mt-1 mb-4">Create your first payment to get started</p>
+                <p className="text-muted-foreground text-sm font-medium">No transactions yet</p>
+                <p className="text-muted-foreground text-xs mt-1 mb-4">Create your first payment to get started</p>
                 <Link to="/payments">
                   <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8">
                     <CreditCard className="h-3.5 w-3.5 mr-1.5" />
@@ -571,7 +571,7 @@ export default function Dashboard() {
               <div className="space-y-1.5">
                 {recentTxns.map((txn) => {
                   const sc = statusConfig[txn.status] || statusConfig.pending;
-                  const tc = typeConfig[txn.transaction_type] || { icon: <FileText className="h-3.5 w-3.5 text-slate-400" />, bg: 'bg-slate-500/10' };
+                  const tc = typeConfig[txn.transaction_type] || { icon: <FileText className="h-3.5 w-3.5 text-muted-foreground" />, bg: 'bg-slate-500/10' };
                   const isUpdated = updatedTxnIds.has(txn.id);
                   return (
                     <div
@@ -579,27 +579,27 @@ export default function Dashboard() {
                       className={`flex items-center justify-between p-2.5 rounded-lg transition-all duration-500 ${
                         isUpdated
                           ? 'bg-blue-500/10 ring-1 ring-blue-500/40 scale-[1.01]'
-                          : 'bg-slate-800/50 hover:bg-slate-800/80'
+                          : 'bg-muted/30 hover:bg-muted/60'
                       }`}
                     >
                       <div className="flex items-center space-x-2.5 min-w-0">
-                        <div className={`h-8 w-8 rounded-lg ${tc.bg} flex items-center justify-center shrink-0 border border-slate-600/30`}>
+                        <div className={`h-8 w-8 rounded-lg ${tc.bg} flex items-center justify-center shrink-0 border border-border/50`}>
                           {tc.icon}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-white truncate leading-tight">
+                <p className="text-sm font-medium text-foreground truncate leading-tight">
                             {txn.description || txn.transaction_type.replace(/_/g, ' ')}
                           </p>
-                          <p className="text-xs text-slate-500 truncate mt-0.5">
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
                             {txn.external_id || `#${txn.id}`}
                             {txn.created_at && (
-                              <span className="ml-1.5 text-slate-600">· {formatTxnDate(txn.created_at)}</span>
+                              <span className="ml-1.5 text-muted-foreground/70">· {formatTxnDate(txn.created_at)}</span>
                             )}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 ml-2 shrink-0">
-                        <span className="text-sm font-mono font-semibold text-white">
+                        <span className="text-sm font-mono font-semibold text-foreground">
                           ₱{fmt(txn.amount)}
                         </span>
                         <Badge
@@ -624,35 +624,35 @@ export default function Dashboard() {
           REVENUE BREAKDOWN
       ═══════════════════════════════════════════════ */}
       {!loading && stats.total_amount > 0 && (
-        <div className="mt-4 bg-[#1E293B] border border-slate-700/50 rounded-2xl p-5">
+        <div className="mt-4 bg-card border border-border rounded-2xl p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-white font-semibold text-sm">Revenue Breakdown</h2>
-              <p className="text-slate-500 text-xs mt-0.5">Paid vs Pending vs Expired</p>
+              <h2 className="text-foreground font-semibold text-sm">Revenue Breakdown</h2>
+              <p className="text-muted-foreground text-xs mt-0.5">Paid vs Pending vs Expired</p>
             </div>
             <Link to="/reports" className="flex items-center gap-1 text-blue-400 hover:text-blue-300 text-xs font-medium transition-colors">
               Full report <ArrowRight className="h-3 w-3" />
             </Link>
           </div>
-          <div className="flex rounded-full overflow-hidden h-2.5 mb-4 bg-slate-800">
+          <div className="flex rounded-full overflow-hidden h-2.5 mb-4 bg-muted">
             <div className="bg-emerald-400 transition-all duration-700"
               style={{ width: `${(stats.paid_amount / stats.total_amount) * 100}%` }} />
             <div className="bg-amber-400 transition-all duration-700"
               style={{ width: `${(stats.pending_amount / stats.total_amount) * 100}%` }} />
-            <div className="bg-slate-600 flex-1" />
+            <div className="bg-muted flex-1" />
           </div>
           <div className="grid grid-cols-3 gap-4">
             {[
               { label: 'Paid',    amount: stats.paid_amount,    count: stats.paid_count,    color: 'text-emerald-400', dot: 'bg-emerald-400' },
               { label: 'Pending', amount: stats.pending_amount, count: stats.pending_count, color: 'text-amber-400',   dot: 'bg-amber-400' },
-              { label: 'Expired', amount: 0,                    count: stats.expired_count, color: 'text-slate-500',   dot: 'bg-slate-600' },
+              { label: 'Expired', amount: 0,                    count: stats.expired_count, color: 'text-muted-foreground',   dot: 'bg-slate-400' },
             ].map((r) => (
               <div key={r.label} className="flex items-start gap-2">
                 <span className={`h-2.5 w-2.5 rounded-full ${r.dot} mt-1 shrink-0`} />
                 <div>
-                  <p className="text-xs text-slate-500">{r.label}</p>
+                  <p className="text-xs text-muted-foreground">{r.label}</p>
                   <p className={`text-sm font-semibold ${r.color}`}>{r.count} txns</p>
-                  {r.amount > 0 && <p className="text-xs text-slate-600">₱{fmt(r.amount)}</p>}
+                  {r.amount > 0 && <p className="text-xs text-muted-foreground/70">₱{fmt(r.amount)}</p>}
                 </div>
               </div>
             ))}

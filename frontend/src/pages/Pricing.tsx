@@ -31,11 +31,11 @@ function FAQ({ q, a }: { q: string; a: string }) {
         onClick={() => setOpen(v => !v)}
       >
         <span className="text-white font-medium text-sm pr-4">{q}</span>
-        <ChevronDown className={`h-4 w-4 text-slate-400 shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <div className="px-5 py-4 bg-white/[0.01] border-t border-white/[0.06]">
-          <p className="text-slate-400 text-sm leading-relaxed">{a}</p>
+          <p className="text-muted-foreground text-sm leading-relaxed">{a}</p>
         </div>
       )}
     </div>
@@ -71,10 +71,10 @@ function PlanCard({ plan }: { plan: Plan }) {
           </div>
         )}
         <h3 className="text-xl font-bold text-white mb-1">{plan.name}</h3>
-        <p className="text-slate-400 text-sm mb-5">{plan.desc}</p>
+        <p className="text-muted-foreground text-sm mb-5">{plan.desc}</p>
         <div className="mb-6">
           <span className="text-3xl sm:text-4xl font-extrabold text-white">{plan.price}</span>
-          {plan.period && <span className="text-slate-400 text-sm ml-1">{plan.period}</span>}
+          {plan.period && <span className="text-muted-foreground text-sm ml-1">{plan.period}</span>}
         </div>
         <ul className="space-y-2.5 mb-6">
           {plan.features.map(f => (
@@ -239,9 +239,9 @@ export default function Pricing() {
             <span className="font-bold text-base sm:text-lg text-white tracking-tight">{APP_NAME}</span>
           </Link>
           <nav className="hidden md:flex items-center gap-6">
-            <Link to="/features" className="text-slate-400 hover:text-white text-sm transition-colors">Features</Link>
+            <Link to="/features" className="text-muted-foreground hover:text-white text-sm transition-colors">Features</Link>
             <Link to="/pricing" className="text-white text-sm font-medium">Pricing</Link>
-            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-white text-sm transition-colors">Support</a>
+            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-white text-sm transition-colors">Support</a>
           </nav>
           <Link to="/register" className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 sm:px-5 py-2 rounded-full transition-colors shadow-lg shadow-blue-600/25">
             Get Started <ArrowRight className="h-3.5 w-3.5" />
@@ -265,7 +265,7 @@ export default function Pricing() {
               with your business
             </span>
           </h1>
-          <p className="text-slate-400 text-base sm:text-lg max-w-xl mx-auto mb-6">
+          <p className="text-muted-foreground text-base sm:text-lg max-w-xl mx-auto mb-6">
             No monthly fees. Pay only per transaction at Xendit rates. Unlock Alipay, WeChat Pay, all PH banks, and USDT settlement when you're ready.
           </p>
 
@@ -281,7 +281,7 @@ export default function Pricing() {
             ].map(({ el, name }) => (
               <div key={name} className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full px-3 py-1.5">
                 {el}
-                <span className="text-slate-400 text-xs">{name}</span>
+                <span className="text-muted-foreground text-xs">{name}</span>
               </div>
             ))}
           </div>
@@ -296,7 +296,7 @@ export default function Pricing() {
           </div>
           <div className="text-center sm:text-left">
             <p className="text-amber-300 font-bold text-sm">Opening Account Deposit Required</p>
-            <p className="text-slate-400 text-xs mt-0.5">
+            <p className="text-muted-foreground text-xs mt-0.5">
               A one-time security deposit of <span className="text-white font-semibold">600 USDT</span> or <span className="text-white font-semibold">₱30,000</span> is required to activate a Merchant account. This is applied to your transaction balance — not a fee.
             </p>
           </div>
@@ -309,7 +309,7 @@ export default function Pricing() {
           {PLANS.map(plan => <PlanCard key={plan.name} plan={plan} />)}
         </div>
 
-        <p className="text-center text-slate-500 text-xs mt-6">
+        <p className="text-center text-muted-foreground text-xs mt-6">
           All prices in Philippine Peso (PHP). Xendit transaction fees are exclusive of VAT. Opening deposit (600 USDT or ₱30,000) required for Merchant accounts.
         </p>
       </section>
@@ -317,24 +317,24 @@ export default function Pricing() {
       {/* ── XENDIT FEE SCHEDULE ─────────────────────────────────── */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-16 sm:pb-20">
         <h2 className="text-2xl sm:text-3xl font-bold text-white text-center mb-2">Xendit transaction fees</h2>
-        <p className="text-slate-400 text-sm text-center mb-8 sm:mb-10">Pay only per successful transaction. No monthly fees, no hidden charges. All fees exclusive of VAT.</p>
+        <p className="text-muted-foreground text-sm text-center mb-8 sm:mb-10">Pay only per successful transaction. No monthly fees, no hidden charges. All fees exclusive of VAT.</p>
         <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
           <div className="grid grid-cols-3 bg-white/[0.03] border-b border-white/[0.08]">
-            <div className="px-4 sm:px-6 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider col-span-2">Payment Method</div>
-            <div className="px-4 sm:px-6 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Fee</div>
+            <div className="px-4 sm:px-6 py-3 text-muted-foreground text-xs font-semibold uppercase tracking-wider col-span-2">Payment Method</div>
+            <div className="px-4 sm:px-6 py-3 text-muted-foreground text-xs font-semibold uppercase tracking-wider">Fee</div>
           </div>
           {XENDIT_FEES.map(({ method, fee, note }, i) => (
             <div key={method} className={`grid grid-cols-3 border-b border-white/[0.05] last:border-0 ${i % 2 === 0 ? '' : 'bg-white/[0.01]'}`}>
               <div className="px-4 sm:px-6 py-3 col-span-2">
                 <span className="text-slate-300 text-xs sm:text-sm">{method}</span>
-                {note && <span className="ml-2 text-slate-500 text-xs">{note}</span>}
+                {note && <span className="ml-2 text-muted-foreground text-xs">{note}</span>}
               </div>
               <div className="px-4 sm:px-6 py-3 text-blue-300 font-semibold text-xs sm:text-sm">{fee}</div>
             </div>
           ))}
         </div>
-        <p className="text-slate-500 text-xs mt-4 text-center">
-          Source: <a href="https://www.xendit.co/en-ph/pricing/" target="_blank" rel="noopener noreferrer" className="underline hover:text-slate-400 transition-colors">xendit.co/en-ph/pricing</a>. Rates may change; confirm current rates with Xendit directly.
+        <p className="text-muted-foreground text-xs mt-4 text-center">
+          Source: <a href="https://www.xendit.co/en-ph/pricing/" target="_blank" rel="noopener noreferrer" className="underline hover:text-muted-foreground transition-colors">xendit.co/en-ph/pricing</a>. Rates may change; confirm current rates with Xendit directly.
         </p>
       </section>
 
@@ -344,7 +344,7 @@ export default function Pricing() {
         <div className="rounded-2xl border border-white/[0.08] overflow-hidden">
           {/* Table header */}
           <div className="grid grid-cols-4 bg-white/[0.03] border-b border-white/[0.08]">
-            <div className="px-4 sm:px-6 py-3 text-slate-400 text-xs font-semibold uppercase tracking-wider">Feature</div>
+            <div className="px-4 sm:px-6 py-3 text-muted-foreground text-xs font-semibold uppercase tracking-wider">Feature</div>
             {['Starter', 'Merchant', 'Enterprise'].map((p, i) => (
               <div key={p} className={`px-2 sm:px-4 py-3 text-center text-xs font-bold ${i === 1 ? 'text-blue-400' : i === 2 ? 'text-emerald-400' : 'text-slate-300'}`}>{p}</div>
             ))}
@@ -376,7 +376,7 @@ export default function Pricing() {
               {values.map((v, j) => (
                 <div key={j} className="flex items-center justify-center py-3">
                   {v
-                    ? <CheckCircle2 className={`h-4 w-4 ${j === 0 ? 'text-slate-400' : j === 1 ? 'text-blue-400' : 'text-emerald-400'}`} />
+                    ? <CheckCircle2 className={`h-4 w-4 ${j === 0 ? 'text-muted-foreground' : j === 1 ? 'text-blue-400' : 'text-emerald-400'}`} />
                     : <span className="h-1 w-4 bg-white/[0.08] rounded-full" />
                   }
                 </div>
@@ -412,7 +412,7 @@ export default function Pricing() {
             <div key={title} className={`rounded-2xl border p-5 sm:p-6 ${bg}`}>
               <div className="mb-3">{icon}</div>
               <h3 className="text-white font-bold text-sm mb-2">{title}</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+              <p className="text-muted-foreground text-sm leading-relaxed">{desc}</p>
             </div>
           ))}
         </div>
@@ -437,7 +437,7 @@ export default function Pricing() {
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
               Ready to start accepting payments?
             </h2>
-            <p className="text-slate-400 mb-8 max-w-md mx-auto text-sm sm:text-base">
+            <p className="text-muted-foreground mb-8 max-w-md mx-auto text-sm sm:text-base">
               Create your free account today. No credit card required. Upgrade whenever you need more payment methods.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
