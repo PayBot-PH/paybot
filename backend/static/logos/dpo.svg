@@ -1,16 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 100">
-  <!-- Shield shape -->
+  <defs>
+    <linearGradient id="dpoGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0D47A1"/>
+      <stop offset="100%" stop-color="#062A6E"/>
+    </linearGradient>
+  </defs>
+  <!-- Shield body -->
   <path d="M45 2 L88 18 L88 55 C88 76 68 93 45 98 C22 93 2 76 2 55 L2 18 Z"
-    fill="#0D47A1"/>
+    fill="url(#dpoGrad)"/>
+  <!-- Shield inner border -->
   <path d="M45 8 L82 22 L82 55 C82 73 64 88 45 93 C26 88 8 73 8 55 L8 22 Z"
     fill="none" stroke="#64B5F6" stroke-width="1.5"/>
-  <text x="45" y="36" text-anchor="middle" dominant-baseline="middle"
+  <!-- Privacy check circle -->
+  <circle cx="45" cy="44" r="15" fill="none" stroke="#64B5F6" stroke-width="2.2"/>
+  <!-- Checkmark -->
+  <path d="M36.5 44.5 L42.5 51 L53.5 37.5"
+    stroke="#64B5F6" stroke-width="3.2" fill="none"
+    stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- "DPO" text -->
+  <text x="45" y="73" text-anchor="middle" dominant-baseline="middle"
     font-family="'Arial Black',Arial,sans-serif" font-weight="900"
-    font-size="20" fill="white">DPO</text>
-  <text x="45" y="56" text-anchor="middle" dominant-baseline="middle"
-    font-family="Arial,sans-serif" font-weight="700"
-    font-size="8.5" fill="#90CAF9">REGISTERED</text>
-  <text x="45" y="71" text-anchor="middle" dominant-baseline="middle"
-    font-family="Arial,sans-serif" font-weight="500"
-    font-size="6.5" fill="#BBDEFB" letter-spacing="1">NPC PHILIPPINES</text>
+    font-size="16" fill="white">DPO</text>
+  <!-- "REGISTERED" label -->
+  <text x="45" y="83.5" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial,Helvetica,sans-serif" font-weight="600"
+    font-size="6.5" fill="rgba(180,210,255,0.85)" letter-spacing="1">REGISTERED</text>
+  <!-- "NPC PHILIPPINES" fine print -->
+  <text x="45" y="92" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial,Helvetica,sans-serif" font-weight="400"
+    font-size="5.8" fill="rgba(150,190,255,0.65)" letter-spacing="0.7">NPC PHILIPPINES</text>
 </svg>

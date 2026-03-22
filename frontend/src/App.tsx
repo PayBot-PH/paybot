@@ -87,11 +87,23 @@ function PageFade({ children }: { children: React.ReactNode }) {
 /**
  * Renders the full app shell only after the initial auth check completes.
  * Must be rendered inside BrowserRouter so TopProgressBar / PageFade can call useLocation().
+ * The AppLoadingScreen plays an exit animation before it is unmounted.
  */
 function AuthAwareShell() {
   const { loading } = useAuth();
+  const [showLoader, setShowLoader] = useState(true);
+  const [exitingLoader, setExitingLoader] = useState(false);
 
-  if (loading) return <AppLoadingScreen />;
+  useEffect(() => {
+    if (!loading && showLoader) {
+      // Start the exit animation, then unmount after it completes.
+      setExitingLoader(true);
+      const t = setTimeout(() => setShowLoader(false), 450);
+      return () => clearTimeout(t);
+    }
+  }, [loading, showLoader]);
+
+  if (showLoader) return <AppLoadingScreen exiting={exitingLoader} />;
 
   return (
     <>

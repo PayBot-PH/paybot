@@ -107,41 +107,79 @@
 
 /* ── App loading screen ── */
 @keyframes app-loading-enter {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from { opacity: 0; transform: scale(0.97); }
+  to   { opacity: 1; transform: scale(1); }
 }
 .app-loading-enter {
-  animation: app-loading-enter 0.3s ease-out forwards;
+  animation: app-loading-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes app-loading-exit {
+  0%   { opacity: 1; transform: scale(1);    filter: blur(0px); }
+  100% { opacity: 0; transform: scale(1.04); filter: blur(4px); }
+}
+.app-loading-exit {
+  animation: app-loading-exit 0.42s cubic-bezier(0.4, 0, 1, 1) forwards;
+  pointer-events: none;
 }
 
 /* ── Page transition ── */
 @keyframes page-enter {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(10px) scale(0.997); }
+  to   { opacity: 1; transform: translateY(0)   scale(1);     }
 }
 .page-enter {
-  animation: page-enter 0.25s ease-out forwards;
+  animation: page-enter 0.22s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+/* ── Content appear (for cards / sections) ── */
+@keyframes content-appear {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.content-appear {
+  animation: content-appear 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
+}
+
+/* ── Slide in up ── */
+@keyframes slide-in-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-in-up {
+  animation: slide-in-up 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) both;
 }
 
 /* ── Top progress bar ── */
-@keyframes progress-slide {
-  0%   { transform: translateX(-100%); }
-  60%  { transform: translateX(0%); }
-  100% { transform: translateX(100%); }
+@keyframes progress-run {
+  0%   { transform: translateX(-100%);  opacity: 1; }
+  55%  { transform: translateX(-12%);   opacity: 1; }
+  80%  { transform: translateX(20%);    opacity: 1; }
+  100% { transform: translateX(115%);   opacity: 1; }
+}
+@keyframes progress-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 .progress-bar-track {
   position: fixed;
   top: 0; left: 0; right: 0;
-  height: 2px;
+  height: 3px;
   z-index: 9999;
   overflow: hidden;
   pointer-events: none;
+  background: transparent;
 }
 .progress-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0a64d9, #0a64d9, #2b7fe8);
-  background-size: 200% 100%;
-  animation: progress-slide 0.55s ease-in-out forwards;
+  width: 100%;
+  background: linear-gradient(90deg, #0a53b8 0%, #1d74df 35%, #60aeff 65%, #1d74df 100%);
+  box-shadow: 0 0 8px rgba(29, 116, 223, 0.75), 0 0 20px rgba(29, 116, 223, 0.35);
+  border-radius: 0 2px 2px 0;
+  animation: progress-run 0.65s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+.progress-bar-done {
+  animation: progress-fade-out 0.3s ease-out forwards;
 }
 
 /* ── Enhanced Shimmer skeleton ── */

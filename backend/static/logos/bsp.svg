@@ -1,20 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <defs>
-    <linearGradient id="bspbg" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="bspGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#1B4F9C"/>
-      <stop offset="100%" stop-color="#0D3070"/>
+      <stop offset="100%" stop-color="#0A2A6E"/>
     </linearGradient>
   </defs>
-  <circle cx="50" cy="50" r="50" fill="url(#bspbg)"/>
-  <circle cx="50" cy="50" r="44" fill="none" stroke="#FFD700" stroke-width="2"/>
-  <circle cx="50" cy="50" r="38" fill="none" stroke="#FFD700" stroke-width="0.8"/>
-  <text x="50" y="42" text-anchor="middle" dominant-baseline="middle"
+  <circle cx="50" cy="50" r="50" fill="url(#bspGrad)"/>
+  <!-- Outer gold ring -->
+  <circle cx="50" cy="50" r="46" fill="none" stroke="#FFD700" stroke-width="1.8"/>
+  <!-- Inner gold ring -->
+  <circle cx="50" cy="50" r="40" fill="none" stroke="#FFD700" stroke-width="0.7"/>
+  <!-- Cardinal tick marks on inner ring -->
+  <g stroke="#FFD700" stroke-width="0.9" opacity="0.55">
+    <line x1="50" y1="8"  x2="50" y2="15"/>
+    <line x1="50" y1="85" x2="50" y2="92"/>
+    <line x1="8"  y1="50" x2="15" y2="50"/>
+    <line x1="85" y1="50" x2="92" y2="50"/>
+    <line x1="22" y1="22" x2="27" y2="27"/>
+    <line x1="73" y1="73" x2="78" y2="78"/>
+    <line x1="78" y1="22" x2="73" y2="27"/>
+    <line x1="27" y1="73" x2="22" y2="78"/>
+  </g>
+  <!-- "BSP" large gold text -->
+  <text x="50" y="52" text-anchor="middle" dominant-baseline="middle"
     font-family="'Arial Black',Arial,sans-serif" font-weight="900"
-    font-size="22" fill="#FFD700">BSP</text>
-  <text x="50" y="60" text-anchor="middle" dominant-baseline="middle"
-    font-family="Arial,sans-serif" font-weight="600"
-    font-size="7.5" fill="white" letter-spacing="0.5">BANGKO SENTRAL</text>
-  <text x="50" y="70" text-anchor="middle" dominant-baseline="middle"
-    font-family="Arial,sans-serif" font-weight="600"
-    font-size="7.5" fill="white" letter-spacing="0.5">NG PILIPINAS</text>
+    font-size="24" fill="#FFD700">BSP</text>
+  <!-- Full name -->
+  <text x="50" y="65" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial,Helvetica,sans-serif" font-weight="600"
+    font-size="6.8" fill="rgba(255,255,255,0.88)" letter-spacing="0.4">BANGKO SENTRAL</text>
+  <text x="50" y="74" text-anchor="middle" dominant-baseline="middle"
+    font-family="Arial,Helvetica,sans-serif" font-weight="600"
+    font-size="6.8" fill="rgba(255,255,255,0.88)" letter-spacing="0.4">NG PILIPINAS</text>
 </svg>

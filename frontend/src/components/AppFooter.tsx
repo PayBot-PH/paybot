@@ -3,8 +3,8 @@ import { Bot, MessageCircle, Shield, FileText, ExternalLink } from 'lucide-react
 import { APP_NAME, COMPANY_NAME, SUPPORT_URL, APP_TAGLINE } from '@/lib/brand';
 
 /* ─── Logo helpers ───────────────────────────────── */
-// All logo containers are a fixed square so every pill has the same icon footprint.
-function SiIcon({ src, alt, bg, size = 24 }: { src: string; alt: string; bg: string; size?: number }) {
+// SiIcon: Simple-Icons (monochrome path) inside a branded coloured square.
+function SiIcon({ src, alt, bg, size = 22 }: { src: string; alt: string; bg: string; size?: number }) {
   const r = Math.round(size * 0.28);
   const p = Math.round(size * 0.18);
   return (
@@ -13,28 +13,31 @@ function SiIcon({ src, alt, bg, size = 24 }: { src: string; alt: string; bg: str
     </div>
   );
 }
-function ImgIcon({ src, alt, size = 24 }: { src: string; alt: string; size?: number }) {
-  // Fixed bounding box keeps every logo the same footprint regardless of natural aspect ratio.
+// ImgIcon: Pre-coloured logo rendered at a fixed HEIGHT with auto width so wide
+// wordmarks (GCash 4.25:1, Metrobank 5:1, etc.) display at their natural aspect ratio.
+function ImgIcon({ src, alt, size = 20 }: { src: string; alt: string; size?: number }) {
   return (
-    <div style={{ width: size, height: size, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <img src={src} alt={alt} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', display: 'block' }} />
-    </div>
+    <img src={src} alt={alt} style={{ height: size, width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
   );
 }
 
+// Heights are calibrated so every logo renders at roughly 50-65 px visual width:
+// – square logos (BPI 1.3:1, RCBC 1.26:1) → size 22 → ~28 px wide
+// – medium logos (BDO 2.86:1, Maya 3.44:1) → size 18 → ~52-62 px wide
+// – wide wordmarks (GCash 4.25:1, UB 4.1:1, Metrobank 5:1) → size 12-14 → ~57-63 px wide
 const PAYMENT_BRANDS = [
-  { el: <SiIcon src="/logos/alipay.svg"    alt="Alipay"     bg="#1677FF" size={24} />, name: 'Alipay' },
-  { el: <SiIcon src="/logos/wechat.svg"    alt="WeChat Pay" bg="#07C160" size={24} />, name: 'WeChat Pay' },
-  { el: <ImgIcon src="/logos/gcash.svg"    alt="GCash"      size={24} />,              name: 'GCash' },
-  { el: <ImgIcon src="/logos/maya.svg"     alt="Maya"       size={24} />,              name: 'Maya' },
-  { el: <SiIcon src="/logos/grab.svg"      alt="GrabPay"    bg="#00B14F" size={24} />, name: 'GrabPay' },
-  { el: <ImgIcon src="/logos/bpi.svg"      alt="BPI"        size={24} />,              name: 'BPI' },
-  { el: <ImgIcon src="/logos/bdo.svg"      alt="BDO"        size={24} />,              name: 'BDO' },
-  { el: <ImgIcon src="/logos/unionbank.svg" alt="UnionBank" size={24} />,              name: 'UnionBank' },
-  { el: <ImgIcon src="/logos/metrobank.svg" alt="Metrobank" size={24} />,              name: 'Metrobank' },
-  { el: <ImgIcon src="/logos/rcbc.svg"     alt="RCBC"       size={24} />,              name: 'RCBC' },
-  { el: <ImgIcon src="/logos/psbank.svg"   alt="PSBank"     size={24} />,              name: 'PSBank' },
-  { el: <SiIcon src="/logos/tether.svg"    alt="USDT"       bg="#26A17B" size={24} />, name: 'USDT' },
+  { el: <SiIcon src="/logos/alipay.svg"     alt="Alipay"     bg="#1677FF" size={22} />, name: 'Alipay' },
+  { el: <SiIcon src="/logos/wechat.svg"     alt="WeChat Pay" bg="#07C160" size={22} />, name: 'WeChat Pay' },
+  { el: <ImgIcon src="/logos/gcash.svg"     alt="GCash"      size={14} />,               name: 'GCash' },
+  { el: <ImgIcon src="/logos/maya.svg"      alt="Maya"       size={18} />,               name: 'Maya' },
+  { el: <SiIcon src="/logos/grab.svg"       alt="GrabPay"    bg="#00B14F" size={22} />, name: 'GrabPay' },
+  { el: <ImgIcon src="/logos/bpi.svg"       alt="BPI"        size={22} />,               name: 'BPI' },
+  { el: <ImgIcon src="/logos/bdo.svg"       alt="BDO"        size={18} />,               name: 'BDO' },
+  { el: <ImgIcon src="/logos/unionbank.svg" alt="UnionBank"  size={14} />,               name: 'UnionBank' },
+  { el: <ImgIcon src="/logos/metrobank.svg" alt="Metrobank"  size={12} />,               name: 'Metrobank' },
+  { el: <ImgIcon src="/logos/rcbc.svg"      alt="RCBC"       size={22} />,               name: 'RCBC' },
+  { el: <ImgIcon src="/logos/psbank.svg"    alt="PSBank"     size={18} />,               name: 'PSBank' },
+  { el: <SiIcon src="/logos/tether.svg"     alt="USDT"       bg="#26A17B" size={22} />, name: 'USDT' },
 ];
 
 const NAV_LINKS = [
@@ -54,7 +57,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
   const isAdmin = variant === 'admin';
 
   return (
-    <footer className={`relative overflow-hidden ${isAdmin ? 'border-t border-border bg-[#0B1120]' : 'border-t border-white/[0.06] bg-[#040C18]'}`}>
+    <footer className={`relative overflow-hidden ${isAdmin ? 'border-t border-white/[0.14] bg-[#0B1120]' : 'border-t border-white/[0.15] bg-[#040C18]'}`}>
       {/* Decorative gradient glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -bottom-32 left-1/4 w-96 h-96 bg-blue-700/8 blur-[100px] rounded-full" />
@@ -141,8 +144,8 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
         </div>
 
         {/* ── PAYMENT BRANDS ROW ───────────────────────────────── */}
-        <div className="border-t border-white/[0.08] py-6">
-          <p className="text-slate-600 text-[10px] font-semibold uppercase tracking-widest text-center mb-4">
+        <div className="border-t border-white/[0.15] py-6">
+          <p className="text-slate-500 text-[10px] font-semibold uppercase tracking-widest text-center mb-4">
             Accepted payment networks
           </p>
           <div className="flex flex-wrap items-center justify-center gap-2">
@@ -163,7 +166,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
         </div>
 
         {/* ── BOTTOM BAR: copyright ────────────────────────────── */}
-        <div className="border-t border-white/[0.08] py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="border-t border-white/[0.15] py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-slate-600 text-xs text-center sm:text-left">
             © {new Date().getFullYear()} <span className="text-muted-foreground">{COMPANY_NAME}</span>. All rights reserved.
           </p>

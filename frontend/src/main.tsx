@@ -30,3 +30,14 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </ErrorBoundary>
 );
+
+// Dismiss the pre-React HTML loader once React has painted its first frame.
+const htmlLoader = document.getElementById('html-loader');
+if (htmlLoader) {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      htmlLoader.classList.add('fade-out');
+      setTimeout(() => htmlLoader.remove(), 500);
+    });
+  });
+}
