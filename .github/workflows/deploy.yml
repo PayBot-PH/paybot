@@ -92,11 +92,8 @@ jobs:
             RAILWAY_SERVICE_ID="${{ vars.RAILWAY_SERVICE_ID }}"
           fi
 
-          # Prefer service ID (stable), then service name.
+          # Use service ID selector only (service names are brittle across environments).
           SERVICE_SELECTOR="$RAILWAY_SERVICE_ID"
-          if [ -z "$SERVICE_SELECTOR" ]; then
-            SERVICE_SELECTOR="$RAILWAY_SERVICE"
-          fi
 
           # Last-resort fallback to known PayBot Railway service ID.
           if [ -z "$SERVICE_SELECTOR" ]; then
