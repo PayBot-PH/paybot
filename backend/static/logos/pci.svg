@@ -1,34 +1,38 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 100">
   <defs>
-    <linearGradient id="pciGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#1A237E"/>
-      <stop offset="100%" stop-color="#0D1457"/>
-    </linearGradient>
+    <clipPath id="sc">
+      <path d="M45 2 L87 17 L87 54 C87 75 67 92 45 97 C23 92 3 75 3 54 L3 17 Z"/>
+    </clipPath>
   </defs>
-  <!-- Shield body -->
-  <path d="M45 2 L88 18 L88 55 C88 76 68 93 45 98 C22 93 2 76 2 55 L2 18 Z"
-    fill="url(#pciGrad)"/>
-  <!-- Shield inner border -->
-  <path d="M45 8 L82 22 L82 55 C82 73 64 88 45 93 C26 88 8 73 8 55 L8 22 Z"
-    fill="none" stroke="#E8C84A" stroke-width="1.5"/>
-  <!-- Padlock shackle (arc) -->
-  <path d="M35 44 A10 10 0 0 1 55 44"
-    fill="none" stroke="#E8C84A" stroke-width="3" stroke-linecap="round"/>
-  <!-- Shackle sides -->
-  <rect x="33" y="41" width="3.5" height="8" rx="1.5" fill="#E8C84A"/>
-  <rect x="53.5" y="41" width="3.5" height="8" rx="1.5" fill="#E8C84A"/>
-  <!-- Lock body -->
-  <rect x="31" y="48" width="28" height="19" rx="4" fill="#E8C84A"/>
-  <!-- Keyhole circle -->
-  <circle cx="45" cy="56.5" r="3.5" fill="#1A237E"/>
-  <!-- Keyhole stem -->
-  <rect x="43.3" y="57.5" width="3.4" height="5" rx="1.2" fill="#1A237E"/>
-  <!-- "PCI DSS" text -->
+  <!-- Blue upper half (clipped to shield) -->
+  <rect x="0" y="0" width="90" height="50" fill="#002D86" clip-path="url(#sc)"/>
+  <!-- Red lower half (clipped to shield) -->
+  <rect x="0" y="50" width="90" height="50" fill="#AE1C28" clip-path="url(#sc)"/>
+  <!-- Shield outline (gold) -->
+  <path d="M45 2 L87 17 L87 54 C87 75 67 92 45 97 C23 92 3 75 3 54 L3 17 Z"
+        fill="none" stroke="#D4B228" stroke-width="2"/>
+  <!-- Gold divider between blue and red -->
+  <line x1="5" y1="50" x2="85" y2="50" stroke="#D4B228" stroke-width="1.2" opacity="0.9"/>
+  <!-- "PCI" large white type in blue section -->
+  <text x="45" y="34" text-anchor="middle" dominant-baseline="middle"
+        font-family="'Arial Black',Arial,sans-serif" font-weight="900"
+        font-size="24" fill="white">PCI</text>
+  <!-- Padlock icon bridging the divider -->
+  <!-- Shackle (in blue section) -->
+  <line x1="37" y1="43" x2="37" y2="52" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <line x1="53" y1="43" x2="53" y2="52" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <path d="M37 43 A8 10 0 0 1 53 43" fill="none" stroke="white" stroke-width="3" stroke-linecap="round"/>
+  <!-- Lock body (in red section) -->
+  <rect x="31" y="50" width="28" height="19" rx="4" fill="white"/>
+  <!-- Keyhole -->
+  <circle cx="45" cy="58" r="3.5" fill="#AE1C28"/>
+  <rect x="43.5" y="58.5" width="3" height="4.5" rx="1.5" fill="#AE1C28"/>
+  <!-- "DSS" white in red section -->
   <text x="45" y="80" text-anchor="middle" dominant-baseline="middle"
-    font-family="'Arial Black',Arial,sans-serif" font-weight="900"
-    font-size="12.5" fill="#E8C84A">PCI DSS</text>
-  <!-- "COMPLIANT" label -->
-  <text x="45" y="91" text-anchor="middle" dominant-baseline="middle"
-    font-family="Arial,Helvetica,sans-serif" font-weight="600"
-    font-size="6.5" fill="rgba(255,255,255,0.82)" letter-spacing="1.3">COMPLIANT</text>
+        font-family="'Arial Black',Arial,sans-serif" font-weight="900"
+        font-size="11" fill="white">DSS</text>
+  <!-- "COMPLIANT" tiny white -->
+  <text x="45" y="90" text-anchor="middle"
+        font-family="Arial,Helvetica,sans-serif" font-size="5.5" font-weight="600"
+        fill="rgba(255,255,255,0.72)" letter-spacing="1.1">COMPLIANT</text>
 </svg>

@@ -36,8 +36,9 @@ const htmlLoader = document.getElementById('html-loader');
 if (htmlLoader) {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      htmlLoader.classList.add('fade-out');
-      setTimeout(() => htmlLoader.remove(), 500);
+      htmlLoader.style.transition = 'opacity 0.25s ease';
+      htmlLoader.style.opacity = '0';
+      setTimeout(() => htmlLoader.remove(), 280);
     });
   });
 }

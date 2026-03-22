@@ -28,7 +28,7 @@ export default function TopProgressBar() {
 
   return (
     <div className="progress-bar-track" aria-hidden="true">
-      <div key={key} className={`progress-bar-fill ${phase === 'done' ? 'progress-bar-done' : ''}`} />
+      <div key={key} className={`progress-bar-fill${phase === 'done' ? ' progress-bar-done' : ''}`} />
     </div>
   );
 }
