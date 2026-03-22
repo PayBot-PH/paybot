@@ -129,7 +129,7 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Settings & Admin — System Controls',
     description: 'Manage bot settings, configure messages, and (for Super Admins) handle admin accounts, KYC/KYB verifications, and USDT requests.',
     icon: Settings,
-    iconColor: 'text-slate-400',
+    iconColor: 'text-muted-foreground',
     iconBg: 'bg-slate-500/15 border-slate-500/25',
     route: '/bot-settings',
     routeLabel: 'Go to Bot Settings',
@@ -199,14 +199,14 @@ export default function BotIntro() {
         </Link>
         <Link
           to="/"
-          className="text-slate-400 hover:text-white text-xs font-medium transition-colors"
+          className="text-muted-foreground hover:text-white text-xs font-medium transition-colors"
         >
           Skip tutorial →
         </Link>
       </header>
 
       {/* Progress bar */}
-      <div className="relative z-10 h-1 bg-slate-800">
+      <div className="relative z-10 h-1 bg-muted">
         <div
           className="h-full bg-blue-500 transition-all duration-500"
           style={{ width: `${((step + 1) / total) * 100}%` }}
@@ -231,7 +231,7 @@ export default function BotIntro() {
           </div>
 
           {/* Step counter */}
-          <p className="text-center text-slate-500 text-xs mb-6 font-medium">
+          <p className="text-center text-muted-foreground text-xs mb-6 font-medium">
             Step {step + 1} of {total}
           </p>
 
@@ -251,7 +251,7 @@ export default function BotIntro() {
             {/* Tips */}
             <div className="space-y-2 mb-8">
               {current.tips.map((tip, i) => (
-                <div key={i} className="flex items-start gap-2.5 text-slate-400 text-xs leading-relaxed">
+                <div key={i} className="flex items-start gap-2.5 text-muted-foreground text-xs leading-relaxed">
                   <span className="mt-0.5 h-4 w-4 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center shrink-0 text-blue-400 font-bold" style={{ fontSize: '9px' }}>
                     {i + 1}
                   </span>
@@ -277,7 +277,7 @@ export default function BotIntro() {
             <button
               onClick={handleBack}
               disabled={isFirst}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="h-4 w-4" />
               Back
@@ -296,4 +296,3 @@ export default function BotIntro() {
     </div>
   );
 }
-
