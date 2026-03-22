@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Bot, MessageCircle, Shield, FileText, ExternalLink } from 'lucide-react';
 import { APP_NAME, COMPANY_NAME, SUPPORT_URL, APP_TAGLINE } from '@/lib/brand';
 
-/* ─── Logo helpers ─────────────────────────────────────────────── */
+/* ─── Logo helpers ───────────────────────────────── */
 // All logo containers are a fixed square so every pill has the same icon footprint.
 function SiIcon({ src, alt, bg, size = 24 }: { src: string; alt: string; bg: string; size?: number }) {
   const r = Math.round(size * 0.28);
@@ -63,7 +63,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
 
-        {/* ── TOP ROW: Brand + Nav columns ────────────────────────── */}
+        {/* ── TOP ROW: Brand + Nav columns ────────────────────── */}
         <div className="pt-10 pb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
 
           {/* Brand column */}
@@ -140,8 +140,8 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
           </div>
         </div>
 
-        {/* ── PAYMENT BRANDS ROW ──────────────────────────────────── */}
-        <div className="border-t border-white/[0.05] py-6">
+        {/* ── PAYMENT BRANDS ROW ───────────────────────────────── */}
+        <div className="border-t border-white/[0.08] py-6">
           <p className="text-slate-600 text-[10px] font-semibold uppercase tracking-widest text-center mb-4">
             Accepted payment networks
           </p>
@@ -162,14 +162,14 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
           </div>
         </div>
 
-        {/* ── BOTTOM BAR: copyright ────────────────────────────────── */}
-        <div className="border-t border-white/[0.05] py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+        {/* ── BOTTOM BAR: copyright ────────────────────────────── */}
+        <div className="border-t border-white/[0.08] py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
           <p className="text-slate-600 text-xs text-center sm:text-left">
             © {new Date().getFullYear()} <span className="text-muted-foreground">{COMPANY_NAME}</span>. All rights reserved.
           </p>
           <div className="flex items-center gap-1.5 bg-teal-500/8 border border-teal-500/20 rounded-full px-3 py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-teal-400 animate-pulse shrink-0" />
-            <span className="text-teal-400 text-[11px] font-semibold">USDT T+0 Settlement · Live</span>
+            <span className="text-teal-400 text-[11px] font-semibold">USDT T+0 Settlement &middot; Live</span>
           </div>
         </div>
       </div>

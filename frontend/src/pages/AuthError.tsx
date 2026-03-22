@@ -11,39 +11,27 @@ export default function AuthErrorPage() {
     'Sorry, your authentication information is invalid or has expired';
 
   useEffect(() => {
-    // Countdown logic
     const timer = setInterval(() => {
       setCountdown(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          // Redirect to home page
           window.location.href = '/';
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
-
-    // Clean up timer
     return () => clearInterval(timer);
   }, []);
 
-  const handleReturnHome = () => {
-    window.location.href = '/';
-  };
-
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#0A0F1E] p-6 text-center">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-6 text-center">
       <div className="space-y-6 max-w-md">
         <div className="space-y-4">
-          {/* Error icon */}
           <div className="flex justify-center">
             <div className="relative">
-              <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full"></div>
-              <AlertCircle
-                className="relative h-12 w-12 text-red-500"
-                strokeWidth={1.5}
-              />
+              <div className="absolute inset-0 bg-red-100 blur-xl rounded-full"></div>
+              <AlertCircle className="relative h-12 w-12 text-red-500" strokeWidth={1.5} />
             </div>
           </div>
 
@@ -59,25 +47,14 @@ export default function AuthErrorPage() {
           <div className="pt-2">
             <p className="text-sm text-muted-foreground">
               {countdown > 0 ? (
-                <>
-                  Will automatically return to the home page in{' '}
-                  <span className="text-blue-400 font-semibold text-base">
-                    {countdown}
-                  </span>{' '}
-                  seconds
-                </>
-              ) : (
-                'Redirecting...'
-              )}
+                <>Will automatically return to the home page in{' '}
+                  <span className="text-primary font-semibold text-base">{countdown}</span>{' '}seconds</>
+              ) : ('Redirecting...')}
             </p>
           </div>
         </div>
-
-        {/* Return to home button */}
         <div className="flex justify-center pt-2">
-          <Button onClick={handleReturnHome} className="px-6">
-            Return to Home
-          </Button>
+          <Button onClick={() => window.location.href = '/'} className="px-6">Return to Home</Button>
         </div>
       </div>
     </div>

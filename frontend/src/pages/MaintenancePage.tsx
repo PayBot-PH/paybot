@@ -2,11 +2,11 @@ import { WrenchIcon } from 'lucide-react';
 
 export default function MaintenancePage() {
   return (
-    <div className="min-h-screen bg-[#0A0F1E] flex items-center justify-center px-6">
+    <div className="min-h-screen bg-background flex items-center justify-center px-6">
       <div className="max-w-md w-full text-center">
         <div className="flex justify-center mb-6">
-          <div className="h-20 w-20 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center">
-            <WrenchIcon className="h-10 w-10 text-amber-400" />
+          <div className="h-20 w-20 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-center">
+            <WrenchIcon className="h-10 w-10 text-amber-500" />
           </div>
         </div>
         <h1 className="text-3xl font-bold text-white mb-3">Under Maintenance</h1>

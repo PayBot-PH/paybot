@@ -16,7 +16,7 @@ export default function ComplianceBar() {
           />
           <img
             src="/logos/dpo.svg"
-            alt="DPO Registered – NPC Philippines"
+            alt="DPO Registered \u2013 NPC Philippines"
             className="h-14 w-auto opacity-90 hover:opacity-100 transition-opacity"
           />
         </div>

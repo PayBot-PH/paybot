@@ -306,12 +306,12 @@ export default function Layout({ children, connected }: LayoutProps) {
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
           <aside className="relative z-10 w-64 h-full bg-background border-r border-border flex flex-col">
-            <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0 bg-gradient-to-r from-[#0070FF] to-[#0099FF]">
               <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-2.5">
                 <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 rounded-lg" />
-                <p className="text-sm font-bold">{APP_NAME}</p>
+                <p className="text-sm font-bold text-white">{APP_NAME}</p>
               </Link>
-              <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded text-muted-foreground hover:text-foreground">
+              <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded text-white/80 hover:text-white">
                 <X className="h-4 w-4" />
               </button>
             </div>

@@ -1,28 +1,15 @@
 import React, { useEffect } from 'react';
-import LoadingSpinner from '../components/LoadingSpinner';
 
 const LogoutCallbackPage: React.FC = () => {
   useEffect(() => {
-    // The OIDC provider has logged out the user and redirected here
-    // We can redirect to the home page or show a logout success message
-    setTimeout(() => {
-      window.location.href = '/';
-    }, 2000);
+    setTimeout(() => { window.location.href = '/'; }, 2000);
   }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0A0F1E]">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center">
-        <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-green-500/20 border border-green-500/30 mb-4">
-          <svg
-            className="h-6 w-6 text-green-400"
-            fill="none"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
+        <div className="mx-auto h-12 w-12 flex items-center justify-center rounded-full bg-emerald-50 border border-emerald-200 mb-4">
+          <svg className="h-6 w-6 text-emerald-500" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
             <path d="M5 13l4 4L19 7" />
           </svg>
         </div>

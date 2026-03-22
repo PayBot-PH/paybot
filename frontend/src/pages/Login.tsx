@@ -14,7 +14,7 @@ declare global {
   interface Window { onTelegramAuth?: (user: TelegramWidgetUser) => void; }
 }
 
-/* ─── Logo helpers ─────────────────────────────────────────────── */
+/* ─── Logo helpers ──────────────────────────────────────────────── */
 
 /**
  * Simple Icons SVG (black path) displayed as white icon
@@ -73,7 +73,7 @@ const Logo = {
 };
 
 /* ─── Marquee ─────────────────────────────────────────────────── */
-/* ─── Hero payment card ───────────────────────────────────────── */
+/* ─── Hero payment card ─────────────────────────────────────── */
 function HeroCard({
   icon, name, amount, statusLabel, statusCls,
 }: { icon: React.ReactNode; name: string; amount: string; statusLabel: string; statusCls: string }) {
@@ -184,7 +184,7 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-white text-[#141414] overflow-x-hidden">
 
-      {/* ── HEADER ──────────────────────────────────────────────── */}
+      {/* ── HEADER ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 bg-white border-b border-[#E8EAED] shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
 
@@ -357,7 +357,7 @@ export default function Login() {
         </div>
       </section>
 
-      {/* ── STATS ───────────────────────────────────────────────── */}
+      {/* ── STATS ──────────────────────────────────────────────────── */}
       <section className="py-12 sm:py-16 bg-[#F5F7FA] border-b border-[#E8EAED]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 text-center">
@@ -377,7 +377,7 @@ export default function Login() {
         </div>
       </section>
 
-      {/* ── PAYMENT METHODS ─────────────────────────────────────── */}
+      {/* ── PAYMENT METHODS ────────────────────────────────────────── */}
       <section id="payments" className="py-14 sm:py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10 sm:mb-14">
@@ -517,7 +517,7 @@ export default function Login() {
         </div>
       </section>
 
-      {/* ── USDT SETTLEMENT ─────────────────────────────────────── */}
+      {/* ── USDT SETTLEMENT ────────────────────────────────────────── */}
       <section id="settlement" className="py-14 sm:py-20 relative overflow-hidden bg-[#F5F7FA]">
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid lg:grid-cols-2 gap-10 sm:gap-14 items-center">
@@ -596,7 +596,7 @@ export default function Login() {
         </div>
       </section>
 
-      {/* ── HOW IT WORKS ────────────────────────────────────────── */}
+      {/* ── HOW IT WORKS ────────────────────────────────────────────── */}
       <section className="py-14 sm:py-20 border-t border-[#E8EAED] bg-white">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
           <div className="text-center mb-10 sm:mb-14">
@@ -685,7 +685,7 @@ export default function Login() {
         </div>
       </section>
 
-      {/* ── FOOTER ──────────────────────────────────────────────── */}
+      {/* ── FOOTER ───────────────────────────────────────────────────── */}
       <AppFooter />
 
     </div>
