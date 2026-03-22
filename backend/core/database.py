@@ -140,6 +140,18 @@ class DatabaseManager:
             try:
                 logger.info("Normalizing database URL for async compatibility...")
                 database_url = self._normalize_async_database_url(settings.database_url)
+                try:
+                    parsed = make_url(database_url)
+                    logger.info(
+                        "Database target resolved: driver=%s host=%s port=%s db=%s user=%s",
+                        parsed.drivername,
+                        parsed.host,
+                        parsed.port,
+                        parsed.database,
+                        parsed.username,
+                    )
+                except Exception:
+                    logger.warning("Database target could not be parsed for diagnostics")
 
                 logger.info("Creating async database engine...")
                 # Configure engine based on environment (Lambda vs non-Lambda)
