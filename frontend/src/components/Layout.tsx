@@ -175,8 +175,8 @@ export default function Layout({ children, connected }: LayoutProps) {
                     onClick={() => toggleGroup(group.key)}
                     className={`w-full flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
                       hasActiveChild
-                        ? 'text-[#1677FF] bg-blue-50'
-                        : 'text-gray-600 hover:text-[#1677FF] hover:bg-blue-50'
+                        ? 'text-primary bg-accent'
+                        : 'text-muted-foreground hover:text-primary hover:bg-accent'
                     }`}
                     style={{ width: 'calc(100% - 1rem)' }}
                   >
@@ -202,8 +202,8 @@ export default function Layout({ children, connected }: LayoutProps) {
                             onClick={onNav}
                             className={`flex items-center gap-3 ml-5 mr-2 pl-4 pr-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 border-l-2 ${
                               active
-                                ? 'border-[#1677FF] bg-blue-50 text-[#1677FF]'
-                                : 'border-transparent text-gray-500 hover:text-[#1677FF] hover:bg-blue-50 hover:border-blue-200'
+                                ? 'border-primary bg-accent text-primary'
+                                : 'border-transparent text-muted-foreground hover:text-primary hover:bg-accent hover:border-primary/30'
                             }`}
                           >
                             <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -232,8 +232,8 @@ export default function Layout({ children, connected }: LayoutProps) {
                 onClick={onNav}
                 className={`flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
                   active
-                    ? 'bg-blue-50 text-[#1677FF] font-semibold border-l-2 border-[#1677FF]'
-                    : 'text-gray-600 hover:text-[#1677FF] hover:bg-blue-50'
+                    ? 'bg-accent text-primary font-semibold border-l-2 border-primary'
+                    : 'text-muted-foreground hover:text-primary hover:bg-accent'
                 }`}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
@@ -270,11 +270,11 @@ export default function Layout({ children, connected }: LayoutProps) {
       {/* ─── Desktop Sidebar ─── */}
       <aside className="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 z-40 bg-background border-r border-border">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2.5 px-4 h-14 border-b border-border shrink-0">
+        <Link to="/" className="flex items-center gap-2.5 px-4 h-14 border-b border-border shrink-0 bg-gradient-to-r from-[#0070FF] to-[#0099FF]">
           <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 shrink-0 rounded-lg" />
           <div>
-            <p className="text-sm font-bold leading-tight">{APP_NAME}</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">{APP_SUBTITLE}</p>
+            <p className="text-sm font-bold leading-tight text-white">{APP_NAME}</p>
+            <p className="text-[10px] text-blue-100 leading-tight">{APP_SUBTITLE}</p>
           </div>
         </Link>
 
@@ -282,9 +282,9 @@ export default function Layout({ children, connected }: LayoutProps) {
 
         {/* User */}
         <div className="shrink-0 border-t border-border p-3">
-          <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-blue-50 border border-blue-100">
-            <div className="h-7 w-7 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center shrink-0">
-              {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-400" /> : <User className="h-3.5 w-3.5 text-blue-400" />}
+          <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-[#EBF5FF] border border-[#BFDBFE]">
+            <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+              {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-400" /> : <User className="h-3.5 w-3.5 text-primary" />}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-medium truncate">{userName}</p>
@@ -306,12 +306,12 @@ export default function Layout({ children, connected }: LayoutProps) {
         <div className="md:hidden fixed inset-0 z-50 flex">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
           <aside className="relative z-10 w-64 h-full bg-background border-r border-border flex flex-col">
-            <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0 bg-gradient-to-r from-[#0070FF] to-[#0099FF]">
               <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-2.5">
                 <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 rounded-lg" />
-                <p className="text-sm font-bold">{APP_NAME}</p>
+                <p className="text-sm font-bold text-white">{APP_NAME}</p>
               </Link>
-              <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded text-muted-foreground hover:text-foreground">
+              <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded text-white/80 hover:text-white">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -394,7 +394,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                 className="hidden md:flex items-center gap-2 pl-3 border-l border-border text-muted-foreground hover:text-foreground transition-colors"
               >
                 <div className="h-7 w-7 rounded-full bg-muted border border-border flex items-center justify-center">
-                  {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-400" /> : <User className="h-3.5 w-3.5 text-blue-400" />}
+                  {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-400" /> : <User className="h-3.5 w-3.5 text-primary" />}
                 </div>
                 <span className="text-xs font-medium max-w-[100px] truncate">{userName}</span>
                 <ChevronDown className="h-3.5 w-3.5" />
