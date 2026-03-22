@@ -21,10 +21,10 @@ interface KycVerification {
 }
 
 const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
-  pending_review: { color: 'bg-amber-500/15 text-amber-400 border-amber-500/25', icon: <Clock className="h-3.5 w-3.5" /> },
-  in_progress:    { color: 'bg-blue-500/15 text-blue-400 border-blue-500/25',    icon: <Clock className="h-3.5 w-3.5" /> },
-  approved:       { color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', icon: <CheckCircle className="h-3.5 w-3.5" /> },
-  rejected:       { color: 'bg-red-500/15 text-red-400 border-red-500/25',       icon: <XCircle className="h-3.5 w-3.5" /> },
+  pending_review: { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock className="h-3.5 w-3.5" /> },
+  in_progress:    { color: 'bg-blue-50 text-blue-700 border-blue-200',    icon: <Clock className="h-3.5 w-3.5" /> },
+  approved:       { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  rejected:       { color: 'bg-red-50 text-red-700 border-red-200',       icon: <XCircle className="h-3.5 w-3.5" /> },
 };
 
 const fmt_time = (s: string | null) => s ? new Date(s).toLocaleString() : '—';
@@ -111,11 +111,11 @@ export default function KycVerificationsPage() {
                 <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending_count}</span>
               )}
             </h1>
-            <p className="text-slate-500 text-sm mt-0.5">Review and approve Know Your Customer identity verification submissions</p>
+            <p className="text-muted-foreground text-sm mt-0.5">Review and approve Know Your Customer identity verification submissions</p>
           </div>
           <button
             onClick={fetchVerifications}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
@@ -129,7 +129,7 @@ export default function KycVerificationsPage() {
                 key={value || 'all'}
                 onClick={() => setFilter(value)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                  filter === value ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+                  filter === value ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground hover:text-white'
                 }`}
               >
                 {label}
@@ -158,10 +158,10 @@ export default function KycVerificationsPage() {
           </div>
         ) : verifications.length === 0 ? (
           <div className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-12 flex flex-col items-center text-center">
-            <div className="h-12 w-12 bg-slate-800 rounded-2xl flex items-center justify-center mb-3">
+            <div className="h-12 w-12 bg-muted rounded-2xl flex items-center justify-center mb-3">
               <UserCheck className="h-6 w-6 text-slate-600" />
             </div>
-            <p className="text-slate-400 font-medium">
+            <p className="text-muted-foreground font-medium">
               No {(filters.find(f => f.value === filter)?.label ?? filter).toLowerCase()} verifications
             </p>
           </div>
@@ -187,7 +187,7 @@ export default function KycVerificationsPage() {
                           {sc.icon} {kyc.status.replace('_', ' ')}
                         </span>
                       </div>
-                      <p className="text-slate-400 text-sm mt-0.5">
+                      <p className="text-muted-foreground text-sm mt-0.5">
                         {kyc.telegram_username ? `@${kyc.telegram_username}` : `ID: ${kyc.chat_id}`}
                         {' · '}Verification #{kyc.id}
                         {' · '}{fmt_time(kyc.created_at)}
@@ -219,37 +219,37 @@ export default function KycVerificationsPage() {
                     <div className="px-4 pb-4 border-t border-slate-700/40 pt-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         <div>
-                          <p className="text-slate-500 text-xs mb-0.5">Full Name</p>
+                          <p className="text-muted-foreground text-xs mb-0.5">Full Name</p>
                           <p className="text-white">{kyc.full_name || '—'}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500 text-xs mb-0.5">Date of Birth</p>
+                          <p className="text-muted-foreground text-xs mb-0.5">Date of Birth</p>
                           <p className="text-white">{kyc.date_of_birth || '—'}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500 text-xs mb-0.5">Nationality</p>
+                          <p className="text-muted-foreground text-xs mb-0.5">Nationality</p>
                           <p className="text-white">{kyc.nationality || '—'}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500 text-xs mb-0.5">ID Type</p>
+                          <p className="text-muted-foreground text-xs mb-0.5">ID Type</p>
                           <p className="text-white capitalize">{kyc.id_type ? kyc.id_type.replace('_', ' ') : '—'}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500 text-xs mb-0.5">ID Number</p>
+                          <p className="text-muted-foreground text-xs mb-0.5">ID Number</p>
                           <p className="text-white font-mono text-xs">{kyc.id_number || '—'}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500 text-xs mb-0.5">Telegram Chat ID</p>
+                          <p className="text-muted-foreground text-xs mb-0.5">Telegram Chat ID</p>
                           <p className="text-white font-mono text-xs">{kyc.chat_id}</p>
                         </div>
                         <div>
-                          <p className="text-slate-500 text-xs mb-0.5">ID Photo</p>
+                          <p className="text-muted-foreground text-xs mb-0.5">ID Photo</p>
                           <p className={`text-xs font-medium ${kyc.id_photo_file_id ? 'text-emerald-400' : 'text-amber-400'}`}>
                             {kyc.id_photo_file_id ? '📎 Uploaded' : '⚠️ Not uploaded'}
                           </p>
                         </div>
                         <div>
-                          <p className="text-slate-500 text-xs mb-0.5">Selfie</p>
+                          <p className="text-muted-foreground text-xs mb-0.5">Selfie</p>
                           <p className={`text-xs font-medium ${kyc.selfie_file_id ? 'text-emerald-400' : 'text-amber-400'}`}>
                             {kyc.selfie_file_id ? '📎 Uploaded' : '⚠️ Not uploaded'}
                           </p>
@@ -263,12 +263,12 @@ export default function KycVerificationsPage() {
                     <div className="px-4 pb-4 border-t border-slate-700/40 pt-3">
                       {rejectMode ? (
                         <>
-                          <p className="text-slate-400 text-xs mb-2">Rejection reason:</p>
+                          <p className="text-muted-foreground text-xs mb-2">Rejection reason:</p>
                           <input
                             value={rejectReason}
                             onChange={e => setRejectReason(e.target.value)}
                             placeholder="e.g. Invalid ID photo, blurry selfie, mismatched information"
-                            className="w-full bg-slate-800/60 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 mb-3"
+                            className="w-full bg-muted/60 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 mb-3"
                           />
                           <div className="flex gap-2">
                             <button

@@ -18,9 +18,9 @@ interface BankDepositRequest {
 }
 
 const statusConfig: Record<string, { color: string; dot: string; icon: React.ReactNode }> = {
-  pending:  { color: 'bg-amber-500/15 text-amber-400 border-amber-500/25',       dot: 'bg-amber-400',   icon: <Clock className="h-3.5 w-3.5" /> },
-  approved: { color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25', dot: 'bg-emerald-400', icon: <CheckCircle className="h-3.5 w-3.5" /> },
-  rejected: { color: 'bg-red-500/15 text-red-400 border-red-500/25',             dot: 'bg-red-400',     icon: <XCircle className="h-3.5 w-3.5" /> },
+  pending:  { color: 'bg-amber-50 text-amber-700 border-amber-200',       dot: 'bg-amber-400',   icon: <Clock className="h-3.5 w-3.5" /> },
+  approved: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-400', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  rejected: { color: 'bg-red-50 text-red-700 border-red-200',             dot: 'bg-red-400',     icon: <XCircle className="h-3.5 w-3.5" /> },
 };
 
 const channelEmoji: Record<string, string> = {
@@ -87,10 +87,10 @@ export default function BankDepositsPage() {
                 <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending_count}</span>
               )}
             </h1>
-            <p className="text-slate-500 text-sm mt-0.5">Review and approve PHP bank / e-wallet deposit requests</p>
+            <p className="text-muted-foreground text-sm mt-0.5">Review and approve PHP bank / e-wallet deposit requests</p>
           </div>
           <button onClick={fetchRequests}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0">
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
         </div>
@@ -101,7 +101,7 @@ export default function BankDepositsPage() {
             {['pending', 'approved', 'rejected', ''].map((s) => (
               <button key={s || 'all'} onClick={() => setFilter(s)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                  filter === s ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-400 hover:text-white'
+                  filter === s ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground hover:text-white'
                 }`}>
                 {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
               </button>
@@ -127,10 +127,10 @@ export default function BankDepositsPage() {
           </div>
         ) : requests.length === 0 ? (
           <div className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-12 flex flex-col items-center text-center">
-            <div className="h-12 w-12 bg-slate-800 rounded-2xl flex items-center justify-center mb-3">
+            <div className="h-12 w-12 bg-muted rounded-2xl flex items-center justify-center mb-3">
               <Building2 className="h-6 w-6 text-slate-600" />
             </div>
-            <p className="text-slate-400 font-medium">No {filter || 'bank deposit'} requests</p>
+            <p className="text-muted-foreground font-medium">No {filter || 'bank deposit'} requests</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -154,16 +154,16 @@ export default function BankDepositsPage() {
                           {sc.icon} {req.status}
                         </span>
                       </div>
-                      <p className="text-slate-400 text-sm mt-0.5">
+                      <p className="text-muted-foreground text-sm mt-0.5">
                         <span className="text-blue-400 font-bold">₱{phpFormatted}</span>
                         {' via '}
                         <span className="text-white font-semibold">{req.channel}</span>
                         {' · '}
-                        <span className="text-slate-500 font-mono text-xs">{req.account_number}</span>
+                        <span className="text-muted-foreground font-mono text-xs">{req.account_number}</span>
                         {' · '}Request #{req.id}
                         {' · '}{fmt_time(req.created_at)}
                       </p>
-                      {req.note && <p className="text-slate-500 text-xs mt-1">Note: {req.note}</p>}
+                      {req.note && <p className="text-muted-foreground text-xs mt-1">Note: {req.note}</p>}
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-xs ${req.receipt_file_id ? 'text-emerald-400' : 'text-amber-400'}`}>
                           {req.receipt_file_id ? '📎 Receipt uploaded' : '⚠️ No receipt yet'}
@@ -193,11 +193,11 @@ export default function BankDepositsPage() {
                       <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2 mb-3 text-xs text-blue-300">
                         ✅ Approving will credit <strong>₱{phpFormatted} PHP</strong> to the user's wallet
                       </div>
-                      <p className="text-slate-400 text-xs mb-2">Add a note (optional):</p>
+                      <p className="text-muted-foreground text-xs mb-2">Add a note (optional):</p>
                       <input
                         value={note} onChange={e => setNote(e.target.value)}
                         placeholder="e.g. Receipt verified, transfer confirmed"
-                        className="w-full bg-slate-800/60 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 mb-3"
+                        className="w-full bg-muted/60 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 mb-3"
                       />
                       <div className="flex gap-2">
                         <button onClick={() => doAction(req.id, 'approve')}
