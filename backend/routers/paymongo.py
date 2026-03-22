@@ -274,7 +274,7 @@ async def paymongo_webhook(
       skipped so the wallet is never double-credited.
     * On success events the user's PHP wallet is credited via an immutable
       ledger entry and a real-time SSE event is broadcast.
-    * On failure/cancel events the wallet_topups record is marked failed.
+    * On failure/cancel events the failure is logged.
 
     Configure in PayMongo dashboard:
       URL   : https://<your-domain>/api/v1/paymongo/webhook
@@ -451,7 +451,7 @@ async def _handle_payment_paid(
 async def _handle_payment_failed(
     db: AsyncSession, resource: dict, attrs: dict
 ) -> None:
-    """Log failure events — no wallet_topups to update."""
+    """Log failure events."""
     source_id = resource.get("id", "")
     reference_number = attrs.get("metadata", {}).get("reference_number", "")
     logger.info(
