@@ -108,11 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           ARGS=(up --ci)
-          # RAILWAY_SERVICE is optional — if set, target that specific service;
-          # otherwise Railway CLI auto-detects the single service in the project.
-          if [ -n "${{ secrets.RAILWAY_SERVICE }}" ]; then
-            ARGS+=(--service "${{ secrets.RAILWAY_SERVICE }}")
-          fi
+          ARGS+=(--service "${{ steps.validate.outputs.service_name }}")
           echo "Running: railway ${ARGS[*]}"
           railway "${ARGS[@]}"
         env:
