@@ -63,7 +63,7 @@ def setup_logging():
 
     handlers: list[logging.Handler] = [logging.StreamHandler()]
 
-    # Only write log files in non-production environments (Railway has ephemeral FS)
+    # Only write log files in non-production environments (Railway has ephemeral fs)
     if not is_production:
         log_dir = "logs"
         if not os.path.exists(log_dir):

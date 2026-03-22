@@ -16,15 +16,15 @@ export default function ComplianceBar() {
           />
           <img
             src="/logos/dpo.svg"
-            alt="DPO Registered – NPC Philippines"
+            alt="DPO Registered \u2013 NPC Philippines"
             className="h-14 w-auto opacity-90 hover:opacity-100 transition-opacity"
           />
         </div>
         {/* Regulatory text */}
-        <p className="text-xs text-slate-500 text-center max-w-lg leading-relaxed">
-          <span className="text-slate-400 font-medium">PayBot PH</span> is regulated by the{' '}
-          <span className="text-slate-400 font-medium">Bangko Sentral ng Pilipinas (BSP)</span>.
-          We are PCI&nbsp;DSS compliant and registered with the National Privacy Commission (NPC) as a Data Protection Officer.
+        <p className="text-xs text-muted-foreground text-center max-w-lg leading-relaxed">
+          <span className="text-muted-foreground font-medium">PayBot PH</span> is regulated by the{' '}
+          <span className="text-muted-foreground font-medium">Bangko Sentral ng Pilipinas (BSP)</span>.
+          We are PCI\u00a0DSS compliant and registered with the National Privacy Commission (NPC) as a Data Protection Officer.
         </p>
       </div>
     </div>
