@@ -346,7 +346,7 @@ export default function Layout({ children, connected }: LayoutProps) {
       <div className="flex-1 flex flex-col min-h-0 md:ml-56">
 
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-background border-b border-border shadow-sm shrink-0">
+        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-background/80 backdrop-blur-md border-b border-border/70 shadow-sm shrink-0 transition-colors duration-200">
           <button
             className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             onClick={() => setSidebarOpen(true)}
@@ -413,7 +413,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-44 bg-card border border-border rounded-lg shadow-xl py-1 z-50">
+                <div className="absolute right-0 mt-2 w-44 bg-card/90 backdrop-blur-md border border-border rounded-lg shadow-xl py-1 z-50">
                   <div className="px-3 py-2 border-b border-border">
                     <p className="text-xs font-medium truncate">{userName}</p>
                     <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? t('super_administrator') : t('administrator')}</p>
