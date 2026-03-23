@@ -72,7 +72,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
           {/* Brand column */}
           <div className="lg:col-span-2 space-y-4">
             <Link to="/login" className="inline-flex items-center gap-3">
-              <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0">
+              <div className="h-10 w-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25 shrink-0 animate-logo-entrance hover:animate-logo-bounce">
                 <Bot className="h-5 w-5 text-white" />
               </div>
               <div>
@@ -118,15 +118,15 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
             <p className="text-muted-foreground text-xs font-semibold uppercase tracking-widest mb-4">Compliance</p>
             <ul className="space-y-3">
               <li className="flex items-center gap-2">
-                <img src="/logos/bsp.svg" alt="BSP" className="h-5 w-auto opacity-80" />
+                <img src="/logos/bsp.svg" alt="BSP" className="h-5 w-auto opacity-80 logo-glow-hover" />
                 <span className="text-muted-foreground text-xs">BSP Regulated</span>
               </li>
               <li className="flex items-center gap-2">
-                <img src="/logos/pci.svg" alt="PCI DSS" className="h-5 w-auto opacity-80" />
+                <img src="/logos/pci.svg" alt="PCI DSS" className="h-5 w-auto opacity-80 logo-glow-hover" />
                 <span className="text-muted-foreground text-xs">PCI DSS Compliant</span>
               </li>
               <li className="flex items-center gap-2">
-                <img src="/logos/dpo.svg" alt="DPO / NPC" className="h-5 w-auto opacity-80" />
+                <img src="/logos/dpo.svg" alt="DPO / NPC" className="h-5 w-auto opacity-80 logo-glow-hover" />
                 <span className="text-muted-foreground text-xs">NPC / DPO Registered</span>
               </li>
               <li className="flex items-center gap-2">
@@ -152,7 +152,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
             {PAYMENT_BRANDS.map(({ el, name }) => (
               <div
                 key={name}
-                className="flex items-center gap-1.5 bg-white/[0.03] border border-white/[0.06] rounded-md px-2 py-1 hover:bg-white/[0.06] hover:border-white/[0.10] transition-all"
+                className="flex items-center gap-1.5 bg-white/[0.03] border border-white/[0.06] rounded-md px-2 py-1 logo-box-glow transition-all duration-150"
                 title={name}
               >
                 {el}

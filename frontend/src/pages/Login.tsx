@@ -78,9 +78,11 @@ function HeroCard({
   icon, name, amount, statusLabel, statusCls,
 }: { icon: React.ReactNode; name: string; amount: string; statusLabel: string; statusCls: string }) {
   return (
-    <div className="glass-effect rounded-2xl p-4 card-shadow-lg hover-scale animate-float">
+    <div className="glass-effect rounded-2xl p-4 card-shadow-lg hover-scale animate-float logo-pop">
       <div className="flex items-center gap-3 mb-3">
-        {icon}
+        <div className="animate-logo-entrance">
+          {icon}
+        </div>
         <div>
           <p className="text-[#141414] font-semibold text-sm">{name}</p>
           <p className="text-[#595959] text-xs">Payment Method</p>
@@ -92,6 +94,22 @@ function HeroCard({
       </div>
     </div>
   );
+}
+
+/* ─── Scroll reveal (IntersectionObserver) ──────────────────── */
+function RevealGroup({ children, className = '' }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { el.classList.add('revealed'); obs.disconnect(); } },
+      { threshold: 0.1 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return <div ref={ref} className={`reveal-group ${className}`}>{children}</div>;
 }
 
 /* ═══════════════════════════════════════════════════════════════ */
@@ -114,6 +132,24 @@ function getDailyUsdtStats() {
   const gcash  =   20 + seededRand(seed + 3) * 980;   // $20 – $1,000
   return { total, alipay, wechat, gcash };
 }
+
+/* ─── Marquee logo rows ─────────────────────────────────────── */
+const MARQUEE_ROW_1 = [
+  { el: Logo.Alipay(40),    label: 'Alipay'    },
+  { el: Logo.WeChat(40),    label: 'WeChat'    },
+  { el: Logo.GCash(40),     label: 'GCash'     },
+  { el: Logo.Maya(40),      label: 'Maya'      },
+  { el: Logo.GrabPay(40),   label: 'GrabPay'   },
+  { el: Logo.BPI(40),       label: 'BPI'       },
+];
+const MARQUEE_ROW_2 = [
+  { el: Logo.BDO(40),       label: 'BDO'       },
+  { el: Logo.UnionBank(40), label: 'UnionBank' },
+  { el: Logo.Metrobank(40), label: 'Metrobank' },
+  { el: Logo.RCBC(40),      label: 'RCBC'      },
+  { el: Logo.PSBank(40),    label: 'PSBank'    },
+  { el: Logo.USDT(40),      label: 'USDT'      },
+];
 
 /* ═══════════════════════════════════════════════════════════════ */
 
@@ -190,7 +226,7 @@ export default function Login() {
 
           {/* Brand */}
           <div className="flex items-center gap-2.5">
-            <img src="/logo.svg" alt={APP_NAME} className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-xl" />
+            <img src="/logo.svg" alt={APP_NAME} className="h-8 w-8 sm:h-9 sm:w-9 shrink-0 rounded-xl animate-logo-entrance hover:animate-logo-bounce" />
             <span className="font-bold text-base sm:text-lg text-[#141414] tracking-tight">{APP_NAME}</span>
           </div>
 
@@ -287,7 +323,7 @@ export default function Login() {
                   { img: '/logos/pci.svg', alt: 'PCI DSS Compliant', bg: 'bg-white/10 border-white/20'  },
                   { img: '/logos/dpo.svg', alt: 'NPC / DPO',         bg: 'bg-white/10 border-white/20'  },
                 ].map(({ img, alt, bg }) => (
-                  <div key={alt} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${bg} text-[11px] text-white font-medium`}>
+                  <div key={alt} className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${bg} text-[11px] text-white font-medium logo-glow-hover transition-all`}>
                     <img src={img} alt={alt} className="h-4 w-auto" />
                     {alt}
                   </div>
@@ -329,29 +365,30 @@ export default function Login() {
             </div>
           </div>
 
-          {/* Mobile — logo grid (shown instead of floating cards) */}
+          {/* Mobile — two-row auto-scrolling marquee */}
           <div className="lg:hidden pb-10">
-            <p className="text-center text-white/60 text-xs font-semibold tracking-widest uppercase mb-4">Accepted payments</p>
-            <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
-              {[
-                { el: Logo.Alipay(44),    label: 'Alipay'    },
-                { el: Logo.WeChat(44),    label: 'WeChat'    },
-                { el: Logo.GCash(44),     label: 'GCash'     },
-                { el: Logo.Maya(44),      label: 'Maya'      },
-                { el: Logo.GrabPay(44),   label: 'GrabPay'   },
-                { el: Logo.BPI(44),       label: 'BPI'       },
-                { el: Logo.BDO(44),       label: 'BDO'       },
-                { el: Logo.UnionBank(44), label: 'UnionBank' },
-                { el: Logo.Metrobank(44), label: 'Metrobank' },
-                { el: Logo.RCBC(44),      label: 'RCBC'      },
-                { el: Logo.PSBank(44),    label: 'PSBank'    },
-                { el: Logo.USDT(44),      label: 'USDT'      },
-              ].map(({ el, label }) => (
-                <div key={label} className="flex flex-col items-center gap-1.5">
-                  {el}
-                  <span className="text-white/70 text-[10px] font-medium">{label}</span>
-                </div>
-              ))}
+            <p className="text-center text-white/60 text-xs font-semibold tracking-widest uppercase mb-5">Accepted payments</p>
+            {/* Row 1 — left to right */}
+            <div className="marquee-track mb-3">
+              <div className="animate-marquee-ltr">
+                {[...MARQUEE_ROW_1, ...MARQUEE_ROW_1].map(({ el, label }, i) => (
+                  <div key={`${label}-${i}`} className="flex flex-col items-center gap-1.5 mx-3">
+                    {el}
+                    <span className="text-white/70 text-[10px] font-medium">{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {/* Row 2 — right to left */}
+            <div className="marquee-track">
+              <div className="animate-marquee-rtl">
+                {[...MARQUEE_ROW_2, ...MARQUEE_ROW_2].map(({ el, label }, i) => (
+                  <div key={`${label}-${i}`} className="flex flex-col items-center gap-1.5 mx-3">
+                    {el}
+                    <span className="text-white/70 text-[10px] font-medium">{label}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -360,20 +397,20 @@ export default function Login() {
       {/* ── STATS ──────────────────────────────────────────────────── */}
       <section className="py-12 sm:py-16 bg-[#F5F7FA] border-b border-[#E8EAED]">
         <div className="max-w-5xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 text-center">
+          <RevealGroup className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 text-center">
             {[
               { value: '10+',  label: 'Payment Methods', sub: 'Chinese · PH wallets · Banks' },
               { value: 'T+0',  label: 'Settlement',      sub: 'USDT same-day payout'          },
               { value: '100%', label: 'Telegram Native', sub: 'No app install needed'          },
               { value: 'KYC',  label: 'KYB Verified',    sub: 'Compliance ready'               },
             ].map(({ value, label, sub }) => (
-              <div key={label} className="py-2">
+              <div key={label} className="reveal-item py-2">
                 <p className="text-3xl sm:text-4xl font-extrabold text-[#0070FF] mb-1">{value}</p>
                 <p className="text-[#141414] font-semibold text-xs sm:text-sm mb-0.5">{label}</p>
                 <p className="text-[#595959] text-[11px] sm:text-xs">{sub}</p>
               </div>
             ))}
-          </div>
+          </RevealGroup>
         </div>
       </section>
 
@@ -390,14 +427,16 @@ export default function Login() {
           </div>
 
           {/* Chinese wallets */}
-          <div className="grid sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
+          <RevealGroup className="grid sm:grid-cols-2 gap-4 sm:gap-6 mb-4 sm:mb-6">
 
             {/* Alipay */}
-            <div className="relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden group hover:border-[#0070FF]/40 hover:shadow-md transition-all hover:-translate-y-0.5">
+            <div className="reveal-item relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden group hover:border-[#0070FF]/40 hover:shadow-md transition-all hover:-translate-y-0.5">
               <div className="absolute top-0 right-0 w-40 h-40 bg-[#0070FF]/3 blur-3xl rounded-full" />
               <div className="relative">
                 <div className="flex items-center gap-4 mb-4 sm:mb-5">
-                  {Logo.Alipay(52)}
+                  <div className="animate-logo-entrance logo-pop logo-glow-hover">
+                    {Logo.Alipay(52)}
+                  </div>
                   <div>
                     <h3 className="text-lg sm:text-xl font-bold text-[#141414]">Alipay QR</h3>
                     <p className="text-[#595959] text-xs sm:text-sm">Chinese e-wallet · Cross-border</p>
@@ -417,11 +456,13 @@ export default function Login() {
             </div>
 
             {/* WeChat Pay */}
-            <div className="relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden group hover:border-[#07C160]/40 hover:shadow-md transition-all hover:-translate-y-0.5">
+            <div className="reveal-item relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden group hover:border-[#07C160]/40 hover:shadow-md transition-all hover:-translate-y-0.5">
               <div className="absolute top-0 right-0 w-40 h-40 bg-[#07C160]/3 blur-3xl rounded-full" />
               <div className="relative">
                 <div className="flex items-center gap-4 mb-4 sm:mb-5">
-                  {Logo.WeChat(52)}
+                  <div className="animate-logo-entrance logo-pop logo-glow-hover">
+                    {Logo.WeChat(52)}
+                  </div>
                   <div>
                     <h3 className="text-lg sm:text-xl font-bold text-[#141414]">WeChat Pay</h3>
                     <p className="text-[#595959] text-xs sm:text-sm">Chinese super-app · 900M users</p>
@@ -439,7 +480,7 @@ export default function Login() {
                 </ul>
               </div>
             </div>
-          </div>
+          </RevealGroup>
 
           {/* PH E-Wallets */}
           <div className="relative bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-6 sm:p-8 overflow-hidden hover:shadow-md transition-all mb-4 sm:mb-6">
@@ -448,18 +489,20 @@ export default function Login() {
                 <h3 className="text-lg sm:text-xl font-bold text-[#141414] mb-1">Philippine E-Wallets</h3>
                 <p className="text-[#595959] text-sm">Accept from all major Philippine digital wallets via PayMongo.</p>
               </div>
-              <div className="flex flex-wrap gap-3 sm:gap-4 mb-5 sm:mb-6">
+              <RevealGroup className="flex flex-wrap gap-3 sm:gap-4 mb-5 sm:mb-6">
                 {[
                   { el: Logo.GCash(40),   label: 'GCash'   },
                   { el: Logo.Maya(40),    label: 'Maya'    },
                   { el: Logo.GrabPay(40), label: 'GrabPay' },
                 ].map(({ el, label }) => (
-                  <div key={label} className="flex items-center gap-2.5 bg-[#F5F7FA] border border-[#E8EAED] rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2.5">
-                    {el}
+                  <div key={label} className="reveal-item flex items-center gap-2.5 bg-[#F5F7FA] border border-[#E8EAED] rounded-xl sm:rounded-2xl px-3 sm:px-4 py-2.5 logo-box-glow transition-all cursor-default logo-pop">
+                    <div className="animate-logo-entrance">
+                      {el}
+                    </div>
                     <span className="text-[#141414] text-sm font-semibold">{label}</span>
                   </div>
                 ))}
-              </div>
+              </RevealGroup>
               <ul className="grid sm:grid-cols-2 gap-2">
                 {[
                   'E-wallet checkout via PayMongo',
@@ -482,7 +525,7 @@ export default function Login() {
                 <h3 className="text-lg sm:text-xl font-bold text-[#141414] mb-1">Philippine Banks</h3>
                 <p className="text-[#595959] text-sm">InstaPay &amp; PESONet transfers from all major PH banks — accepted instantly via QR or payment link.</p>
               </div>
-              <div className="flex flex-wrap gap-2.5 sm:gap-3 mb-5 sm:mb-6">
+              <RevealGroup className="flex flex-wrap gap-2.5 sm:gap-3 mb-5 sm:mb-6">
                 {[
                   { el: Logo.BPI(36),       label: 'BPI'       },
                   { el: Logo.BDO(36),       label: 'BDO'       },
@@ -491,15 +534,17 @@ export default function Login() {
                   { el: Logo.RCBC(36),      label: 'RCBC'      },
                   { el: Logo.PSBank(36),    label: 'PSBank'    },
                 ].map(({ el, label }) => (
-                  <div key={label} className="flex items-center gap-2 bg-[#F5F7FA] border border-[#E8EAED] rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-2">
-                    {el}
+                  <div key={label} className="reveal-item flex items-center gap-2 bg-[#F5F7FA] border border-[#E8EAED] rounded-lg sm:rounded-xl px-2.5 sm:px-3 py-2 logo-box-glow transition-all cursor-default logo-pop">
+                    <div className="animate-logo-entrance">
+                      {el}
+                    </div>
                     <span className="text-[#141414] text-xs sm:text-sm font-medium">{label}</span>
                   </div>
                 ))}
-                <div className="flex items-center bg-[#F5F7FA] border border-[#E8EAED] rounded-lg sm:rounded-xl px-3 py-2">
+                <div className="reveal-item flex items-center bg-[#F5F7FA] border border-[#E8EAED] rounded-lg sm:rounded-xl px-3 py-2">
                   <span className="text-[#595959] text-xs sm:text-sm">+100 more banks</span>
                 </div>
-              </div>
+              </RevealGroup>
               <ul className="grid sm:grid-cols-2 gap-2">
                 {[
                   'Instant credit notifications via Telegram',
@@ -526,7 +571,9 @@ export default function Login() {
             <div className="relative lg:order-1">
               <div className="bg-white border border-[#E8EAED] rounded-2xl sm:rounded-3xl p-5 sm:p-8 shadow-sm">
                 <div className="flex items-center gap-3 mb-5 sm:mb-6">
-                  {Logo.USDT(44)}
+                  <div className="animate-logo-entrance logo-pop logo-glow-hover">
+                    {Logo.USDT(44)}
+                  </div>
                   <div>
                     <p className="text-[#141414] font-bold text-base sm:text-lg">USDT Settlement</p>
                     <p className="text-[#595959] text-xs sm:text-sm">Tether • TRC-20 / ERC-20</p>

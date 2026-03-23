@@ -270,9 +270,9 @@ export default function Layout({ children, connected }: LayoutProps) {
       {/* ─── Desktop Sidebar ─── */}
       <aside className="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 z-40 bg-background border-r border-border">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2.5 px-4 h-14 border-b border-border shrink-0 bg-gradient-to-r from-[#0070FF] to-[#0099FF]">
-          <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 shrink-0 rounded-lg" />
-          <div>
+        <Link to="/" className="flex items-center gap-2.5 px-4 h-14 border-b border-border shrink-0 bg-gradient-to-r from-[#0070FF] to-[#0099FF] group hover:shadow-lg transition-all duration-300">
+          <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 shrink-0 rounded-lg animate-logo-entrance group-hover:animate-logo-bounce group-hover:drop-shadow-lg" />
+          <div className="group-hover:translate-y-0.5 transition-transform duration-300">
             <p className="text-sm font-bold leading-tight text-white">{APP_NAME}</p>
             <p className="text-[10px] text-blue-100 leading-tight">{APP_SUBTITLE}</p>
           </div>
@@ -307,9 +307,9 @@ export default function Layout({ children, connected }: LayoutProps) {
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
           <aside className="relative z-10 w-64 h-full bg-background border-r border-border flex flex-col">
             <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0 bg-gradient-to-r from-[#0070FF] to-[#0099FF]">
-              <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-2.5">
-                <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 rounded-lg" />
-                <p className="text-sm font-bold text-white">{APP_NAME}</p>
+              <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-2.5 group hover:opacity-90 transition-opacity">
+                <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 rounded-lg animate-logo-entrance group-hover:scale-110 transition-transform duration-300" />
+                <p className="text-sm font-bold text-white group-hover:translate-x-1 transition-transform duration-300">{APP_NAME}</p>
               </Link>
               <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded text-white/80 hover:text-white">
                 <X className="h-4 w-4" />
@@ -342,9 +342,9 @@ export default function Layout({ children, connected }: LayoutProps) {
           </button>
 
           {/* Page title from path */}
-          <div className="md:hidden flex items-center gap-2">
-            <img src="/logo.svg" alt={APP_NAME} className="h-6 w-6 rounded" />
-            <span className="text-sm font-bold">{APP_NAME}</span>
+          <div className="md:hidden flex items-center gap-2 group hover:bg-muted px-2 py-1 rounded-md transition-all duration-200 cursor-pointer">
+            <img src="/logo.svg" alt={APP_NAME} className="h-6 w-6 rounded animate-logo-entrance group-hover:animate-pulse-brand" />
+            <span className="text-sm font-bold group-hover:text-primary transition-colors">{APP_NAME}</span>
           </div>
 
           <div className="flex-1" />

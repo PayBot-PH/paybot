@@ -279,7 +279,7 @@ export default function Pricing() {
               { el: <SiIcon src="/logos/grab.svg" alt="GrabPay" bg="#00B14F" size={26} />, name: 'GrabPay' },
               { el: <SiIcon src="/logos/tether.svg" alt="USDT" bg="#26A17B" size={26} />, name: 'USDT' },
             ].map(({ el, name }) => (
-              <div key={name} className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full px-3 py-1.5">
+              <div key={name} className="flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.08] rounded-full px-3 py-1.5 logo-box-glow transition-all duration-150 cursor-default">
                 {el}
                 <span className="text-muted-foreground text-xs">{name}</span>
               </div>
@@ -431,7 +431,7 @@ export default function Pricing() {
         <div className="relative overflow-hidden bg-gradient-to-br from-blue-900/50 via-[#0A1628] to-emerald-900/20 border border-blue-700/25 rounded-3xl p-8 sm:p-12 text-center">
           <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none" />
           <div className="relative">
-            <div className="h-12 w-12 sm:h-14 sm:w-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-xl shadow-blue-600/30">
+            <div className="h-12 w-12 sm:h-14 sm:w-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-xl shadow-blue-600/30 logo-glow-hover transition-all">
               <Bot className="h-6 w-6 sm:h-7 sm:w-7 text-white" />
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">
