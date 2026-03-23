@@ -123,7 +123,7 @@ export default function BotMessagesPage() {
           </button>
         </div>
 
-        <div className="flex gap-4 h-[calc(100vh-180px)] min-h-[500px]">
+        <div className="flex gap-4 h-[calc(100svh-180px)] min-h-[400px]">
           {/* Conversation list */}
           <div className={`${mobilePane === 'list' ? 'flex' : 'hidden'} md:flex w-full md:w-72 bg-[#0F172A] border border-slate-700/40 rounded-2xl flex-col overflow-hidden md:shrink-0`}>
             <div className="p-3 border-b border-slate-700/40">

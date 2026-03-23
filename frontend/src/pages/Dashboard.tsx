@@ -346,7 +346,7 @@ export default function Dashboard() {
       {/* ═══════════════════════════════════════════════
           WALLET CARDS + STAT CARDS ROW
       ═══════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 xl:grid-cols-6 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-6">
         {/* Wallet Balance */}
         <Link to="/wallet" className="col-span-1 block group">
           <Card className="h-full bg-gradient-to-br from-[#0070FF] via-[#0047CC] to-[#0033AA] border-0 shadow-lg shadow-blue-900/30 hover:shadow-blue-700/40 hover:scale-[1.02] transition-all duration-200 cursor-pointer">
@@ -474,7 +474,7 @@ export default function Dashboard() {
             </div>
           </CardHeader>
           <CardContent className="px-3 pb-4">
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 gap-2">
               {[
                 { to: '/payments',      icon: CreditCard,   label: 'Payments Hub',  color: 'blue' },
                 { to: '/disbursements', icon: Send,          label: 'Disbursements', color: 'emerald' },
@@ -641,7 +641,7 @@ export default function Dashboard() {
               style={{ width: `${(stats.pending_amount / stats.total_amount) * 100}%` }} />
             <div className="bg-muted flex-1" />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: 'Paid',    amount: stats.paid_amount,    count: stats.paid_count,    color: 'text-emerald-400', dot: 'bg-emerald-400' },
               { label: 'Pending', amount: stats.pending_amount, count: stats.pending_count, color: 'text-amber-400',   dot: 'bg-amber-400' },

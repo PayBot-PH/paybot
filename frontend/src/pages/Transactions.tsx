@@ -231,14 +231,14 @@ export default function Transactions() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border">
-                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Type</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">ID</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3 hidden md:table-cell">Description</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3 hidden md:table-cell">Customer</th>
-                      <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Amount</th>
-                      <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Status</th>
-                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden lg:table-cell">Date</th>
-                      <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-3">Actions</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-6 py-3">Type</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-6 py-3">ID</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-6 py-3 hidden md:table-cell">Description</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-6 py-3 hidden md:table-cell">Customer</th>
+                      <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-6 py-3">Amount</th>
+                      <th className="text-center text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-6 py-3">Status</th>
+                      <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-4 py-3 hidden lg:table-cell">Date</th>
+                      <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-6 py-3">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -254,13 +254,13 @@ export default function Transactions() {
                               : 'hover:bg-muted/50'
                           }`}
                         >
-                          <td className="px-6 py-4">
+                          <td className="px-3 md:px-6 py-3 md:py-4">
                             <div className="flex items-center space-x-2">
                               {typeIcons[txn.transaction_type] || <FileText className="h-4 w-4 text-muted-foreground" />}
                               <span className="text-sm text-slate-300">{typeLabels[txn.transaction_type] || txn.transaction_type}</span>
                             </div>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-3 md:px-6 py-3 md:py-4">
                             <div className="flex items-center space-x-1">
                               <code className="text-xs text-muted-foreground font-mono">{txn.external_id || `#${txn.id}`}</code>
                               {txn.external_id && (
@@ -270,10 +270,10 @@ export default function Transactions() {
                               )}
                             </div>
                           </td>
-                          <td className="px-6 py-4 hidden md:table-cell">
+                          <td className="px-3 md:px-6 py-3 md:py-4 hidden md:table-cell">
                             <span className="text-sm text-white">{txn.description || '-'}</span>
                           </td>
-                          <td className="px-6 py-4 hidden md:table-cell">
+                          <td className="px-3 md:px-6 py-3 md:py-4 hidden md:table-cell">
                             <div>
                               <span className="text-sm text-white">{txn.customer_name || '-'}</span>
                               {txn.customer_email && (
@@ -281,12 +281,12 @@ export default function Transactions() {
                               )}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-3 md:px-6 py-3 md:py-4 text-right">
                             <span className="text-sm font-mono font-medium text-white">
                               ₱{txn.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-center">
+                          <td className="px-3 md:px-6 py-3 md:py-4 text-center">
                             <Badge
                               className={`${sc.color} border text-xs transition-all duration-500 ${
                                 isUpdated ? 'animate-pulse ring-2 ring-current scale-110' : ''
@@ -296,7 +296,7 @@ export default function Transactions() {
                               <span className="ml-1">{txn.status}</span>
                             </Badge>
                           </td>
-                          <td className="px-4 py-4 hidden lg:table-cell">
+                          <td className="px-3 md:px-4 py-3 md:py-4 hidden lg:table-cell">
                             <div className="text-xs text-muted-foreground">
                               {new Date(txn.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </div>
@@ -304,7 +304,7 @@ export default function Transactions() {
                               {new Date(txn.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-right">
+                          <td className="px-3 md:px-6 py-3 md:py-4 text-right">
                             <div className="flex items-center justify-end space-x-1">
                               {txn.payment_url && (
                                 <a href={txn.payment_url} target="_blank" rel="noopener noreferrer">

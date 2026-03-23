@@ -158,7 +158,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
                 title={name}
               >
                 {el}
-                <span className="text-muted-foreground text-[10px] font-medium whitespace-nowrap">{name}</span>
+                <span className="text-muted-foreground text-[11px] font-medium">{name}</span>
               </div>
             ))}
             <div className="flex items-center gap-1.5 bg-white/[0.02] border border-white/[0.05] rounded-md px-2 py-1">
