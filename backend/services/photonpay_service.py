@@ -66,15 +66,11 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# Default URLs per environment
-_PHOTONPAY_PRODUCTION_BASE_URL = "https://x-api.photonpay.com"
-_PHOTONPAY_SANDBOX_BASE_URL = "https://x-api1.uat.photontech.cc"
-_PHOTONPAY_PRODUCTION_CASHIER_URL = "https://cashier.photonpay.com"
-_PHOTONPAY_SANDBOX_CASHIER_URL = "https://cashier1.uat.photontech.cc"
-
-# Module-level aliases kept for backward compatibility
-PHOTONPAY_BASE_URL = _PHOTONPAY_PRODUCTION_BASE_URL
-PHOTONPAY_CASHIER_URL = _PHOTONPAY_PRODUCTION_CASHIER_URL
+PHOTONPAY_PRODUCTION_URL = "https://x-api.photonpay.com"
+PHOTONPAY_SANDBOX_URL = "https://x-api1.uat.photontech.cc"
+# Kept for backward compatibility; service instances use self._base_url instead.
+PHOTONPAY_BASE_URL = PHOTONPAY_PRODUCTION_URL
+PHOTONPAY_CASHIER_URL = "https://cashier.photonpay.com"
 
 
 class PhotonPayService:
@@ -92,6 +88,16 @@ class PhotonPayService:
         base_url_override = os.environ.get("PHOTONPAY_BASE_URL", "").strip()
         cashier_url_override = os.environ.get("PHOTONPAY_CASHIER_URL", "").strip()
 
+        # Determine base URL from PHOTONPAY_BASE_URL override or PHOTONPAY_MODE
+        _base_url_override = os.environ.get("PHOTONPAY_BASE_URL", "").strip()
+        _mode = os.environ.get("PHOTONPAY_MODE", "production").strip().lower()
+        if _base_url_override:
+            self._base_url = _base_url_override.rstrip("/")
+        elif _mode == "sandbox":
+            self._base_url = PHOTONPAY_SANDBOX_URL
+        else:
+            self._base_url = PHOTONPAY_PRODUCTION_URL
+
         # Try settings fallback
         if not self.app_id:
             try:
@@ -103,12 +109,18 @@ class PhotonPayService:
                 self.site_id = getattr(settings, "photonpay_site_id", "")
                 self.alipay_method = getattr(settings, "photonpay_alipay_method", self.alipay_method)
                 self.wechat_method = getattr(settings, "photonpay_wechat_method", self.wechat_method)
-                if not mode or mode == "production":
-                    mode = getattr(settings, "photonpay_mode", mode).lower().strip()
-                if not base_url_override:
-                    base_url_override = getattr(settings, "photonpay_base_url", "").strip()
-                if not cashier_url_override:
-                    cashier_url_override = getattr(settings, "photonpay_cashier_url", "").strip()
+
+                # Apply settings-based URL only if env var overrides are absent
+                if not _base_url_override:
+                    settings_base_url = getattr(settings, "photonpay_base_url", "").strip()
+                    if settings_base_url:
+                        self._base_url = settings_base_url.rstrip("/")
+                    else:
+                        settings_mode = getattr(settings, "photonpay_mode", "production").strip().lower()
+                        if settings_mode == "sandbox":
+                            self._base_url = PHOTONPAY_SANDBOX_URL
+                        else:
+                            self._base_url = PHOTONPAY_PRODUCTION_URL
             except Exception:
                 pass
 
@@ -232,7 +244,7 @@ class PhotonPayService:
         if self._access_token and time.time() < self._token_expires_at - 60:
             return self._access_token
 
-        token_url = f"{self.base_url}/oauth2/token/accessToken"
+        token_url = f"{self._base_url}/oauth2/token/accessToken"
         async with httpx.AsyncClient() as client:
             # PhotonPay OAuth2 client_credentials flow.
             # The Authorization header uses colon-separated appId:appSecret (base64, RFC 7617).
@@ -249,7 +261,7 @@ class PhotonPayService:
             if not r.is_success:
                 raise ValueError(
                     f"PhotonPay token endpoint rejected the request — "
-                    f"verify PHOTONPAY_APP_ID, PHOTONPAY_APP_SECRET, and PHOTONPAY_MODE "
+                    f"verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET "
                     f"(endpoint: {token_url}, "
                     f"status: {r.status_code}, response: {r.text})"
                 )
@@ -264,18 +276,21 @@ class PhotonPayService:
 
             logger.info("PhotonPay token response: %s", self._compact_json(data, limit=1000))
 
-            # Detect the "invalid credentials" response that PhotonPay returns when
-            # the App ID / App Secret are wrong or the mode (sandbox vs production)
-            # does not match the credentials.  This response has exactly the keys
-            # "path" and "method" and nothing else useful.
-            response_keys = set(data.keys())
-            if response_keys <= {"path", "method"} and "path" in data:
+            # Detect the {"path":"…","method":"…"} echo — PhotonPay returns this
+            # when credentials are rejected (wrong App ID / App Secret).
+            # The response contains exactly path and method (and optionally a
+            # timestamp field), so at most 3 keys.
+            if (
+                isinstance(data, dict)
+                and "path" in data
+                and "method" in data
+                and len(data) <= 3  # only path / method / optional timestamp
+            ):
                 raise ValueError(
-                    "PhotonPay authentication failed — the API returned an invalid-credentials "
-                    "response. Verify that PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET are "
-                    "correct and that PHOTONPAY_MODE matches the environment your credentials "
-                    f"belong to (current base URL: {self.base_url}). "
-                    f"Full response: {self._compact_json(data)}"
+                    "PhotonPay authentication failed — the token endpoint returned a "
+                    "routing/credential error response. "
+                    "Verify that PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET are correct "
+                    f"(endpoint: {token_url}, response: {self._compact_json(data)})"
                 )
 
             # Fail fast if the API returned an error code in the body
