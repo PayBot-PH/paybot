@@ -369,19 +369,29 @@ async def telegram_login_diagnostic():
     admin_ids = str(getattr(settings, "telegram_admin_ids", "") or "")
     jwt_secret = str(getattr(settings, "jwt_secret_key", "") or "")
 
+    # Show partial token for verification (first 10 chars and last 10)
+    if bot_token:
+        token_preview = f"{bot_token[:10]}...{bot_token[-10:]}"
+    else:
+        token_preview = "MISSING"
+
     return {
         "status": "ok" if bot_token and jwt_secret else "misconfigured",
         "telegram_bot_token": "SET ✓" if bot_token else "MISSING ✗",
+        "telegram_bot_token_preview": token_preview,
         "telegram_bot_username": "SET ✓" if bot_username else "EMPTY (will fetch from Telegram API)",
+        "telegram_bot_username_value": bot_username if bot_username else "N/A",
         "telegram_admin_ids": "SET ✓" if admin_ids else "EMPTY (no admins configured)",
         "jwt_secret_key": "SET ✓" if jwt_secret else "GENERATED TEMPORARILY",
         "server_time": int(time.time()),
-        "next_steps": [
-            "If telegram_bot_token is MISSING: Add TELEGRAM_BOT_TOKEN env var to Railway",
-            "If jwt_secret_key is GENERATED: Set JWT_SECRET_KEY env var for persistent auth",
-            "If admin_ids is EMPTY: After first login, user will be auto-registered as admin",
-        ] if not bot_token or not jwt_secret else ["All systems configured correctly"],
+        "troubleshooting": {
+            "hash_mismatch": "If getting 'Invalid payload': Token on Railway doesn't match @BotFather token. Verify token_preview matches your @BotFather /token output.",
+            "verify_token": "Go to @BotFather → /mybots → Select bot → 'API Token' and compare with token_preview above",
+            "reset_token": "If token doesn't match: @BotFather → /mybots → Select bot → 'API Token' → regenerate → copy to Railway Variables",
+            "clear_cache": "After updating token: Clear browser storage (Ctrl+Shift+Delete) and reload frontend"
+        }
     }
+
 
 
 
