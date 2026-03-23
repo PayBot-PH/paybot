@@ -284,20 +284,46 @@ class PhotonPayService:
 
             logger.info("PhotonPay token response: %s", self._compact_json(data, limit=1000))
 
-            # Detect the {"path":"…","method":"…"} echo — PhotonPay returns this
-            # when credentials are rejected (wrong App ID / App Secret).
-            # The response contains exactly path and method (and optionally a
-            # timestamp field), so at most 3 keys.
+            # Detect routing / IP-parse error responses from PhotonPay.
+            # PhotonPay echoes "path" and "method" back in the response body
+            # when it cannot process the request.  This occurs in two formats:
+            #
+            #   Old format (credential error):
+            #     {"path": "/token/accessToken", "method": "POST"}
+            #     (optionally with a "timestamp" field — at most 3 keys)
+            #
+            #   New format (IP-parse / routing error, e.g. Railway CGNAT):
+            #     {"code": "XXA00001",
+            #      "msg": "Failed to parse address100.64.0.6:51376",
+            #      "path": "/token/accessToken",
+            #      "method": "POST"}
+            #
+            # The new format arises when Railway's internal CGNAT proxy
+            # (100.64.x.x) injects an IP:port value that PhotonPay cannot
+            # parse as a plain IP address.  Both formats share the "path" and
+            # "method" echo pattern, so we detect them together.
+            # We guard against false positives by requiring "path" to look like
+            # a URL path and "method" to be a valid HTTP verb, and by excluding
+            # responses that carry actual token data.
+            _VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
             if (
                 isinstance(data, dict)
-                and "path" in data
-                and "method" in data
-                and len(data) <= 3  # only path / method / optional timestamp
+                and isinstance(data.get("path"), str)
+                and data["path"].startswith("/")
+                and isinstance(data.get("method"), str)
+                and data["method"].upper() in _VALID_HTTP_METHODS
+                and not any(
+                    key in data
+                    for key in ("access_token", "accessToken", "token", "data", "result", "body")
+                )
             ):
                 raise ValueError(
                     "PhotonPay authentication failed — the token endpoint returned a "
-                    "routing/credential error response. "
-                    "Verify that PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET are correct "
+                    "routing/IP-parse error response. "
+                    "This can be caused by a proxy injecting an IP:port value that "
+                    "PhotonPay cannot parse (error code XXA00001). "
+                    "Verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET, and ensure "
+                    "outbound connections bypass any HTTP proxy (trust_env=False). "
                     f"(endpoint: {token_url}, response: {self._compact_json(data)})"
                 )
 
