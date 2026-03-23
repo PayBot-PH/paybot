@@ -238,7 +238,7 @@ export default function ScanQRPH() {
     <Layout>
       <div className="max-w-3xl mx-auto space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-foreground mb-1 flex items-center gap-2">
             <QrCode className="h-6 w-6 text-blue-400" />
             Scan / Upload QRPH
           </h1>
@@ -251,7 +251,7 @@ export default function ScanQRPH() {
         {!qrData && !result && (
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-white text-base flex items-center gap-2">
+              <CardTitle className="text-foreground text-base flex items-center gap-2">
                 <ScanLine className="h-4 w-4 text-blue-400" />
                 Step 1 — Capture QRPH
               </CardTitle>
@@ -261,7 +261,7 @@ export default function ScanQRPH() {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
-                    className="h-20 flex-col gap-2 border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white"
+                    className="h-20 flex-col gap-2 border-slate-500 text-slate-200 hover:bg-muted hover:text-foreground"
                     onClick={startCamera}
                   >
                     <Camera className="h-6 w-6 text-blue-400" />
@@ -269,7 +269,7 @@ export default function ScanQRPH() {
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-20 flex-col gap-2 border-slate-500 text-slate-200 hover:bg-slate-700 hover:text-white"
+                    className="h-20 flex-col gap-2 border-slate-500 text-slate-200 hover:bg-muted hover:text-foreground"
                     onClick={() => { setMode('upload'); fileRef.current?.click(); }}
                   >
                     <Upload className="h-6 w-6 text-purple-400" />
@@ -296,7 +296,7 @@ export default function ScanQRPH() {
                   >
                     <X className="h-3.5 w-3.5" />
                   </Button>
-                  <p className="absolute bottom-2 left-0 right-0 text-center text-xs text-white/70">
+                  <p className="absolute bottom-2 left-0 right-0 text-center text-xs text-foreground/70">
                     Point at a QRPH code to scan
                   </p>
                 </div>
@@ -318,12 +318,12 @@ export default function ScanQRPH() {
         {qrData && !result && (
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-white text-base flex items-center justify-between">
+              <CardTitle className="text-foreground text-base flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-emerald-400" />
                   Step 2 — Review &amp; Pay
                 </span>
-                <Button size="sm" variant="ghost" className="text-slate-300 hover:text-white" onClick={reset}>
+                <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={reset}>
                   <RefreshCw className="h-3.5 w-3.5 mr-1" /> Rescan
                 </Button>
               </CardTitle>
@@ -334,13 +334,13 @@ export default function ScanQRPH() {
                 {qrData.merchantName && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Merchant</span>
-                    <span className="text-white font-medium">{qrData.merchantName}</span>
+                    <span className="text-foreground font-medium">{qrData.merchantName}</span>
                   </div>
                 )}
                 {qrData.merchantCity && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">City</span>
-                    <span className="text-white">{qrData.merchantCity}</span>
+                    <span className="text-foreground">{qrData.merchantCity}</span>
                   </div>
                 )}
                 {qrData.currency && (
@@ -352,7 +352,7 @@ export default function ScanQRPH() {
                 {qrData.referenceNumber && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Reference</span>
-                    <code className="text-xs text-slate-300 bg-slate-900 px-1.5 py-0.5 rounded">{qrData.referenceNumber}</code>
+                    <code className="text-xs text-muted-foreground bg-background px-1.5 py-0.5 rounded">{qrData.referenceNumber}</code>
                   </div>
                 )}
               </div>
@@ -366,23 +366,23 @@ export default function ScanQRPH() {
               )}
 
               <div>
-                <Label className="text-slate-300">Amount (PHP)</Label>
+                <Label className="text-muted-foreground">Amount (PHP)</Label>
                 <Input
                   type="number" step="0.01" min="0.01"
                   placeholder="0.00"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
+                  className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                 />
               </div>
 
               <div>
-                <Label className="text-slate-300">Description (optional)</Label>
+                <Label className="text-muted-foreground">Description (optional)</Label>
                 <Input
                   placeholder="Payment note"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
+                  className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                 />
               </div>
 
@@ -403,12 +403,12 @@ export default function ScanQRPH() {
         {result && (
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-white text-base flex items-center justify-between">
+              <CardTitle className="text-foreground text-base flex items-center justify-between">
                 <span className="flex items-center gap-2">
                   <CheckCircle className="h-4 w-4 text-emerald-400" />
                   Payment Recorded
                 </span>
-                <Button size="sm" variant="ghost" className="text-slate-300 hover:text-white" onClick={reset}>
+                <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={reset}>
                   <RefreshCw className="h-3.5 w-3.5 mr-1" /> New Scan
                 </Button>
               </CardTitle>
@@ -419,7 +419,7 @@ export default function ScanQRPH() {
                 return (
                   <div key={key} className="space-y-0.5">
                     <p className="text-xs text-muted-foreground uppercase tracking-wider">{key.replace(/_/g, ' ')}</p>
-                    <code className="text-sm text-white font-mono bg-muted px-2 py-1 rounded block break-all">
+                    <code className="text-sm text-foreground font-mono bg-muted px-2 py-1 rounded block break-all">
                       {String(value)}
                     </code>
                   </div>

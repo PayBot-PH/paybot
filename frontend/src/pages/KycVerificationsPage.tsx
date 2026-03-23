@@ -105,7 +105,7 @@ export default function KycVerificationsPage() {
       <div className="space-y-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold text-white flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2 flex-wrap">
               KYC Verifications
               {pending_count > 0 && (
                 <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending_count}</span>
@@ -115,7 +115,7 @@ export default function KycVerificationsPage() {
           </div>
           <button
             onClick={fetchVerifications}
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0"
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm border border-border px-3 py-1.5 rounded-lg transition-colors shrink-0"
           >
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
@@ -145,21 +145,21 @@ export default function KycVerificationsPage() {
         {loading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-4 animate-pulse">
+              <div key={i} className="bg-background border border-border/40 rounded-2xl p-4 animate-pulse">
                 <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-slate-700/50" />
+                  <div className="h-10 w-10 rounded-xl bg-muted/50" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 w-40 bg-slate-700/50 rounded" />
-                    <div className="h-3 w-56 bg-slate-700/30 rounded" />
+                    <div className="h-4 w-40 bg-muted/50 rounded" />
+                    <div className="h-3 w-56 bg-muted/30 rounded" />
                   </div>
                 </div>
               </div>
             ))}
           </div>
         ) : verifications.length === 0 ? (
-          <div className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-12 flex flex-col items-center text-center">
+          <div className="bg-background border border-border/40 rounded-2xl p-12 flex flex-col items-center text-center">
             <div className="h-12 w-12 bg-muted rounded-2xl flex items-center justify-center mb-3">
-              <UserCheck className="h-6 w-6 text-slate-600" />
+              <UserCheck className="h-6 w-6 text-muted-foreground" />
             </div>
             <p className="text-muted-foreground font-medium">
               No {(filters.find(f => f.value === filter)?.label ?? filter).toLowerCase()} verifications
@@ -173,14 +173,14 @@ export default function KycVerificationsPage() {
               const isExpanded = expandedId === kyc.id;
 
               return (
-                <div key={kyc.id} className="bg-[#0F172A] border border-slate-700/40 rounded-2xl overflow-hidden">
+                <div key={kyc.id} className="bg-background border border-border/40 rounded-2xl overflow-hidden">
                   <div className="p-4 flex items-start gap-4">
                     <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
                       <UserCheck className="h-5 w-5 text-emerald-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-white font-semibold">
+                        <p className="text-foreground font-semibold">
                           {kyc.full_name || (kyc.telegram_username ? `@${kyc.telegram_username}` : kyc.chat_id)}
                         </p>
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-medium ${sc.color}`}>
@@ -199,14 +199,14 @@ export default function KycVerificationsPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => setExpandedId(isExpanded ? null : kyc.id)}
-                        className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 transition-colors flex items-center gap-1"
+                        className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:border-slate-400 transition-colors flex items-center gap-1"
                       >
                         Details {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                       </button>
                       {kyc.status === 'pending_review' && (
                         <button
                           onClick={() => { setActiveId(isActive ? null : kyc.id); setRejectMode(false); setRejectReason(''); setError(''); }}
-                          className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 transition-colors"
+                          className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:border-slate-400 transition-colors"
                         >
                           {isActive ? 'Cancel' : 'Review'}
                         </button>
@@ -216,31 +216,31 @@ export default function KycVerificationsPage() {
 
                   {/* KYC Details */}
                   {isExpanded && (
-                    <div className="px-4 pb-4 border-t border-slate-700/40 pt-3">
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                         <div>
                           <p className="text-muted-foreground text-xs mb-0.5">Full Name</p>
-                          <p className="text-white">{kyc.full_name || '—'}</p>
+                          <p className="text-foreground">{kyc.full_name || '—'}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs mb-0.5">Date of Birth</p>
-                          <p className="text-white">{kyc.date_of_birth || '—'}</p>
+                          <p className="text-foreground">{kyc.date_of_birth || '—'}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs mb-0.5">Nationality</p>
-                          <p className="text-white">{kyc.nationality || '—'}</p>
+                          <p className="text-foreground">{kyc.nationality || '—'}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs mb-0.5">ID Type</p>
-                          <p className="text-white capitalize">{kyc.id_type ? kyc.id_type.replace('_', ' ') : '—'}</p>
+                          <p className="text-foreground capitalize">{kyc.id_type ? kyc.id_type.replace('_', ' ') : '—'}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs mb-0.5">ID Number</p>
-                          <p className="text-white font-mono text-xs">{kyc.id_number || '—'}</p>
+                          <p className="text-foreground font-mono text-xs">{kyc.id_number || '—'}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs mb-0.5">Telegram Chat ID</p>
-                          <p className="text-white font-mono text-xs">{kyc.chat_id}</p>
+                          <p className="text-foreground font-mono text-xs">{kyc.chat_id}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground text-xs mb-0.5">ID Photo</p>
@@ -260,7 +260,7 @@ export default function KycVerificationsPage() {
 
                   {/* Action panel */}
                   {isActive && kyc.status === 'pending_review' && (
-                    <div className="px-4 pb-4 border-t border-slate-700/40 pt-3">
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3">
                       {rejectMode ? (
                         <>
                           <p className="text-muted-foreground text-xs mb-2">Rejection reason:</p>
@@ -268,12 +268,12 @@ export default function KycVerificationsPage() {
                             value={rejectReason}
                             onChange={e => setRejectReason(e.target.value)}
                             placeholder="e.g. Invalid ID photo, blurry selfie, mismatched information"
-                            className="w-full bg-muted/60 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 mb-3"
+                            className="w-full bg-muted/60 border border-border/40 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 mb-3"
                           />
                           <div className="flex gap-2">
                             <button
                               onClick={() => setRejectMode(false)}
-                              className="flex-1 py-2 rounded-xl border border-slate-600 text-slate-300 hover:border-slate-400 text-sm transition-colors"
+                              className="flex-1 py-2 rounded-xl border border-border text-muted-foreground hover:border-slate-400 text-sm transition-colors"
                             >
                               Back
                             </button>

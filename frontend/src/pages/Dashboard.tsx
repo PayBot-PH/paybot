@@ -277,7 +277,7 @@ export default function Dashboard() {
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   {greeting.icon}
-                  <h1 className="text-xl sm:text-2xl font-bold text-white">
+                  <h1 className="text-xl sm:text-2xl font-bold text-foreground">
                     {greeting.text}{userName ? `, ${userName}` : ''}
                   </h1>
                 </div>
@@ -308,7 +308,7 @@ export default function Dashboard() {
             {/* Right: Quick live stats */}
             <div className="flex items-center gap-3 sm:gap-4 shrink-0">
               <div className="text-center px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.10]">
-                <p className="text-2xl font-bold text-white">
+                <p className="text-2xl font-bold text-foreground">
                   {loading ? <span className="inline-block w-10 h-7 bg-white/10 rounded animate-pulse" /> : stats.total_count}
                 </p>
                 <p className="text-blue-100/80 text-[11px] mt-0.5">Total Txns</p>
@@ -333,7 +333,7 @@ export default function Dashboard() {
               <button
                 onClick={() => { setLoading(true); fetchData().finally(() => setLoading(false)); }}
                 disabled={loading}
-                className="h-9 w-9 flex items-center justify-center rounded-xl bg-white/[0.08] border border-white/[0.12] text-muted-foreground hover:text-white hover:bg-white/[0.14] transition-all duration-150 disabled:opacity-40"
+                className="h-9 w-9 flex items-center justify-center rounded-xl bg-white/[0.08] border border-white/[0.12] text-muted-foreground hover:text-foreground hover:bg-white/[0.14] transition-all duration-150 disabled:opacity-40"
                 title="Refresh data"
               >
                 <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -396,7 +396,7 @@ export default function Dashboard() {
         </Link>
 
         <StatCard label="Total Transactions" value={stats.total_count} sub={`₱${fmt(stats.total_amount || 0)}`}
-          icon={<TrendingUp className="h-5 w-5 text-blue-600" />} color="text-white" loading={loading} />
+          icon={<TrendingUp className="h-5 w-5 text-blue-600" />} color="text-foreground" loading={loading} />
         <StatCard label="Paid" value={stats.paid_count} sub={`₱${fmt(stats.paid_amount || 0)}`}
           icon={<CheckCircle className="h-5 w-5 text-emerald-600" />} color="text-emerald-600" loading={loading} />
         <StatCard label="Pending" value={stats.pending_count} sub={`₱${fmt(stats.pending_amount || 0)}`}

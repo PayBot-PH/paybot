@@ -81,7 +81,7 @@ export default function BankDepositsPage() {
       <div className="space-y-5">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div className="min-w-0 flex-1">
-            <h1 className="text-xl font-bold text-white flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2 flex-wrap">
               Bank Deposit Requests
               {pending_count > 0 && (
                 <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending_count}</span>
@@ -90,7 +90,7 @@ export default function BankDepositsPage() {
             <p className="text-muted-foreground text-sm mt-0.5">Review and approve PHP bank / e-wallet deposit requests</p>
           </div>
           <button onClick={fetchRequests}
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors shrink-0">
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm border border-border px-3 py-1.5 rounded-lg transition-colors shrink-0">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
         </div>
@@ -114,21 +114,21 @@ export default function BankDepositsPage() {
         {loading ? (
           <div className="space-y-3">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-4 animate-pulse">
+              <div key={i} className="bg-background border border-border/40 rounded-2xl p-4 animate-pulse">
                 <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-xl bg-slate-700/50" />
+                  <div className="h-10 w-10 rounded-xl bg-muted/50" />
                   <div className="flex-1 space-y-2">
-                    <div className="h-4 w-32 bg-slate-700/50 rounded" />
-                    <div className="h-3 w-48 bg-slate-700/30 rounded" />
+                    <div className="h-4 w-32 bg-muted/50 rounded" />
+                    <div className="h-3 w-48 bg-muted/30 rounded" />
                   </div>
                 </div>
               </div>
             ))}
           </div>
         ) : requests.length === 0 ? (
-          <div className="bg-[#0F172A] border border-slate-700/40 rounded-2xl p-12 flex flex-col items-center text-center">
+          <div className="bg-background border border-border/40 rounded-2xl p-12 flex flex-col items-center text-center">
             <div className="h-12 w-12 bg-muted rounded-2xl flex items-center justify-center mb-3">
-              <Building2 className="h-6 w-6 text-slate-600" />
+              <Building2 className="h-6 w-6 text-muted-foreground" />
             </div>
             <p className="text-muted-foreground font-medium">No {filter || 'bank deposit'} requests</p>
           </div>
@@ -140,14 +140,14 @@ export default function BankDepositsPage() {
               const emoji = channelEmoji[req.channel] || '🏦';
               const phpFormatted = req.amount_php.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
               return (
-                <div key={req.id} className="bg-[#0F172A] border border-slate-700/40 rounded-2xl overflow-hidden">
+                <div key={req.id} className="bg-background border border-border/40 rounded-2xl overflow-hidden">
                   <div className="p-4 flex items-start gap-4">
                     <div className="h-10 w-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0 text-xl">
                       {emoji}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <p className="text-white font-semibold">
+                        <p className="text-foreground font-semibold">
                           {req.telegram_username ? `@${req.telegram_username}` : req.chat_id}
                         </p>
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-medium ${sc.color}`}>
@@ -157,7 +157,7 @@ export default function BankDepositsPage() {
                       <p className="text-muted-foreground text-sm mt-0.5">
                         <span className="text-blue-400 font-bold">₱{phpFormatted}</span>
                         {' via '}
-                        <span className="text-white font-semibold">{req.channel}</span>
+                        <span className="text-foreground font-semibold">{req.channel}</span>
                         {' · '}
                         <span className="text-muted-foreground font-mono text-xs">{req.account_number}</span>
                         {' · '}Request #{req.id}
@@ -180,7 +180,7 @@ export default function BankDepositsPage() {
                     {req.status === 'pending' && (
                       <div className="flex items-center gap-2 shrink-0">
                         <button onClick={() => setActiveId(isActive ? null : req.id)}
-                          className="text-xs px-3 py-1.5 rounded-lg border border-slate-600 text-slate-300 hover:border-slate-400 transition-colors">
+                          className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:border-slate-400 transition-colors">
                           {isActive ? 'Cancel' : 'Review'}
                         </button>
                       </div>
@@ -189,7 +189,7 @@ export default function BankDepositsPage() {
 
                   {/* Action panel */}
                   {isActive && req.status === 'pending' && (
-                    <div className="px-4 pb-4 border-t border-slate-700/40 pt-3">
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3">
                       <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2 mb-3 text-xs text-blue-300">
                         ✅ Approving will credit <strong>₱{phpFormatted} PHP</strong> to the user's wallet
                       </div>
@@ -197,7 +197,7 @@ export default function BankDepositsPage() {
                       <input
                         value={note} onChange={e => setNote(e.target.value)}
                         placeholder="e.g. Receipt verified, transfer confirmed"
-                        className="w-full bg-muted/60 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 mb-3"
+                        className="w-full bg-muted/60 border border-border/40 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 mb-3"
                       />
                       <div className="flex gap-2">
                         <button onClick={() => doAction(req.id, 'approve')}

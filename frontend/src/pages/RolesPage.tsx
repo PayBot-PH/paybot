@@ -96,7 +96,7 @@ function PermissionBadge({ active, label, color }: { active: boolean; label: str
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-medium bg-muted/40 border-slate-700/30 text-slate-600 line-through">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-medium bg-muted/40 border-border/30 text-muted-foreground line-through">
       {label}
     </span>
   );
@@ -184,7 +184,7 @@ export default function RolesPage() {
               <Shield className="h-5 w-5 text-blue-400" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg font-bold text-white truncate">Role Management</h1>
+              <h1 className="text-lg font-bold text-foreground truncate">Role Management</h1>
               <p className="text-muted-foreground text-xs mt-0.5 truncate">
                 {rolesLoading
                   ? 'Loading…'
@@ -197,7 +197,7 @@ export default function RolesPage() {
             variant="ghost"
             size="sm"
             disabled={isLoading}
-            className="text-muted-foreground hover:text-white gap-1.5 text-xs shrink-0"
+            className="text-muted-foreground hover:text-foreground gap-1.5 text-xs shrink-0"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
@@ -240,7 +240,7 @@ export default function RolesPage() {
         {rolesLoading && (
           <div className="space-y-3">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-36 rounded-xl bg-[#1E293B] border border-border animate-pulse" />
+              <div key={i} className="h-36 rounded-xl bg-card border border-border animate-pulse" />
             ))}
           </div>
         )}
@@ -262,7 +262,7 @@ export default function RolesPage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-white">{role.name}</span>
+                          <span className="font-semibold text-sm text-foreground">{role.name}</span>
                           <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${colorCls}`}>
                             PRESET
                           </Badge>
@@ -306,7 +306,7 @@ export default function RolesPage() {
                                   key={admin.id}
                                   onClick={() => applyRole(role, admin)}
                                   disabled={!!applying}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-slate-300 hover:bg-muted/60 hover:text-white transition-all duration-150 disabled:opacity-50"
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all duration-150 disabled:opacity-50"
                                 >
                                   {isApplying ? (
                                     <div className="h-3 w-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
@@ -320,7 +320,7 @@ export default function RolesPage() {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-600 italic">No active admins to apply this role to.</p>
+                        <p className="text-xs text-muted-foreground italic">No active admins to apply this role to.</p>
                       )
                     )}
                   </CardContent>

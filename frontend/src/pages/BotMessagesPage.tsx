@@ -114,25 +114,25 @@ export default function BotMessagesPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-white">Bot Messages</h1>
+            <h1 className="text-xl font-bold text-foreground">Bot Messages</h1>
             <p className="text-muted-foreground text-sm mt-0.5">View and reply to all bot conversations</p>
           </div>
           <button onClick={fetchConversations}
-            className="flex items-center gap-1.5 text-muted-foreground hover:text-white text-sm border border-slate-700 px-3 py-1.5 rounded-lg transition-colors">
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm border border-border px-3 py-1.5 rounded-lg transition-colors">
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </button>
         </div>
 
         <div className="flex gap-4 h-[calc(100svh-180px)] min-h-[400px]">
           {/* Conversation list */}
-          <div className={`${mobilePane === 'list' ? 'flex' : 'hidden'} md:flex w-full md:w-72 bg-[#0F172A] border border-slate-700/40 rounded-2xl flex-col overflow-hidden md:shrink-0`}>
-            <div className="p-3 border-b border-slate-700/40">
+          <div className={`${mobilePane === 'list' ? 'flex' : 'hidden'} md:flex w-full md:w-72 bg-background border border-border/40 rounded-2xl flex-col overflow-hidden md:shrink-0`}>
+            <div className="p-3 border-b border-border/40">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <input
                   value={search} onChange={e => setSearch(e.target.value)}
                   placeholder="Search users..."
-                  className="w-full bg-muted/60 border border-slate-700/40 rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50"
+                  className="w-full bg-muted/60 border border-border/40 rounded-lg pl-8 pr-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50"
                 />
               </div>
             </div>
@@ -141,10 +141,10 @@ export default function BotMessagesPage() {
                 <div className="p-4 space-y-2">
                   {[...Array(5)].map((_, i) => (
                     <div key={i} className="flex items-center gap-3 p-2 rounded-xl animate-pulse">
-                      <div className="h-9 w-9 rounded-full bg-slate-700/50 shrink-0" />
+                      <div className="h-9 w-9 rounded-full bg-muted/50 shrink-0" />
                       <div className="flex-1 space-y-1.5">
-                        <div className="h-3 w-24 bg-slate-700/50 rounded" />
-                        <div className="h-2.5 w-32 bg-slate-700/30 rounded" />
+                        <div className="h-3 w-24 bg-muted/50 rounded" />
+                        <div className="h-2.5 w-32 bg-muted/30 rounded" />
                       </div>
                     </div>
                   ))}
@@ -154,7 +154,7 @@ export default function BotMessagesPage() {
               ) : (
                 filtered.map(c => (
                   <button key={c.chat_id} onClick={() => selectConversation(c)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-slate-700/20 hover:bg-muted/50 ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-b border-border/20 hover:bg-muted/50 ${
                       selectedChat?.chat_id === c.chat_id ? 'bg-blue-500/10 border-l-2 border-l-blue-500' : ''
                     }`}>
                     <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0">
@@ -163,14 +163,14 @@ export default function BotMessagesPage() {
                       </span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
+                      <p className="text-sm font-medium text-foreground truncate">
                         {c.username ? `@${c.username}` : c.chat_id}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">{c.last_message || 'No messages'}</p>
                     </div>
                     <div className="shrink-0 flex flex-col items-end gap-1">
-                      <span className="text-[10px] text-slate-600">{c.message_count}</span>
-                      <ChevronRight className="h-3 w-3 text-slate-600" />
+                      <span className="text-[10px] text-muted-foreground">{c.message_count}</span>
+                      <ChevronRight className="h-3 w-3 text-muted-foreground" />
                     </div>
                   </button>
                 ))
@@ -179,21 +179,21 @@ export default function BotMessagesPage() {
           </div>
 
           {/* Message thread */}
-          <div className={`${mobilePane === 'thread' ? 'flex' : 'hidden'} md:flex flex-1 bg-[#0F172A] border border-slate-700/40 rounded-2xl flex-col overflow-hidden`}>
+          <div className={`${mobilePane === 'thread' ? 'flex' : 'hidden'} md:flex flex-1 bg-background border border-border/40 rounded-2xl flex-col overflow-hidden`}>
             {!selectedChat ? (
               <div className="flex-1 flex items-center justify-center flex-col gap-4 text-center px-8">
                 <div className="h-14 w-14 bg-muted rounded-2xl flex items-center justify-center">
-                  <MessageSquare className="h-7 w-7 text-slate-600" />
+                  <MessageSquare className="h-7 w-7 text-muted-foreground" />
                 </div>
                 <p className="text-muted-foreground font-medium">Select a conversation</p>
-                <p className="text-slate-600 text-sm">Choose a user from the left to view their messages</p>
+                <p className="text-muted-foreground text-sm">Choose a user from the left to view their messages</p>
               </div>
             ) : (
               <>
                 {/* Header */}
-                <div className="px-4 py-3 border-b border-slate-700/40 flex items-center gap-3">
+                <div className="px-4 py-3 border-b border-border/40 flex items-center gap-3">
                   <button
-                    className="md:hidden p-1.5 rounded-lg text-muted-foreground hover:text-white hover:bg-muted transition-colors shrink-0"
+                    className="md:hidden p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
                     onClick={() => setMobilePane('list')}
                     aria-label="Back to conversations"
                   >
@@ -205,13 +205,13 @@ export default function BotMessagesPage() {
                     </span>
                   </div>
                   <div>
-                    <p className="text-white font-semibold text-sm">
+                    <p className="text-foreground font-semibold text-sm">
                       {selectedChat.username ? `@${selectedChat.username}` : selectedChat.chat_id}
                     </p>
                     <p className="text-muted-foreground text-xs">Chat ID: {selectedChat.chat_id} · {selectedChat.message_count} messages</p>
                   </div>
                   <button onClick={() => fetchMessages(selectedChat.chat_id)}
-                    className="ml-auto text-muted-foreground hover:text-white transition-colors p-1.5 rounded-lg hover:bg-muted">
+                    className="ml-auto text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-muted">
                     <RefreshCw className="h-3.5 w-3.5" />
                   </button>
                 </div>
@@ -239,7 +239,7 @@ export default function BotMessagesPage() {
                 </div>
 
                 {/* Reply box */}
-                <div className="p-3 border-t border-slate-700/40">
+                <div className="p-3 border-t border-border/40">
                   {sendError && <p className="text-red-400 text-xs mb-2">{sendError}</p>}
                   {sendSuccess && <p className="text-emerald-400 text-xs mb-2">✅ Message sent!</p>}
                   <div className="flex gap-2">
@@ -248,7 +248,7 @@ export default function BotMessagesPage() {
                       onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendReply(); } }}
                       placeholder="Type a reply... (Enter to send, Shift+Enter for newline)"
                       rows={2}
-                      className="flex-1 bg-muted/60 border border-slate-700/40 rounded-xl px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500/50 resize-none"
+                      className="flex-1 bg-muted/60 border border-border/40 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 resize-none"
                     />
                     <button onClick={sendReply} disabled={sending || !reply.trim()}
                       className="px-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-xl transition-colors flex items-center gap-1.5 shrink-0">

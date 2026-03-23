@@ -166,7 +166,7 @@ export default function Transactions() {
   return (
     <Layout connected={connected}>
       <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-white">Transactions</h1>
+          <h1 className="text-2xl font-bold text-foreground">Transactions</h1>
           <Link to="/create-payment">
             <Button className="bg-blue-600 hover:bg-blue-700 text-white">
               <Plus className="h-4 w-4 mr-2" />
@@ -185,26 +185,26 @@ export default function Transactions() {
                   placeholder="Search by ID, description, customer..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
+                  className="pl-9 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                 />
               </div>
               <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
-                <SelectTrigger className="w-full sm:w-[140px] bg-muted border-slate-600 text-white">
+                <SelectTrigger className="w-full sm:w-[140px] bg-muted border-border text-foreground">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-muted border-slate-600">
-                  <SelectItem value="all" className="text-white">All Status</SelectItem>
+                <SelectContent className="bg-muted border-border">
+                  <SelectItem value="all" className="text-foreground">All Status</SelectItem>
                   <SelectItem value="paid" className="text-emerald-400">Paid</SelectItem>
                   <SelectItem value="pending" className="text-amber-400">Pending</SelectItem>
                   <SelectItem value="expired" className="text-red-400">Expired</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
-                <SelectTrigger className="w-full sm:w-[160px] bg-muted border-slate-600 text-white">
+                <SelectTrigger className="w-full sm:w-[160px] bg-muted border-border text-foreground">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
-                <SelectContent className="bg-muted border-slate-600">
-                  <SelectItem value="all" className="text-white">All Types</SelectItem>
+                <SelectContent className="bg-muted border-border">
+                  <SelectItem value="all" className="text-foreground">All Types</SelectItem>
                   <SelectItem value="invoice" className="text-blue-400">Invoice</SelectItem>
                   <SelectItem value="qr_code" className="text-purple-400">QR Code</SelectItem>
                   <SelectItem value="payment_link" className="text-cyan-400">Payment Link</SelectItem>
@@ -223,7 +223,7 @@ export default function Transactions() {
               </div>
             ) : filteredTxns.length === 0 ? (
               <div className="text-center py-16">
-                <FileText className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground">No transactions found</p>
               </div>
             ) : (
@@ -248,7 +248,7 @@ export default function Transactions() {
                       return (
                         <tr
                           key={txn.id}
-                          className={`border-b border-slate-700/30 transition-all duration-500 ${
+                          className={`border-b border-border/30 transition-all duration-500 ${
                             isUpdated
                               ? 'bg-blue-500/10 ring-1 ring-inset ring-blue-500/30'
                               : 'hover:bg-muted/50'
@@ -257,32 +257,32 @@ export default function Transactions() {
                           <td className="px-3 md:px-6 py-3 md:py-4">
                             <div className="flex items-center space-x-2">
                               {typeIcons[txn.transaction_type] || <FileText className="h-4 w-4 text-muted-foreground" />}
-                              <span className="text-sm text-slate-300">{typeLabels[txn.transaction_type] || txn.transaction_type}</span>
+                              <span className="text-sm text-muted-foreground">{typeLabels[txn.transaction_type] || txn.transaction_type}</span>
                             </div>
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4">
                             <div className="flex items-center space-x-1">
                               <code className="text-xs text-muted-foreground font-mono">{txn.external_id || `#${txn.id}`}</code>
                               {txn.external_id && (
-                                <button onClick={() => copyToClipboard(txn.external_id)} className="text-muted-foreground hover:text-slate-300">
+                                <button onClick={() => copyToClipboard(txn.external_id)} className="text-muted-foreground hover:text-foreground">
                                   <Copy className="h-3 w-3" />
                                 </button>
                               )}
                             </div>
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4 hidden md:table-cell">
-                            <span className="text-sm text-white">{txn.description || '-'}</span>
+                            <span className="text-sm text-foreground">{txn.description || '-'}</span>
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4 hidden md:table-cell">
                             <div>
-                              <span className="text-sm text-white">{txn.customer_name || '-'}</span>
+                              <span className="text-sm text-foreground">{txn.customer_name || '-'}</span>
                               {txn.customer_email && (
                                 <p className="text-xs text-muted-foreground">{txn.customer_email}</p>
                               )}
                             </div>
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4 text-right">
-                            <span className="text-sm font-mono font-medium text-white">
+                            <span className="text-sm font-mono font-medium text-foreground">
                               ₱{txn.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                             </span>
                           </td>
@@ -300,7 +300,7 @@ export default function Transactions() {
                             <div className="text-xs text-muted-foreground">
                               {new Date(txn.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
                             </div>
-                            <div className="text-[11px] text-slate-600 mt-0.5">
+                            <div className="text-[11px] text-muted-foreground mt-0.5">
                               {new Date(txn.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
                             </div>
                           </td>
@@ -314,14 +314,14 @@ export default function Transactions() {
                                 </a>
                               )}
                               {txn.payment_url && (
-                                <button onClick={() => copyToClipboard(txn.payment_url)} className="text-muted-foreground hover:text-slate-300 p-1">
+                                <button onClick={() => copyToClipboard(txn.payment_url)} className="text-muted-foreground hover:text-foreground p-1">
                                   <Copy className="h-3.5 w-3.5" />
                                 </button>
                               )}
                               <button
                                 onClick={() => cloneTransaction(txn)}
                                 title="Clone transaction"
-                                className="text-muted-foreground hover:text-slate-300 p-1"
+                                className="text-muted-foreground hover:text-foreground p-1"
                               >
                                 <CopyPlus className="h-3.5 w-3.5" />
                               </button>
@@ -347,7 +347,7 @@ export default function Transactions() {
                     size="sm"
                     disabled={page === 0}
                     onClick={() => setPage(page - 1)}
-                    className="text-muted-foreground hover:text-white"
+                    className="text-muted-foreground hover:text-foreground"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -359,7 +359,7 @@ export default function Transactions() {
                     size="sm"
                     disabled={page >= totalPages - 1}
                     onClick={() => setPage(page + 1)}
-                    className="text-muted-foreground hover:text-white"
+                    className="text-muted-foreground hover:text-foreground"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>

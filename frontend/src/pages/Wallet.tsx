@@ -478,7 +478,7 @@ export default function Wallet() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
       </div>
     );
@@ -486,10 +486,10 @@ export default function Wallet() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#0F172A] flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-6 max-w-md px-6">
           <WalletIcon className="h-16 w-16 text-blue-400 mx-auto" />
-          <h1 className="text-3xl font-bold text-white">Wallet</h1>
+          <h1 className="text-3xl font-bold text-foreground">Wallet</h1>
           <p className="text-muted-foreground">Sign in to access your wallet</p>
           <Button onClick={() => login()} size="lg" className="bg-blue-600 hover:bg-blue-700 text-white px-8">
             Sign In
@@ -565,38 +565,38 @@ export default function Wallet() {
         <Card className="bg-card border-border mb-6">
           <CardContent className="p-0">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="w-full rounded-none rounded-t-lg bg-muted/60 border-b border-slate-700 h-14 p-0 gap-0">
+              <TabsList className="w-full rounded-none rounded-t-lg bg-muted/60 border-b border-border h-14 p-0 gap-0">
                 <TabsTrigger
                   value="withdraw"
-                  className="flex-1 h-full rounded-none rounded-tl-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-amber-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                  className="flex-1 h-full rounded-none rounded-tl-lg data-[state=active]:bg-card data-[state=active]:text-amber-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <ArrowUpFromLine className="h-4 w-4 shrink-0" />
                   <span>Withdraw</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="disburse"
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-card data-[state=active]:text-emerald-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <Building2 className="h-4 w-4 shrink-0" />
                   <span>Disburse</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="topup"
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-blue-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-card data-[state=active]:text-blue-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <PlusCircle className="h-4 w-4 shrink-0" />
                   <span>Top Up</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="send-usd"
-                  className="flex-1 h-full rounded-none data-[state=active]:bg-[#1E293B] data-[state=active]:text-emerald-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                  className="flex-1 h-full rounded-none data-[state=active]:bg-card data-[state=active]:text-emerald-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <Send className="h-4 w-4 shrink-0" />
                   <span>Send USD</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="send-usdt"
-                  className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-[#1E293B] data-[state=active]:text-teal-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
+                  className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-card data-[state=active]:text-teal-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <Bitcoin className="h-4 w-4 shrink-0" />
                   <span>Send USDT</span>
@@ -607,35 +607,35 @@ export default function Wallet() {
               <TabsContent value="withdraw" className="p-4 sm:p-6 mt-0 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-slate-300 text-sm">Amount (₱)</Label>
+                    <Label className="text-muted-foreground text-sm">Amount (₱)</Label>
                     <Input type="number" placeholder="0.00" value={withdrawAmount}
                       onChange={e => setWithdrawAmount(e.target.value)} min="1"
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" />
                   </div>
                   <div>
-                    <Label className="text-slate-300 text-sm">Bank</Label>
+                    <Label className="text-muted-foreground text-sm">Bank</Label>
                     <Select value={withdrawBank} onValueChange={setWithdrawBank}>
-                      <SelectTrigger className="mt-1 bg-muted border-slate-600 text-white">
+                      <SelectTrigger className="mt-1 bg-muted border-border text-foreground">
                         <SelectValue placeholder="Select bank…" />
                       </SelectTrigger>
-                      <SelectContent className="bg-muted border-slate-600 max-h-64">
+                      <SelectContent className="bg-muted border-border max-h-64">
                         {(bankOptions.length > 0 ? bankOptions : BANKS.map(b => ({ name: b, code: b }))).map(b => (
-                          <SelectItem key={b.code} value={b.code} className="text-white">{b.name}</SelectItem>
+                          <SelectItem key={b.code} value={b.code} className="text-foreground">{b.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-slate-300 text-sm">Account Number</Label>
+                    <Label className="text-muted-foreground text-sm">Account Number</Label>
                     <Input placeholder="Enter account number" value={withdrawAccount}
                       onChange={e => setWithdrawAccount(e.target.value)}
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" />
                   </div>
                   <div>
-                    <Label className="text-slate-300 text-sm">Note (optional)</Label>
+                    <Label className="text-muted-foreground text-sm">Note (optional)</Label>
                     <Input placeholder="Withdrawal note" value={withdrawNote}
                       onChange={e => setWithdrawNote(e.target.value)}
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" />
                   </div>
                 </div>
                 <Button onClick={handleWithdraw} disabled={withdrawLoading}
@@ -650,39 +650,39 @@ export default function Wallet() {
               <TabsContent value="disburse" className="p-4 sm:p-6 mt-0 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-slate-300 text-sm">Amount (₱)</Label>
+                    <Label className="text-muted-foreground text-sm">Amount (₱)</Label>
                     <Input type="number" placeholder="0.00" value={dAmount}
                       onChange={e => setDAmount(e.target.value)} min="1"
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" />
                   </div>
                   <div>
-                    <Label className="text-slate-300 text-sm">Bank</Label>
+                    <Label className="text-muted-foreground text-sm">Bank</Label>
                     <Select value={dBank} onValueChange={setDBank}>
-                      <SelectTrigger className="mt-1 bg-muted border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-muted border-slate-600">
+                      <SelectTrigger className="mt-1 bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-muted border-border">
                         {(bankOptions.length > 0 ? bankOptions : BANKS.map(b => ({ name: b, code: b }))).map(b => (
-                          <SelectItem key={b.code} value={b.code} className="text-white">{b.name}</SelectItem>
+                          <SelectItem key={b.code} value={b.code} className="text-foreground">{b.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div>
-                    <Label className="text-slate-300 text-sm">Account Number</Label>
+                    <Label className="text-muted-foreground text-sm">Account Number</Label>
                     <Input placeholder="1234567890" value={dAccount}
                       onChange={e => setDAccount(e.target.value)}
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" />
                   </div>
                   <div>
-                    <Label className="text-slate-300 text-sm">Account Name</Label>
+                    <Label className="text-muted-foreground text-sm">Account Name</Label>
                     <Input placeholder="Juan Dela Cruz" value={dName}
                       onChange={e => setDName(e.target.value)}
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" />
                   </div>
                   <div className="sm:col-span-2">
-                    <Label className="text-slate-300 text-sm">Description (optional)</Label>
+                    <Label className="text-muted-foreground text-sm">Description (optional)</Label>
                     <Input placeholder="Salary payout, etc." value={dDesc}
                       onChange={e => setDDesc(e.target.value)}
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" />
                   </div>
                 </div>
                 <Button onClick={handleDisburse} disabled={dLoading}
@@ -696,7 +696,7 @@ export default function Wallet() {
               {/* Top Up Tab */}
               <TabsContent value="topup" className="mt-0">
                 {/* PHP Top Up — informational button */}
-                <div className="border-b border-slate-700/60">
+                <div className="border-b border-border/60">
                   <button
                     onClick={() => { setTopupDialogOpen(true); setTopupDialogMethod('ubp'); }}
                     className="w-full py-3 text-sm font-medium flex items-center justify-center gap-2 text-blue-400 hover:bg-blue-500/5 transition-colors"
@@ -723,7 +723,7 @@ export default function Wallet() {
                           <img
                             src={`https://api.qrserver.com/v1/create-qr-code/?size=130x130&data=${cryptoDepositInfo.address}&bgcolor=1e293b&color=ffffff&margin=8`}
                             alt="USDT TRC20 QR Code"
-                            className="rounded-lg border border-slate-600/50"
+                            className="rounded-lg border border-border/50"
                             width={130}
                             height={130}
                           />
@@ -731,7 +731,7 @@ export default function Wallet() {
                         {/* Address + Copy */}
                         <div className="flex-1 min-w-0 w-full">
                           <p className="text-muted-foreground text-xs mb-1.5">Send USDT (TRC20) to:</p>
-                          <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-600/50 rounded-lg px-3 py-2">
+                          <div className="flex items-center gap-2 bg-background/60 border border-border/50 rounded-lg px-3 py-2">
                             <code className="text-teal-300 text-xs font-mono break-all flex-1">
                               {cryptoDepositInfo.address}
                             </code>
@@ -760,7 +760,7 @@ export default function Wallet() {
 
                   {/* Submit TX Hash Form */}
                   <div>
-                    <p className="text-slate-300 text-sm font-medium mb-3">Submit Transaction Proof</p>
+                    <p className="text-muted-foreground text-sm font-medium mb-3">Submit Transaction Proof</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <Label className="text-muted-foreground text-xs">Amount Sent (USDT)</Label>
@@ -771,7 +771,7 @@ export default function Wallet() {
                           onChange={e => setCryptoAmount(e.target.value)}
                           min="0.01"
                           step="0.01"
-                          className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
+                          className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                         />
                       </div>
                       <div>
@@ -779,7 +779,7 @@ export default function Wallet() {
                         <Input
                           value="TRC20 (TRON)"
                           readOnly
-                          className="mt-1 bg-muted/40 border-slate-600/40 text-muted-foreground cursor-not-allowed"
+                          className="mt-1 bg-muted/40 border-border/40 text-muted-foreground cursor-not-allowed"
                         />
                       </div>
                       <div className="sm:col-span-2">
@@ -788,7 +788,7 @@ export default function Wallet() {
                           placeholder="Paste your transaction hash here"
                           value={cryptoTxHash}
                           onChange={e => setCryptoTxHash(e.target.value)}
-                          className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground font-mono text-xs"
+                          className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-xs"
                         />
                       </div>
                     </div>
@@ -812,10 +812,10 @@ export default function Wallet() {
                       <p className="text-muted-foreground text-xs font-medium mb-2 uppercase tracking-wider">Your Requests</p>
                       <div className="space-y-2">
                         {cryptoRequests.slice(0, 5).map(req => (
-                          <div key={req.id} className="flex items-center justify-between bg-muted/40 border border-slate-700/30 rounded-lg px-3 py-2.5">
+                          <div key={req.id} className="flex items-center justify-between bg-muted/40 border border-border/30 rounded-lg px-3 py-2.5">
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <span className="text-white text-sm font-medium">${req.amount_usdt.toFixed(2)} USDT</span>
+                                <span className="text-foreground text-sm font-medium">${req.amount_usdt.toFixed(2)} USDT</span>
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
                                   req.status === 'approved'
                                     ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
@@ -855,9 +855,9 @@ export default function Wallet() {
                 }
                 setTopupDialogOpen(open);
               }}>
-                <DialogContent className="bg-[#1E293B] border-slate-700 text-white max-w-md w-[calc(100vw-2rem)] sm:w-full max-h-[90vh] overflow-y-auto">
+                <DialogContent className="bg-card border-border text-foreground max-w-md w-[calc(100vw-2rem)] sm:w-full max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
-                    <DialogTitle className="text-white text-base font-semibold">
+                    <DialogTitle className="text-foreground text-base font-semibold">
                       {topupStep === 0 ? 'Choose Top Up method' : topupStep === 1 ? 'Top Up Balance' : topupStep === 2 ? 'Confirm Transfer' : 'Submit Proof'}
                     </DialogTitle>
                   </DialogHeader>
@@ -871,7 +871,7 @@ export default function Wallet() {
                           className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
                             topupDialogMethod === 'ubp'
                               ? 'border-blue-500 bg-blue-500/10'
-                              : 'border-slate-600 hover:border-slate-500 bg-muted/40'
+                              : 'border-border hover:border-slate-500 bg-muted/40'
                           }`}
                         >
                           <div className="w-9 h-9 bg-orange-500 rounded-lg flex items-center justify-center text-white font-extrabold text-sm">UB</div>
@@ -882,7 +882,7 @@ export default function Wallet() {
                           className={`flex-1 flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
                             topupDialogMethod === 'bank'
                               ? 'border-blue-500 bg-blue-500/10'
-                              : 'border-slate-600 hover:border-slate-500 bg-muted/40'
+                              : 'border-border hover:border-slate-500 bg-muted/40'
                           }`}
                         >
                           <Building2 className="w-9 h-9 text-blue-400" />
@@ -893,23 +893,23 @@ export default function Wallet() {
                       {/* UBP Bills Payment instructions */}
                       {topupDialogMethod === 'ubp' && (
                         <div className="space-y-3 mt-1">
-                          <p className="text-slate-300 text-sm">Please follow these steps:</p>
-                          <ol className="space-y-2.5 text-sm text-slate-300">
+                          <p className="text-muted-foreground text-sm">Please follow these steps:</p>
+                          <ol className="space-y-2.5 text-sm text-muted-foreground">
                             <li className="flex gap-3">
                               <span className="text-muted-foreground shrink-0 w-4 text-right">1.</span>
-                              <span>Log in to your <strong className="text-white">UnionBank (UBP)</strong> account</span>
+                              <span>Log in to your <strong className="text-foreground">UnionBank (UBP)</strong> account</span>
                             </li>
                             <li className="flex gap-3">
                               <span className="text-muted-foreground shrink-0 w-4 text-right">2.</span>
-                              <span>Go to <strong className="text-white">Pay Bills (UBP Online)</strong> or <strong className="text-white">Bills Payment (UBP The Portal)</strong> section</span>
+                              <span>Go to <strong className="text-foreground">Pay Bills (UBP Online)</strong> or <strong className="text-foreground">Bills Payment (UBP The Portal)</strong> section</span>
                             </li>
                             <li className="flex gap-3">
                               <span className="text-muted-foreground shrink-0 w-4 text-right">3.</span>
-                              <span>Click <strong className="text-white">Select Biller</strong> and go to the <strong className="text-white">Biller List</strong> section</span>
+                              <span>Click <strong className="text-foreground">Select Biller</strong> and go to the <strong className="text-foreground">Biller List</strong> section</span>
                             </li>
                             <li className="flex gap-3">
                               <span className="text-muted-foreground shrink-0 w-4 text-right">4.</span>
-                              <span>Select biller name <strong className="text-white">"XENDIT BALANCE TOP-UP"</strong></span>
+                              <span>Select biller name <strong className="text-foreground">"XENDIT BALANCE TOP-UP"</strong></span>
                             </li>
                             <li className="flex gap-3 items-start">
                               <span className="text-muted-foreground shrink-0 w-4 text-right">5.</span>
@@ -943,7 +943,7 @@ export default function Wallet() {
                             </li>
                             <li className="flex gap-3">
                               <span className="text-muted-foreground shrink-0 w-4 text-right">8.</span>
-                              <span>Review the details and click <strong className="text-white">Pay</strong> to continue</span>
+                              <span>Review the details and click <strong className="text-foreground">Pay</strong> to continue</span>
                             </li>
                           </ol>
                         </div>
@@ -952,22 +952,22 @@ export default function Wallet() {
                       {/* Bank Transfer details */}
                       {topupDialogMethod === 'bank' && (
                         <div className="space-y-3 mt-1">
-                          <p className="text-slate-300 text-sm leading-relaxed">
+                          <p className="text-muted-foreground text-sm leading-relaxed">
                             To top-up your balance, transfer to one of the PayBot PH bank accounts below. Your top-up will be credited after admin verification.
                           </p>
-                          <div className="overflow-x-auto rounded-lg border border-slate-600/50">
+                          <div className="overflow-x-auto rounded-lg border border-border/50">
                             <table className="w-full text-sm border-collapse">
                               <thead>
-                                <tr className="bg-slate-700/50">
-                                  <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Bank</th>
-                                  <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Account Name</th>
-                                  <th className="px-3 py-2.5 text-left text-slate-300 font-medium text-xs">Account Number</th>
+                                <tr className="bg-muted/50">
+                                  <th className="px-3 py-2.5 text-left text-muted-foreground font-medium text-xs">Bank</th>
+                                  <th className="px-3 py-2.5 text-left text-muted-foreground font-medium text-xs">Account Name</th>
+                                  <th className="px-3 py-2.5 text-left text-muted-foreground font-medium text-xs">Account Number</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-600/30">
                                 {TOPUP_BANKS.map((b) => (
                                   <tr key={b.bank}>
-                                    <td className="px-3 py-2.5 text-slate-300 text-xs">{b.bank}</td>
+                                    <td className="px-3 py-2.5 text-muted-foreground text-xs">{b.bank}</td>
                                     <td className="px-3 py-2.5 text-muted-foreground text-xs">{b.name}</td>
                                     <td className="px-3 py-2.5 text-muted-foreground text-xs font-mono">{b.number}</td>
                                   </tr>
@@ -991,7 +991,7 @@ export default function Wallet() {
                         </a>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" onClick={() => setTopupDialogOpen(false)}
-                            className="border-slate-600 text-slate-300 hover:bg-slate-700">
+                            className="border-border text-muted-foreground hover:bg-muted">
                             Cancel
                           </Button>
                           {topupDialogMethod === 'bank' ? (
@@ -1013,25 +1013,25 @@ export default function Wallet() {
                       {/* Top Up Balance form */}
                       <div className="space-y-4 mt-2">
                         <div className="space-y-1.5">
-                          <Label className="text-slate-300 text-sm font-medium">Top Up Amount</Label>
+                          <Label className="text-muted-foreground text-sm font-medium">Top Up Amount</Label>
                           <Input
                             type="number"
                             placeholder="e.g. 5000"
                             value={topupAmount}
                             onChange={(e) => setTopupAmount(e.target.value)}
-                            className="bg-muted/50 border-slate-600 text-white placeholder:text-muted-foreground focus-visible:ring-blue-500"
+                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-blue-500"
                           />
                         </div>
 
                         <div className="space-y-1.5">
                           <Label className="text-blue-400 text-sm font-medium">Top Up to</Label>
                           <Select value={topupToBank} onValueChange={setTopupToBank}>
-                            <SelectTrigger className="bg-muted/50 border-slate-600 text-white focus:ring-blue-500">
+                            <SelectTrigger className="bg-muted/50 border-border text-foreground focus:ring-blue-500">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#1E293B] border-slate-700 text-white">
+                            <SelectContent className="bg-card border-border text-foreground">
                               {TOPUP_BANKS.map((b) => (
-                                <SelectItem key={b.bank} value={b.bank} className="text-white focus:bg-slate-700 focus:text-white">{b.bank}</SelectItem>
+                                <SelectItem key={b.bank} value={b.bank} className="text-foreground focus:bg-muted focus:text-foreground">{b.bank}</SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -1040,15 +1040,15 @@ export default function Wallet() {
                         <div className="space-y-1.5">
                           <Label className="text-blue-400 text-sm font-medium">Top Up Method</Label>
                           <Select value={topupTransferMethod} onValueChange={setTopupTransferMethod}>
-                            <SelectTrigger className="bg-muted/50 border-slate-600 text-white focus:ring-blue-500">
+                            <SelectTrigger className="bg-muted/50 border-border text-foreground focus:ring-blue-500">
                               <SelectValue placeholder="Select..." />
                             </SelectTrigger>
-                            <SelectContent className="bg-[#1E293B] border-slate-700 text-white">
-                              <SelectItem value="interbank" className="text-white focus:bg-slate-700 focus:text-white">Interbank transfer</SelectItem>
-                              <SelectItem value="cash" className="text-white focus:bg-slate-700 focus:text-white">Cash deposit</SelectItem>
-                              <SelectItem value="check" className="text-white focus:bg-slate-700 focus:text-white">Check deposit</SelectItem>
-                              <SelectItem value="international" className="text-white focus:bg-slate-700 focus:text-white">International transfer</SelectItem>
-                              <SelectItem value="other" className="text-white focus:bg-slate-700 focus:text-white">Other</SelectItem>
+                            <SelectContent className="bg-card border-border text-foreground">
+                              <SelectItem value="interbank" className="text-foreground focus:bg-muted focus:text-foreground">Interbank transfer</SelectItem>
+                              <SelectItem value="cash" className="text-foreground focus:bg-muted focus:text-foreground">Cash deposit</SelectItem>
+                              <SelectItem value="check" className="text-foreground focus:bg-muted focus:text-foreground">Check deposit</SelectItem>
+                              <SelectItem value="international" className="text-foreground focus:bg-muted focus:text-foreground">International transfer</SelectItem>
+                              <SelectItem value="other" className="text-foreground focus:bg-muted focus:text-foreground">Other</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
@@ -1067,7 +1067,7 @@ export default function Wallet() {
                         </a>
                         <div className="flex gap-2">
                           <Button variant="outline" size="sm" onClick={() => setTopupStep(0)}
-                            className="border-slate-600 text-slate-300 hover:bg-slate-700">
+                            className="border-border text-muted-foreground hover:bg-muted">
                             Back
                           </Button>
                           <Button
@@ -1094,31 +1094,31 @@ export default function Wallet() {
                     <>
                       {/* Confirm Transfer */}
                       <div className="space-y-4 mt-2">
-                        <p className="text-slate-300 text-sm leading-relaxed">
+                        <p className="text-muted-foreground text-sm leading-relaxed">
                           Please complete this bank transfer using the details below. Once done, proceed to upload your receipt.
                         </p>
-                        <div className="rounded-lg border border-slate-600/50 bg-muted/40 divide-y divide-slate-600/30 text-sm">
+                        <div className="rounded-lg border border-border/50 bg-muted/40 divide-y divide-slate-600/30 text-sm">
                           <div className="flex items-center justify-between px-4 py-2.5">
                             <span className="text-muted-foreground">Amount</span>
-                            <span className="text-white font-semibold">₱{parseFloat(topupAmount || '0').toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
+                            <span className="text-foreground font-semibold">₱{parseFloat(topupAmount || '0').toLocaleString('en-PH', { minimumFractionDigits: 2 })}</span>
                           </div>
                           <div className="flex items-center justify-between px-4 py-2.5">
                             <span className="text-muted-foreground">Bank</span>
-                            <span className="text-white">{topupToBank}</span>
+                            <span className="text-foreground">{topupToBank}</span>
                           </div>
                           <div className="flex items-center justify-between px-4 py-2.5">
                             <span className="text-muted-foreground">Account Name</span>
-                            <span className="text-white">{TOPUP_BANKS.find((b) => b.bank === topupToBank)?.name ?? 'PayBot PH'}</span>
+                            <span className="text-foreground">{TOPUP_BANKS.find((b) => b.bank === topupToBank)?.name ?? 'PayBot PH'}</span>
                           </div>
                           <div className="flex items-center justify-between px-4 py-2.5">
                             <span className="text-muted-foreground">Account Number</span>
-                            <span className="text-white font-mono">
+                            <span className="text-foreground font-mono">
                               {TOPUP_BANKS.find((b) => b.bank === topupToBank)?.number ?? '—'}
                             </span>
                           </div>
                           <div className="flex items-center justify-between px-4 py-2.5">
                             <span className="text-muted-foreground">Method</span>
-                            <span className="text-white capitalize">{topupTransferMethod.replace('_', ' ')}</span>
+                            <span className="text-foreground capitalize">{topupTransferMethod.replace('_', ' ')}</span>
                           </div>
                         </div>
                         <div className="flex items-start gap-2 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2.5">
@@ -1130,7 +1130,7 @@ export default function Wallet() {
                       </div>
                       <div className="flex justify-end gap-2 mt-4">
                         <Button variant="outline" size="sm" onClick={() => setTopupStep(1)}
-                          className="border-slate-600 text-slate-300 hover:bg-slate-700">
+                          className="border-border text-muted-foreground hover:bg-muted">
                           Back
                         </Button>
                         <Button size="sm" onClick={() => setTopupStep(3)}
@@ -1143,12 +1143,12 @@ export default function Wallet() {
                     <>
                       {/* Submit Proof */}
                       <div className="space-y-4 mt-2">
-                        <p className="text-slate-300 text-sm leading-relaxed">
+                        <p className="text-muted-foreground text-sm leading-relaxed">
                           Upload your transfer receipt so our team can verify and credit your balance.
                         </p>
                         <div className="space-y-1.5">
-                          <Label className="text-slate-300 text-sm font-medium">Receipt / Screenshot <span className="text-muted-foreground font-normal">(required)</span></Label>
-                          <label className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-slate-600 hover:border-blue-500/60 bg-muted/30 cursor-pointer transition-colors">
+                          <Label className="text-muted-foreground text-sm font-medium">Receipt / Screenshot <span className="text-muted-foreground font-normal">(required)</span></Label>
+                          <label className="flex flex-col items-center gap-2 p-4 rounded-lg border-2 border-dashed border-border hover:border-blue-500/60 bg-muted/30 cursor-pointer transition-colors">
                             <input
                               type="file"
                               accept="image/*,application/pdf"
@@ -1169,18 +1169,18 @@ export default function Wallet() {
                           </label>
                         </div>
                         <div className="space-y-1.5">
-                          <Label className="text-slate-300 text-sm font-medium">Reference / Trace Number <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                          <Label className="text-muted-foreground text-sm font-medium">Reference / Trace Number <span className="text-muted-foreground font-normal">(optional)</span></Label>
                           <Input
                             placeholder="e.g. 123456789"
                             value={topupRefNumber}
                             onChange={(e) => setTopupRefNumber(e.target.value)}
-                            className="bg-muted/50 border-slate-600 text-white placeholder:text-muted-foreground focus-visible:ring-blue-500"
+                            className="bg-muted/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-blue-500"
                           />
                         </div>
                       </div>
                       <div className="flex justify-end gap-2 mt-4">
                         <Button variant="outline" size="sm" onClick={() => setTopupStep(2)}
-                          className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                          className="border-border text-muted-foreground hover:bg-muted"
                           disabled={topupSubmitting}>
                           Back
                         </Button>
@@ -1249,20 +1249,20 @@ export default function Wallet() {
 
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-slate-300 text-sm">Recipient Telegram Username</Label>
+                    <Label className="text-muted-foreground text-sm">Recipient Telegram Username</Label>
                     <div className="relative mt-1">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
                       <Input
                         placeholder="username"
                         value={sendUsdUsername}
                         onChange={e => setSendUsdUsername(e.target.value.replace(/^@/, ''))}
-                        className="pl-7 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
+                        className="pl-7 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                     <p className="text-muted-foreground text-xs mt-1">Enter the Telegram username of the recipient (without @)</p>
                   </div>
                   <div>
-                    <Label className="text-slate-300 text-sm">Amount (USD)</Label>
+                    <Label className="text-muted-foreground text-sm">Amount (USD)</Label>
                     <Input
                       type="number"
                       placeholder="0.00"
@@ -1270,16 +1270,16 @@ export default function Wallet() {
                       onChange={e => setSendUsdAmount(e.target.value)}
                       min="0.01"
                       step="0.01"
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                     />
                   </div>
                   <div>
-                    <Label className="text-slate-300 text-sm">Note (optional)</Label>
+                    <Label className="text-muted-foreground text-sm">Note (optional)</Label>
                     <Input
                       placeholder="Payment for..."
                       value={sendUsdNote}
                       onChange={e => setSendUsdNote(e.target.value)}
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                     />
                   </div>
                 </div>
@@ -1322,17 +1322,17 @@ export default function Wallet() {
                 {/* Form */}
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-slate-300 text-sm">Recipient TRC-20 Address</Label>
+                    <Label className="text-muted-foreground text-sm">Recipient TRC-20 Address</Label>
                     <Input
                       placeholder="e.g. TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
                       value={sendUsdtAddress}
                       onChange={e => setSendUsdtAddress(e.target.value)}
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground font-mono text-sm"
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-sm"
                     />
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-slate-300 text-sm">Amount (USDT)</Label>
+                      <Label className="text-muted-foreground text-sm">Amount (USDT)</Label>
                       <Input
                         type="number"
                         placeholder="0.00"
@@ -1340,25 +1340,25 @@ export default function Wallet() {
                         onChange={e => setSendUsdtAmount(e.target.value)}
                         min="0.01"
                         step="0.01"
-                        className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
+                        className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                       />
                     </div>
                     <div>
-                      <Label className="text-slate-300 text-sm">Network</Label>
+                      <Label className="text-muted-foreground text-sm">Network</Label>
                       <Input
                         value="TRC20 (TRON)"
                         readOnly
-                        className="mt-1 bg-muted/40 border-slate-600/40 text-muted-foreground cursor-not-allowed"
+                        className="mt-1 bg-muted/40 border-border/40 text-muted-foreground cursor-not-allowed"
                       />
                     </div>
                   </div>
                   <div>
-                    <Label className="text-slate-300 text-sm">Note (optional)</Label>
+                    <Label className="text-muted-foreground text-sm">Note (optional)</Label>
                     <Input
                       placeholder="Purpose of transfer"
                       value={sendUsdtNote}
                       onChange={e => setSendUsdtNote(e.target.value)}
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground"
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                     />
                   </div>
                 </div>
@@ -1380,12 +1380,12 @@ export default function Wallet() {
                     <div className="space-y-2">
                       {sendUsdtRequests.slice(0, 5).map(req => (
                         <div key={req.id} className={`rounded-xl border overflow-hidden ${
-                          req.status === 'denied' ? 'border-red-500/25' : 'border-slate-700/30'
+                          req.status === 'denied' ? 'border-red-500/25' : 'border-border/30'
                         }`}>
                           <div className="flex items-center justify-between bg-muted/40 px-3 py-2.5">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-white text-sm font-medium">${req.amount.toFixed(2)} USDT</span>
+                                <span className="text-foreground text-sm font-medium">${req.amount.toFixed(2)} USDT</span>
                                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${
                                   req.status === 'approved'
                                     ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
@@ -1428,11 +1428,11 @@ export default function Wallet() {
         </Card>
         <Card className="bg-card border-border">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
-            <CardTitle className="text-white flex items-center space-x-2 text-base">
+            <CardTitle className="text-foreground flex items-center space-x-2 text-base">
               <TrendingUp className="h-5 w-5 text-blue-400" />
               <span>Wallet History</span>
             </CardTitle>
-            <Badge className="bg-slate-700 text-slate-300 border-slate-600 border">
+            <Badge className="bg-muted text-muted-foreground border-border border">
               {transactions.length} txns
             </Badge>
           </CardHeader>
@@ -1443,7 +1443,7 @@ export default function Wallet() {
               </div>
             ) : transactions.length === 0 ? (
               <div className="text-center py-10">
-                <WalletIcon className="h-12 w-12 text-slate-600 mx-auto mb-3" />
+                <WalletIcon className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                 <p className="text-muted-foreground">No wallet transactions yet</p>
               </div>
             ) : (
@@ -1463,12 +1463,12 @@ export default function Wallet() {
                   return (
                     <div key={txn.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors">
                       <div className="flex items-center space-x-3 min-w-0">
-                        <div className="h-9 w-9 rounded-lg bg-slate-700/50 flex items-center justify-center shrink-0">
+                        <div className="h-9 w-9 rounded-lg bg-muted/50 flex items-center justify-center shrink-0">
                           {config.icon}
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center space-x-1.5">
-                            <p className="text-sm font-medium text-white">{config.label}</p>
+                            <p className="text-sm font-medium text-foreground">{config.label}</p>
                             {statusIcon}
                           </div>
                           <p className="text-xs text-muted-foreground truncate">

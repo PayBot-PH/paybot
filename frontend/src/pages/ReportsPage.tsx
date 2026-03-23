@@ -91,17 +91,17 @@ export default function ReportsPage() {
     <Layout>
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold text-white">Reports & Analytics</h1>
+          <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
           <div className="flex items-center gap-3">
             <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-full sm:w-[140px] bg-muted border-slate-600 text-white"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-muted border-slate-600">
-                <SelectItem value="daily" className="text-white">Daily</SelectItem>
-                <SelectItem value="weekly" className="text-white">Weekly</SelectItem>
-                <SelectItem value="monthly" className="text-white">Monthly</SelectItem>
+              <SelectTrigger className="w-full sm:w-[140px] bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-muted border-border">
+                <SelectItem value="daily" className="text-foreground">Daily</SelectItem>
+                <SelectItem value="weekly" className="text-foreground">Weekly</SelectItem>
+                <SelectItem value="monthly" className="text-foreground">Monthly</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={fetchReport} variant="outline" size="sm" className="border-slate-500 text-slate-200 hover:text-white">
+            <Button onClick={fetchReport} variant="outline" size="sm" className="border-slate-500 text-slate-200 hover:text-foreground">
               <RefreshCcw className="h-4 w-4" />
             </Button>
           </div>
@@ -174,7 +174,7 @@ export default function ReportsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Total Transactions</p>
-                      <p className="text-3xl font-bold text-white mt-1">{report.total_transactions}</p>
+                      <p className="text-3xl font-bold text-foreground mt-1">{report.total_transactions}</p>
                     </div>
                     <div className="h-10 w-10 bg-blue-500/20 rounded-xl flex items-center justify-center">
                       <FileText className="h-5 w-5 text-blue-400" />
@@ -200,7 +200,7 @@ export default function ReportsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">PHP Balance</p>
-                      <p className="text-3xl font-bold text-white mt-1">
+                      <p className="text-3xl font-bold text-foreground mt-1">
                         {paymongoBalance !== null ? fmt(paymongoBalance) : 'N/A'}
                       </p>
                     </div>
@@ -215,7 +215,7 @@ export default function ReportsPage() {
             {/* Breakdowns */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               <Card className="bg-card border-border">
-                <CardHeader><CardTitle className="text-white">Payment Method Breakdown</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-foreground">Payment Method Breakdown</CardTitle></CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {Object.entries(report.type_breakdown).map(([type, count]) => {
@@ -228,10 +228,10 @@ export default function ReportsPage() {
                       return (
                         <div key={type}>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm text-slate-300">{typeLabels[type] || type}</span>
-                            <span className="text-sm text-white font-medium">{count} ({pct}%)</span>
+                            <span className="text-sm text-muted-foreground">{typeLabels[type] || type}</span>
+                            <span className="text-sm text-foreground font-medium">{count} ({pct}%)</span>
                           </div>
-                          <div className="w-full bg-slate-700 rounded-full h-2">
+                          <div className="w-full bg-muted rounded-full h-2">
                             <div className={`${colors[type] || 'bg-slate-500'} h-2 rounded-full transition-all`} style={{ width: `${pct}%` }} />
                           </div>
                         </div>
@@ -245,7 +245,7 @@ export default function ReportsPage() {
               </Card>
 
               <Card className="bg-card border-border">
-                <CardHeader><CardTitle className="text-white">Status Breakdown</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-foreground">Status Breakdown</CardTitle></CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {Object.entries(report.status_breakdown).map(([status, count]) => {
@@ -265,11 +265,11 @@ export default function ReportsPage() {
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center space-x-2">
                               {icons[status]}
-                              <span className="text-sm text-slate-300 capitalize">{status}</span>
+                              <span className="text-sm text-muted-foreground capitalize">{status}</span>
                             </div>
-                            <span className="text-sm text-white font-medium">{count} ({pct}%)</span>
+                            <span className="text-sm text-foreground font-medium">{count} ({pct}%)</span>
                           </div>
-                          <div className="w-full bg-slate-700 rounded-full h-2">
+                          <div className="w-full bg-muted rounded-full h-2">
                             <div className={`${colors[status] || 'bg-slate-500'} h-2 rounded-full transition-all`} style={{ width: `${pct}%` }} />
                           </div>
                         </div>
@@ -282,22 +282,22 @@ export default function ReportsPage() {
 
             {/* Fee Calculator */}
             <Card className="bg-card border-border">
-              <CardHeader><CardTitle className="text-white flex items-center"><Calculator className="h-5 w-5 mr-2 text-yellow-400" />Fee Calculator</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-foreground flex items-center"><Calculator className="h-5 w-5 mr-2 text-yellow-400" />Fee Calculator</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <Label className="text-slate-300">Amount (₱)</Label>
+                    <Label className="text-muted-foreground">Amount (₱)</Label>
                     <Input type="number" placeholder="1000" value={feeAmount} onChange={e => setFeeAmount(e.target.value)}
-                      className="mt-1 bg-muted border-slate-600 text-white placeholder:text-muted-foreground" />
+                      className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" />
                   </div>
                   <div>
-                    <Label className="text-slate-300">Payment Method</Label>
+                    <Label className="text-muted-foreground">Payment Method</Label>
                     <Select value={feeMethod} onValueChange={setFeeMethod}>
-                      <SelectTrigger className="mt-1 bg-muted border-slate-600 text-white"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-muted border-slate-600">
+                      <SelectTrigger className="mt-1 bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
+                      <SelectContent className="bg-muted border-border">
                         {[['invoice', 'Invoice'], ['qr_code', 'QR Code'], ['ewallet', 'E-Wallet'],
                           ['virtual_account', 'Virtual Account'], ['card', 'Card'], ['disbursement', 'Disbursement']].map(([v, l]) => (
-                          <SelectItem key={v} value={v} className="text-white">{l}</SelectItem>
+                          <SelectItem key={v} value={v} className="text-foreground">{l}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
@@ -310,10 +310,10 @@ export default function ReportsPage() {
                 </div>
                 {feeResult && (
                   <div className="mt-4 p-4 bg-muted/50 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div><p className="text-xs text-muted-foreground">Amount</p><p className="text-lg font-bold text-white">{fmt(feeResult.amount)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Amount</p><p className="text-lg font-bold text-foreground">{fmt(feeResult.amount)}</p></div>
                     <div><p className="text-xs text-muted-foreground">Fee</p><p className="text-lg font-bold text-red-400">{fmt(feeResult.fee)}</p></div>
                     <div><p className="text-xs text-muted-foreground">Net Amount</p><p className="text-lg font-bold text-emerald-400">{fmt(feeResult.net_amount)}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Fee Rate</p><p className="text-lg font-bold text-white">{feeResult.fee_percentage}% + ₱{feeResult.fee_fixed}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Fee Rate</p><p className="text-lg font-bold text-foreground">{feeResult.fee_percentage}% + ₱{feeResult.fee_fixed}</p></div>
                   </div>
                 )}
               </CardContent>
