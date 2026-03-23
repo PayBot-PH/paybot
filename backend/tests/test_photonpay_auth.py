@@ -1,6 +1,8 @@
 """Unit tests for PhotonPay authentication helpers."""
 import base64
+import json
 import os
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -182,3 +184,76 @@ class TestCredentialErrorDetection:
         data = {"code": "4001", "msg": "invalid credentials", "path": "/token/accessToken"}
         # 4 keys — should NOT be flagged as the path/method echo (len > 3)
         assert not self._is_credential_error_response(data)
+
+
+class TestTokenRequestFormat:
+    """Verify that _get_access_token sends credentials in the JSON body (not Basic Auth)."""
+
+    def setup_method(self):
+        os.environ["PHOTONPAY_APP_ID"] = "test_app_id"
+        os.environ["PHOTONPAY_APP_SECRET"] = "test_app_secret"
+        os.environ.pop("PHOTONPAY_MODE", None)
+        os.environ.pop("PHOTONPAY_BASE_URL", None)
+        self.service = PhotonPayService()
+
+    @pytest.mark.asyncio
+    async def test_token_request_uses_json_body(self):
+        """_get_access_token must POST appId/appSecret/grantType as a JSON body."""
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.json.return_value = {
+            "code": "0",
+            "data": {"accessToken": "test-token", "expiresIn": 7200},
+        }
+
+        captured_kwargs = {}
+
+        async def fake_post(url, **kwargs):
+            captured_kwargs.update(kwargs)
+            return mock_response
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = fake_post
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            token = await self.service._get_access_token()
+
+        assert token == "test-token"
+        # Credentials must be in the JSON body, not in headers
+        assert "json" in captured_kwargs, "Request must use a JSON body"
+        body = captured_kwargs["json"]
+        assert body.get("appId") == "test_app_id"
+        assert body.get("appSecret") == "test_app_secret"
+        assert body.get("grantType") == "client_credentials"
+
+    @pytest.mark.asyncio
+    async def test_token_request_does_not_use_basic_auth(self):
+        """_get_access_token must NOT send an Authorization: Basic header."""
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.json.return_value = {
+            "code": "0",
+            "data": {"accessToken": "test-token", "expiresIn": 7200},
+        }
+
+        captured_kwargs = {}
+
+        async def fake_post(url, **kwargs):
+            captured_kwargs.update(kwargs)
+            return mock_response
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = fake_post
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            await self.service._get_access_token()
+
+        headers = captured_kwargs.get("headers", {})
+        auth_header = headers.get("Authorization", "")
+        assert not auth_header.startswith("Basic "), (
+            "Token request must not use HTTP Basic Auth — credentials belong in the JSON body"
+        )

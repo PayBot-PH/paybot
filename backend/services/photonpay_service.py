@@ -6,7 +6,8 @@ Authentication
 --------------
 PhotonPay uses a two-step OAuth flow:
   1. POST /oauth2/token/accessToken
-     Header: Authorization: Basic base64({appId}:{appSecret})
+     Content-Type: application/json
+     Body: {"appId": "<appId>", "appSecret": "<appSecret>", "grantType": "client_credentials"}
      Returns: access_token (JWT)
 
   2. All subsequent calls carry:
@@ -248,15 +249,16 @@ class PhotonPayService:
         token_url = f"{self._base_url}/oauth2/token/accessToken"
         async with httpx.AsyncClient() as client:
             # PhotonPay OAuth2 client_credentials flow.
-            # The Authorization header uses colon-separated appId:appSecret (base64, RFC 7617).
-            # grant_type must be sent as a form field per standard OAuth2.
+            # Credentials are sent in the JSON body (appId / appSecret / grantType)
+            # rather than as an HTTP Basic Auth header — the API returns
+            # {"path":…,"method":…} when Basic Auth is used.
             r = await client.post(
                 token_url,
-                headers={
-                    "Authorization": self._basic_auth_header(),
-                    "Content-Type": "application/x-www-form-urlencoded",
+                json={
+                    "appId": self.app_id,
+                    "appSecret": self.app_secret,
+                    "grantType": "client_credentials",
                 },
-                data={"grant_type": "client_credentials"},
                 timeout=30.0,
             )
             if not r.is_success:
