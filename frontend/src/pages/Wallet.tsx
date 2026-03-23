@@ -571,35 +571,35 @@ export default function Wallet() {
                   className="flex-1 h-full rounded-none rounded-tl-lg data-[state=active]:bg-card data-[state=active]:text-amber-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <ArrowUpFromLine className="h-4 w-4 shrink-0" />
-                  <span>Withdraw</span>
+                  <span className="hidden sm:inline">Withdraw</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="disburse"
                   className="flex-1 h-full rounded-none data-[state=active]:bg-card data-[state=active]:text-emerald-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <Building2 className="h-4 w-4 shrink-0" />
-                  <span>Disburse</span>
+                  <span className="hidden sm:inline">Disburse</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="topup"
                   className="flex-1 h-full rounded-none data-[state=active]:bg-card data-[state=active]:text-blue-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <PlusCircle className="h-4 w-4 shrink-0" />
-                  <span>Top Up</span>
+                  <span className="hidden sm:inline">Top Up</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="send-usd"
                   className="flex-1 h-full rounded-none data-[state=active]:bg-card data-[state=active]:text-emerald-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <Send className="h-4 w-4 shrink-0" />
-                  <span>Send USD</span>
+                  <span className="hidden sm:inline">Send USD</span>
                 </TabsTrigger>
                 <TabsTrigger
                   value="send-usdt"
                   className="flex-1 h-full rounded-none rounded-tr-lg data-[state=active]:bg-card data-[state=active]:text-teal-400 text-muted-foreground flex-col gap-0.5 py-2 text-xs sm:flex-row sm:gap-2 sm:text-sm sm:py-0"
                 >
                   <Bitcoin className="h-4 w-4 shrink-0" />
-                  <span>Send USDT</span>
+                  <span className="hidden sm:inline">Send USDT</span>
                 </TabsTrigger>
               </TabsList>
 

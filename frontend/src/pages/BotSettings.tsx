@@ -441,14 +441,14 @@ export default function BotSettings() {
     <Layout>
       {showTutorial && <TutorialOverlay onDone={dismissTutorial} />}
       <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-start justify-between gap-3 mb-6 flex-wrap">
           <div>
-            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
               <Bot className="h-6 w-6 text-blue-400" /> Bot Settings
             </h1>
             <p className="text-muted-foreground text-sm mt-0.5">Configure your Telegram payment bot</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {botConfig && (
               <Badge className={`border text-xs ${statusColor(localConfig.bot_status)}`}>
                 {localConfig.bot_status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : localConfig.bot_status === 'maintenance' ? <Wrench className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
