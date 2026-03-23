@@ -2,12 +2,20 @@
 import base64
 import os
 
+import pytest
+
 # Ensure required env vars are present before importing the service
 os.environ.setdefault("PHOTONPAY_APP_ID", "test_app_id")
 os.environ.setdefault("PHOTONPAY_APP_SECRET", "test_app_secret")
 
 
-from services.photonpay_service import PhotonPayService  # noqa: E402
+from services.photonpay_service import (  # noqa: E402
+    PhotonPayService,
+    _PHOTONPAY_PRODUCTION_BASE_URL,
+    _PHOTONPAY_PRODUCTION_CASHIER_URL,
+    _PHOTONPAY_SANDBOX_BASE_URL,
+    _PHOTONPAY_SANDBOX_CASHIER_URL,
+)
 
 
 class TestBasicAuthHeader:
@@ -16,6 +24,9 @@ class TestBasicAuthHeader:
     def setup_method(self):
         os.environ["PHOTONPAY_APP_ID"] = "test_app_id"
         os.environ["PHOTONPAY_APP_SECRET"] = "test_app_secret"
+        os.environ.pop("PHOTONPAY_MODE", None)
+        os.environ.pop("PHOTONPAY_BASE_URL", None)
+        os.environ.pop("PHOTONPAY_CASHIER_URL", None)
         self.service = PhotonPayService()
 
     def test_header_starts_with_basic(self):
@@ -87,3 +98,126 @@ class TestTokenPayloadExtraction:
         payload = {"code": "200", "msg": "ok", "data": {"foo": "bar"}}
         token_data = self.service._extract_token_payload(payload)
         assert token_data is payload
+
+
+class TestBaseUrlSelection:
+    """Verify the service picks the correct base URL based on PHOTONPAY_MODE."""
+
+    def setup_method(self):
+        os.environ["PHOTONPAY_APP_ID"] = "test_app_id"
+        os.environ["PHOTONPAY_APP_SECRET"] = "test_app_secret"
+        # Reset overrides before each test
+        for key in ("PHOTONPAY_MODE", "PHOTONPAY_BASE_URL", "PHOTONPAY_CASHIER_URL"):
+            os.environ.pop(key, None)
+
+    def test_production_mode_uses_production_url(self):
+        os.environ["PHOTONPAY_MODE"] = "production"
+        svc = PhotonPayService()
+        assert svc.base_url == _PHOTONPAY_PRODUCTION_BASE_URL
+        assert svc.cashier_url == _PHOTONPAY_PRODUCTION_CASHIER_URL
+
+    def test_live_mode_uses_production_url(self):
+        os.environ["PHOTONPAY_MODE"] = "live"
+        svc = PhotonPayService()
+        assert svc.base_url == _PHOTONPAY_PRODUCTION_BASE_URL
+
+    def test_sandbox_mode_uses_sandbox_url(self):
+        os.environ["PHOTONPAY_MODE"] = "sandbox"
+        svc = PhotonPayService()
+        assert svc.base_url == _PHOTONPAY_SANDBOX_BASE_URL
+        assert svc.cashier_url == _PHOTONPAY_SANDBOX_CASHIER_URL
+
+    def test_uat_mode_uses_sandbox_url(self):
+        os.environ["PHOTONPAY_MODE"] = "uat"
+        svc = PhotonPayService()
+        assert svc.base_url == _PHOTONPAY_SANDBOX_BASE_URL
+
+    def test_base_url_override_takes_precedence(self):
+        os.environ["PHOTONPAY_MODE"] = "sandbox"
+        os.environ["PHOTONPAY_BASE_URL"] = "https://custom.example.com"
+        svc = PhotonPayService()
+        assert svc.base_url == "https://custom.example.com"
+
+    def test_cashier_url_override_takes_precedence(self):
+        os.environ["PHOTONPAY_MODE"] = "sandbox"
+        os.environ["PHOTONPAY_CASHIER_URL"] = "https://custom-cashier.example.com"
+        svc = PhotonPayService()
+        assert svc.cashier_url == "https://custom-cashier.example.com"
+
+    def test_trailing_slash_stripped_from_override(self):
+        os.environ["PHOTONPAY_BASE_URL"] = "https://custom.example.com/"
+        svc = PhotonPayService()
+        assert svc.base_url == "https://custom.example.com"
+
+    def test_default_mode_is_production(self):
+        """When PHOTONPAY_MODE is absent the service should default to production."""
+        svc = PhotonPayService()
+        assert svc.base_url == _PHOTONPAY_PRODUCTION_BASE_URL
+
+
+class TestInvalidCredentialsResponseDetection:
+    """Verify the service raises a clear error for PhotonPay's invalid-credentials response."""
+
+    def setup_method(self):
+        os.environ["PHOTONPAY_APP_ID"] = "test_app_id"
+        os.environ["PHOTONPAY_APP_SECRET"] = "test_app_secret"
+        for key in ("PHOTONPAY_MODE", "PHOTONPAY_BASE_URL", "PHOTONPAY_CASHIER_URL"):
+            os.environ.pop(key, None)
+        self.service = PhotonPayService()
+
+    @pytest.mark.asyncio
+    async def test_path_method_response_raises_credentials_error(self):
+        """The {"path":…,"method":…} response must produce a helpful error message."""
+        import httpx
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "path": "/token/accessToken",
+            "method": "POST",
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await self.service._get_access_token()
+
+        error_msg = str(exc_info.value)
+        assert "authentication failed" in error_msg.lower()
+        assert "PHOTONPAY_MODE" in error_msg
+        # Token must NOT be cached after a failed auth attempt
+        assert self.service._access_token is None
+
+    @pytest.mark.asyncio
+    async def test_path_method_with_extra_keys_does_not_trigger(self):
+        """A response that contains path/method BUT also has a token should work normally."""
+        import httpx
+        from unittest.mock import AsyncMock, MagicMock, patch
+
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "path": "/token/accessToken",
+            "method": "POST",
+            "access_token": "tok123",
+            "expires_in": 3600,
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            token = await self.service._get_access_token()
+
+        assert token == "tok123"

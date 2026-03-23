@@ -95,7 +95,10 @@ class Settings(BaseSettings):
     # payMethod strings – adjust based on account type (e.g. "Alipay", "WeChat")
     photonpay_alipay_method: str = "Alipay"
     photonpay_wechat_method: str = "WeChat"
-    photonpay_mode: str = "sandbox"  # "sandbox" or "live"
+    photonpay_mode: str = "production"  # "sandbox" or "production"/"live"
+    # Optional overrides — leave blank to derive from photonpay_mode
+    photonpay_base_url: str = ""
+    photonpay_cashier_url: str = ""
 
     # TransFi Checkout API
     transfi_api_key: str = ""
