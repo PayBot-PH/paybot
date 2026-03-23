@@ -316,7 +316,34 @@ async def telegram_login_config():
     return {"bot_username": username}
 
 
-@router.get("/login")
+@router.get("/telegram-login-diagnostic")
+async def telegram_login_diagnostic():
+    """Diagnostic endpoint to verify Telegram login configuration.
+
+    Returns status of all required environment variables for Telegram authentication.
+    Useful for debugging "Invalid Telegram login payload" errors.
+    """
+    bot_token = str(getattr(settings, "telegram_bot_token", "") or "")
+    bot_username = str(getattr(settings, "telegram_bot_username", "") or "")
+    admin_ids = str(getattr(settings, "telegram_admin_ids", "") or "")
+    jwt_secret = str(getattr(settings, "jwt_secret_key", "") or "")
+
+    return {
+        "status": "ok" if bot_token and jwt_secret else "misconfigured",
+        "telegram_bot_token": "SET ✓" if bot_token else "MISSING ✗",
+        "telegram_bot_username": "SET ✓" if bot_username else "EMPTY (will fetch from Telegram API)",
+        "telegram_admin_ids": "SET ✓" if admin_ids else "EMPTY (no admins configured)",
+        "jwt_secret_key": "SET ✓" if jwt_secret else "GENERATED TEMPORARILY",
+        "server_time": int(time.time()),
+        "next_steps": [
+            "If telegram_bot_token is MISSING: Add TELEGRAM_BOT_TOKEN env var to Railway",
+            "If jwt_secret_key is GENERATED: Set JWT_SECRET_KEY env var for persistent auth",
+            "If admin_ids is EMPTY: After first login, user will be auto-registered as admin",
+        ] if not bot_token or not jwt_secret else ["All systems configured correctly"],
+    }
+
+
+
 async def login(request: Request, db: AsyncSession = Depends(get_db)):
     """Start OIDC login flow with PKCE."""
     state = generate_state()
