@@ -52,3 +52,38 @@ class TestBasicAuthHeader:
         encoded = header[len("Basic "):]
         decoded = base64.b64decode(encoded).decode()
         assert decoded == "myApp123:superSecret!"
+
+
+class TestTokenPayloadExtraction:
+    """Verify token extraction works across PhotonPay response variants."""
+
+    def setup_method(self):
+        self.service = PhotonPayService()
+
+    def test_extract_from_root_fields(self):
+        payload = {"access_token": "root-token", "expires_in": 3600}
+        token_data = self.service._extract_token_payload(payload)
+        assert token_data["access_token"] == "root-token"
+
+    def test_extract_from_data_object(self):
+        payload = {"code": 0, "data": {"accessToken": "data-token", "expiresIn": 7200}}
+        token_data = self.service._extract_token_payload(payload)
+        assert token_data["accessToken"] == "data-token"
+
+    def test_extract_from_nested_result(self):
+        payload = {
+            "code": "0",
+            "data": {
+                "result": {
+                    "token": "nested-token",
+                    "expires_in": 1800,
+                }
+            },
+        }
+        token_data = self.service._extract_token_payload(payload)
+        assert token_data["token"] == "nested-token"
+
+    def test_fallback_returns_payload_when_no_token_keys(self):
+        payload = {"code": "200", "msg": "ok", "data": {"foo": "bar"}}
+        token_data = self.service._extract_token_payload(payload)
+        assert token_data is payload

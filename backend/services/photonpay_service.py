@@ -93,6 +93,58 @@ class PhotonPayService:
         self._access_token: Optional[str] = None
         self._token_expires_at: float = 0.0
 
+    def _compact_json(self, value: Any, limit: int = 1800) -> str:
+        """Serialize a value to a bounded JSON string for safe error messages."""
+        try:
+            text = json.dumps(value, ensure_ascii=False, separators=(",", ":"), default=str)
+        except Exception:
+            text = str(value)
+        if len(text) <= limit:
+            return text
+        return f"{text[:limit]}...<truncated {len(text) - limit} chars>"
+
+    def _extract_token_payload(self, payload: Any) -> Dict[str, Any]:
+        """
+        Return the dict that most likely contains token fields.
+
+        PhotonPay responses vary by environment/version and can place tokens
+        in nested objects such as data/result/body.
+        """
+        if not isinstance(payload, dict):
+            return {}
+
+        candidates = [
+            payload,
+            payload.get("data"),
+            payload.get("result"),
+            payload.get("body"),
+        ]
+
+        data = payload.get("data")
+        if isinstance(data, dict):
+            candidates.extend([
+                data,
+                data.get("result"),
+                data.get("body"),
+                data.get("data"),
+            ])
+
+        result = payload.get("result")
+        if isinstance(result, dict):
+            candidates.extend([
+                result,
+                result.get("data"),
+                result.get("body"),
+            ])
+
+        for item in candidates:
+            if isinstance(item, dict) and any(
+                key in item for key in ("access_token", "accessToken", "token")
+            ):
+                return item
+
+        return payload
+
     # ------------------------------------------------------------------
     # Authentication
     # ------------------------------------------------------------------
@@ -152,20 +204,21 @@ class PhotonPayService:
                     f"status: {r.status_code}, response: {r.text})"
                 )
             r.raise_for_status()
-            data = r.json()
-            logger.info("PhotonPay token response: %s", data)
+            try:
+                data = r.json()
+            except Exception:
+                raise ValueError(
+                    "PhotonPay token endpoint returned non-JSON response "
+                    f"(status: {r.status_code}, body: {self._compact_json(r.text)})"
+                )
+
+            logger.info("PhotonPay token response: %s", self._compact_json(data, limit=1000))
 
             # Fail fast if the API returned an error code in the body
             code = str(data.get("code", ""))
             # PhotonPay success codes: "0", "200", "0000", or absent
             is_success = code in ("0", "200", "0000", "") or code.startswith("0")
-            if not is_success:
-                raise ValueError(
-                    f"PhotonPay token endpoint error {code}: {data.get('msg', 'unknown')}"
-                )
-
-            # Token may live under "data" or directly in the root
-            token_data = data.get("data") or data
+            token_data = self._extract_token_payload(data)
             token = (
                 token_data.get("access_token")
                 or token_data.get("accessToken")
@@ -173,9 +226,17 @@ class PhotonPayService:
                 or ""
             )
 
+            if not is_success and not token:
+                raise ValueError(
+                    "PhotonPay token endpoint returned an error "
+                    f"(code: {code}, msg: {data.get('msg', data.get('message', 'unknown'))}, "
+                    f"response: {self._compact_json(data)})"
+                )
+
             if not token:
                 raise ValueError(
-                    f"PhotonPay returned no access token — full response: {data}"
+                    "PhotonPay returned no access token — "
+                    f"full response: {self._compact_json(data)}"
                 )
 
             expires_in = int(
