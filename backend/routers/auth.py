@@ -474,9 +474,64 @@ async def telegram_login_test(payload: TelegramWidgetLoginRequest):
                 "username": payload.username,
             },
         }
+@router.get("/telegram-debug")
+async def telegram_debug():
+    """Ultra-detailed debug endpoint to diagnose token issues."""
+    bot_token = str(getattr(settings, "telegram_bot_token", "") or "")
+
+    debug_info = {
+        "token_status": "SET" if bot_token else "MISSING",
+        "token_length": len(bot_token),
+        "token_chars": {
+            "first_10": bot_token[:10] if bot_token else "N/A",
+            "last_10": bot_token[-10:] if bot_token else "N/A",
+            "middle_sample": bot_token[15:25] if len(bot_token) > 25 else "N/A",
+        },
+        "token_format": {
+            "has_colon": ":" in bot_token,
+            "starts_with_digits": bot_token[0].isdigit() if bot_token else False,
+            "has_hyphens": "-" in bot_token,
+            "has_underscores": "_" in bot_token,
+        },
+        "hints": []
+    }
+
+    # Check for common issues
+    if not bot_token:
+        debug_info["hints"].append("⚠️  Token is MISSING. Check Railway Variables.")
+    elif len(bot_token) < 30:
+        debug_info["hints"].append("⚠️  Token is suspiciously short. Expected 36-50 chars.")
+    elif ":" not in bot_token:
+        debug_info["hints"].append("⚠️  Token should contain ':' separator (format: ID:SECRET)")
+    elif bot_token.count(":") > 1:
+        debug_info["hints"].append("⚠️  Token has multiple ':' - might be pasted wrong")
+
+    # Check token is valid Telegram format
+    if bot_token and ":" in bot_token:
+        parts = bot_token.split(":")
+        bot_id, bot_secret = parts[0], parts[1]
+        debug_info["token_breakdown"] = {
+            "bot_id": bot_id,
+            "bot_id_length": len(bot_id),
+            "bot_secret_prefix": bot_secret[:10] + ("..." if len(bot_secret) > 10 else ""),
+            "bot_secret_length": len(bot_secret),
+        }
+
+        if not bot_id.isdigit():
+            debug_info["hints"].append("⚠️  Bot ID should be all digits")
+        if len(bot_id) < 8:
+            debug_info["hints"].append("⚠️  Bot ID seems too short")
+        if len(bot_secret) < 20:
+            debug_info["hints"].append("⚠️  Bot secret seems too short")
+
+    if not debug_info["hints"]:
+        debug_info["hints"].append("✅ Token format looks correct!")
+
+    debug_info["next_step"] = "Capture the exact payload from browser DevTools → Network → /telegram-login-widget POST request"
+
+    return debug_info
 
 
-@router.get("/login")
 async def login(request: Request, db: AsyncSession = Depends(get_db)):
     """Start OIDC login flow with PKCE."""
     state = generate_state()
