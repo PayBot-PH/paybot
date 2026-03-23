@@ -36,7 +36,7 @@ export default function AuthErrorPage() {
           </div>
 
           {/* Error title */}
-          <h1 className="text-2xl font-bold text-white">
+          <h1 className="text-2xl font-bold text-foreground">
             Authentication Error
           </h1>
 

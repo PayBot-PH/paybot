@@ -145,7 +145,7 @@ function PermissionBadge({
     yellow: 'bg-yellow-500/15 border-yellow-500/30 text-yellow-400',
     indigo: 'bg-indigo-500/15 border-indigo-500/30 text-indigo-400',
     cyan: 'bg-cyan-500/15 border-cyan-500/30 text-cyan-400',
-    slate: 'bg-slate-500/15 border-slate-500/30 text-slate-300',
+    slate: 'bg-slate-500/15 border-slate-500/30 text-muted-foreground',
     teal: 'bg-teal-500/15 border-teal-500/30 text-teal-400',
   };
 
@@ -156,7 +156,7 @@ function PermissionBadge({
       className={`inline-flex items-center gap-1 px-2 py-1 rounded-md border text-xs font-medium transition-all duration-150
         ${active
           ? activeStyles[color] || 'bg-blue-500/15 border-blue-500/30 text-blue-400'
-          : 'bg-muted/60 border-slate-700/40 text-muted-foreground'
+          : 'bg-muted/60 border-border/40 text-muted-foreground'
         }
         ${interactive ? 'cursor-pointer hover:opacity-80' : 'cursor-default'}`}
     >
@@ -186,15 +186,15 @@ function TabBar({
             className={`flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg text-xs font-medium transition-all duration-150
               ${tabs.length % 2 !== 0 && idx === tabs.length - 1 ? 'col-span-2' : ''}
               ${active === tab.id
-                ? 'bg-slate-700 text-white shadow-sm'
-                : 'text-muted-foreground hover:text-slate-200 hover:bg-muted/40'
+                ? 'bg-muted text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
               }`}
           >
             {tab.icon}
             <span className="truncate">{tab.label}</span>
             {tab.count !== undefined && (
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
-                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-muted/60 text-muted-foreground'
+                active === tab.id ? 'bg-primary/20 text-foreground' : 'bg-muted/60 text-muted-foreground'
               }`}>
                 {tab.count}
               </span>
@@ -211,15 +211,15 @@ function TabBar({
             onClick={() => onChange(tab.id)}
             className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap shrink-0
               ${active === tab.id
-                ? 'bg-slate-700 text-white shadow-sm'
-                : 'text-muted-foreground hover:text-slate-200 hover:bg-muted/40'
+                ? 'bg-muted text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
               }`}
           >
             {tab.icon}
             <span>{tab.label}</span>
             {tab.count !== undefined && (
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-muted/60 text-muted-foreground'
+                active === tab.id ? 'bg-primary/20 text-foreground' : 'bg-muted/60 text-muted-foreground'
               }`}>
                 {tab.count}
               </span>
@@ -255,7 +255,7 @@ function AdminCard({
     <Card className={`border transition-all duration-200 ${
       admin.is_active
         ? 'bg-card border-border hover:border-border'
-        : 'bg-slate-900/50 border-slate-700/30 opacity-60'
+        : 'bg-background/50 border-border/30 opacity-60'
     }`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3 mb-3">
@@ -272,7 +272,7 @@ function AdminCard({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-semibold text-sm text-white truncate">
+                <span className="font-semibold text-sm text-foreground truncate">
                   {admin.name || admin.telegram_username || `ID: ${admin.telegram_id}`}
                 </span>
                 {admin.telegram_username && (
@@ -286,7 +286,7 @@ function AdminCard({
                 <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
                   admin.is_active
                     ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
-                    : 'bg-muted/40 border-slate-600/40 text-muted-foreground'
+                    : 'bg-muted/40 border-border/40 text-muted-foreground'
                 }`}>
                   {admin.is_active ? 'Active' : 'Inactive'}
                 </Badge>
@@ -388,7 +388,7 @@ function UserManagementTab({
     return (
       <div className="space-y-2">
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-14 rounded-xl bg-[#1E293B] border border-border animate-pulse" />
+          <div key={i} className="h-14 rounded-xl bg-card border border-border animate-pulse" />
         ))}
       </div>
     );
@@ -401,7 +401,7 @@ function UserManagementTab({
           <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center mb-3">
             <Users className="h-7 w-7 text-muted-foreground" />
           </div>
-          <p className="text-white font-semibold text-sm">No users yet</p>
+          <p className="text-foreground font-semibold text-sm">No users yet</p>
           <p className="text-muted-foreground text-xs mt-1">Users will appear here once they log in.</p>
         </CardContent>
       </Card>
@@ -426,7 +426,7 @@ function UserManagementTab({
                 <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 ${
                   user.role === 'admin'
                     ? 'bg-blue-500/15 border border-blue-500/25'
-                    : 'bg-slate-700/50 border border-slate-600/40'
+                    : 'bg-muted/50 border border-border/40'
                 }`}>
                   {user.role === 'admin'
                     ? <ShieldCheck className="h-4 w-4 text-blue-400" />
@@ -435,7 +435,7 @@ function UserManagementTab({
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm text-white truncate">
+                    <span className="font-semibold text-sm text-foreground truncate">
                       {user.name || user.email}
                     </span>
                   </div>
@@ -453,7 +453,7 @@ function UserManagementTab({
                     <Clock className="h-3 w-3" />
                     {formatDate(user.created_at)}
                   </div>
-                  <div className="text-[11px] text-slate-600">
+                  <div className="text-[11px] text-muted-foreground">
                     Last: {formatDate(user.last_login)}
                   </div>
                 </div>
@@ -468,7 +468,7 @@ function UserManagementTab({
                   <Badge className={`text-[10px] px-2 h-5 border ${
                     user.role === 'admin'
                       ? 'bg-blue-500/15 border-blue-500/25 text-blue-400'
-                      : 'bg-muted/40 border-slate-600/40 text-muted-foreground'
+                      : 'bg-muted/40 border-border/40 text-muted-foreground'
                   }`}>
                     {user.role}
                   </Badge>
@@ -495,7 +495,7 @@ function RoleSelector({
 
   const roles = [
     { value: 'admin', label: 'Admin', color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/25' },
-    { value: 'user', label: 'User', color: 'text-muted-foreground', bg: 'bg-muted/40 border-slate-600/40' },
+    { value: 'user', label: 'User', color: 'text-muted-foreground', bg: 'bg-muted/40 border-border/40' },
   ];
   const current = roles.find((r) => r.value === currentRole) || roles[1];
 
@@ -515,7 +515,7 @@ function RoleSelector({
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-1 z-20 bg-muted border border-slate-700/60 rounded-lg shadow-xl overflow-hidden min-w-[100px]">
+          <div className="absolute right-0 mt-1 z-20 bg-muted border border-border/60 rounded-lg shadow-xl overflow-hidden min-w-[100px]">
             {roles.map((r) => (
               <button
                 key={r.value}
@@ -613,7 +613,7 @@ function RoleManagementTab({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-white">{preset.name}</span>
+                      <span className="font-semibold text-sm text-foreground">{preset.name}</span>
                       <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${colorCls}`}>
                         PRESET
                       </Badge>
@@ -656,7 +656,7 @@ function RoleManagementTab({
                           key={admin.id}
                           onClick={() => applyRole(preset, admin)}
                           disabled={!!applying}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-slate-300 hover:bg-muted/60 hover:text-white transition-all duration-150 disabled:opacity-50"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all duration-150 disabled:opacity-50"
                         >
                           {isApplying ? (
                             <div className="h-3 w-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
@@ -672,7 +672,7 @@ function RoleManagementTab({
               )}
 
               {isSuperAdmin && activeAdmins.length === 0 && (
-                <p className="text-xs text-slate-600 italic">No active admins to apply this role to.</p>
+                <p className="text-xs text-muted-foreground italic">No active admins to apply this role to.</p>
               )}
             </CardContent>
           </Card>
@@ -701,7 +701,7 @@ function RequestCard({
     <Card className={`border transition-colors duration-150 ${
       isPending
         ? 'bg-card border-border hover:border-teal-500/30'
-        : 'bg-slate-900/40 border-slate-700/30'
+        : 'bg-background/40 border-border/30'
     }`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
@@ -722,7 +722,7 @@ function RequestCard({
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-semibold text-sm text-white">${req.amount_usdt.toFixed(2)} USDT</span>
+                <span className="font-semibold text-sm text-foreground">${req.amount_usdt.toFixed(2)} USDT</span>
                 <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
                   req.status === 'approved'
                     ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
@@ -740,9 +740,9 @@ function RequestCard({
                 TX: {req.tx_hash}
               </p>
               <div className="flex items-center gap-3 mt-1">
-                <span className="text-[10px] text-slate-600">User: {req.user_id}</span>
+                <span className="text-[10px] text-muted-foreground">User: {req.user_id}</span>
                 {req.created_at && (
-                  <span className="text-[10px] text-slate-600">{formatDate(req.created_at)}</span>
+                  <span className="text-[10px] text-muted-foreground">{formatDate(req.created_at)}</span>
                 )}
               </div>
             </div>
@@ -764,7 +764,7 @@ function RequestCard({
                 size="sm"
                 disabled={!!actionId}
                 onClick={() => onAction(req.id, 'reject')}
-                className="h-7 px-2.5 text-xs bg-slate-700 hover:bg-red-600/80 text-slate-300 hover:text-white"
+                className="h-7 px-2.5 text-xs bg-muted hover:bg-red-600/80 text-muted-foreground hover:text-white"
               >
                 <XCircle className="h-3.5 w-3.5 mr-1" />Reject
               </Button>
@@ -772,7 +772,7 @@ function RequestCard({
           )}
 
           {!isPending && req.reviewed_by && (
-            <div className="text-right shrink-0 text-[10px] text-slate-600">
+            <div className="text-right shrink-0 text-[10px] text-muted-foreground">
               <p>By: {req.reviewed_by}</p>
               {req.reviewed_at && <p>{formatDate(req.reviewed_at)}</p>}
             </div>
@@ -841,7 +841,7 @@ function CryptoRequestsTab({
     return (
       <div className="space-y-2">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-20 rounded-xl bg-[#1E293B] border border-border animate-pulse" />
+          <div key={i} className="h-20 rounded-xl bg-card border border-border animate-pulse" />
         ))}
       </div>
     );
@@ -854,7 +854,7 @@ function CryptoRequestsTab({
           <div className="h-14 w-14 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center mb-3">
             <Bitcoin className="h-7 w-7 text-teal-500" />
           </div>
-          <p className="text-white font-semibold text-sm">No crypto top-up requests</p>
+          <p className="text-foreground font-semibold text-sm">No crypto top-up requests</p>
           <p className="text-muted-foreground text-xs mt-1">Requests submitted by users will appear here.</p>
         </CardContent>
       </Card>
@@ -972,7 +972,7 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
     return (
       <div className="space-y-2">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-border animate-pulse" />
+          <div key={i} className="h-24 rounded-xl bg-card border border-border animate-pulse" />
         ))}
       </div>
     );
@@ -985,7 +985,7 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
           <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center mb-3">
             <WalletIcon className="h-7 w-7 text-muted-foreground" />
           </div>
-          <p className="text-white font-semibold text-sm">No USD wallets yet</p>
+          <p className="text-foreground font-semibold text-sm">No USD wallets yet</p>
           <p className="text-muted-foreground text-xs mt-1">USD wallets are created when users top up their balance.</p>
         </CardContent>
       </Card>
@@ -1006,7 +1006,7 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
                   <DollarSign className="h-4 w-4 text-teal-400" />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-white font-semibold text-sm truncate">
+                  <p className="text-foreground font-semibold text-sm truncate">
                     {w.telegram_username ? `@${w.telegram_username}` : w.user_id}
                   </p>
                   <p className="text-muted-foreground text-xs">{w.user_id}</p>
@@ -1028,14 +1028,14 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
                   placeholder="Amount"
                   value={adjustAmount[w.user_id] || ''}
                   onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                  className="flex-1 bg-muted/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
                 />
                 <input
                   type="text"
                   placeholder="Note (optional)"
                   value={adjustNote[w.user_id] || ''}
                   onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                  className="flex-1 bg-muted/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
+                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/40 transition-colors"
                 />
               </div>
               <div className="flex gap-2">
@@ -1254,7 +1254,7 @@ export default function AdminManagement() {
               <ShieldCheck className="h-5 w-5 text-purple-400" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-lg font-bold text-white truncate">Admin Management</h1>
+              <h1 className="text-lg font-bold text-foreground truncate">Admin Management</h1>
               <p className="text-muted-foreground text-xs mt-0.5 truncate">
                 {admins.length} admin{admins.length !== 1 ? 's' : ''} — {activeAdmins.length} active
               </p>
@@ -1264,7 +1264,7 @@ export default function AdminManagement() {
             <Button
               onClick={() => setShowAdd(!showAdd)}
               size="sm"
-              className={`gap-1.5 text-xs shrink-0 ${showAdd ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              className={`gap-1.5 text-xs shrink-0 ${showAdd ? 'bg-muted hover:bg-muted/80 text-foreground' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
             >
               {showAdd ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
               {showAdd ? 'Cancel' : 'Add Admin'}
@@ -1292,13 +1292,13 @@ export default function AdminManagement() {
                   <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
                     maintenanceMode
                       ? 'bg-amber-500/15 border-amber-500/30'
-                      : 'bg-muted/40 border-slate-600/40'
+                      : 'bg-muted/40 border-border/40'
                   }`}>
                     <WrenchIcon className={`h-4 w-4 ${maintenanceMode ? 'text-amber-400' : 'text-muted-foreground'}`} />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-white">Maintenance Mode</span>
+                      <span className="font-semibold text-sm text-foreground">Maintenance Mode</span>
                       {!maintenanceLoading && (
                         <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
                           maintenanceMode
@@ -1355,9 +1355,9 @@ export default function AdminManagement() {
           <>
             {/* Add Admin Form */}
             {showAdd && isSuperAdmin && (
-              <Card className="bg-[#1E293B] border-blue-500/20 mb-5 shadow-lg shadow-blue-900/10">
+              <Card className="bg-card border-blue-500/20 mb-5 shadow-lg shadow-blue-900/10">
                 <CardHeader className="pb-3 pt-4 px-4">
-                  <CardTitle className="text-white text-sm font-semibold flex items-center gap-2">
+                  <CardTitle className="text-foreground text-sm font-semibold flex items-center gap-2">
                     <UserPlus className="h-4 w-4 text-blue-400" />
                     New Admin
                   </CardTitle>
@@ -1371,7 +1371,7 @@ export default function AdminManagement() {
                         placeholder="e.g. 123456789"
                         value={form.telegram_id}
                         onChange={e => setForm(f => ({ ...f, telegram_id: e.target.value }))}
-                        className="w-full bg-muted/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
+                        className="w-full bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
                       />
                     </div>
                     <div>
@@ -1381,7 +1381,7 @@ export default function AdminManagement() {
                         placeholder="@username"
                         value={form.telegram_username}
                         onChange={e => setForm(f => ({ ...f, telegram_username: e.target.value }))}
-                        className="w-full bg-muted/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
+                        className="w-full bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
                       />
                     </div>
                     <div>
@@ -1391,7 +1391,7 @@ export default function AdminManagement() {
                         placeholder="Full name"
                         value={form.name}
                         onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                        className="w-full bg-muted/60 border border-slate-700/60 text-white placeholder-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
+                        className="w-full bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/40 transition-colors"
                       />
                     </div>
                   </div>
@@ -1402,7 +1402,7 @@ export default function AdminManagement() {
                       <label className="flex items-center gap-2 cursor-pointer select-none">
                         <div
                           onClick={() => setForm(f => ({ ...f, is_super_admin: !f.is_super_admin }))}
-                          className={`w-8 h-5 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 ${form.is_super_admin ? 'bg-amber-500' : 'bg-slate-700'}`}
+                          className={`w-8 h-5 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 ${form.is_super_admin ? 'bg-amber-500' : 'bg-muted'}`}
                         >
                           <div className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${form.is_super_admin ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
                         </div>
@@ -1414,9 +1414,9 @@ export default function AdminManagement() {
                             type="checkbox"
                             checked={form[key as keyof typeof form] as boolean}
                             onChange={e => setForm(f => ({ ...f, [key]: e.target.checked }))}
-                            className="h-3.5 w-3.5 rounded border-slate-600 bg-muted text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0"
+                            className="h-3.5 w-3.5 rounded border-border bg-muted text-blue-500 focus:ring-blue-500/30 focus:ring-offset-0"
                           />
-                          <span className="text-xs text-slate-300">{label}</span>
+                          <span className="text-xs text-muted-foreground">{label}</span>
                         </label>
                       ))}
                     </div>
@@ -1435,7 +1435,7 @@ export default function AdminManagement() {
                       variant="ghost"
                       size="sm"
                       onClick={() => { setShowAdd(false); setForm(defaultForm); }}
-                      className="text-muted-foreground hover:text-white text-xs"
+                      className="text-muted-foreground hover:text-foreground text-xs"
                     >
                       Cancel
                     </Button>
@@ -1448,7 +1448,7 @@ export default function AdminManagement() {
             {loading ? (
               <div className="space-y-3">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-24 rounded-xl bg-[#1E293B] border border-border animate-pulse" />
+                  <div key={i} className="h-24 rounded-xl bg-card border border-border animate-pulse" />
                 ))}
               </div>
             ) : admins.length === 0 ? (
@@ -1457,7 +1457,7 @@ export default function AdminManagement() {
                   <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center mb-3">
                     <ShieldCheck className="h-7 w-7 text-muted-foreground" />
                   </div>
-                  <p className="text-white font-semibold text-sm">No admins yet</p>
+                  <p className="text-foreground font-semibold text-sm">No admins yet</p>
                   <p className="text-muted-foreground text-xs mt-1">Add your first admin to grant dashboard access.</p>
                 </CardContent>
               </Card>
@@ -1477,9 +1477,9 @@ export default function AdminManagement() {
                 {inactiveAdmins.length > 0 && (
                   <>
                     <div className="flex items-center gap-2 pt-2">
-                      <div className="h-px flex-1 bg-slate-700/50" />
+                      <div className="h-px flex-1 bg-muted/50" />
                       <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">Inactive</span>
-                      <div className="h-px flex-1 bg-slate-700/50" />
+                      <div className="h-px flex-1 bg-muted/50" />
                     </div>
                     {inactiveAdmins.map(admin => (
                       <AdminCard
