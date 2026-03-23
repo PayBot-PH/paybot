@@ -119,10 +119,15 @@ def _get_allowed_telegram_admin_ids() -> tuple[set[str], set[str]]:
 
 def _verify_telegram_widget_payload(payload: TelegramWidgetLoginRequest, bot_token: str, max_age_seconds: int = 86400) -> bool:
     if not bot_token:
+        logger.error("[_verify_telegram_widget_payload] bot_token is empty or None")
         return False
 
     now = int(time.time())
     if payload.auth_date > now or (now - payload.auth_date) > max_age_seconds:
+        logger.error(
+            "[_verify_telegram_widget_payload] auth_date out of range: "
+            f"auth_date={payload.auth_date}, now={now}, diff={(now - payload.auth_date)}s"
+        )
         return False
 
     fields = {
@@ -134,10 +139,30 @@ def _verify_telegram_widget_payload(payload: TelegramWidgetLoginRequest, bot_tok
         "username": payload.username,
     }
 
-    data_check_string = "\n".join(f"{key}={value}" for key, value in sorted(fields.items()) if value is not None and value != "")
+    # Build data_check_string from non-empty fields in alphabetical order
+    data_check_string = "\n".join(
+        f"{key}={value}"
+        for key, value in sorted(fields.items())
+        if value is not None and value != ""
+    )
+
+    logger.debug(
+        "[_verify_telegram_widget_payload] data_check_string=%s",
+        repr(data_check_string),
+    )
+
     secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
     computed_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
-    return hmac.compare_digest(computed_hash, payload.hash)
+
+    hash_matches = hmac.compare_digest(computed_hash, payload.hash)
+
+    if not hash_matches:
+        logger.error(
+            "[_verify_telegram_widget_payload] hash mismatch: "
+            f"computed={computed_hash}, received={payload.hash}"
+        )
+
+    return hash_matches
 
 
 @router.post("/telegram-login", response_model=TokenExchangeResponse)
@@ -154,6 +179,15 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
     """Telegram Login Widget admin login with Telegram-signed payload validation."""
     bot_token = str(getattr(settings, "telegram_bot_token", "") or "")
     allowed_admin_ids, allowed_admin_usernames = _get_allowed_telegram_admin_ids()
+
+    logger.info(
+        "[telegram-login-widget] Login attempt: user_id=%s, username=%s, "
+        "bot_token_set=%s, admins_configured=%s",
+        payload.id,
+        payload.username,
+        bool(bot_token),
+        bool(allowed_admin_ids or allowed_admin_usernames),
+    )
 
     if not bot_token:
         raise HTTPException(
@@ -196,7 +230,14 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
         )
 
     if not _verify_telegram_widget_payload(payload, bot_token):
+        logger.error(
+            "[telegram-login-widget] Verification failed for user_id=%s, username=%s",
+            payload.id,
+            payload.username,
+        )
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram login payload")
+
+    logger.info("[telegram-login-widget] Payload verified for user_id=%s", payload.id)
 
     display_name = " ".join(part for part in [payload.first_name, payload.last_name] if part).strip()
     if not display_name:
