@@ -393,8 +393,90 @@ async def telegram_login_diagnostic():
     }
 
 
+@router.post("/telegram-login-test")
+async def telegram_login_test(payload: TelegramWidgetLoginRequest):
+    """Test endpoint to verify Telegram payload without going through widget.
+
+    Helps diagnose "Invalid payload" errors by testing signature verification
+    directly without needing the Telegram Login Widget.
+
+    Usage: POST /api/v1/auth/telegram-login-test with Telegram payload
+    """
+    bot_token = str(getattr(settings, "telegram_bot_token", "") or "")
+
+    if not bot_token:
+        return {
+            "success": False,
+            "error": "bot_token not configured on server",
+            "hint": "Check Railway Variables for TELEGRAM_BOT_TOKEN",
+        }
+
+    # Test timestamp validation
+    now = int(time.time())
+    auth_age = now - payload.auth_date
+
+    if auth_age > 86400:
+        return {
+            "success": False,
+            "error": "Payload is too old (>24 hours)",
+            "auth_date": payload.auth_date,
+            "server_time": now,
+            "age_seconds": auth_age,
+        }
+
+    if payload.auth_date > now:
+        return {
+            "success": False,
+            "error": "Payload timestamp is in the future (clock skew)",
+            "auth_date": payload.auth_date,
+            "server_time": now,
+        }
+
+    # Build data_check_string exactly as backend does
+    fields = {
+        "auth_date": str(payload.auth_date),
+        "first_name": payload.first_name,
+        "id": str(payload.id),
+        "last_name": payload.last_name,
+        "photo_url": payload.photo_url,
+        "username": payload.username,
+    }
+
+    data_check_string = "\n".join(
+        f"{key}={value}"
+        for key, value in sorted(fields.items())
+        if value is not None and value != ""
+    )
+
+    # Compute hash
+    secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
+    computed_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
+
+    hash_matches = hmac.compare_digest(computed_hash, payload.hash)
+
+    if hash_matches:
+        return {
+            "success": True,
+            "message": "Payload signature verified successfully!",
+            "user_id": payload.id,
+            "username": payload.username,
+            "auth_age_seconds": auth_age,
+        }
+    else:
+        return {
+            "success": False,
+            "error": "Hash verification failed",
+            "hint": "Token on server doesn't match Telegram's token. Clear browser cache and try again.",
+            "debug": {
+                "payload_hash": payload.hash,
+                "computed_hash_preview": computed_hash[:20] + "..." + computed_hash[-20:],
+                "user_id": payload.id,
+                "username": payload.username,
+            },
+        }
 
 
+@router.get("/login")
 async def login(request: Request, db: AsyncSession = Depends(get_db)):
     """Start OIDC login flow with PKCE."""
     state = generate_state()
