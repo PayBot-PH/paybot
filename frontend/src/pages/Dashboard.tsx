@@ -306,23 +306,23 @@ export default function Dashboard() {
             </div>
 
             {/* Right: Quick live stats */}
-            <div className="flex items-center gap-3 sm:gap-4 shrink-0">
-              <div className="text-center px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.10]">
-                <p className="text-2xl font-bold text-foreground">
-                  {loading ? <span className="inline-block w-10 h-7 bg-white/10 rounded animate-pulse" /> : stats.total_count}
+            <div className="flex items-center gap-2 sm:gap-4 flex-wrap justify-between sm:justify-end shrink-0">
+              <div className="text-center px-3 sm:px-4 py-2 sm:py-3 rounded-xl bg-white/[0.06] border border-white/[0.10]">
+                <p className="text-xl sm:text-2xl font-bold text-foreground">
+                  {loading ? <span className="inline-block w-8 sm:w-10 h-6 sm:h-7 bg-white/10 rounded animate-pulse" /> : stats.total_count}
                 </p>
                 <p className="text-blue-100/80 text-[11px] mt-0.5">Total Txns</p>
               </div>
-              <div className="text-center px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.10]">
-                <p className="text-2xl font-bold text-emerald-400">
-                  {loading ? <span className="inline-block w-10 h-7 bg-white/10 rounded animate-pulse" /> : stats.paid_count}
+              <div className="text-center px-3 sm:px-4 py-2 sm:py-3 rounded-xl bg-white/[0.06] border border-white/[0.10]">
+                <p className="text-xl sm:text-2xl font-bold text-emerald-400">
+                  {loading ? <span className="inline-block w-8 sm:w-10 h-6 sm:h-7 bg-white/10 rounded animate-pulse" /> : stats.paid_count}
                 </p>
                 <p className="text-blue-100/80 text-[11px] mt-0.5">Completed</p>
               </div>
-              <div className="text-center px-4 py-3 rounded-xl bg-white/[0.06] border border-white/[0.10]">
-                <p className="text-2xl font-bold text-blue-400">
+              <div className="text-center px-3 sm:px-4 py-2 sm:py-3 rounded-xl bg-white/[0.06] border border-white/[0.10]">
+                <p className="text-xl sm:text-2xl font-bold text-blue-400">
                   {loading
-                    ? <span className="inline-block w-10 h-7 bg-white/10 rounded animate-pulse" />
+                    ? <span className="inline-block w-8 sm:w-10 h-6 sm:h-7 bg-white/10 rounded animate-pulse" />
                     : `₱${fmtShort(stats.paid_amount)}`
                   }
                 </p>
@@ -357,7 +357,7 @@ export default function Dashboard() {
                   <Wallet className="h-4 w-4 text-white" />
                 </div>
               </div>
-              <p className="text-2xl sm:text-3xl font-bold text-white transition-all duration-300">
+              <p className="text-xl sm:text-2xl font-bold text-white transition-all duration-300">
                 {loading
                   ? <span className="inline-block w-24 h-8 bg-blue-500/40 rounded animate-pulse" />
                   : `₱${fmt(walletBalance || 0)}`
@@ -381,7 +381,7 @@ export default function Dashboard() {
                   <DollarSign className="h-4 w-4 text-white" />
                 </div>
               </div>
-              <p className="text-2xl sm:text-3xl font-bold text-white transition-all duration-300">
+              <p className="text-xl sm:text-2xl font-bold text-white transition-all duration-300">
                 {loading
                   ? <span className="inline-block w-24 h-8 bg-teal-500/40 rounded animate-pulse" />
                   : `$${usdWalletBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`

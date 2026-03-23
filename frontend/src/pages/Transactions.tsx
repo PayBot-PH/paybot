@@ -165,12 +165,12 @@ export default function Transactions() {
 
   return (
     <Layout connected={connected}>
-      <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Transactions</h1>
+      <div className="flex items-center justify-between mb-6 gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Transactions</h1>
           <Link to="/create-payment">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white">
-              <Plus className="h-4 w-4 mr-2" />
-              New Payment
+            <Button className="bg-blue-600 hover:bg-blue-700 text-white shrink-0">
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">New Payment</span>
             </Button>
           </Link>
         </div>
