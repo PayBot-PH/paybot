@@ -22,6 +22,9 @@ class TestBasicAuthHeader:
     def setup_method(self):
         os.environ["PHOTONPAY_APP_ID"] = "test_app_id"
         os.environ["PHOTONPAY_APP_SECRET"] = "test_app_secret"
+        os.environ.pop("PHOTONPAY_MODE", None)
+        os.environ.pop("PHOTONPAY_BASE_URL", None)
+        os.environ.pop("PHOTONPAY_CASHIER_URL", None)
         self.service = PhotonPayService()
 
     def test_header_starts_with_basic(self):

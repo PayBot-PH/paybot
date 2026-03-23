@@ -14,6 +14,17 @@ PhotonPay uses a two-step OAuth flow:
      - X-PD-SIGN:  base64(MD5withRSA(request_body, merchant_rsa_private_key))
        (Only required when the request body is non-empty.)
 
+Environment / base URLs
+-----------------------
+  production  →  https://x-api.photonpay.com        (default)
+  sandbox     →  https://x-api1.uat.photontech.cc
+
+Set PHOTONPAY_MODE=sandbox to use the sandbox environment; the service will
+automatically use the matching base URL.  Set PHOTONPAY_BASE_URL to override
+the URL entirely.  The App ID / App Secret must match the chosen environment —
+mixing sandbox credentials with the production endpoint (or vice versa) causes
+PhotonPay to return {"path":…,"method":…} instead of an access token.
+
 Cashier (hosted checkout) flow
 --------------------------------
   1. POST /txncore/openApi/v4/cashierSession
@@ -22,7 +33,8 @@ Cashier (hosted checkout) flow
      Returns: authCode, payId
 
   2. Redirect user to:
-     https://cashier.photonpay.com/?code={authCode}
+     https://cashier.photonpay.com/?code={authCode}   (production)
+     https://cashier1.uat.photontech.cc/?code={authCode}  (sandbox)
 
   3. User pays via Alipay or WeChat QR inside the hosted page.
 
@@ -72,6 +84,9 @@ class PhotonPayService:
         self.site_id = os.environ.get("PHOTONPAY_SITE_ID", "")
         self.alipay_method = os.environ.get("PHOTONPAY_ALIPAY_METHOD", "Alipay")
         self.wechat_method = os.environ.get("PHOTONPAY_WECHAT_METHOD", "WeChat")
+        mode = os.environ.get("PHOTONPAY_MODE", "production").lower().strip()
+        base_url_override = os.environ.get("PHOTONPAY_BASE_URL", "").strip()
+        cashier_url_override = os.environ.get("PHOTONPAY_CASHIER_URL", "").strip()
 
         # Determine base URL from PHOTONPAY_BASE_URL override or PHOTONPAY_MODE
         _base_url_override = os.environ.get("PHOTONPAY_BASE_URL", "").strip()
@@ -108,6 +123,27 @@ class PhotonPayService:
                             self._base_url = PHOTONPAY_PRODUCTION_URL
             except Exception:
                 pass
+
+        # Resolve base URL: explicit override > mode-based default
+        is_sandbox = mode in ("sandbox", "test", "uat")
+        if base_url_override:
+            self.base_url = base_url_override.rstrip("/")
+        elif is_sandbox:
+            self.base_url = _PHOTONPAY_SANDBOX_BASE_URL
+        else:
+            self.base_url = _PHOTONPAY_PRODUCTION_BASE_URL
+
+        if cashier_url_override:
+            self.cashier_url = cashier_url_override.rstrip("/")
+        elif is_sandbox:
+            self.cashier_url = _PHOTONPAY_SANDBOX_CASHIER_URL
+        else:
+            self.cashier_url = _PHOTONPAY_PRODUCTION_CASHIER_URL
+
+        logger.debug(
+            "PhotonPay: mode=%s base_url=%s cashier_url=%s",
+            mode, self.base_url, self.cashier_url,
+        )
 
         if not self.app_id or not self.app_secret:
             logger.warning(
@@ -377,7 +413,7 @@ class PhotonPayService:
         try:
             async with httpx.AsyncClient() as client:
                 r = await client.post(
-                    f"{self._base_url}/txncore/openApi/v4/cashierSession",
+                    f"{self.base_url}/txncore/openApi/v4/cashierSession",
                     headers=headers,
                     content=body_str.encode("utf-8"),
                     timeout=30.0,
@@ -398,7 +434,7 @@ class PhotonPayService:
                         "error": f"PhotonPay error {code}: {msg or 'no authCode returned'}",
                     }
 
-                checkout_url = f"{PHOTONPAY_CASHIER_URL}/?code={auth_code}"
+                checkout_url = f"{self.cashier_url}/?code={auth_code}"
 
                 return {
                     "success": True,
