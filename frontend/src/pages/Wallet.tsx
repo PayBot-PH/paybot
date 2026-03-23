@@ -1244,7 +1244,7 @@ export default function Wallet() {
                     <Send className="h-4 w-4 text-emerald-400 shrink-0" />
                     <span className="text-emerald-300 text-sm font-medium">USD Wallet Balance</span>
                   </div>
-                  <span className="text-white font-bold text-sm">${usdBal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-foreground font-bold text-sm">${usdBal.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                 </div>
 
                 <div className="space-y-3">
@@ -1307,7 +1307,7 @@ export default function Wallet() {
                     <Bitcoin className="h-4 w-4 text-teal-400 shrink-0" />
                     <span className="text-teal-300 text-sm font-medium">USD Wallet Balance</span>
                   </div>
-                  <span className="text-white font-bold text-sm">${usdBal.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT</span>
+                  <span className="text-foreground font-bold text-sm">${usdBal.toLocaleString('en-US', { minimumFractionDigits: 2 })} USDT</span>
                 </div>
 
                 {/* Warning */}

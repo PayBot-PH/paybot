@@ -13,7 +13,7 @@ const LogoutCallbackPage: React.FC = () => {
             <path d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">
+        <h2 className="text-2xl font-bold text-foreground mb-2">
           Logout Successful
         </h2>
         <p className="text-muted-foreground mb-4">

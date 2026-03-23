@@ -261,7 +261,7 @@ export default function ScanQRPH() {
                 <div className="grid grid-cols-2 gap-3">
                   <Button
                     variant="outline"
-                    className="h-20 flex-col gap-2 border-slate-500 text-slate-200 hover:bg-muted hover:text-foreground"
+                    className="h-20 flex-col gap-2 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                     onClick={startCamera}
                   >
                     <Camera className="h-6 w-6 text-blue-400" />
@@ -269,7 +269,7 @@ export default function ScanQRPH() {
                   </Button>
                   <Button
                     variant="outline"
-                    className="h-20 flex-col gap-2 border-slate-500 text-slate-200 hover:bg-muted hover:text-foreground"
+                    className="h-20 flex-col gap-2 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
                     onClick={() => { setMode('upload'); fileRef.current?.click(); }}
                   >
                     <Upload className="h-6 w-6 text-purple-400" />

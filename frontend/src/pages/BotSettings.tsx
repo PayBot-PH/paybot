@@ -187,10 +187,10 @@ function TutorialOverlay({ onDone }: { onDone: () => void }) {
   };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="relative w-full max-w-md bg-[#0F1B2D] border border-border/60 rounded-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-md bg-card border border-border/60 rounded-2xl shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-5 pt-5 pb-3">
           <div className="flex items-center gap-2"><Bot className="h-5 w-5 text-blue-400" /><span className="text-foreground font-bold text-sm">Bot Setup Guide</span></div>
-          <button onClick={onDone} className="text-muted-foreground hover:text-slate-200 transition-colors"><X className="h-4 w-4" /></button>
+          <button onClick={onDone} className="text-muted-foreground hover:text-foreground transition-colors"><X className="h-4 w-4" /></button>
         </div>
         <div className="flex items-center gap-1.5 px-5 pb-4">
           {TUTORIAL_STEPS.map((_, i) => (
@@ -206,8 +206,8 @@ function TutorialOverlay({ onDone }: { onDone: () => void }) {
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" /><p className="text-xs leading-relaxed">{s.tip}</p>
           </div>
           <div className="flex gap-3">
-            {step > 0 && <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1 border-slate-500 text-slate-200 hover:text-foreground hover:bg-muted"><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>}
-            {step === 0 && <Button variant="ghost" onClick={onDone} className="flex-1 text-muted-foreground hover:text-slate-200">Skip tutorial</Button>}
+            {step > 0 && <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1 border-border text-muted-foreground hover:text-foreground hover:bg-muted"><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>}
+            {step === 0 && <Button variant="ghost" onClick={onDone} className="flex-1 text-muted-foreground hover:text-foreground">Skip tutorial</Button>}
             <Button onClick={isLast ? onDone : () => setStep(step + 1)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
               {isLast ? <><CheckCircle className="h-4 w-4 mr-1" /> Get Started</> : <>Next <ChevronRight className="h-4 w-4 ml-1" /></>}
             </Button>
@@ -484,9 +484,9 @@ export default function BotSettings() {
           <TabsContent value="overview" className="space-y-6 mt-0">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Clone Your Bot */}
-              <Card className="md:col-span-2 bg-gradient-to-br from-[#12203A] to-[#0F1B2D] border-blue-500/30 ring-1 ring-blue-500/15">
+              <Card className="md:col-span-2 bg-card border-blue-500/30 ring-1 ring-blue-500/15">
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-white flex items-center gap-2">
+                  <CardTitle className="text-foreground flex items-center gap-2">
                     <div className="h-8 w-8 rounded-lg bg-blue-500/20 flex items-center justify-center"><Bot className="h-4 w-4 text-blue-400" /></div>
                     Clone Your Bot
                     <Badge className="ml-1 bg-blue-500/15 text-blue-300 border-blue-500/30 border text-[10px]">NEW</Badge>
@@ -505,14 +505,14 @@ export default function BotSettings() {
                         <Badge className="ml-auto bg-emerald-500/20 text-emerald-400 border-emerald-500/30 border text-[10px]">ACTIVE</Badge>
                       </div>
                       <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-muted/60 rounded-lg p-2.5"><p className="text-[10px] text-muted-foreground mb-0.5">Bot Name</p><p className="text-sm text-white font-medium">{cloneInfo.bot_name}</p></div>
+                        <div className="bg-muted/60 rounded-lg p-2.5"><p className="text-[10px] text-muted-foreground mb-0.5">Bot Name</p><p className="text-sm text-foreground font-medium">{cloneInfo.bot_name}</p></div>
                         <div className="bg-muted/60 rounded-lg p-2.5"><p className="text-[10px] text-muted-foreground mb-0.5">Username</p><p className="text-sm text-blue-400 font-mono">@{cloneInfo.bot_username}</p></div>
                       </div>
                       {cloneInfo.webhook_url && (
                         <div className="bg-muted/60 rounded-lg p-2.5">
                           <div className="flex items-center justify-between mb-1">
                             <p className="text-[10px] text-muted-foreground">Webhook URL</p>
-                            <button onClick={() => copyToClipboard(cloneInfo.webhook_url!, 'Webhook URL copied')} className="text-muted-foreground hover:text-white"><Copy className="h-3 w-3" /></button>
+                            <button onClick={() => copyToClipboard(cloneInfo.webhook_url!, 'Webhook URL copied')} className="text-muted-foreground hover:text-foreground"><Copy className="h-3 w-3" /></button>
                           </div>
                           <p className="text-[11px] font-mono text-muted-foreground break-all">{cloneInfo.webhook_url}</p>
                         </div>
@@ -540,7 +540,7 @@ export default function BotSettings() {
                     <div className="bg-blue-500/10 border border-blue-500/25 rounded-xl p-4 space-y-3">
                       <div className="flex items-center gap-3">
                         <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center"><Bot className="h-5 w-5 text-blue-400" /></div>
-                        <div><p className="text-white font-semibold">{cloneValidated.first_name}</p><p className="text-blue-400 text-sm">@{cloneValidated.username}</p></div>
+                        <div><p className="text-foreground font-semibold">{cloneValidated.first_name}</p><p className="text-blue-400 text-sm">@{cloneValidated.username}</p></div>
                         <Badge className="ml-auto bg-blue-500/20 text-blue-300 border-blue-500/30 border text-[10px]"><CheckCircle className="h-3 w-3 mr-1" /> Valid</Badge>
                       </div>
                       <Button onClick={handleCloneSave} disabled={cloneSaving} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium">
@@ -564,7 +564,7 @@ export default function BotSettings() {
               {/* Webhook Status */}
               <Card className={`border ${webhookInfo === null ? 'bg-card border-border' : webhookInfo.is_registered ? 'bg-emerald-900/20 border-emerald-500/40' : 'bg-red-900/20 border-red-500/40'}`}>
                 <CardHeader>
-                  <CardTitle className="text-white flex items-center space-x-2">
+                  <CardTitle className="text-foreground flex items-center space-x-2">
                     <Webhook className="h-5 w-5 text-purple-400" /><span>Webhook Status</span>
                     {webhookInfo && <span className={`ml-auto text-xs font-normal px-2 py-0.5 rounded-full ${webhookInfo.is_registered ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{webhookInfo.is_registered ? 'Registered' : 'Not Registered'}</span>}
                   </CardTitle>
@@ -575,7 +575,7 @@ export default function BotSettings() {
                   : webhookInfo ? (
                     <>
                       {!webhookInfo.token_configured && <div className="flex items-start space-x-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3"><AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" /><p className="text-xs text-red-300">TELEGRAM_BOT_TOKEN is not set.</p></div>}
-                      <div className="bg-muted/60 rounded-lg p-3 space-y-1"><p className="text-xs text-muted-foreground">Current webhook URL</p><p className="text-xs font-mono text-white break-all">{webhookInfo.webhook_url || <span className="text-red-400 italic">none</span>}</p></div>
+                      <div className="bg-muted/60 rounded-lg p-3 space-y-1"><p className="text-xs text-muted-foreground">Current webhook URL</p><p className="text-xs font-mono text-foreground break-all">{webhookInfo.webhook_url || <span className="text-red-400 italic">none</span>}</p></div>
                       {webhookInfo.pending_update_count > 0 && <div className="flex items-center space-x-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2"><AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" /><p className="text-xs text-amber-300">{webhookInfo.pending_update_count} pending update(s)</p></div>}
                       {webhookInfo.last_error_message && <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2"><p className="text-xs text-red-300">Last error: {webhookInfo.last_error_message}</p></div>}
                       <p className="text-xs text-muted-foreground">{webhookInfo.message}</p>
@@ -585,7 +585,7 @@ export default function BotSettings() {
                     <Button onClick={handleAutoSetup} disabled={autoSetupLoading || !user} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-sm">
                       {autoSetupLoading ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Setting up...</> : <><Zap className="h-3 w-3 mr-1" />Auto-Setup</>}
                     </Button>
-                    <Button onClick={fetchWebhookInfo} disabled={webhookInfoLoading || !user} variant="outline" size="icon" className="border-slate-500 text-slate-200 hover:text-foreground hover:bg-muted">
+                    <Button onClick={fetchWebhookInfo} disabled={webhookInfoLoading || !user} variant="outline" size="icon" className="border-border text-muted-foreground hover:text-foreground hover:bg-muted">
                       <RefreshCw className={`h-3 w-3 ${webhookInfoLoading ? 'animate-spin' : ''}`} />
                     </Button>
                   </div>

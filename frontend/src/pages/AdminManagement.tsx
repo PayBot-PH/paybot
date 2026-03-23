@@ -187,14 +187,14 @@ function TabBar({
               ${tabs.length % 2 !== 0 && idx === tabs.length - 1 ? 'col-span-2' : ''}
               ${active === tab.id
                 ? 'bg-muted text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-slate-200 hover:bg-muted/40'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
               }`}
           >
             {tab.icon}
             <span className="truncate">{tab.label}</span>
             {tab.count !== undefined && (
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold shrink-0 ${
-                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-muted/60 text-muted-foreground'
+                active === tab.id ? 'bg-primary/20 text-foreground' : 'bg-muted/60 text-muted-foreground'
               }`}>
                 {tab.count}
               </span>
@@ -212,14 +212,14 @@ function TabBar({
             className={`flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 whitespace-nowrap shrink-0
               ${active === tab.id
                 ? 'bg-muted text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-slate-200 hover:bg-muted/40'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
               }`}
           >
             {tab.icon}
             <span>{tab.label}</span>
             {tab.count !== undefined && (
               <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${
-                active === tab.id ? 'bg-slate-600 text-slate-200' : 'bg-muted/60 text-muted-foreground'
+                active === tab.id ? 'bg-primary/20 text-foreground' : 'bg-muted/60 text-muted-foreground'
               }`}>
                 {tab.count}
               </span>
@@ -1264,7 +1264,7 @@ export default function AdminManagement() {
             <Button
               onClick={() => setShowAdd(!showAdd)}
               size="sm"
-              className={`gap-1.5 text-xs shrink-0 ${showAdd ? 'bg-muted hover:bg-slate-600 text-white' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
+              className={`gap-1.5 text-xs shrink-0 ${showAdd ? 'bg-muted hover:bg-muted/80 text-foreground' : 'bg-blue-600 hover:bg-blue-700 text-white'}`}
             >
               {showAdd ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
               {showAdd ? 'Cancel' : 'Add Admin'}
@@ -1298,7 +1298,7 @@ export default function AdminManagement() {
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-sm text-white">Maintenance Mode</span>
+                      <span className="font-semibold text-sm text-foreground">Maintenance Mode</span>
                       {!maintenanceLoading && (
                         <Badge className={`text-[9px] px-1.5 py-0 h-4 border ${
                           maintenanceMode
