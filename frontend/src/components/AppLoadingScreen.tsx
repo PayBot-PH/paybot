@@ -9,22 +9,30 @@ interface Props {
 export default function AppLoadingScreen({ exiting = false }: Props) {
   return (
     <div
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#f9fafb] ${
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center app-loading-bg ${
         exiting ? 'app-loading-exit' : 'app-loading-enter'
       }`}
     >
-      <div className="flex flex-col items-center gap-4">
-        {/* Logo */}
-        <div className="h-11 w-11 rounded-xl bg-[#1557d0] flex items-center justify-center">
-          <Bot className="h-6 w-6 text-white" strokeWidth={1.75} />
+      {/* Subtle radial glow backdrop */}
+      <div className="absolute inset-0 pointer-events-none app-loading-glow" aria-hidden="true" />
+
+      <div className="relative flex flex-col items-center gap-5">
+        {/* Logo with pulse ring */}
+        <div className="relative flex items-center justify-center">
+          <span className="absolute inset-0 rounded-2xl app-logo-ring" />
+          <div className="relative h-14 w-14 rounded-2xl bg-[#1557d0] flex items-center justify-center shadow-lg shadow-blue-500/30 app-logo-pulse">
+            <Bot className="h-7 w-7 text-white" strokeWidth={1.75} />
+          </div>
         </div>
 
         {/* Brand */}
-        <p className="text-[15px] font-semibold text-slate-900 tracking-tight">{APP_NAME}</p>
+        <p className="text-[15px] font-semibold tracking-tight app-loading-text">{APP_NAME}</p>
 
-        {/* Thin sliding bar */}
-        <div className="w-20 h-0.5 bg-slate-200 rounded-full overflow-hidden">
-          <div className="h-full w-2/5 bg-[#1557d0] rounded-full app-loader-bar" />
+        {/* Animated loading dots */}
+        <div className="flex items-center gap-1.5">
+          <span className="app-loading-dot" style={{ animationDelay: '0ms' }} />
+          <span className="app-loading-dot" style={{ animationDelay: '160ms' }} />
+          <span className="app-loading-dot" style={{ animationDelay: '320ms' }} />
         </div>
       </div>
     </div>
