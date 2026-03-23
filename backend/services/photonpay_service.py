@@ -71,6 +71,7 @@ PHOTONPAY_SANDBOX_URL = "https://x-api1.uat.photontech.cc"
 # Kept for backward compatibility; service instances use self._base_url instead.
 PHOTONPAY_BASE_URL = PHOTONPAY_PRODUCTION_URL
 PHOTONPAY_CASHIER_URL = "https://cashier.photonpay.com"
+PHOTONPAY_SANDBOX_CASHIER_URL = "https://cashier1.uat.photontech.cc"
 
 
 class PhotonPayService:
@@ -129,16 +130,16 @@ class PhotonPayService:
         if base_url_override:
             self.base_url = base_url_override.rstrip("/")
         elif is_sandbox:
-            self.base_url = _PHOTONPAY_SANDBOX_BASE_URL
+            self.base_url = PHOTONPAY_SANDBOX_URL
         else:
-            self.base_url = _PHOTONPAY_PRODUCTION_BASE_URL
+            self.base_url = PHOTONPAY_PRODUCTION_URL
 
         if cashier_url_override:
             self.cashier_url = cashier_url_override.rstrip("/")
         elif is_sandbox:
-            self.cashier_url = _PHOTONPAY_SANDBOX_CASHIER_URL
+            self.cashier_url = PHOTONPAY_SANDBOX_CASHIER_URL
         else:
-            self.cashier_url = _PHOTONPAY_PRODUCTION_CASHIER_URL
+            self.cashier_url = PHOTONPAY_CASHIER_URL
 
         logger.debug(
             "PhotonPay: mode=%s base_url=%s cashier_url=%s",
