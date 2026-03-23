@@ -117,31 +117,47 @@ def _get_allowed_telegram_admin_ids() -> tuple[set[str], set[str]]:
     return allowed_ids, allowed_usernames
 
 
-def _verify_telegram_widget_payload(payload: TelegramWidgetLoginRequest, bot_token: str, max_age_seconds: int = 86400) -> bool:
+# Allow Telegram's server clock to be up to 30 s ahead of ours.
+_CLOCK_SKEW_TOLERANCE_SECONDS = 30
+
+
+def _verify_telegram_widget_payload(
+    payload: TelegramWidgetLoginRequest,
+    bot_token: str,
+    max_age_seconds: int = 86400,
+) -> tuple[bool, str]:
+    """Verify a Telegram Login Widget HMAC payload.
+
+    Returns ``(True, "ok")`` on success, or ``(False, reason)`` on failure
+    where *reason* is one of: ``bot_token_missing``, ``auth_date_future``,
+    ``auth_date_expired``, ``hash_mismatch``.
+    """
     if not bot_token:
         logger.error("[_verify_telegram_widget_payload] bot_token is empty or None")
-        return False
+        return False, "bot_token_missing"
 
     now = int(time.time())
-    if payload.auth_date > now or (now - payload.auth_date) > max_age_seconds:
+    if payload.auth_date > (now + _CLOCK_SKEW_TOLERANCE_SECONDS):
         logger.error(
-            "[_verify_telegram_widget_payload] auth_date out of range: "
-            f"auth_date={payload.auth_date}, now={now}, diff={(now - payload.auth_date)}s"
+            "[_verify_telegram_widget_payload] auth_date is in the future: "
+            "auth_date=%s, now=%s, diff=%ss",
+            payload.auth_date, now, payload.auth_date - now,
         )
-        return False
+        return False, "auth_date_future"
+    if (now - payload.auth_date) > max_age_seconds:
+        logger.error(
+            "[_verify_telegram_widget_payload] auth_date is too old: "
+            "auth_date=%s, now=%s, age=%ss",
+            payload.auth_date, now, now - payload.auth_date,
+        )
+        return False, "auth_date_expired"
 
-    fields = {
-        "auth_date": str(payload.auth_date),
-        "first_name": payload.first_name,
-        "id": str(payload.id),
-        "last_name": payload.last_name,
-        "photo_url": payload.photo_url,
-        "username": payload.username,
-    }
+    # Telegram signs all received fields except "hash".
+    fields = payload.model_dump(exclude={"hash"}, exclude_none=True)
 
     # Build data_check_string from non-empty fields in alphabetical order
     data_check_string = "\n".join(
-        f"{key}={value}"
+        f"{key}={str(value).lower() if isinstance(value, bool) else value}"
         for key, value in sorted(fields.items())
         if value is not None and value != ""
     )
@@ -154,15 +170,15 @@ def _verify_telegram_widget_payload(payload: TelegramWidgetLoginRequest, bot_tok
     secret_key = hashlib.sha256(bot_token.encode("utf-8")).digest()
     computed_hash = hmac.new(secret_key, data_check_string.encode("utf-8"), hashlib.sha256).hexdigest()
 
-    hash_matches = hmac.compare_digest(computed_hash, payload.hash)
-
-    if not hash_matches:
+    if not hmac.compare_digest(computed_hash, payload.hash):
         logger.error(
             "[_verify_telegram_widget_payload] hash mismatch: "
-            f"computed={computed_hash}, received={payload.hash}"
+            "computed=%s, received=%s",
+            computed_hash, payload.hash,
         )
+        return False, "hash_mismatch"
 
-    return hash_matches
+    return True, "ok"
 
 
 @router.post("/telegram-login", response_model=TokenExchangeResponse)
@@ -229,13 +245,24 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
             detail="No admin users configured. Add TELEGRAM_ADMIN_IDS or use the admin panel.",
         )
 
-    if not _verify_telegram_widget_payload(payload, bot_token):
+    valid, reason = _verify_telegram_widget_payload(payload, bot_token)
+    if not valid:
         logger.error(
-            "[telegram-login-widget] Verification failed for user_id=%s, username=%s",
+            "[telegram-login-widget] Verification failed for user_id=%s, username=%s, reason=%s",
             payload.id,
             payload.username,
+            reason,
         )
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram login payload")
+        _REASON_DETAILS = {
+            "auth_date_future": "Telegram payload timestamp is in the future. Check your server clock.",
+            "auth_date_expired": "Telegram login session has expired. Please sign in again.",
+            "hash_mismatch": (
+                "Invalid Telegram login payload. "
+                "Ensure TELEGRAM_BOT_TOKEN matches the token from @BotFather."
+            ),
+        }
+        detail = _REASON_DETAILS.get(reason, "Invalid Telegram login payload.")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=detail)
 
     logger.info("[telegram-login-widget] Payload verified for user_id=%s", payload.id)
 
@@ -433,17 +460,10 @@ async def telegram_login_test(payload: TelegramWidgetLoginRequest):
         }
 
     # Build data_check_string exactly as backend does
-    fields = {
-        "auth_date": str(payload.auth_date),
-        "first_name": payload.first_name,
-        "id": str(payload.id),
-        "last_name": payload.last_name,
-        "photo_url": payload.photo_url,
-        "username": payload.username,
-    }
+    fields = payload.model_dump(exclude={"hash"}, exclude_none=True)
 
     data_check_string = "\n".join(
-        f"{key}={value}"
+        f"{key}={str(value).lower() if isinstance(value, bool) else value}"
         for key, value in sorted(fields.items())
         if value is not None and value != ""
     )

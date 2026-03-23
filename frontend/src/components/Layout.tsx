@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Bot, BarChart3, Wallet, CreditCard, FileText, Building2, PieChart,
@@ -51,6 +51,19 @@ export default function Layout({ children, connected }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
+
+  /* Close user-menu on outside click */
+  React.useEffect(() => {
+    if (!userMenuOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [userMenuOpen]);
 
   const userName =
     (user as { name?: string; telegram_username?: string } | null)?.name ||
@@ -333,7 +346,7 @@ export default function Layout({ children, connected }: LayoutProps) {
       <div className="flex-1 flex flex-col min-h-0 md:ml-56">
 
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-white border-b border-border shadow-sm shrink-0">
+        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-background border-b border-border shadow-sm shrink-0">
           <button
             className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             onClick={() => setSidebarOpen(true)}
@@ -388,7 +401,7 @@ export default function Layout({ children, connected }: LayoutProps) {
 
           {/* User menu */}
           {user && (
-            <div className="relative">
+            <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setUserMenuOpen((v) => !v)}
                 className="hidden md:flex items-center gap-2 pl-3 border-l border-border text-muted-foreground hover:text-foreground transition-colors"

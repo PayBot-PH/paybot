@@ -281,7 +281,7 @@ export default function Dashboard() {
                     {greeting.text}{userName ? `, ${userName}` : ''}
                   </h1>
                 </div>
-                <p className="text-muted-foreground text-sm max-w-lg leading-relaxed">
+                <p className="text-blue-100/75 text-sm max-w-lg leading-relaxed">
                   {APP_DESCRIPTION}
                 </p>
               </div>

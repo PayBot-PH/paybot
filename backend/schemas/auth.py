@@ -43,6 +43,10 @@ class TelegramWidgetLoginRequest(BaseModel):
     username: Optional[str] = None
     photo_url: Optional[str] = None
 
+    # Keep forward-compatible Telegram fields (e.g. allows_write_to_pm)
+    # so backend signature verification can include every signed key.
+    model_config = ConfigDict(extra="allow")
+
 
 class TokenExchangeResponse(BaseModel):
     """Response body for issued application token."""

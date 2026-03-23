@@ -118,6 +118,26 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 60
 
     @model_validator(mode="after")
+    def strip_token_fields(self) -> "Settings":
+        """Strip accidental leading/trailing whitespace from token/key fields.
+
+        Copy-pasting credentials from dashboards (Railway, BotFather, etc.) often
+        introduces invisible newlines or spaces that silently break HMAC verification.
+        """
+        for field in (
+            "telegram_bot_token",
+            "telegram_bot_username",
+            "xendit_secret_key",
+            "paymongo_secret_key",
+            "paymongo_public_key",
+            "jwt_secret_key",
+        ):
+            val = getattr(self, field, None)
+            if val:
+                object.__setattr__(self, field, val.strip())
+        return self
+
+    @model_validator(mode="after")
     def generate_jwt_secret_if_missing(self) -> "Settings":
         """Auto-generate a random JWT secret when JWT_SECRET_KEY is not configured.
 
