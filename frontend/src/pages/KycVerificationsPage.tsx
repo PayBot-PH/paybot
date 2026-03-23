@@ -21,10 +21,10 @@ interface KycVerification {
 }
 
 const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
-  pending_review: { color: 'bg-amber-50 text-amber-700 border-amber-200', icon: <Clock className="h-3.5 w-3.5" /> },
-  in_progress:    { color: 'bg-blue-50 text-blue-700 border-blue-200',    icon: <Clock className="h-3.5 w-3.5" /> },
-  approved:       { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle className="h-3.5 w-3.5" /> },
-  rejected:       { color: 'bg-red-50 text-red-700 border-red-200',       icon: <XCircle className="h-3.5 w-3.5" /> },
+  pending_review: { color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',   icon: <Clock className="h-3.5 w-3.5" /> },
+  in_progress:    { color: 'bg-blue-500/20 text-blue-400 border-blue-500/30',      icon: <Clock className="h-3.5 w-3.5" /> },
+  approved:       { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  rejected:       { color: 'bg-red-500/20 text-red-400 border-red-500/30',         icon: <XCircle className="h-3.5 w-3.5" /> },
 };
 
 const fmt_time = (s: string | null) => s ? new Date(s).toLocaleString() : '—';

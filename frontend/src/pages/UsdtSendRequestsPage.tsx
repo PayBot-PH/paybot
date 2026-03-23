@@ -16,9 +16,9 @@ interface UsdtSendRequest {
 }
 
 const statusConfig: Record<string, { color: string; icon: React.ReactNode }> = {
-  pending:  { color: 'bg-amber-50 text-amber-700 border-amber-200',       icon: <Clock className="h-3.5 w-3.5" /> },
-  approved: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', icon: <CheckCircle className="h-3.5 w-3.5" /> },
-  denied:   { color: 'bg-red-50 text-red-700 border-red-200',             icon: <XCircle className="h-3.5 w-3.5" /> },
+  pending:  { color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',       icon: <Clock className="h-3.5 w-3.5" /> },
+  approved: { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  denied:   { color: 'bg-red-500/20 text-red-400 border-red-500/30',             icon: <XCircle className="h-3.5 w-3.5" /> },
 };
 
 const fmt_time = (s: string | null) => s ? new Date(s).toLocaleString() : '—';

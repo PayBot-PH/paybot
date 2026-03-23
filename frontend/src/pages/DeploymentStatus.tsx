@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+pimport { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -70,8 +70,8 @@ function ServiceCard({ name, data }: { name: string; data: ServiceStatus }) {
     : (data.configured ? 'Configured' : 'Not configured');
 
   const badgeCls = isHealthy
-    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-    : 'bg-red-50 text-red-700 border-red-200';
+    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+    : 'bg-red-500/20 text-red-400 border-red-500/30';
 
   return (
     <Card className="bg-muted/60 border-border">
@@ -130,8 +130,7 @@ export default function DeploymentStatus() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-slate-900 text-white p-4 sm:p-6">
-        <div className="max-w-3xl mx-auto space-y-6">
+      <div className="max-w-3xl mx-auto space-y-6 py-6">
 
           {/* Header */}
           <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -246,7 +245,6 @@ export default function DeploymentStatus() {
               </Card>
             </>
           )}
-        </div>
       </div>
     </Layout>
   );

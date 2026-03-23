@@ -3480,3 +3480,34 @@ async def clone_bot_info(
         "webhook_url": obj.custom_webhook_url,
         "webhook_secret": obj.webhook_secret,
     }
+
+
+# ── Telegram file proxy ───────────────────────────────────────────────────────
+
+@router.get("/file/{file_id:path}")
+async def proxy_telegram_file(
+    file_id: str,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """
+    Proxy a Telegram file by file_id so the frontend can display receipts and
+    photos without exposing the bot token in the browser.
+    Requires a valid admin/user session.
+    """
+    import mimetypes
+    from fastapi.responses import Response as FastAPIResponse
+
+    svc = TelegramService()
+    meta = await svc.get_file(file_id)
+    if not meta.get("success"):
+        raise HTTPException(status_code=404, detail="File not found on Telegram")
+    file_path: str = meta["file_path"]
+    file_bytes = await svc.download_file_bytes(file_path)
+    if file_bytes is None:
+        raise HTTPException(status_code=502, detail="Failed to download file from Telegram")
+    mime, _ = mimetypes.guess_type(file_path)
+    return FastAPIResponse(
+        content=file_bytes,
+        media_type=mime or "application/octet-stream",
+        headers={"Content-Disposition": f'inline; filename="{file_path.split("/")[-1]}"'},
+    )

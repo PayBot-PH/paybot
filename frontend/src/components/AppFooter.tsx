@@ -55,9 +55,11 @@ interface AppFooterProps {
 
 export default function AppFooter({ variant = 'public' }: AppFooterProps) {
   const isAdmin = variant === 'admin';
+  const dividerClass = isAdmin ? 'border-border' : 'border-slate-800';
+  const bgClass = isAdmin ? 'bg-background' : 'bg-slate-950';
 
   return (
-    <footer className={`relative overflow-hidden ${isAdmin ? 'border-t border-white/[0.14] bg-[#0B1120]' : 'border-t border-white/[0.15] bg-[#040C18]'}`}>
+    <footer className={`relative overflow-hidden border-t ${dividerClass} ${bgClass}`}>
       {/* Decorative gradient glow */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute -bottom-32 left-1/4 w-96 h-96 bg-blue-700/8 blur-[100px] rounded-full" />
@@ -144,7 +146,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
         </div>
 
         {/* ── PAYMENT BRANDS ROW ───────────────────────────────── */}
-        <div className="border-t border-white/[0.15] py-6">
+        <div className={`border-t ${dividerClass} py-6`}>
           <p className="text-slate-500 text-[10px] font-semibold uppercase tracking-widest text-center mb-4">
             Accepted payment networks
           </p>
@@ -166,7 +168,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
         </div>
 
         {/* ── BOTTOM BAR: copyright ────────────────────────────── */}
-        <div className="border-t border-white/[0.15] py-5 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className={`border-t ${dividerClass} py-5 flex flex-col sm:flex-row items-center justify-between gap-3`}>
           <p className="text-slate-600 text-xs text-center sm:text-left">
             © {new Date().getFullYear()} <span className="text-muted-foreground">{COMPANY_NAME}</span>. All rights reserved.
           </p>

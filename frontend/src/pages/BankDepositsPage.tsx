@@ -18,9 +18,9 @@ interface BankDepositRequest {
 }
 
 const statusConfig: Record<string, { color: string; dot: string; icon: React.ReactNode }> = {
-  pending:  { color: 'bg-amber-50 text-amber-700 border-amber-200',       dot: 'bg-amber-400',   icon: <Clock className="h-3.5 w-3.5" /> },
-  approved: { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-400', icon: <CheckCircle className="h-3.5 w-3.5" /> },
-  rejected: { color: 'bg-red-50 text-red-700 border-red-200',             dot: 'bg-red-400',     icon: <XCircle className="h-3.5 w-3.5" /> },
+  pending:  { color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',       dot: 'bg-amber-400',   icon: <Clock className="h-3.5 w-3.5" /> },
+  approved: { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  rejected: { color: 'bg-red-500/20 text-red-400 border-red-500/30',             dot: 'bg-red-400',     icon: <XCircle className="h-3.5 w-3.5" /> },
 };
 
 const channelEmoji: Record<string, string> = {
@@ -169,7 +169,7 @@ export default function BankDepositsPage() {
                           {req.receipt_file_id ? '📎 Receipt uploaded' : '⚠️ No receipt yet'}
                         </span>
                         {req.receipt_file_id && (
-                          <a href={`https://api.telegram.org/file/bot/PLACEHOLDER/${req.receipt_file_id}`}
+                          <a href={`/api/v1/telegram/file/${req.receipt_file_id}`}
                             target="_blank" rel="noopener noreferrer"
                             className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1 transition-colors">
                             <Eye className="h-3 w-3" /> View

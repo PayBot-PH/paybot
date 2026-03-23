@@ -67,17 +67,17 @@ const defaultStats: Stats = {
 };
 
 const statusConfig: Record<string, { color: string; dot: string }> = {
-  paid:    { color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' },
-  pending: { color: 'bg-amber-50 text-amber-700 border-amber-200',    dot: 'bg-amber-500' },
-  expired: { color: 'bg-red-50 text-red-700 border-red-200',          dot: 'bg-red-500' },
+  paid:    { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400' },
+  pending: { color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',     dot: 'bg-amber-400' },
+  expired: { color: 'bg-red-500/20 text-red-400 border-red-500/30',           dot: 'bg-red-400' },
 };
 
 const typeConfig: Record<string, { icon: React.ReactNode; bg: string }> = {
-  invoice:      { icon: <FileText className="h-3.5 w-3.5 text-blue-600" />,   bg: 'bg-blue-50' },
-  qr_code:      { icon: <QrCode className="h-3.5 w-3.5 text-purple-600" />,   bg: 'bg-purple-50' },
-  payment_link: { icon: <LinkIcon className="h-3.5 w-3.5 text-cyan-600" />,   bg: 'bg-cyan-50' },
-  alipay_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-red-600" />,      bg: 'bg-red-50' },
-  wechat_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-green-600" />,    bg: 'bg-green-50' },
+  invoice:      { icon: <FileText className="h-3.5 w-3.5 text-blue-400" />,   bg: 'bg-blue-500/15' },
+  qr_code:      { icon: <QrCode className="h-3.5 w-3.5 text-purple-400" />,   bg: 'bg-purple-500/15' },
+  payment_link: { icon: <LinkIcon className="h-3.5 w-3.5 text-cyan-400" />,   bg: 'bg-cyan-500/15' },
+  alipay_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-red-400" />,      bg: 'bg-red-500/15' },
+  wechat_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-green-400" />,    bg: 'bg-green-500/15' },
 };
 
 const fmt = (n: number) => n.toLocaleString('en-PH', { minimumFractionDigits: 2 });
