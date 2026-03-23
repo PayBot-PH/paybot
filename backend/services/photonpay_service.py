@@ -247,7 +247,12 @@ class PhotonPayService:
             return self._access_token
 
         token_url = f"{self._base_url}/oauth2/token/accessToken"
-        async with httpx.AsyncClient() as client:
+        # trust_env=False prevents httpx from reading HTTP_PROXY / HTTPS_PROXY
+        # environment variables.  On Railway the proxy address is a CGNAT IP
+        # (100.64.x.x) whose TCP source port gets forwarded to PhotonPay,
+        # which then fails with "Failed to parse address<ip>:<port>".
+        # Bypassing the proxy ensures a direct connection with a parseable IP.
+        async with httpx.AsyncClient(trust_env=False) as client:
             # PhotonPay OAuth2 client_credentials flow.
             # Credentials are sent in the JSON body (appId / appSecret / grantType)
             # rather than as an HTTP Basic Auth header — the API returns
@@ -414,7 +419,10 @@ class PhotonPayService:
             logger.warning("PhotonPay: PHOTONPAY_RSA_PRIVATE_KEY not set — X-PD-SIGN header omitted")
 
         try:
-            async with httpx.AsyncClient() as client:
+            # trust_env=False: same reason as _get_access_token — prevents
+            # Railway's internal proxy from injecting IP:port headers that
+            # PhotonPay cannot parse.
+            async with httpx.AsyncClient(trust_env=False) as client:
                 r = await client.post(
                     f"{self.base_url}/txncore/openApi/v4/cashierSession",
                     headers=headers,

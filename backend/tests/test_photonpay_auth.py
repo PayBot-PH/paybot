@@ -257,3 +257,107 @@ class TestTokenRequestFormat:
         assert not auth_header.startswith("Basic "), (
             "Token request must not use HTTP Basic Auth — credentials belong in the JSON body"
         )
+
+    @pytest.mark.asyncio
+    async def test_token_request_uses_trust_env_false(self):
+        """_get_access_token must create httpx.AsyncClient with trust_env=False.
+
+        On Railway the HTTP_PROXY / HTTPS_PROXY env vars point to an internal
+        CGNAT proxy (100.64.x.x).  When httpx routes through that proxy,
+        PhotonPay receives the source address as IP:port (e.g. 100.64.0.6:51376)
+        and fails with code XXA00001 "Failed to parse address<ip>:<port>".
+        trust_env=False bypasses the proxy and avoids this error.
+        """
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.json.return_value = {
+            "code": "0",
+            "data": {"accessToken": "test-token", "expiresIn": 7200},
+        }
+
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        captured_init_kwargs = {}
+
+        def fake_async_client(**kwargs):
+            captured_init_kwargs.update(kwargs)
+            return mock_client
+
+        with patch("httpx.AsyncClient", side_effect=fake_async_client):
+            await self.service._get_access_token()
+
+        assert captured_init_kwargs.get("trust_env") is False, (
+            "httpx.AsyncClient must be created with trust_env=False to bypass "
+            "Railway's internal proxy and prevent PhotonPay IP-parse errors"
+        )
+
+
+class TestCashierSessionRequestFormat:
+    """Verify that create_payment_session also uses trust_env=False."""
+
+    def setup_method(self):
+        os.environ["PHOTONPAY_APP_ID"] = "test_app_id"
+        os.environ["PHOTONPAY_APP_SECRET"] = "test_app_secret"
+        os.environ.pop("PHOTONPAY_MODE", None)
+        os.environ.pop("PHOTONPAY_BASE_URL", None)
+        self.service = PhotonPayService()
+
+    @pytest.mark.asyncio
+    async def test_cashier_session_uses_trust_env_false(self):
+        """create_payment_session must create httpx.AsyncClient with trust_env=False.
+
+        The same Railway CGNAT proxy that breaks the token request also affects
+        the cashier session call — both must bypass the proxy.
+        """
+        # Token fetch mock (first AsyncClient call)
+        token_response = MagicMock()
+        token_response.is_success = True
+        token_response.json.return_value = {
+            "code": "0",
+            "data": {"accessToken": "test-token", "expiresIn": 7200},
+        }
+
+        # Cashier session mock (second AsyncClient call)
+        session_response = MagicMock()
+        session_response.raise_for_status = MagicMock()
+        session_response.json.return_value = {
+            "code": "0",
+            "data": {"authCode": "auth-abc", "payId": "pay-123"},
+        }
+
+        call_kwargs_list: list = []
+
+        def fake_async_client(**kwargs):
+            call_kwargs_list.append(kwargs)
+            mock_client = AsyncMock()
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            # Both token and session requests return their respective mocks
+            if len(call_kwargs_list) == 1:
+                mock_client.post = AsyncMock(return_value=token_response)
+            else:
+                mock_client.post = AsyncMock(return_value=session_response)
+            return mock_client
+
+        with patch("httpx.AsyncClient", side_effect=fake_async_client):
+            result = await self.service.create_payment_session(
+                amount=100.0,
+                currency="PHP",
+                pay_method="Alipay",
+                req_id="test-req-123",
+                notify_url="https://example.com/notify",
+                redirect_url="https://example.com/return",
+            )
+
+        assert result.get("success") is True
+        # Both AsyncClient instantiations must use trust_env=False
+        assert len(call_kwargs_list) == 2, "Expected two AsyncClient instantiations"
+        for i, kwargs in enumerate(call_kwargs_list):
+            assert kwargs.get("trust_env") is False, (
+                f"AsyncClient call #{i + 1} must use trust_env=False to bypass "
+                "Railway's internal proxy and prevent PhotonPay IP-parse errors"
+            )
+
