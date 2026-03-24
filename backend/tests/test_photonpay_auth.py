@@ -154,6 +154,8 @@ class TestModeBasedBaseUrl:
 class TestCredentialErrorDetection:
     """Verify that the {"path":…,"method":…} response raises a clear credentials error."""
 
+    _VALID_HTTP_METHODS = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"}
+
     def setup_method(self):
         os.environ["PHOTONPAY_APP_ID"] = "test_app_id"
         os.environ["PHOTONPAY_APP_SECRET"] = "test_app_secret"
@@ -163,9 +165,14 @@ class TestCredentialErrorDetection:
         """Mirror the detection logic from _get_access_token."""
         return (
             isinstance(data, dict)
-            and "path" in data
-            and "method" in data
-            and len(data) <= 3
+            and isinstance(data.get("path"), str)
+            and data["path"].startswith("/")
+            and isinstance(data.get("method"), str)
+            and data["method"].upper() in self._VALID_HTTP_METHODS
+            and not any(
+                key in data
+                for key in ("access_token", "accessToken", "token", "data", "result", "body")
+            )
         )
 
     def test_detects_path_method_response(self):
@@ -176,13 +183,28 @@ class TestCredentialErrorDetection:
         data = {"path": "/token/accessToken", "method": "POST", "timestamp": 1234567890}
         assert self._is_credential_error_response(data)
 
+    def test_detects_xxa00001_routing_error(self):
+        """New 4-key format returned by PhotonPay when a proxy injects IP:port (XXA00001)."""
+        data = {
+            "code": "XXA00001",
+            "msg": "Failed to parse address100.64.0.6:51376",
+            "path": "/token/accessToken",
+            "method": "POST",
+        }
+        assert self._is_credential_error_response(data)
+
     def test_ignores_normal_token_response(self):
         data = {"code": "0", "data": {"accessToken": "tok", "expiresIn": 7200}}
         assert not self._is_credential_error_response(data)
 
-    def test_ignores_error_response_with_code(self):
+    def test_ignores_error_response_without_method(self):
+        # Has path but not method — should NOT be flagged as a routing error
         data = {"code": "4001", "msg": "invalid credentials", "path": "/token/accessToken"}
-        # 4 keys — should NOT be flagged as the path/method echo (len > 3)
+        assert not self._is_credential_error_response(data)
+
+    def test_ignores_response_with_token_data(self):
+        # Has path/method but also has a nested "data" object (could be a success response)
+        data = {"path": "/token/accessToken", "method": "POST", "data": {"accessToken": "tok"}}
         assert not self._is_credential_error_response(data)
 
 
