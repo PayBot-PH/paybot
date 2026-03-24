@@ -312,7 +312,7 @@ class TestAuth:
                     ))
                     await db.commit()
 
-        asyncio.get_event_loop().run_until_complete(seed_regular_admin())
+        asyncio.run(seed_regular_admin())
 
         import routers.auth as auth_mod
         from core.config import Settings
@@ -834,7 +834,7 @@ class TestXenditEwalletChannelProperties:
         with patch("httpx.AsyncClient", return_value=mock_client):
             svc = XenditService()
             svc.secret_key = "test-key"
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 svc.create_ewallet_charge(amount=100, channel_code="PH_GCASH")
             )
 
@@ -865,7 +865,7 @@ class TestXenditEwalletChannelProperties:
         with patch("httpx.AsyncClient", return_value=mock_client):
             svc = XenditService()
             svc.secret_key = "test-key"
-            result = asyncio.get_event_loop().run_until_complete(
+            result = asyncio.run(
                 svc.create_ewallet_charge(
                     amount=200,
                     channel_code="PH_GRABPAY",
@@ -887,7 +887,7 @@ class TestXenditQrCodePayload:
     """Verify that create_qr_code sends required fields (external_id + callback_url)."""
 
     def _run(self, coro):
-        return asyncio.get_event_loop().run_until_complete(coro)
+        return asyncio.run(coro)
 
     def _make_mock_client(self, captured: dict):
         mock_response = MagicMock()
@@ -1279,7 +1279,7 @@ class TestKybAccessControl:
                 kyb = res.scalar_one_or_none()
                 return kyb
 
-        kyb = asyncio.get_event_loop().run_until_complete(check_kyb())
+        kyb = asyncio.run(check_kyb())
         assert kyb is not None
         assert kyb.status == "pending_review"
         assert kyb.full_name == "Juan dela Cruz"
@@ -1339,7 +1339,7 @@ class TestKybAccessControl:
                     db.add(kyb)
                     await db.commit()
 
-        asyncio.get_event_loop().run_until_complete(ensure_kyb())
+        asyncio.run(ensure_kyb())
 
         patched = Settings()
         patched.telegram_bot_owner_id = owner_id
@@ -1367,7 +1367,7 @@ class TestKybAccessControl:
                 admin = res2.scalar_one_or_none()
                 return kyb, admin
 
-        kyb, admin = asyncio.get_event_loop().run_until_complete(check_approved())
+        kyb, admin = asyncio.run(check_approved())
         assert kyb is not None
         assert kyb.status == "approved"
         assert admin is not None
@@ -1461,7 +1461,7 @@ class TestUsdtPhpConversion:
                 await db.refresh(req)
                 return req.id
 
-        req_id = asyncio.get_event_loop().run_until_complete(seed_request())
+        req_id = asyncio.run(seed_request())
 
         # Approve the request
         r = client.post(
@@ -1493,7 +1493,7 @@ class TestUsdtPhpConversion:
                 txn = txn_res.scalar_one_or_none()
                 return wallet, txn
 
-        wallet, txn = asyncio.get_event_loop().run_until_complete(verify())
+        wallet, txn = asyncio.run(verify())
 
         assert wallet is not None, "PHP wallet was not created"
         assert wallet.currency == "PHP"
@@ -1538,7 +1538,7 @@ class TestUsdtPhpConversion:
                 await db.refresh(req)
                 return req.id
 
-        req_id = asyncio.get_event_loop().run_until_complete(seed())
+        req_id = asyncio.run(seed())
         r = client.post(f"/api/v1/topup/{req_id}/approve", json={}, headers=auth_headers)
         assert r.status_code == 200
         note = r.json().get("note", "")
