@@ -15,7 +15,7 @@ function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/[0.07] bg-[#080E1A]/80 backdrop-blur-xl">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <Link to="/features" className="flex items-center gap-2.5">
+        <Link to="/home" className="flex items-center gap-2.5">
           <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
             <Bot className="h-4.5 w-4.5 text-white" style={{ height: 18, width: 18 }} />
           </div>
@@ -97,16 +97,16 @@ function FeatureCard({ icon: Icon, color, bg, title, description }: {
 /* ─── Testimonial ──────────────────────────────────────────────── */
 function Testimonial({ quote, name, role }: { quote: string; name: string; role: string }) {
   return (
-    <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6">
+    <article className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6">
       <div className="flex gap-1 mb-4">
         {[...Array(5)].map((_, i) => <Star key={i} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />)}
       </div>
-      <p className="text-slate-300 text-sm leading-relaxed mb-4">"{quote}"</p>
-      <div>
+      <blockquote className="text-slate-300 text-sm leading-relaxed mb-4">"{quote}"</blockquote>
+      <cite className="not-italic">
         <p className="text-white text-sm font-medium">{name}</p>
         <p className="text-slate-500 text-xs">{role}</p>
-      </div>
-    </div>
+      </cite>
+    </article>
   );
 }
 
