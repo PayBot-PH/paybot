@@ -33,11 +33,12 @@ import NotFound from './pages/NotFound';
 import MaintenancePage from './pages/MaintenancePage';
 import BotIntro from './pages/BotIntro';
 import DeploymentStatus from './pages/DeploymentStatus';
+import HomePage from './pages/Index';
 
 const queryClient = new QueryClient();
 
 // Paths that should remain accessible even during maintenance
-const MAINTENANCE_EXEMPT_PATHS = ['/intro', '/login', '/register', '/features', '/pricing', '/auth/callback', '/auth/error', '/logout-callback', '/maintenance'];
+const MAINTENANCE_EXEMPT_PATHS = ['/home', '/intro', '/login', '/register', '/features', '/pricing', '/auth/callback', '/auth/error', '/logout-callback', '/maintenance'];
 
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -78,6 +79,7 @@ const App = () => (
           <BrowserRouter>
             <MaintenanceGuard>
             <Routes>
+              <Route path="/home" element={<HomePage />} />
               <Route path="/intro" element={<BotIntro />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
