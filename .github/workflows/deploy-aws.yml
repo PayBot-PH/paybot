@@ -1,0 +1,265 @@
+name: Deploy to AWS
+
+# Trigger on every push to main (after passing tests) or manually.
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'railway.toml'
+      - 'railway.json'
+  workflow_dispatch:
+
+env:
+  # Override AWS_REGION with a GitHub repository variable if needed.
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  # Name used when the CloudFormation stack was deployed (default: paybot).
+  CF_STACK_NAME: ${{ vars.AWS_CF_STACK_NAME || 'paybot' }}
+  # ECS service name created by this workflow on first deploy.
+  ECS_SERVICE: paybot-service
+  # Must match the container name in aws/task-definition.json.
+  CONTAINER_NAME: paybot
+
+jobs:
+
+  # ── 1. Backend tests ────────────────────────────────────────────────────────
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: backend
+        run: python -m pytest tests/ -v --tb=short
+
+  # ── 2. Build & deploy to ECS Fargate ───────────────────────────────────────
+  deploy:
+    name: Build & Deploy to ECS Fargate
+    runs-on: ubuntu-latest
+    needs: test-backend
+    # Skip the deploy job when AWS credentials have not been configured.
+    # This allows the workflow file to exist in the repo without breaking
+    # non-AWS environments that only use Railway.
+    if: >
+      vars.AWS_CF_STACK_NAME != '' ||
+      secrets.AWS_ACCESS_KEY_ID != ''
+    permissions:
+      contents: read
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── AWS authentication ────────────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ── Read infrastructure values from the CloudFormation stack ─────────
+      - name: Get CloudFormation stack outputs
+        id: cf
+        run: |
+          get_output() {
+            aws cloudformation describe-stacks \
+              --stack-name "$CF_STACK_NAME" \
+              --query "Stacks[0].Outputs[?OutputKey=='$1'].OutputValue" \
+              --output text
+          }
+
+          echo "ecr_uri=$(get_output ECRRepositoryURI)"          >> "$GITHUB_OUTPUT"
+          echo "cluster=$(get_output ECSClusterName)"            >> "$GITHUB_OUTPUT"
+          echo "exec_role=$(get_output ECSExecutionRoleArn)"     >> "$GITHUB_OUTPUT"
+          echo "task_role=$(get_output ECSTaskRoleArn)"          >> "$GITHUB_OUTPUT"
+          echo "subnet1=$(get_output PublicSubnet1Id)"           >> "$GITHUB_OUTPUT"
+          echo "subnet2=$(get_output PublicSubnet2Id)"           >> "$GITHUB_OUTPUT"
+          echo "sg=$(get_output ECSSecurityGroupId)"             >> "$GITHUB_OUTPUT"
+          echo "tg_arn=$(get_output TargetGroupArn)"             >> "$GITHUB_OUTPUT"
+          echo "db_endpoint=$(get_output DBEndpoint)"            >> "$GITHUB_OUTPUT"
+          echo "alb_dns=$(get_output LoadBalancerDNS)"           >> "$GITHUB_OUTPUT"
+          echo "log_group=$(get_output LogGroupName)"            >> "$GITHUB_OUTPUT"
+
+      # ── Build and push Docker image to ECR ───────────────────────────────
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push Docker image
+        id: build
+        env:
+          ECR_URI: ${{ steps.cf.outputs.ecr_uri }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE_URI="${ECR_URI}:${IMAGE_TAG}"
+          docker build -t "$IMAGE_URI" -t "${ECR_URI}:latest" .
+          docker push "$IMAGE_URI"
+          docker push "${ECR_URI}:latest"
+          echo "image=${IMAGE_URI}" >> "$GITHUB_OUTPUT"
+
+      # ── Render the ECS task definition with secrets ───────────────────────
+      # Secrets are injected from GitHub Actions secrets at deploy time so
+      # they never appear in source control or CloudFormation templates.
+      - name: Render ECS task definition
+        env:
+          IMAGE_URI: ${{ steps.build.outputs.image }}
+          DB_ENDPOINT: ${{ steps.cf.outputs.db_endpoint }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          EXEC_ROLE_ARN: ${{ steps.cf.outputs.exec_role }}
+          TASK_ROLE_ARN: ${{ steps.cf.outputs.task_role }}
+          LOG_GROUP: ${{ steps.cf.outputs.log_group }}
+          ALB_DNS: ${{ steps.cf.outputs.alb_dns }}
+          # Required app secrets
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_USERNAME: ${{ secrets.TELEGRAM_BOT_USERNAME }}
+          TELEGRAM_ADMIN_IDS: ${{ secrets.TELEGRAM_ADMIN_IDS }}
+          XENDIT_SECRET_KEY: ${{ secrets.XENDIT_SECRET_KEY }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          ADMIN_USER_PASSWORD: ${{ secrets.ADMIN_USER_PASSWORD }}
+          # Optional payment gateway secrets (leave empty to skip)
+          PAYMONGO_SECRET_KEY: ${{ secrets.PAYMONGO_SECRET_KEY }}
+          PAYMONGO_PUBLIC_KEY: ${{ secrets.PAYMONGO_PUBLIC_KEY }}
+          PAYMONGO_WEBHOOK_SECRET: ${{ secrets.PAYMONGO_WEBHOOK_SECRET }}
+          PHOTONPAY_APP_ID: ${{ secrets.PHOTONPAY_APP_ID }}
+          PHOTONPAY_APP_SECRET: ${{ secrets.PHOTONPAY_APP_SECRET }}
+          PHOTONPAY_SITE_ID: ${{ secrets.PHOTONPAY_SITE_ID }}
+          TRANSFI_API_KEY: ${{ secrets.TRANSFI_API_KEY }}
+          TRANSFI_WEBHOOK_SECRET: ${{ secrets.TRANSFI_WEBHOOK_SECRET }}
+        run: |
+          DB_URL="postgresql+asyncpg://paybot:${DB_PASSWORD}@${DB_ENDPOINT}:5432/paybot"
+          BACKEND_URL="http://${ALB_DNS}"
+
+          # Build the environment array, always including required vars and
+          # appending optional vars only when they are non-empty.
+          ENV_JSON=$(jq -n \
+            --arg db_url         "$DB_URL" \
+            --arg tg_token       "$TELEGRAM_BOT_TOKEN" \
+            --arg tg_username    "$TELEGRAM_BOT_USERNAME" \
+            --arg tg_admins      "$TELEGRAM_ADMIN_IDS" \
+            --arg xendit_key     "$XENDIT_SECRET_KEY" \
+            --arg jwt_key        "$JWT_SECRET_KEY" \
+            --arg admin_pw       "$ADMIN_USER_PASSWORD" \
+            --arg backend_url    "$BACKEND_URL" \
+            --arg pm_secret      "$PAYMONGO_SECRET_KEY" \
+            --arg pm_public      "$PAYMONGO_PUBLIC_KEY" \
+            --arg pm_webhook     "$PAYMONGO_WEBHOOK_SECRET" \
+            --arg pp_app_id      "$PHOTONPAY_APP_ID" \
+            --arg pp_app_secret  "$PHOTONPAY_APP_SECRET" \
+            --arg pp_site_id     "$PHOTONPAY_SITE_ID" \
+            --arg tf_api_key     "$TRANSFI_API_KEY" \
+            --arg tf_webhook     "$TRANSFI_WEBHOOK_SECRET" \
+            '[
+              {"name":"DATABASE_URL",         "value":$db_url},
+              {"name":"TELEGRAM_BOT_TOKEN",   "value":$tg_token},
+              {"name":"TELEGRAM_BOT_USERNAME","value":$tg_username},
+              {"name":"TELEGRAM_ADMIN_IDS",   "value":$tg_admins},
+              {"name":"XENDIT_SECRET_KEY",    "value":$xendit_key},
+              {"name":"JWT_SECRET_KEY",       "value":$jwt_key},
+              {"name":"ADMIN_USER_PASSWORD",  "value":$admin_pw},
+              {"name":"PYTHON_BACKEND_URL",   "value":$backend_url},
+              {"name":"ENVIRONMENT",          "value":"production"},
+              {"name":"PORT",                 "value":"8000"}
+            ]
+            + (if $pm_secret     != "" then [{"name":"PAYMONGO_SECRET_KEY",    "value":$pm_secret}]    else [] end)
+            + (if $pm_public     != "" then [{"name":"PAYMONGO_PUBLIC_KEY",    "value":$pm_public}]    else [] end)
+            + (if $pm_webhook    != "" then [{"name":"PAYMONGO_WEBHOOK_SECRET","value":$pm_webhook}]   else [] end)
+            + (if $pp_app_id     != "" then [{"name":"PHOTONPAY_APP_ID",       "value":$pp_app_id}]    else [] end)
+            + (if $pp_app_secret != "" then [{"name":"PHOTONPAY_APP_SECRET",   "value":$pp_app_secret}] else [] end)
+            + (if $pp_site_id    != "" then [{"name":"PHOTONPAY_SITE_ID",      "value":$pp_site_id}]   else [] end)
+            + (if $tf_api_key    != "" then [{"name":"TRANSFI_API_KEY",        "value":$tf_api_key}]   else [] end)
+            + (if $tf_webhook    != "" then [{"name":"TRANSFI_WEBHOOK_SECRET", "value":$tf_webhook}]   else [] end)')
+
+          jq \
+            --arg image     "$IMAGE_URI" \
+            --arg exec_role "$EXEC_ROLE_ARN" \
+            --arg task_role "$TASK_ROLE_ARN" \
+            --arg log_group "$LOG_GROUP" \
+            --arg region    "$AWS_REGION" \
+            --argjson env   "$ENV_JSON" \
+            '.containerDefinitions[0].image = $image
+             | .containerDefinitions[0].environment = $env
+             | .containerDefinitions[0].logConfiguration.options."awslogs-group" = $log_group
+             | .containerDefinitions[0].logConfiguration.options."awslogs-region" = $region
+             | .executionRoleArn = $exec_role
+             | .taskRoleArn = $task_role' \
+            aws/task-definition.json > /tmp/task-def.json
+
+      # ── Register the rendered task definition ────────────────────────────
+      - name: Register ECS task definition
+        id: register
+        run: |
+          TASK_DEF_ARN=$(aws ecs register-task-definition \
+            --cli-input-json file:///tmp/task-def.json \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+          echo "task_def_arn=${TASK_DEF_ARN}" >> "$GITHUB_OUTPUT"
+
+      # ── Create the ECS service on first deploy, update on subsequent ones ─
+      - name: Create or update ECS service
+        env:
+          CLUSTER:      ${{ steps.cf.outputs.cluster }}
+          SUBNET1:      ${{ steps.cf.outputs.subnet1 }}
+          SUBNET2:      ${{ steps.cf.outputs.subnet2 }}
+          SG:           ${{ steps.cf.outputs.sg }}
+          TG_ARN:       ${{ steps.cf.outputs.tg_arn }}
+          TASK_DEF_ARN: ${{ steps.register.outputs.task_def_arn }}
+        run: |
+          SERVICE_STATUS=$(aws ecs describe-services \
+            --cluster "$CLUSTER" \
+            --services "$ECS_SERVICE" \
+            --query 'services[0].status' \
+            --output text 2>/dev/null || echo "MISSING")
+
+          if [ "$SERVICE_STATUS" = "ACTIVE" ]; then
+            echo "Updating existing ECS service…"
+            aws ecs update-service \
+              --cluster         "$CLUSTER" \
+              --service         "$ECS_SERVICE" \
+              --task-definition "$TASK_DEF_ARN" \
+              --force-new-deployment
+          else
+            echo "Creating new ECS service…"
+            aws ecs create-service \
+              --cluster              "$CLUSTER" \
+              --service-name         "$ECS_SERVICE" \
+              --task-definition      "$TASK_DEF_ARN" \
+              --desired-count        1 \
+              --launch-type          FARGATE \
+              --network-configuration \
+                "awsvpcConfiguration={subnets=[$SUBNET1,$SUBNET2],securityGroups=[$SG],assignPublicIp=ENABLED}" \
+              --load-balancers \
+                "targetGroupArn=$TG_ARN,containerName=$CONTAINER_NAME,containerPort=8000" \
+              --health-check-grace-period-seconds 120 \
+              --deployment-configuration \
+                "deploymentCircuitBreaker={enable=true,rollback=true},maximumPercent=200,minimumHealthyPercent=100"
+          fi
+
+      # ── Wait for the deployment to stabilise ─────────────────────────────
+      - name: Wait for service stability
+        env:
+          CLUSTER: ${{ steps.cf.outputs.cluster }}
+        run: |
+          aws ecs wait services-stable \
+            --cluster  "$CLUSTER" \
+            --services "$ECS_SERVICE"
+
+          echo "✅ Deployment complete!"
+          echo "🌐 App URL: http://${{ steps.cf.outputs.alb_dns }}"
+          echo ""
+          echo "Next step: configure webhooks (Telegram, Xendit, PayMongo) to point to the URL above."
+          echo "See the AWS section in DEPLOYMENT.md for full post-deploy instructions."
