@@ -1,16 +1,18 @@
 # PayBot Deployment Guide
 
-This guide covers deploying PayBot on **Railway** with a managed PostgreSQL database.
+This guide covers deploying PayBot on **Railway** (primary) and **AWS ECS Fargate** (alternative).
 
 ## Prerequisites
 
 - A GitHub account with access to the PayBot repository
-- A [Railway](https://railway.app) account
 - A Xendit account for payment processing
 - A Telegram Bot Token (create via [@BotFather](https://t.me/botfather))
+- For Railway: a [Railway](https://railway.app) account
+- For AWS: an AWS account and the [AWS CLI](https://aws.amazon.com/cli/) installed
 
 ## Table of Contents
 
+### Railway (primary)
 1. [Railway Setup](#1-railway-setup)
 2. [Environment Variables Setup](#2-environment-variables-setup)
 3. [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup)
@@ -18,6 +20,9 @@ This guide covers deploying PayBot on **Railway** with a managed PostgreSQL data
 5. [Webhook Configuration](#5-webhook-configuration)
 6. [Post-Deployment Steps](#6-post-deployment-steps)
 7. [Troubleshooting](#7-troubleshooting)
+
+### AWS (alternative)
+- [AWS Deployment (ECS Fargate)](#aws-deployment-ecs-fargate)
 
 ---
 
@@ -475,3 +480,241 @@ You should now have PayBot running on Railway:
 ✅ Logs accessible for monitoring  
 
 Your PayBot application is now successfully deployed! 🚀
+
+---
+
+## AWS Deployment (ECS Fargate)
+
+This guide provisions PayBot on AWS using **ECS Fargate** (containerised, serverless compute) with **RDS PostgreSQL** behind an **Application Load Balancer**.  The deployment is fully automated through GitHub Actions.
+
+### Architecture overview
+
+```
+Internet → ALB (port 80 / 443)
+             └─► ECS Fargate task (port 8000, public subnet)
+                   └─► RDS PostgreSQL (private subnet)
+```
+
+All resources live in a dedicated VPC.  ECS tasks are placed in public subnets with public IPs so they can reach ECR, Telegram, Xendit, and PayMongo without a NAT Gateway (which saves cost).  RDS is placed in private subnets and is only reachable from within the VPC.
+
+### Prerequisites
+
+- An AWS account with permissions to create CloudFormation stacks, IAM roles, ECS, RDS, ECR, and ALB resources
+- AWS CLI installed locally (`aws --version`)
+- Docker installed locally (for the first manual image push, optional)
+- GitHub repository access to add Secrets and Variables
+
+### Step 1 — Deploy the CloudFormation infrastructure stack
+
+The `aws/cloudformation.yml` template creates everything except the ECS service (which is managed by the GitHub Actions deploy workflow).
+
+```bash
+aws cloudformation deploy \
+  --stack-name paybot \
+  --template-file aws/cloudformation.yml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+      EnvironmentName=paybot \
+      DBPassword=<strong-random-password> \
+      DBInstanceClass=db.t3.micro \
+      CertificateArn=<your-acm-arn-or-leave-empty>
+```
+
+> ⏱ The stack takes 10–15 minutes to provision (RDS is the slowest resource).
+
+After the stack is created, note the outputs — you will need them for GitHub secrets:
+
+```bash
+aws cloudformation describe-stacks \
+  --stack-name paybot \
+  --query 'Stacks[0].Outputs' \
+  --output table
+```
+
+Key outputs:
+| Output key | How it is used |
+|---|---|
+| `LoadBalancerDNS` | Your app's public URL; also set as `PYTHON_BACKEND_URL` |
+| `DBEndpoint` | RDS hostname; used to build `DATABASE_URL` |
+| `ECRRepositoryURI` | Push your Docker image here |
+
+### Step 2 — Create an IAM user for GitHub Actions
+
+Create a least-privilege IAM user that GitHub Actions will use to deploy:
+
+```bash
+# Create the user
+aws iam create-user --user-name paybot-github-actions
+
+# Attach a policy granting ECR push + ECS deploy + CloudFormation read access
+aws iam attach-user-policy \
+  --user-name paybot-github-actions \
+  --policy-arn arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryPowerUser
+
+aws iam attach-user-policy \
+  --user-name paybot-github-actions \
+  --policy-arn arn:aws:iam::aws:policy/AmazonECS_FullAccess
+
+aws iam attach-user-policy \
+  --user-name paybot-github-actions \
+  --policy-arn arn:aws:iam::aws:policy/CloudFormationReadOnlyAccess
+
+# Generate access keys
+aws iam create-access-key --user-name paybot-github-actions
+```
+
+Save the `AccessKeyId` and `SecretAccessKey` — you will add them as GitHub Secrets below.
+
+### Step 3 — Configure GitHub repository secrets
+
+Go to **Settings → Secrets and variables → Actions** in your GitHub repository and add:
+
+#### Required secrets
+
+| Secret name | Value |
+|---|---|
+| `AWS_ACCESS_KEY_ID` | IAM access key ID (from Step 2) |
+| `AWS_SECRET_ACCESS_KEY` | IAM secret access key (from Step 2) |
+| `DB_PASSWORD` | Same password passed to CloudFormation in Step 1 |
+| `TELEGRAM_BOT_TOKEN` | Token from @BotFather |
+| `TELEGRAM_BOT_USERNAME` | Bot username (without `@`) |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram user IDs |
+| `XENDIT_SECRET_KEY` | Xendit API secret key |
+| `JWT_SECRET_KEY` | Run: `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ADMIN_USER_PASSWORD` | Password for the admin dashboard |
+
+#### Optional secrets (add the ones you need)
+
+| Secret name | Purpose |
+|---|---|
+| `PAYMONGO_SECRET_KEY` | PayMongo (cards, GCash, GrabPay, Maya) |
+| `PAYMONGO_PUBLIC_KEY` | PayMongo public key |
+| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook verification |
+| `PHOTONPAY_APP_ID` | PhotonPay (Alipay / WeChat) |
+| `PHOTONPAY_APP_SECRET` | PhotonPay app secret |
+| `PHOTONPAY_SITE_ID` | PhotonPay site ID |
+| `TRANSFI_API_KEY` | TransFi (alternative Alipay / WeChat) |
+| `TRANSFI_WEBHOOK_SECRET` | TransFi webhook verification |
+
+#### Repository variables (optional overrides)
+
+| Variable name | Default | Purpose |
+|---|---|---|
+| `AWS_REGION` | `us-east-1` | AWS region where the stack was deployed |
+| `AWS_CF_STACK_NAME` | `paybot` | CloudFormation stack name from Step 1 |
+
+### Step 4 — Trigger the first deploy
+
+Push a commit to `main` (or run the workflow manually via **Actions → Deploy to AWS → Run workflow**).
+
+The workflow will:
+1. Run backend tests
+2. Build the Docker image and push it to ECR
+3. Render the ECS task definition with your secrets
+4. Register the task definition with ECS
+5. Create the ECS service on first run (subsequent runs update it)
+6. Wait for the service to stabilise
+
+### Step 5 — Configure webhooks
+
+After the first successful deploy, configure each payment gateway webhook to point to your ALB DNS name (from the `LoadBalancerDNS` CloudFormation output):
+
+```
+Xendit webhook:   http://<ALB-DNS>/api/v1/xendit/webhook
+PayMongo webhook: http://<ALB-DNS>/api/v1/paymongo/webhook
+Telegram webhook: http://<ALB-DNS>/api/v1/telegram/webhook
+```
+
+To register the Telegram webhook:
+
+```bash
+curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=http://<ALB-DNS>/api/v1/telegram/webhook"
+```
+
+### Step 6 — (Recommended) Add HTTPS
+
+1. Request a certificate in **AWS Certificate Manager (ACM)** for your domain
+2. Update the CloudFormation stack with the certificate ARN:
+
+```bash
+aws cloudformation deploy \
+  --stack-name paybot \
+  --template-file aws/cloudformation.yml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+      EnvironmentName=paybot \
+      DBPassword=<same-as-before> \
+      CertificateArn=arn:aws:acm:<region>:<account>:certificate/<id>
+```
+
+3. Create a CNAME or alias record in Route 53 (or your DNS provider) pointing your domain to the ALB DNS name.
+4. Update `PYTHON_BACKEND_URL` in GitHub Secrets to use your `https://` domain, then redeploy.
+
+### Monitoring & Logs
+
+View container logs in the AWS Console:
+
+**CloudWatch → Log groups → /ecs/paybot**
+
+Or via CLI:
+
+```bash
+aws logs tail /ecs/paybot --follow
+```
+
+View ECS service events:
+
+```bash
+aws ecs describe-services \
+  --cluster paybot-cluster \
+  --services paybot-service \
+  --query 'services[0].events[:10]'
+```
+
+### Scaling
+
+To run more tasks for higher availability, update the service desired count:
+
+```bash
+aws ecs update-service \
+  --cluster paybot-cluster \
+  --service paybot-service \
+  --desired-count 2
+```
+
+### Teardown
+
+To delete all AWS resources:
+
+```bash
+# Delete the ECS service first
+aws ecs update-service --cluster paybot-cluster --service paybot-service --desired-count 0
+aws ecs delete-service --cluster paybot-cluster --service paybot-service
+
+# Then delete the CloudFormation stack
+# (RDS will create a final snapshot before deletion)
+aws cloudformation delete-stack --stack-name paybot
+```
+
+### Cost estimate
+
+With default settings (`db.t3.micro`, 1 Fargate task at 0.5 vCPU / 1 GB):
+
+| Resource | Approx. monthly cost (us-east-1) |
+|---|---|
+| ECS Fargate (0.5 vCPU, 1 GB, 24/7) | ~$29 |
+| RDS db.t3.micro (gp2 20 GB) | ~$15 |
+| Application Load Balancer | ~$16 |
+| ECR storage (< 1 GB) | < $0.10 |
+| CloudWatch Logs | < $1 |
+| **Total** | **~$61 / month** |
+
+> 💡 Use **FARGATE_SPOT** to reduce compute costs by up to 70%.
+> In `aws/task-definition.json` keep `"requiresCompatibilities": ["FARGATE"]` but add a
+> `"capacityProviderStrategy"` to the `create-service` command in the workflow:
+>
+> ```bash
+> --capacity-provider-strategy capacityProvider=FARGATE_SPOT,weight=1
+> ```
+>
+> Remove the `--launch-type FARGATE` flag when using capacity provider strategy.
