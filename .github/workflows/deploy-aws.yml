@@ -51,12 +51,11 @@ jobs:
     name: Build & Deploy to ECS Fargate
     runs-on: ubuntu-latest
     needs: test-backend
-    # Skip the deploy job when AWS credentials have not been configured.
-    # This allows the workflow file to exist in the repo without breaking
-    # non-AWS environments that only use Railway.
-    if: >
-      vars.AWS_CF_STACK_NAME != '' ||
-      secrets.AWS_ACCESS_KEY_ID != ''
+    # Skip the deploy job when the AWS CloudFormation stack name variable is not set.
+    # This allows this workflow file to coexist with Railway deployments without
+    # failing on pushes where AWS is not configured.
+    # Set the AWS_CF_STACK_NAME repository variable (e.g. "paybot") to enable AWS deploys.
+    if: vars.AWS_CF_STACK_NAME != ''
     permissions:
       contents: read
     environment: production

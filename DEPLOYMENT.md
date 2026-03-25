@@ -698,17 +698,23 @@ aws cloudformation delete-stack --stack-name paybot
 
 ### Cost estimate
 
-With default settings (`db.t3.micro`, 1 Fargate task at 0.25 vCPU / 0.5 GB):
+With default settings (`db.t3.micro`, 1 Fargate task at 0.5 vCPU / 1 GB):
 
 | Resource | Approx. monthly cost (us-east-1) |
 |---|---|
-| ECS Fargate (0.5 vCPU, 1 GB, 24/7) | ~$15 |
+| ECS Fargate (0.5 vCPU, 1 GB, 24/7) | ~$29 |
 | RDS db.t3.micro (gp2 20 GB) | ~$15 |
 | Application Load Balancer | ~$16 |
 | ECR storage (< 1 GB) | < $0.10 |
 | CloudWatch Logs | < $1 |
-| **Total** | **~$47 / month** |
+| **Total** | **~$61 / month** |
 
-> 💡 Use **FARGATE_SPOT** in the task definition to reduce compute costs by up to 70%.
-> Change `"requiresCompatibilities": ["FARGATE"]` to `["FARGATE_SPOT"]` in `aws/task-definition.json`
-> and add `"capacityProviderStrategy"` to the `create-service` command in the workflow.
+> 💡 Use **FARGATE_SPOT** to reduce compute costs by up to 70%.
+> In `aws/task-definition.json` keep `"requiresCompatibilities": ["FARGATE"]` but add a
+> `"capacityProviderStrategy"` to the `create-service` command in the workflow:
+>
+> ```bash
+> --capacity-provider-strategy capacityProvider=FARGATE_SPOT,weight=1
+> ```
+>
+> Remove the `--launch-type FARGATE` flag when using capacity provider strategy.

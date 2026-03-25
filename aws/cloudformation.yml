@@ -27,6 +27,12 @@ Parameters:
       - db.t4g.small
     Description: RDS instance type
 
+  DBEngineVersion:
+    Type: String
+    Default: "15"
+    AllowedValues: ["14", "15", "16"]
+    Description: PostgreSQL major version
+
   CertificateArn:
     Type: String
     Default: ""
@@ -283,7 +289,7 @@ Resources:
       DBInstanceIdentifier: !Sub "${EnvironmentName}-db"
       DBInstanceClass: !Ref DBInstanceClass
       Engine: postgres
-      EngineVersion: "15"
+      EngineVersion: !Ref DBEngineVersion
       MasterUsername: paybot
       MasterUserPassword: !Ref DBPassword
       DBName: paybot
