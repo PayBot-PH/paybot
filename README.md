@@ -340,6 +340,23 @@ docker build -t paybot .
 docker run -p 8000:8000 --env-file .env paybot
 ```
 
+### ☁️ Deploy to AWS (one command)
+
+> **Prerequisites:** [AWS CLI](https://aws.amazon.com/cli/) configured, [Docker](https://docs.docker.com/get-docker/), and [jq](https://stedolan.github.io/jq/) installed.
+
+```bash
+./aws/setup.sh \
+  --telegram-token   "YOUR_BOT_TOKEN" \
+  --telegram-username "your_bot_username" \
+  --telegram-admin-ids "123456789" \
+  --xendit-key       "xnd_production_..." \
+  --github-repo      "PayBot-PH/paybot"   # optional: auto-sets CI/CD secrets
+```
+
+The script provisions the full stack (VPC → RDS → ECR → ECS Fargate → ALB), builds and pushes the Docker image, registers the Telegram webhook, and prints the live URL — all in one command.  Passwords and JWT secrets are auto-generated and saved to `.env.aws`.
+
+See [DEPLOYMENT.md → AWS Deployment](DEPLOYMENT.md#aws-deployment-ecs-fargate) for the full reference, including HTTPS setup, monitoring, and teardown.
+
 ---
 
 ## ☁️ Deploy on AWS Lightsail

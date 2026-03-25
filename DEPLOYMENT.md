@@ -486,7 +486,32 @@ Your PayBot application is now successfully deployed! 🚀
 
 ## AWS Deployment (ECS Fargate)
 
-This guide provisions PayBot on AWS using **ECS Fargate** (containerised, serverless compute) with **RDS PostgreSQL** behind an **Application Load Balancer**.  The deployment is fully automated through GitHub Actions.
+This guide provisions PayBot on AWS using **ECS Fargate** (containerised, serverless compute) with **RDS PostgreSQL** behind an **Application Load Balancer**.
+
+### ⚡ One-click deployment
+
+The fastest path is the `aws/setup.sh` script.  It handles every step below — CloudFormation, IAM, Docker build, ECR push, ECS service creation, and Telegram webhook registration — in a single command:
+
+**Prerequisites:** [AWS CLI](https://aws.amazon.com/cli/) (configured with `aws configure`), [Docker](https://docs.docker.com/get-docker/), [jq](https://stedolan.github.io/jq/download/)
+
+```bash
+./aws/setup.sh \
+  --telegram-token   "YOUR_BOT_TOKEN" \
+  --telegram-username "your_bot_username" \
+  --telegram-admin-ids "123456789" \
+  --xendit-key       "xnd_production_..." \
+  --github-repo      "PayBot-PH/paybot"   # optional — auto-sets CI/CD secrets via gh CLI
+```
+
+All other flags are optional — `--db-password`, `--jwt-secret`, and `--admin-password` are auto-generated and saved to `.env.aws`.  Run `./aws/setup.sh --help` for the full flag reference.
+
+> ⏱ First run takes ~15 minutes (CloudFormation waits for RDS to provision). Subsequent runs are faster.
+
+---
+
+### Manual step-by-step guide
+
+Follow the steps below if you prefer full control, are debugging a failed script run, or need to integrate with an existing AWS account.
 
 ### Architecture overview
 
