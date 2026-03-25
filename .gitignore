@@ -13,6 +13,7 @@ build/
 .env.production
 .env.development
 *.env
+.env.aws
 
 # Python
 __pycache__/
