@@ -164,7 +164,7 @@ Supports `daily`, `weekly`, `monthly`, `yearly` plans — with pause, resume, an
 
 ---
 
-### 🤖 Full Telegram Bot Experience (22+ Commands)
+### 🤖 Full Telegram Bot Features (35+ Commands)
 
 Users never have to leave Telegram. The bot provides:
 
@@ -172,42 +172,77 @@ Users never have to leave Telegram. The bot provides:
 - **Real-time payment notifications** (SSE-powered dashboard + bot alerts)
 - **PIN-protected sessions** (4-6 digit PIN, 2-hour timeout, auto-lockout on 3 failures)
 - **Multi-language support** (English & 中文 for Alipay/WeChat merchants)
+- **Step-by-step wizards** — type any command alone and the bot guides you through each field
 
-#### Complete Command Reference
+#### 🔐 Account & Session
 
-| Category | Command | Example |
-|----------|---------|---------|
-| **Start / Auth** | `/start` | Welcome message & menus |
-| | `/register` | Begin KYB wallet registration |
-| | `/login [PIN]` | PIN-protected session |
-| | `/setpin [PIN]` | Set account PIN |
-| | `/logout` | End session |
-| **Collect Money** | `/invoice <amt> <desc>` | `/invoice 500 Monthly subscription` |
-| | `/qr <amt> <desc>` | `/qr 150 Coffee` |
-| | `/alipay <amt> <desc>` | `/alipay 500 WeChat order` |
-| | `/wechat <amt> <desc>` | `/wechat 300 Coffee order` |
-| | `/link <amt> <desc>` | `/link 1000 Freelance work` |
-| | `/va <amt> <bank>` | `/va 2500 BDO` |
-| | `/ewallet <amt> <provider>` | `/ewallet 300 GCASH` |
-| **Wallet** | `/balance` | PHP balance + history |
-| | `/usdbalance` | USD/USDT balance |
-| | `/send <amt> <@user>` | `/send 100 @maria` |
-| | `/sendusd <amt> <@user>` | `/sendusd 50 @pedro` |
-| | `/sendusdt <amt> <addr>` | `/sendusdt 20 TGGt…` |
-| | `/withdraw <amt>` | `/withdraw 500` |
-| **Money Out** | `/disburse <amt> <bank> <acct> <name>` | `/disburse 1000 BPI 123 Juan` |
-| | `/refund <id> [amt]` | `/refund inv-abc 500` |
-| **Info & Reports** | `/status [id]` | `/status 42` |
-| | `/list` | Last 5 transactions |
-| | `/balance` | Wallet overview |
-| | `/report [period]` | `/report weekly` |
-| | `/fees <amt> <method>` | `/fees 1000 invoice` |
-| **Business** | `/subscribe <plan> <amt> <interval>` | `/subscribe Premium 999 monthly` |
-| | `/remind <id>` | Send payment reminder |
-| | `/cancel <id>` | Cancel pending payment |
-| **Admin Only** | `/kyb_list` | Pending registrations |
-| | `/kyb_approve <chat_id>` | Approve wallet account |
-| | `/kyb_reject <chat_id> <reason>` | Reject with reason |
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/start` | Welcome message, language selection & quick-action menu | `/start` |
+| `/register` | Begin guided KYB/KYC wallet registration (name, email, phone, ID) | `/register` |
+| `/login [PIN]` | Start a PIN-protected session (required for transfers) | `/login 1234` |
+| `/setpin [PIN]` | Set or change your 4–6 digit session PIN | `/setpin 9876` |
+| `/logout` | End current PIN session | `/logout` |
+| `/help` | Show full command reference (bilingual EN/中文) | `/help` |
+
+#### 💳 Accept Payments
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/pay` | Open the payment menu — lists all collection methods | `/pay` |
+| `/invoice [amt] [desc]` | Create a Xendit invoice with auto-generated payment link | `/invoice 500 Monthly subscription` |
+| `/qr [amt] [desc]` | Generate a dynamic QRIS QR code for in-person or online collection | `/qr 150 Coffee` |
+| `/link [amt] [desc]` | Create a shareable Xendit payment link | `/link 1000 Freelance work` |
+| `/va [amt] [bank]` | Create a virtual bank account (BDO, BPI, UnionBank, RCBC, PNB, etc.) | `/va 2500 BDO` |
+| `/ewallet [amt] [provider]` | Charge a GCash, Maya, or GrabPay e-wallet | `/ewallet 300 GCASH` |
+| `/alipay [amt] [desc]` | Generate an Alipay QR via PhotonPay (CNY accepted) | `/alipay 500 Coffee order` |
+| `/wechat [amt] [desc]` | Generate a WeChat Pay QR via PhotonPay (CNY accepted) | `/wechat 300 Coffee order` |
+| `/scanqr [qr] [amt]` | Scan & pay a merchant's QRPH QR code (send a photo or paste the QR string) | `/scanqr` |
+
+#### 💰 PHP Wallet
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/balance` | View PHP wallet balance, USD balance & recent transaction history | `/balance` |
+| `/topup [amt]` | Top up your PHP wallet by sending USDT TRC20 (auto-converted at live rate) | `/topup 100` |
+| `/deposit` | Submit a bank or e-wallet transfer deposit for manual admin approval | `/deposit` |
+| `/send [amt] [to]` | Send PHP instantly to another PayBot user by @username or Telegram ID | `/send 100 @maria` |
+| `/withdraw [amt]` | Withdraw PHP to your registered bank account | `/withdraw 500` |
+
+#### 💵 USD / USDT Wallet
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/usdbalance` | View USD balance, TRC20 deposit address & transaction history | `/usdbalance` |
+| `/sendusdt [amt] [address]` | Send USDT to any TRC20 (TRON) wallet address | `/sendusdt 20 TAddr…` |
+| `/sendusd [amt] [@user]` | Send USD to another PayBot user | `/sendusd 50 @pedro` |
+
+#### 💸 Send Money & Disbursements
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/disburse [amt] [bank] [acct] [name]` | Bank payout to any PH bank account (same-day settlement) | `/disburse 1000 BPI 1234567890 Juan dela Cruz` |
+| `/refund [id] [amt]` | Issue a full or partial refund on a completed payment | `/refund inv-abc 500` |
+
+#### 📊 Reports & Tools
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/status [id]` | Check the status of a payment (or list recent payments if no ID given) | `/status 42` |
+| `/list` | Show the last 5 transactions with amounts and status | `/list` |
+| `/report [daily\|weekly\|monthly]` | Generate a revenue report for the chosen period | `/report weekly` |
+| `/fees [amt] [method]` | Calculate the exact fee for a payment amount and method | `/fees 1000 invoice` |
+| `/subscribe [amt] [plan]` | Create a recurring billing subscription | `/subscribe 999 monthly` |
+| `/cancel [id]` | Cancel a pending payment or active subscription | `/cancel inv-abc` |
+| `/remind [id]` | Send a payment reminder to the payer | `/remind inv-abc` |
+
+#### 🛡️ Admin Commands (Super Admin only)
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `/kyb_list` | List all pending KYB/KYC wallet registration requests | `/kyb_list` |
+| `/kyb_approve <chat_id>` | Approve a wallet registration and activate the account | `/kyb_approve 123456789` |
+| `/kyb_reject <chat_id> <reason>` | Reject a registration with a reason sent to the applicant | `/kyb_reject 123456789 Incomplete ID` |
 
 ---
 
@@ -241,7 +276,7 @@ A full-featured web dashboard for managing everything visually:
 |-------------|-----|
 | **Local dev** (Vite dev server) | `http://localhost:3000` |
 | **Local / Docker** (backend serves built UI) | `http://localhost:8000` |
-| **Railway production** | `https://<your-project>.up.railway.app` |
+| **AWS Lightsail** | `https://<service>.cs.amazonlightsail.com` |
 
 ---
 
@@ -258,21 +293,6 @@ A full-featured web dashboard for managing everything visually:
 | **KYC / KYB** | Government ID + selfie verification before wallet activation |
 | **BSP Regulated** | Operating under Bangko Sentral ng Pilipinas guidelines |
 | **PCI DSS** | PCI-compliant payment processing via Xendit & PayMongo |
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| **Frontend** | React 18 · TypeScript · Vite · Tailwind CSS · shadcn/ui |
-| **Backend** | Python 3.11 · FastAPI (async) · SQLAlchemy 2 · Alembic |
-| **Database** | PostgreSQL (production) · SQLite (local dev) |
-| **Payments** | Xendit · PayMongo · PhotonPay |
-| **Bot** | Telegram Bot API (webhook-based) |
-| **Auth** | Telegram Login Widget · JWT |
-| **Real-time** | Server-Sent Events (SSE) |
-| **Deployment** | Railway · Render · Docker · AWS Lambda |
 
 ---
 
@@ -339,12 +359,55 @@ See [DEPLOYMENT.md → AWS Deployment](DEPLOYMENT.md#aws-deployment-ecs-fargate)
 
 ---
 
+## ☁️ Deploy on AWS Lightsail
+
+AWS Lightsail Container Service is the recommended production deployment — it handles HTTPS, load balancing, and a built-in container registry automatically.  Cost starts at **~$10/month** (micro, 1 GB RAM).
+
+### Step 1 — Provision the container service
+
+```bash
+# Clone the repo, then run the one-time setup script
+AWS_REGION=ap-southeast-1 \
+LIGHTSAIL_SERVICE_NAME=paybot \
+LIGHTSAIL_POWER=micro \
+bash lightsail/setup.sh
+```
+
+Add `CREATE_DB=true DB_PASSWORD=<password>` to also provision a managed PostgreSQL database (~$15/month extra, recommended for production).
+
+### Step 2 — Configure GitHub secrets & variables
+
+In **Settings → Secrets and variables → Actions** add:
+
+| Type | Name | Value |
+|------|------|-------|
+| Variable | `LIGHTSAIL_SERVICE_NAME` | `paybot` |
+| Variable | `AWS_REGION` | e.g. `ap-southeast-1` |
+| Secret | `AWS_ACCESS_KEY_ID` | IAM access key |
+| Secret | `AWS_SECRET_ACCESS_KEY` | IAM secret key |
+| Secret | `TELEGRAM_BOT_TOKEN` | From @BotFather |
+| Secret | `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram user IDs |
+| Secret | `JWT_SECRET_KEY` | `openssl rand -hex 32` |
+| Secret | `ADMIN_USER_PASSWORD` | Dashboard password |
+| Secret | `XENDIT_SECRET_KEY` | Xendit secret key |
+| Secret | `DATABASE_URL` | PostgreSQL URL (or omit for SQLite) |
+| Secret | `PYTHON_BACKEND_URL` | Lightsail service URL from Step 1 |
+
+### Step 3 — Deploy
+
+Push to `main` (or trigger manually via **Actions → Deploy to AWS Lightsail**).  The workflow builds the Docker image, pushes it, and deploys — all automatically.
+
+> 📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for the complete guide including custom domains, scaling, and webhook configuration.
+
+---
+
 ## 📁 Project Structure
 
 ```
 paybot/
-├── Dockerfile                        # Container config
-├── railway.json                      # Railway deployment
+├── Dockerfile                        # Container config (multi-stage: React + Python)
+├── lightsail/                        # AWS Lightsail deployment helpers
+│   └── setup.sh                      # One-time infrastructure provisioning script
 ├── start_app_v2.sh                   # Local startup script
 ├── backend/                          # Python FastAPI backend
 │   ├── main.py                       # App entry point (auto-discovers routers)
@@ -473,7 +536,7 @@ curl https://your-domain.com/api/v1/telegram/bot-info
 
 | Problem | Solution |
 |---------|----------|
-| "No API Key detected" | Set `XENDIT_SECRET_KEY` in Railway → Variables |
+| "No API Key detected" | Set `XENDIT_SECRET_KEY` in Lightsail secrets / environment variables |
 | "TELEGRAM_BOT_TOKEN is not configured" | Set `TELEGRAM_BOT_TOKEN`; check via `GET /api/v1/telegram/debug-token-check` |
 | Bot shows "Not Connected" | Verify token: `https://api.telegram.org/bot<TOKEN>/getMe` |
 | Database errors | Check `DATABASE_URL` format: `postgresql+asyncpg://user:pass@host:5432/db`; run `alembic upgrade head` |
@@ -492,7 +555,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 Special thanks to **Sir Den Russell "Camus" Leonardo** and the **DRL Solutions** team for their exceptional work on bot development and payment integration.
 
 **Powered by:**
-[Xendit](https://www.xendit.co/) · [PayMongo](https://www.paymongo.com/) · [Telegram Bot API](https://core.telegram.org/bots/api) · [Railway](https://railway.app/) · [shadcn/ui](https://ui.shadcn.com/)
+[Xendit](https://www.xendit.co/) · [PayMongo](https://www.paymongo.com/) · [Telegram Bot API](https://core.telegram.org/bots/api) · [AWS Lightsail](https://aws.amazon.com/lightsail/) · [shadcn/ui](https://ui.shadcn.com/)
 
 ---
 

@@ -22,6 +22,7 @@ This guide covers deploying PayBot on **Railway** (primary) and **AWS ECS Fargat
 7. [Troubleshooting](#7-troubleshooting)
 
 ### AWS (alternative)
+- [AWS Deployment (Lightsail)](#aws-deployment-lightsail)
 - [AWS Deployment (ECS Fargate)](#aws-deployment-ecs-fargate)
 
 ---
@@ -743,3 +744,196 @@ With default settings (`db.t3.micro`, 1 Fargate task at 0.5 vCPU / 1 GB):
 > ```
 >
 > Remove the `--launch-type FARGATE` flag when using capacity provider strategy.
+
+---
+
+## AWS Deployment (Lightsail)
+
+This guide deploys PayBot on **AWS Lightsail Container Service** — the simplest AWS container option.  Lightsail handles networking, load balancing, and TLS automatically; no VPC, ALB, or ECS configuration is required.  Deployment is fully automated through GitHub Actions.
+
+### Architecture overview
+
+```
+Internet → Lightsail Container Service (HTTPS, built-in load balancer)
+                └─► paybot container (port 8000)
+                      └─► SQLite (default) OR Lightsail Managed PostgreSQL
+```
+
+### Pricing
+
+| Resource | Approx. monthly cost |
+|---|---|
+| Container Service — micro (1 GB RAM, 0.5 vCPU) | ~$10 |
+| Container Service — small (2 GB RAM, 1 vCPU) | ~$25 |
+| Lightsail Managed Database — micro PostgreSQL (optional) | ~$15 |
+| **Total (micro + DB)** | **~$25 / month** |
+
+> 💡 For low-traffic bots, the **nano** tier (~$7/month) with SQLite is sufficient.  Note that SQLite data is lost if the container is replaced; use a managed database for persistence.
+
+### Prerequisites
+
+- An AWS account with permissions to create Lightsail container services
+- AWS CLI installed locally (`aws --version`)
+- GitHub repository access to add Secrets and Variables
+
+### Step 1 — Provision the Lightsail Container Service
+
+Run the one-time setup script from the root of the repository:
+
+```bash
+AWS_REGION=ap-southeast-1 \
+LIGHTSAIL_SERVICE_NAME=paybot \
+LIGHTSAIL_POWER=micro \
+bash lightsail/setup.sh
+```
+
+> **With a managed PostgreSQL database** (recommended for production):
+> ```bash
+> AWS_REGION=ap-southeast-1 \
+> LIGHTSAIL_SERVICE_NAME=paybot \
+> LIGHTSAIL_POWER=micro \
+> CREATE_DB=true \
+> DB_PASSWORD=<strong-random-password> \
+> bash lightsail/setup.sh
+> ```
+
+After the script completes, note the **Service URL** printed at the end (e.g. `https://paybot.abc123.ap-southeast-1.cs.amazonlightsail.com`).  You will use this as `PYTHON_BACKEND_URL`.
+
+If you created a managed database, wait for it to become **AVAILABLE**, then retrieve its endpoint:
+
+```bash
+aws lightsail get-relational-database \
+  --relational-database-name paybot-db \
+  --query 'relationalDatabase.masterEndpoint.address' \
+  --output text
+```
+
+Build your `DATABASE_URL` secret:
+```
+postgresql+asyncpg://paybot:<password>@<endpoint>:5432/paybot?ssl=prefer
+```
+
+### Step 2 — Create an IAM user for GitHub Actions
+
+```bash
+# Create the user
+aws iam create-user --user-name paybot-lightsail-deploy
+
+# Attach a policy granting Lightsail full access
+aws iam attach-user-policy \
+  --user-name paybot-lightsail-deploy \
+  --policy-arn arn:aws:iam::aws:policy/AmazonLightsailFullAccess
+
+# Generate access keys
+aws iam create-access-key --user-name paybot-lightsail-deploy
+```
+
+Save the `AccessKeyId` and `SecretAccessKey` for the next step.
+
+> 💡 For a least-privilege policy you can restrict actions to `lightsail:PushContainerImage`, `lightsail:GetContainerImages`, `lightsail:CreateContainerServiceDeployment`, and `lightsail:GetContainerServices`.
+
+### Step 3 — Configure GitHub Secrets and Variables
+
+In your GitHub repository go to **Settings → Secrets and variables → Actions**.
+
+#### Repository variables (`vars.*`)
+
+| Variable | Value |
+|---|---|
+| `LIGHTSAIL_SERVICE_NAME` | `paybot` (or your service name) |
+| `AWS_REGION` | `ap-southeast-1` (or your region) |
+
+#### Repository secrets (`secrets.*`)
+
+| Secret | Description |
+|---|---|
+| `AWS_ACCESS_KEY_ID` | IAM access key from Step 2 |
+| `AWS_SECRET_ACCESS_KEY` | IAM secret key from Step 2 |
+| `TELEGRAM_BOT_TOKEN` | Bot token from @BotFather |
+| `TELEGRAM_BOT_USERNAME` | Bot username (without @) |
+| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram user IDs for admins |
+| `XENDIT_SECRET_KEY` | Xendit secret key |
+| `JWT_SECRET_KEY` | Long random string (e.g. `openssl rand -hex 32`) |
+| `ADMIN_USER_PASSWORD` | Dashboard admin password |
+| `PYTHON_BACKEND_URL` | Lightsail Service URL from Step 1 |
+| `DATABASE_URL` | PostgreSQL URL (or omit for SQLite) |
+
+Optional payment gateway secrets (add if needed):
+
+| Secret | Description |
+|---|---|
+| `PAYMONGO_SECRET_KEY` | PayMongo secret key |
+| `PAYMONGO_PUBLIC_KEY` | PayMongo public key |
+| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret |
+| `PHOTONPAY_APP_ID` | PhotonPay app ID |
+| `PHOTONPAY_APP_SECRET` | PhotonPay app secret |
+| `PHOTONPAY_SITE_ID` | PhotonPay site ID |
+| `TRANSFI_API_KEY` | TransFi API key |
+| `TRANSFI_WEBHOOK_SECRET` | TransFi webhook secret |
+
+### Step 4 — Trigger the deployment
+
+Push to `main` or trigger the workflow manually:
+
+```
+GitHub → Actions → "Deploy to AWS Lightsail" → Run workflow
+```
+
+The workflow will:
+1. Run backend tests
+2. Build the Docker image (multi-stage: React frontend + Python backend)
+3. Push the image to the Lightsail container registry
+4. Deploy the container with all environment variables
+5. Wait for the service to reach the `RUNNING` state and print the app URL
+
+### Step 5 — Configure webhooks
+
+After deployment, configure payment gateway webhooks to point to your Lightsail URL (same paths as in [Section 5 — Webhook Configuration](#5-webhook-configuration) above, substituting the Lightsail Service URL).
+
+The Telegram webhook is registered automatically on startup.
+
+### Step 6 — Add a custom domain with HTTPS (optional)
+
+Lightsail provides a free `*.cs.amazonlightsail.com` HTTPS URL out of the box.  To use a custom domain:
+
+1. Open the [Lightsail console](https://lightsail.aws.amazon.com) → **Containers** → your service
+2. Click **Custom domains** → **Create certificate**
+3. Enter your domain (e.g. `paybot.example.com`) and validate via DNS
+4. After the certificate is issued, attach it to the container service
+5. Add a CNAME record in your DNS provider pointing `paybot.example.com` → your Lightsail service URL
+6. Update `PYTHON_BACKEND_URL` secret to use the custom domain and redeploy
+
+### Monitoring & Logs
+
+```bash
+# Stream container logs
+aws lightsail get-container-log \
+  --service-name paybot \
+  --container-name paybot \
+  --region ap-southeast-1
+```
+
+Or view logs in the Lightsail console under **Containers → paybot → Logs**.
+
+### Scaling
+
+```bash
+# Scale up to 3 nodes
+aws lightsail update-container-service \
+  --service-name paybot \
+  --power micro \
+  --scale 3
+```
+
+### Teardown
+
+```bash
+# Delete the container service
+aws lightsail delete-container-service --service-name paybot
+
+# Delete the managed database (if created)
+aws lightsail delete-relational-database \
+  --relational-database-name paybot-db \
+  --no-skip-final-snapshot
+```
+
