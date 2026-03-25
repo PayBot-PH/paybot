@@ -241,7 +241,7 @@ A full-featured web dashboard for managing everything visually:
 |-------------|-----|
 | **Local dev** (Vite dev server) | `http://localhost:3000` |
 | **Local / Docker** (backend serves built UI) | `http://localhost:8000` |
-| **Railway production** | `https://<your-project>.up.railway.app` |
+| **AWS Lightsail** | `https://<service>.cs.amazonlightsail.com` |
 
 ---
 
@@ -272,7 +272,7 @@ A full-featured web dashboard for managing everything visually:
 | **Bot** | Telegram Bot API (webhook-based) |
 | **Auth** | Telegram Login Widget · JWT |
 | **Real-time** | Server-Sent Events (SSE) |
-| **Deployment** | Railway · Render · Docker · AWS Lambda |
+| **Deployment** | AWS Lightsail · Docker |
 
 ---
 
@@ -322,12 +322,55 @@ docker run -p 8000:8000 --env-file .env paybot
 
 ---
 
+## ☁️ Deploy on AWS Lightsail
+
+AWS Lightsail Container Service is the recommended production deployment — it handles HTTPS, load balancing, and a built-in container registry automatically.  Cost starts at **~$10/month** (micro, 1 GB RAM).
+
+### Step 1 — Provision the container service
+
+```bash
+# Clone the repo, then run the one-time setup script
+AWS_REGION=ap-southeast-1 \
+LIGHTSAIL_SERVICE_NAME=paybot \
+LIGHTSAIL_POWER=micro \
+bash lightsail/setup.sh
+```
+
+Add `CREATE_DB=true DB_PASSWORD=<password>` to also provision a managed PostgreSQL database (~$15/month extra, recommended for production).
+
+### Step 2 — Configure GitHub secrets & variables
+
+In **Settings → Secrets and variables → Actions** add:
+
+| Type | Name | Value |
+|------|------|-------|
+| Variable | `LIGHTSAIL_SERVICE_NAME` | `paybot` |
+| Variable | `AWS_REGION` | e.g. `ap-southeast-1` |
+| Secret | `AWS_ACCESS_KEY_ID` | IAM access key |
+| Secret | `AWS_SECRET_ACCESS_KEY` | IAM secret key |
+| Secret | `TELEGRAM_BOT_TOKEN` | From @BotFather |
+| Secret | `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram user IDs |
+| Secret | `JWT_SECRET_KEY` | `openssl rand -hex 32` |
+| Secret | `ADMIN_USER_PASSWORD` | Dashboard password |
+| Secret | `XENDIT_SECRET_KEY` | Xendit secret key |
+| Secret | `DATABASE_URL` | PostgreSQL URL (or omit for SQLite) |
+| Secret | `PYTHON_BACKEND_URL` | Lightsail service URL from Step 1 |
+
+### Step 3 — Deploy
+
+Push to `main` (or trigger manually via **Actions → Deploy to AWS Lightsail**).  The workflow builds the Docker image, pushes it, and deploys — all automatically.
+
+> 📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for the complete guide including custom domains, scaling, and webhook configuration.
+
+---
+
 ## 📁 Project Structure
 
 ```
 paybot/
-├── Dockerfile                        # Container config
-├── railway.json                      # Railway deployment
+├── Dockerfile                        # Container config (multi-stage: React + Python)
+├── lightsail/                        # AWS Lightsail deployment helpers
+│   └── setup.sh                      # One-time infrastructure provisioning script
 ├── start_app_v2.sh                   # Local startup script
 ├── backend/                          # Python FastAPI backend
 │   ├── main.py                       # App entry point (auto-discovers routers)
@@ -456,7 +499,7 @@ curl https://your-domain.com/api/v1/telegram/bot-info
 
 | Problem | Solution |
 |---------|----------|
-| "No API Key detected" | Set `XENDIT_SECRET_KEY` in Railway → Variables |
+| "No API Key detected" | Set `XENDIT_SECRET_KEY` in Lightsail secrets / environment variables |
 | "TELEGRAM_BOT_TOKEN is not configured" | Set `TELEGRAM_BOT_TOKEN`; check via `GET /api/v1/telegram/debug-token-check` |
 | Bot shows "Not Connected" | Verify token: `https://api.telegram.org/bot<TOKEN>/getMe` |
 | Database errors | Check `DATABASE_URL` format: `postgresql+asyncpg://user:pass@host:5432/db`; run `alembic upgrade head` |
@@ -475,7 +518,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 Special thanks to **Sir Den Russell "Camus" Leonardo** and the **DRL Solutions** team for their exceptional work on bot development and payment integration.
 
 **Powered by:**
-[Xendit](https://www.xendit.co/) · [PayMongo](https://www.paymongo.com/) · [Telegram Bot API](https://core.telegram.org/bots/api) · [Railway](https://railway.app/) · [shadcn/ui](https://ui.shadcn.com/)
+[Xendit](https://www.xendit.co/) · [PayMongo](https://www.paymongo.com/) · [Telegram Bot API](https://core.telegram.org/bots/api) · [AWS Lightsail](https://aws.amazon.com/lightsail/) · [shadcn/ui](https://ui.shadcn.com/)
 
 ---
 
