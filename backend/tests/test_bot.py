@@ -1544,3 +1544,66 @@ class TestUsdtPhpConversion:
         note = r.json().get("note", "")
         # note should contain "USDT" and "PHP" conversion info
         assert "PHP" in note or "USDT" in note
+
+
+# ---------------------------------------------------------------------------
+# USDT TRC20 deposit address settings
+# ---------------------------------------------------------------------------
+class TestUsdtTrc20AddressSetting:
+    def test_get_address_returns_value(self, client):
+        """GET /api/v1/app-settings/usdt-trc20-address returns a non-empty address."""
+        r = client.get("/api/v1/app-settings/usdt-trc20-address")
+        assert r.status_code == 200
+        data = r.json()
+        assert "address" in data
+        assert data["address"]  # must be non-empty
+
+    def test_update_requires_auth(self, client):
+        """PUT /api/v1/app-settings/usdt-trc20-address requires authentication."""
+        r = client.put(
+            "/api/v1/app-settings/usdt-trc20-address",
+            json={"address": "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"},
+        )
+        assert r.status_code in (401, 403)
+
+    def test_update_as_super_admin_persists(self, client, auth_headers):
+        """Super admin can update the TRC20 address and it persists."""
+        new_address = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"  # valid 34-char TRC20 address
+        r = client.put(
+            "/api/v1/app-settings/usdt-trc20-address",
+            json={"address": new_address},
+            headers=auth_headers,
+        )
+        assert r.status_code == 200
+        assert r.json()["address"] == new_address
+
+        # Verify it was persisted
+        r2 = client.get("/api/v1/app-settings/usdt-trc20-address")
+        assert r2.json()["address"] == new_address
+
+    def test_update_invalid_address_too_short(self, client, auth_headers):
+        """Address shorter than 34 chars is rejected."""
+        r = client.put(
+            "/api/v1/app-settings/usdt-trc20-address",
+            json={"address": "Tshort"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
+
+    def test_update_invalid_address_wrong_prefix(self, client, auth_headers):
+        """Address not starting with 'T' is rejected."""
+        r = client.put(
+            "/api/v1/app-settings/usdt-trc20-address",
+            json={"address": "XABcDeFgHiJkLmNoPqRsTuVwXyZ12345678"},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
+
+    def test_update_empty_address_rejected(self, client, auth_headers):
+        """Empty address is rejected."""
+        r = client.put(
+            "/api/v1/app-settings/usdt-trc20-address",
+            json={"address": ""},
+            headers=auth_headers,
+        )
+        assert r.status_code == 400
