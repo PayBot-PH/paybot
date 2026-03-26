@@ -144,6 +144,14 @@ async def lifespan(app: FastAPI):
 
     if db_ready:
         try:
+            from routers.app_settings import ensure_maintenance_off
+            from core.database import db_manager
+            async with db_manager.async_session_maker() as _db:
+                await ensure_maintenance_off(_db)
+        except Exception as e:
+            logger.warning(f"Maintenance mode check at startup skipped: {e}")
+
+        try:
             from services.mock_data import initialize_mock_data
             await initialize_mock_data()
         except Exception as e:

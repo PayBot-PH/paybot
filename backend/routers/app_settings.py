@@ -63,6 +63,14 @@ async def get_usdt_php_rate(db: AsyncSession) -> float:
         return DEFAULT_USDT_PHP_RATE
 
 
+async def ensure_maintenance_off(db: AsyncSession) -> None:
+    """Ensure maintenance mode is disabled. Called during application startup."""
+    value = await _get_setting(db, MAINTENANCE_MODE_KEY)
+    if value == "true":
+        await _set_setting(db, MAINTENANCE_MODE_KEY, "false")
+        logger.info("Maintenance mode was on at startup — automatically turned off.")
+
+
 @router.get("/maintenance", response_model=MaintenanceStatusResponse)
 async def get_maintenance_mode(db: AsyncSession = Depends(get_db)):
     """Get the current maintenance mode status. Publicly accessible."""
