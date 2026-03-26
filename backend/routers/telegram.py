@@ -36,14 +36,12 @@ from models.kyb_registrations import KybRegistration
 from models.kyc_verifications import KycVerification
 from models.admin_users import AdminUser
 from models.custom_roles import CustomRole
-from routers.app_settings import get_usdt_php_rate
+from routers.app_settings import get_usdt_php_rate, get_usdt_trc20_address
 from routers.bank_deposit import _PAYBOT_ACCOUNTS
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
-
-USDT_TRC20_ADDRESS = settings.usdt_trc20_address
 
 # Transaction types that credit / debit the USD wallet (keep in sync with wallet.py)
 _USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
@@ -3150,13 +3148,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/topup"):
             parts = text.split(maxsplit=1)
             rate = await get_usdt_php_rate(db)
+            trc20_address = await get_usdt_trc20_address(db)
             if len(parts) < 2:
                 qr_url = _usdt_static_qr_url()
                 caption = (
                     f"💵 <b>Top Up PHP Wallet via USDT TRC20</b>\n"
                     f"━━━━━━━━━━━━━━━━━━━━\n"
                     f"Send USDT (TRC20) to:\n\n"
-                    f"<code>{USDT_TRC20_ADDRESS}</code>\n\n"
+                    f"<code>{trc20_address}</code>\n\n"
                     f"⚠️ <b>Network:</b> TRC20 (TRON) only — do NOT use ERC20 or BEP20\n\n"
                     f"💱 <b>Exchange Rate:</b> $1 USDT = ₱{rate:.2f} PHP\n\n"
                     f"Then run:\n"
@@ -3189,7 +3188,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"💵 <b>Top Up PHP Wallet via USDT TRC20</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"📤 Send exactly <b>${amount:.2f} USDT</b> to:\n\n"
-                            f"<code>{USDT_TRC20_ADDRESS}</code>\n\n"
+                            f"<code>{trc20_address}</code>\n\n"
                             f"⚠️ <b>Network:</b> TRC20 (TRON) only — do NOT use ERC20\n"
                             f"🆔 Request ID: <code>#{req.id}</code>\n\n"
                             f"💱 <b>Exchange Rate:</b> $1 USDT = ₱{rate:.2f} PHP\n"

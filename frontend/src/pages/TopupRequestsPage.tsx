@@ -35,6 +35,10 @@ export default function TopupRequestsPage() {
   const [rateLoading, setRateLoading] = useState(false);
   const [rateInput, setRateInput] = useState('');
   const [rateEditMode, setRateEditMode] = useState(false);
+  const [trc20Address, setTrc20Address] = useState('');
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressInput, setAddressInput] = useState('');
+  const [addressEditMode, setAddressEditMode] = useState(false);
 
   const fetchRate = useCallback(async () => {
     try {
@@ -45,6 +49,19 @@ export default function TopupRequestsPage() {
         setRateInput(String(d.rate));
       }
     } catch (e) { console.error(e); }
+  }, []);
+
+  const fetchAddress = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/app-settings/usdt-trc20-address');
+      if (res.ok) {
+        const d = await res.json();
+        setTrc20Address(d.address);
+        setAddressInput(d.address);
+      } else {
+        setError('Failed to load TRC20 deposit address.');
+      }
+    } catch (e) { console.error(e); setError('Failed to load TRC20 deposit address.'); }
   }, []);
 
   const saveRate = async () => {
@@ -70,6 +87,33 @@ export default function TopupRequestsPage() {
     setRateLoading(false);
   };
 
+  const saveAddress = async () => {
+    const addr = addressInput.trim();
+    if (!addr) { setError('Address must not be empty.'); return; }
+    if (!addr.startsWith('T') || addr.length !== 34) {
+      setError("Invalid TRC20 address. Must start with 'T' and be exactly 34 characters.");
+      return;
+    }
+    setAddressLoading(true); setError('');
+    try {
+      const res = await fetch('/api/v1/app-settings/usdt-trc20-address', {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: addr }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setTrc20Address(d.address);
+        setAddressInput(d.address);
+        setAddressEditMode(false);
+      } else {
+        const d = await res.json();
+        setError(d.detail || 'Failed to update address');
+      }
+    } catch (e: any) { setError(e.message); }
+    setAddressLoading(false);
+  };
+
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
@@ -82,10 +126,11 @@ export default function TopupRequestsPage() {
 
   useEffect(() => {
     fetchRate();
+    fetchAddress();
     fetchRequests();
     const id = setInterval(fetchRequests, 30000);
     return () => clearInterval(id);
-  }, [fetchRate, fetchRequests]);
+  }, [fetchRate, fetchAddress, fetchRequests]);
 
   const doAction = async (id: number, action: 'approve' | 'reject') => {
     setActionLoading(id); setError('');
@@ -174,6 +219,54 @@ export default function TopupRequestsPage() {
                   onClick={() => setRateEditMode(true)}
                   className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
                   Edit Rate
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* TRC20 deposit address card */}
+        <div className="bg-background border border-teal-500/20 rounded-2xl p-4">
+          <div className="flex items-start justify-between flex-wrap gap-3">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div className="h-9 w-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
+                <DollarSign className="h-4 w-4 text-teal-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-muted-foreground text-xs">USDT TRC20 Deposit Address</p>
+                {addressEditMode ? (
+                  <input
+                    type="text"
+                    value={addressInput}
+                    onChange={e => setAddressInput(e.target.value)}
+                    placeholder="T… (34-char TRC20 address)"
+                    className="mt-1 w-full bg-muted border border-border rounded-lg px-2 py-1 text-sm text-foreground font-mono focus:outline-none focus:border-teal-500/50"
+                  />
+                ) : (
+                  <p className="text-foreground font-mono text-sm mt-0.5 break-all">{trc20Address || '—'}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {addressEditMode ? (
+                <>
+                  <button
+                    onClick={saveAddress}
+                    disabled={addressLoading}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white disabled:opacity-50 transition-colors">
+                    {addressLoading ? 'Saving…' : 'Save Address'}
+                  </button>
+                  <button
+                    onClick={() => { setAddressEditMode(false); setAddressInput(trc20Address); }}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setAddressEditMode(true)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                  Edit Address
                 </button>
               )}
             </div>
