@@ -43,7 +43,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
 
-USDT_TRC20_ADDRESS = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
+USDT_TRC20_ADDRESS = settings.usdt_trc20_address
 
 # Transaction types that credit / debit the USD wallet (keep in sync with wallet.py)
 _USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")

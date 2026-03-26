@@ -104,6 +104,9 @@ class Settings(BaseSettings):
     transfi_webhook_secret: str = ""
     transfi_base_url: str = ""         # override base URL (leave empty for default)
 
+    # USDT TRC20 wallet address for receiving top-up payments
+    usdt_trc20_address: str = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
+
     # Simple admin authentication
     admin_user_id: str = "admin"
     admin_user_email: str = "admin@paybot.local"

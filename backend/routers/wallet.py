@@ -1,5 +1,4 @@
 import logging
-import os
 import re
 from datetime import datetime
 from typing import Optional, List
@@ -9,6 +8,7 @@ from pydantic import ConfigDict, BaseModel
 from sqlalchemy import select, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from core.database import get_db
 from dependencies.auth import get_current_user
 from models.wallets import Wallets
@@ -21,8 +21,8 @@ from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
 from services.xendit_service import XenditService
 
-# Default USDT TRC20 deposit address — overridable via environment variable
-DEFAULT_USDT_TRC20_ADDRESS = os.getenv("USDT_TRC20_ADDRESS", "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx")
+# Default USDT TRC20 deposit address — overridable via USDT_TRC20_ADDRESS environment variable
+DEFAULT_USDT_TRC20_ADDRESS = settings.usdt_trc20_address
 
 logger = logging.getLogger(__name__)
 
