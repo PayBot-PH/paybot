@@ -3163,7 +3163,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     f"Example: /topup 50\n\n"
                     f"After submitting, send a screenshot of your transaction as a photo in this chat."
                 )
-                await tg.send_photo(chat_id, qr_url, caption=caption)
+                result = await tg.send_photo(chat_id, qr_url, caption=caption)
+                if not result.get("success"):
+                    await tg.send_message(chat_id, caption)
             else:
                 try:
                     amount = float(parts[1])
@@ -3196,7 +3198,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"✅ After sending, <b>reply with a screenshot</b> of your transaction as a photo.\n"
                             f"The admin will verify and credit your PHP wallet within minutes."
                         )
-                        await tg.send_photo(chat_id, qr_url, caption=caption)
+                        result = await tg.send_photo(chat_id, qr_url, caption=caption)
+                        if not result.get("success"):
+                            await tg.send_message(chat_id, caption)
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount. Example: /topup 50")
                 except Exception as e:
