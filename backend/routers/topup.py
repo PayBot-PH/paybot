@@ -7,6 +7,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.config import settings
 from core.database import get_db
 from dependencies.auth import get_current_user
 from models.topup_requests import TopupRequest
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/topup", tags=["topup"])
 
 # ---------- Constants ----------
-USDT_TRC20_ADDRESS = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
+USDT_TRC20_ADDRESS = settings.usdt_trc20_address
 
 
 
