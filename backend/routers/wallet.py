@@ -20,9 +20,7 @@ from models.admin_users import AdminUser
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
 from services.xendit_service import XenditService
-
-# Default USDT TRC20 deposit address — overridable via USDT_TRC20_ADDRESS environment variable
-DEFAULT_USDT_TRC20_ADDRESS = settings.usdt_trc20_address
+from routers.app_settings import get_usdt_trc20_address
 
 logger = logging.getLogger(__name__)
 
@@ -746,10 +744,12 @@ class CryptoTopupActionResponse(BaseModel):
 @router.get("/crypto-deposit-info", response_model=CryptoDepositInfoResponse)
 async def get_crypto_deposit_info(
     current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Return the USDT TRC20 deposit address for manual top-up of the USD wallet."""
+    address = await get_usdt_trc20_address(db)
     return CryptoDepositInfoResponse(
-        address=DEFAULT_USDT_TRC20_ADDRESS,
+        address=address,
         network="TRC20",
         currency="USDT",
         notes="Send USDT on the TRON (TRC20) network only. After sending, submit your transaction hash below for manual review.",
