@@ -30,6 +30,7 @@ export const translations = {
     nav_roles: 'Role Management',
     nav_policies: 'Policies',
     nav_contact_support: 'Contact Support',
+    nav_xendit: 'Xendit Gateway',
 
     /* User / auth */
     sign_out: 'Sign Out',
@@ -75,6 +76,7 @@ export const translations = {
     nav_roles: '角色管理',
     nav_policies: '政策',
     nav_contact_support: '联系支持',
+    nav_xendit: 'Xendit 支付',
 
     /* User / auth */
     sign_out: '退出登录',

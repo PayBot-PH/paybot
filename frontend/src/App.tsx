@@ -38,11 +38,13 @@ import NotFound from './pages/NotFound';
 import MaintenancePage from './pages/MaintenancePage';
 import BotIntro from './pages/BotIntro';
 import ScanQRPH from './pages/ScanQRPH';
+import XenditPage from './pages/XenditPage';
+import HomePage from './pages/Index';
 
 const queryClient = new QueryClient();
 
 // Paths that should remain accessible even during maintenance
-const MAINTENANCE_EXEMPT_PATHS = ['/intro', '/login', '/register', '/features', '/pricing', '/auth/callback', '/auth/error', '/logout-callback', '/maintenance'];
+const MAINTENANCE_EXEMPT_PATHS = ['/home', '/intro', '/login', '/register', '/features', '/pricing', '/auth/callback', '/auth/error', '/logout-callback', '/maintenance'];
 
 function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const [maintenanceMode, setMaintenanceMode] = useState(false);
@@ -113,6 +115,7 @@ function AuthAwareShell() {
       <MaintenanceGuard>
         <PageFade>
           <Routes>
+            <Route path="/home" element={<HomePage />} />
             <Route path="/intro" element={<BotIntro />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -128,6 +131,7 @@ function AuthAwareShell() {
             <Route path="/create-payment" element={<CreatePayment />} />
             <Route path="/payments" element={<PaymentsHub />} />
             <Route path="/scan-qrph" element={<ScanQRPH />} />
+            <Route path="/xendit" element={<XenditPage />} />
             <Route path="/disbursements" element={<DisbursementsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/bot-settings" element={<BotSettings />} />

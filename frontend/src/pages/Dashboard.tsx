@@ -237,7 +237,7 @@ export default function Dashboard() {
   }
 
   if (!user) {
-    return <Navigate to="/intro" replace />;
+    return <Navigate to="/home" replace />;
   }
 
   const successRate = stats.total_count > 0
