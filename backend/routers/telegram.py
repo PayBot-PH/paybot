@@ -37,6 +37,7 @@ from models.kyc_verifications import KycVerification
 from models.admin_users import AdminUser
 from models.custom_roles import CustomRole
 from routers.app_settings import get_usdt_php_rate
+from routers.bank_deposit import _PAYBOT_ACCOUNTS
 
 logger = logging.getLogger(__name__)
 
@@ -3205,23 +3206,32 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /deposit ====================
         elif text.startswith("/deposit"):
+            def _fmt_accounts(number_label: str, name_label: str) -> str:
+                return "\n".join(
+                    f"  • <b>{bank}</b>\n"
+                    f"    {number_label}: <code>{info['number']}</code>\n"
+                    f"    {name_label}: <b>{info['name']}</b>"
+                    for bank, info in _PAYBOT_ACCOUNTS.items()
+                )
             await tg.send_message(
                 chat_id,
                 _t(chat_id,
-                   "🏦 <b>Bank / E-Wallet Deposit</b>\n"
-                   "━━━━━━━━━━━━━━━━━━━━\n"
-                   "I'll guide you through submitting your deposit receipt for verification.\n\n"
-                   "Supported channels:\n"
-                   "  • <b>GCash</b> · <b>Maya</b>\n"
-                   "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
-                   "Let's start — I'll ask you a few quick questions.",
-                   "🏦 <b>银行 / 电子钱包存款</b>\n"
-                   "━━━━━━━━━━━━━━━━━━━━\n"
-                   "请按步骤提交存款收据以供核实。\n\n"
-                   "支持的渠道：\n"
-                   "  • <b>GCash</b> · <b>Maya</b>\n"
-                   "  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
-                   "开始吧，我会问您几个简单问题。"),
+                   f"🏦 <b>Bank / E-Wallet Deposit</b>\n"
+                   f"━━━━━━━━━━━━━━━━━━━━\n"
+                   f"Please transfer your deposit to one of the following accounts:\n\n"
+                   f"{_fmt_accounts('Account No', 'Account Name')}\n\n"
+                   f"Supported send channels:\n"
+                   f"  • <b>GCash</b> · <b>Maya</b>\n"
+                   f"  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
+                   f"After sending, tap <b>Continue</b> or type anything to submit your receipt.",
+                   f"🏦 <b>银行 / 电子钱包存款</b>\n"
+                   f"━━━━━━━━━━━━━━━━━━━━\n"
+                   f"请将存款转至以下账户之一：\n\n"
+                   f"{_fmt_accounts('账号', '户名')}\n\n"
+                   f"支持的转账渠道：\n"
+                   f"  • <b>GCash</b> · <b>Maya</b>\n"
+                   f"  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
+                   f"转账后，请继续填写收据信息。"),
             )
             prompt = _wizard_start(chat_id, "/deposit")
             await tg.send_message(chat_id, prompt)
