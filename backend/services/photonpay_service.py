@@ -97,6 +97,21 @@ class PhotonPayService:
             self.proxy_url = getattr(settings, "photonpay_proxy_url", "").strip()
         except Exception:
             pass
+        # Validate that the proxy URL has a scheme that httpx recognises.
+        # httpx supports http://, https://, and socks5://.  An unschemed value
+        # like "proxy-host:1080" causes httpx to raise "Unknown scheme for proxy
+        # URL" which surfaces as "Auth failed: …" and breaks every payment.
+        # The stored value is kept as-is (not lowercased) — httpx's URL parser
+        # normalises the scheme to lowercase internally.
+        _VALID_PROXY_SCHEMES = ("http://", "https://", "socks5://")
+        if self.proxy_url and not any(self.proxy_url.lower().startswith(s) for s in _VALID_PROXY_SCHEMES):
+            logger.warning(
+                "PHOTONPAY_PROXY_URL %r has an unrecognised or missing scheme — "
+                "it must start with http://, https://, or socks5://. "
+                "The proxy setting will be ignored; connections will be direct.",
+                self.proxy_url,
+            )
+            self.proxy_url = ""
         mode = os.environ.get("PHOTONPAY_MODE", "production").lower().strip()
         base_url_override = os.environ.get("PHOTONPAY_BASE_URL", "").strip()
         cashier_url_override = os.environ.get("PHOTONPAY_CASHIER_URL", "").strip()
