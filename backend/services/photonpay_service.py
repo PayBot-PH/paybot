@@ -86,6 +86,17 @@ class PhotonPayService:
         self.site_id = os.environ.get("PHOTONPAY_SITE_ID", "")
         self.alipay_method = os.environ.get("PHOTONPAY_ALIPAY_METHOD", "Alipay")
         self.wechat_method = os.environ.get("PHOTONPAY_WECHAT_METHOD", "WeChat")
+        # Explicit proxy URL for PhotonPay requests.  Set PHOTONPAY_PROXY_URL to a SOCKS5
+        # or HTTP proxy (e.g. "socks5://user:pass@host:port") to route outbound connections
+        # through a proxy with a valid public source IP when the deployment environment uses
+        # a transparent proxy that presents an unroutable address to PhotonPay (0.0.0.0:0).
+        # Read via pydantic-settings so it works from both .env and OS environment variables.
+        self.proxy_url = ""
+        try:
+            from core.config import settings
+            self.proxy_url = getattr(settings, "photonpay_proxy_url", "").strip()
+        except Exception:
+            pass
         mode = os.environ.get("PHOTONPAY_MODE", "production").lower().strip()
         base_url_override = os.environ.get("PHOTONPAY_BASE_URL", "").strip()
         cashier_url_override = os.environ.get("PHOTONPAY_CASHIER_URL", "").strip()
@@ -256,8 +267,14 @@ class PhotonPayService:
         # environment variables.  On Railway the proxy address is a CGNAT IP
         # (100.64.x.x) whose TCP source port gets forwarded to PhotonPay,
         # which then fails with "Failed to parse address<ip>:<port>".
-        # Bypassing the proxy ensures a direct connection with a parseable IP.
-        async with httpx.AsyncClient(trust_env=False) as client:
+        # When the deployment environment uses a transparent proxy that presents
+        # 0.0.0.0:0 to PhotonPay, set PHOTONPAY_PROXY_URL (e.g.
+        # socks5://user:pass@host:port) to route traffic through a proxy with a
+        # valid public source IP — transparent proxies bypass trust_env=False.
+        _client_kwargs: dict = {"trust_env": False}
+        if self.proxy_url:
+            _client_kwargs["proxy"] = self.proxy_url
+        async with httpx.AsyncClient(**_client_kwargs) as client:
             # PhotonPay OAuth2 client_credentials flow.
             # Credentials are sent in the JSON body (appId / appSecret / grantType)
             # rather than as an HTTP Basic Auth header — the API returns
@@ -331,7 +348,10 @@ class PhotonPayService:
                         "On Railway, ensure the service has public networking enabled and "
                         "that no iptables/private-networking rules intercept HTTPS egress. "
                         "trust_env=False already bypasses HTTP_PROXY/HTTPS_PROXY env vars, "
-                        "but transparent proxies operate below that layer."
+                        "but transparent proxies operate below that layer. "
+                        "Set PHOTONPAY_PROXY_URL to an explicit proxy with a valid public "
+                        "source IP (e.g. socks5://user:pass@host:port) to route PhotonPay "
+                        "traffic around the transparent proxy."
                     )
                 else:
                     _hint = (
@@ -466,8 +486,12 @@ class PhotonPayService:
         try:
             # trust_env=False: same reason as _get_access_token — prevents
             # Railway's internal proxy from injecting IP:port headers that
-            # PhotonPay cannot parse.
-            async with httpx.AsyncClient(trust_env=False) as client:
+            # PhotonPay cannot parse.  PHOTONPAY_PROXY_URL routes through an
+            # explicit proxy when a transparent proxy presents 0.0.0.0:0.
+            _client_kwargs: dict = {"trust_env": False}
+            if self.proxy_url:
+                _client_kwargs["proxy"] = self.proxy_url
+            async with httpx.AsyncClient(**_client_kwargs) as client:
                 r = await client.post(
                     f"{self.base_url}/txncore/openApi/v4/cashierSession",
                     headers=headers,
