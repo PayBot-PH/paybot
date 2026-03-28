@@ -65,7 +65,11 @@ if database_url:
             _e,
         )
         # DATABASE_URL is malformed – try DATABASE_PUBLIC_URL before giving up.
-        _fallback = os.environ.get("DATABASE_PUBLIC_URL", "").strip()
+        try:
+            from core.config import settings as _cfg
+            _fallback = _cfg.database_public_url.strip()
+        except Exception:
+            _fallback = os.environ.get("DATABASE_PUBLIC_URL", "").strip()
         if _fallback:
             if _fallback.startswith("postgres://"):
                 _fallback = "postgresql://" + _fallback[len("postgres://"):]

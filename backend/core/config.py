@@ -25,6 +25,10 @@ class Settings(BaseSettings):
 
     # Database
     database_url: str = "sqlite+aiosqlite:///./paybot.db"
+    # Public TCP proxy URL for Railway PostgreSQL (e.g. used for local dev when
+    # DATABASE_URL points to the private .railway.internal hostname).
+    # Example: postgresql://postgres:PASSWORD@gondola.proxy.rlwy.net:45681/railway
+    database_public_url: str = ""
 
     @model_validator(mode="after")
     def prefer_public_db_url(self) -> "Settings":
@@ -36,7 +40,7 @@ class Settings(BaseSettings):
         # Inside Railway containers, the .railway.internal hostname is reachable directly.
         is_on_railway = bool(self.railway_environment or self.railway_project_id)
         if "railway.internal" in self.database_url and not is_on_railway:
-            public = os.environ.get("DATABASE_PUBLIC_URL", "")
+            public = self.database_public_url.strip()
             if public:
                 logger.debug("Switching DATABASE_URL to DATABASE_PUBLIC_URL (internal hostname detected)")
                 self.database_url = public
@@ -49,7 +53,7 @@ class Settings(BaseSettings):
         # If the URL still has no scheme separator it is not a valid connection string
         # (e.g. a Railway variable that didn't resolve).  Fall back to DATABASE_PUBLIC_URL.
         if "://" not in self.database_url:
-            public = os.environ.get("DATABASE_PUBLIC_URL", "").strip()
+            public = self.database_public_url.strip()
             if public:
                 if public.startswith("postgres://"):
                     public = "postgresql://" + public[len("postgres://"):]

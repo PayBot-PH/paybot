@@ -129,26 +129,26 @@ class TestModeBasedBaseUrl:
 
     def test_production_mode_uses_production_url(self):
         svc = self._make_service(mode="production")
-        assert svc._base_url == PHOTONPAY_PRODUCTION_URL
+        assert svc.base_url == PHOTONPAY_PRODUCTION_URL
 
     def test_sandbox_mode_uses_sandbox_url(self):
         svc = self._make_service(mode="sandbox")
-        assert svc._base_url == PHOTONPAY_SANDBOX_URL
+        assert svc.base_url == PHOTONPAY_SANDBOX_URL
 
     def test_default_mode_uses_production_url(self):
         """When PHOTONPAY_MODE is unset the service should default to production."""
         svc = self._make_service()
-        assert svc._base_url == PHOTONPAY_PRODUCTION_URL
+        assert svc.base_url == PHOTONPAY_PRODUCTION_URL
 
     def test_base_url_override_takes_precedence(self):
         custom = "https://custom.example.com"
         svc = self._make_service(mode="sandbox", base_url=custom)
-        assert svc._base_url == custom
+        assert svc.base_url == custom
 
     def test_base_url_override_strips_trailing_slash(self):
         custom = "https://custom.example.com/"
         svc = self._make_service(base_url=custom)
-        assert svc._base_url == "https://custom.example.com"
+        assert svc.base_url == "https://custom.example.com"
 
 
 class TestCredentialErrorDetection:
@@ -256,8 +256,8 @@ class TestRoutingErrorMessages:
         assert "private-network" in error_msg.lower()
 
     @pytest.mark.asyncio
-    async def test_cgnat_address_error_mentions_trust_env(self):
-        """100.64.x.x:port response should raise ValueError mentioning trust_env=False."""
+    async def test_cgnat_address_error_mentions_proxy_url(self):
+        """100.64.x.x:port response should raise ValueError mentioning PHOTONPAY_PROXY_URL."""
         mock_client = self._make_mock_client({
             "code": "XXA00001",
             "msg": "Failed to parse address100.64.0.6:51376",
@@ -268,7 +268,7 @@ class TestRoutingErrorMessages:
             with pytest.raises(ValueError) as exc_info:
                 await self.service._get_access_token()
         error_msg = str(exc_info.value)
-        assert "trust_env" in error_msg
+        assert "PHOTONPAY_PROXY_URL" in error_msg
 
 
 class TestTokenRequestFormat:

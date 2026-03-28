@@ -93,66 +93,67 @@ class PhotonPayService:
         # Read via pydantic-settings so it works from both .env and OS environment variables.
         self.proxy_url = ""
         try:
-            from core.config import settings
-            self.proxy_url = getattr(settings, "photonpay_proxy_url", "").strip()
+            from core.config import settings as _settings
+            self.proxy_url = getattr(_settings, "photonpay_proxy_url", "").strip()
         except Exception:
             pass
         # Validate that the proxy URL has a scheme that httpx recognises.
         # httpx supports http://, https://, and socks5://.  An unschemed value
-        # like "proxy-host:1080" causes httpx to raise "Unknown scheme for proxy
-        # URL" which surfaces as "Auth failed: …" and breaks every payment.
-        # The stored value is kept as-is (not lowercased) — httpx's URL parser
-        # normalises the scheme to lowercase internally.
+        # like "host:port" or "tcp://host:port" causes httpx to raise "Unknown
+        # scheme for proxy URL" which surfaces as "Auth failed: …".
+        # NOTE: Railway's TCP database proxy (e.g. gondola.proxy.rlwy.net:PORT)
+        # is for inbound PostgreSQL connections — it cannot be used as an HTTP
+        # proxy.  PHOTONPAY_PROXY_URL must point to a real HTTP/SOCKS5 proxy.
         _VALID_PROXY_SCHEMES = ("http://", "https://", "socks5://")
         if self.proxy_url and not any(self.proxy_url.lower().startswith(s) for s in _VALID_PROXY_SCHEMES):
             logger.warning(
                 "PHOTONPAY_PROXY_URL %r has an unrecognised or missing scheme — "
                 "it must start with http://, https://, or socks5://. "
+                "NOTE: The Railway TCP database proxy (e.g. gondola.proxy.rlwy.net:PORT) "
+                "is for inbound database connections only — it cannot route outbound HTTP. "
                 "The proxy setting will be ignored; connections will be direct.",
                 self.proxy_url,
             )
             self.proxy_url = ""
-        mode = os.environ.get("PHOTONPAY_MODE", "production").lower().strip()
-        base_url_override = os.environ.get("PHOTONPAY_BASE_URL", "").strip()
-        cashier_url_override = os.environ.get("PHOTONPAY_CASHIER_URL", "").strip()
 
-        # Determine base URL from PHOTONPAY_BASE_URL override or PHOTONPAY_MODE
-        _base_url_override = os.environ.get("PHOTONPAY_BASE_URL", "").strip()
-        _mode = os.environ.get("PHOTONPAY_MODE", "production").strip().lower()
-        if _base_url_override:
-            self._base_url = _base_url_override.rstrip("/")
-        elif _mode == "sandbox":
-            self._base_url = PHOTONPAY_SANDBOX_URL
-        else:
-            self._base_url = PHOTONPAY_PRODUCTION_URL
+        # Read all configuration through pydantic-settings so that .env file
+        # values and OS env vars are treated identically.
+        try:
+            from core.config import settings as _cfg
+        except Exception:
+            _cfg = None  # type: ignore[assignment]
 
-        # Try settings fallback
+        def _cfg_get(env_key: str, default: str = "") -> str:
+            """Read a setting, preferring live os.environ (dynamic) over the cached
+            pydantic-settings singleton (which is frozen at module import time)."""
+            val = os.environ.get(env_key, "").strip()
+            if val:
+                return val
+            if _cfg is not None:
+                try:
+                    cfg_val = getattr(_cfg, env_key.lower(), None)
+                    if cfg_val is not None:
+                        return str(cfg_val).strip()
+                except Exception:
+                    pass
+            return default
+
+        # Fill credentials from settings if not already set from env vars
         if not self.app_id:
-            try:
-                from core.config import settings
-                self.app_id = getattr(settings, "photonpay_app_id", "")
-                self.app_secret = getattr(settings, "photonpay_app_secret", "")
-                self.rsa_private_key_pem = getattr(settings, "photonpay_rsa_private_key", "")
-                self.rsa_public_key_pem = getattr(settings, "photonpay_rsa_public_key", "")
-                self.site_id = getattr(settings, "photonpay_site_id", "")
-                self.alipay_method = getattr(settings, "photonpay_alipay_method", self.alipay_method)
-                self.wechat_method = getattr(settings, "photonpay_wechat_method", self.wechat_method)
+            self.app_id = _cfg_get("PHOTONPAY_APP_ID")
+            self.app_secret = _cfg_get("PHOTONPAY_APP_SECRET")
+            self.rsa_private_key_pem = _cfg_get("PHOTONPAY_RSA_PRIVATE_KEY")
+            self.rsa_public_key_pem = _cfg_get("PHOTONPAY_RSA_PUBLIC_KEY")
+            self.site_id = _cfg_get("PHOTONPAY_SITE_ID")
+            self.alipay_method = _cfg_get("PHOTONPAY_ALIPAY_METHOD") or self.alipay_method
+            self.wechat_method = _cfg_get("PHOTONPAY_WECHAT_METHOD") or self.wechat_method
 
-                # Apply settings-based URL only if env var overrides are absent
-                if not _base_url_override:
-                    settings_base_url = getattr(settings, "photonpay_base_url", "").strip()
-                    if settings_base_url:
-                        self._base_url = settings_base_url.rstrip("/")
-                    else:
-                        settings_mode = getattr(settings, "photonpay_mode", "production").strip().lower()
-                        if settings_mode == "sandbox":
-                            self._base_url = PHOTONPAY_SANDBOX_URL
-                        else:
-                            self._base_url = PHOTONPAY_PRODUCTION_URL
-            except Exception:
-                pass
-
-        # Resolve base URL: explicit override > mode-based default
+        # Resolve base URL: explicit override > mode-based default.
+        # Use a SINGLE attribute (self.base_url) for all API calls so that the
+        # token endpoint and payment endpoint always point to the same environment.
+        mode = _cfg_get("PHOTONPAY_MODE", "production").lower()
+        base_url_override = _cfg_get("PHOTONPAY_BASE_URL")
+        cashier_url_override = _cfg_get("PHOTONPAY_CASHIER_URL")
         is_sandbox = mode in ("sandbox", "test", "uat")
         if base_url_override:
             self.base_url = base_url_override.rstrip("/")
@@ -169,9 +170,30 @@ class PhotonPayService:
             self.cashier_url = PHOTONPAY_CASHIER_URL
 
         logger.debug(
-            "PhotonPay: mode=%s base_url=%s cashier_url=%s",
-            mode, self.base_url, self.cashier_url,
+            "PhotonPay: mode=%s base_url=%s cashier_url=%s proxy=%s",
+            mode, self.base_url, self.cashier_url, self.proxy_url or "<none>",
         )
+
+        # Cache Railway detection result so it can be reused in _get_access_token
+        # without re-reading env vars each time.
+        self._is_on_railway: bool = bool(
+            os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("RAILWAY_PROJECT_ID")
+        )
+
+        # Warn early when running on Railway without a proxy: every outbound
+        # connection from Railway uses a CGNAT source IP (100.64.x.x) that
+        # PhotonPay rejects with code XXA00001.  The TCP database proxy
+        # (gondola.proxy.rlwy.net:PORT) only handles inbound DB connections and
+        # does NOT fix outbound HTTP.
+        if self._is_on_railway and not self.proxy_url and (self.app_id or self.app_secret):
+            logger.warning(
+                "PhotonPay: running on Railway without PHOTONPAY_PROXY_URL. "
+                "Railway routes all outbound HTTP through a CGNAT IP (100.64.x.x) "
+                "that PhotonPay rejects (error XXA00001). "
+                "Set PHOTONPAY_PROXY_URL=socks5://user:pass@host:port (or http://...) "
+                "to route PhotonPay traffic through an external proxy with a valid public IP. "
+                "The Railway TCP database proxy is for inbound DB connections only."
+            )
 
         if not self.app_id or not self.app_secret:
             logger.warning(
@@ -277,7 +299,7 @@ class PhotonPayService:
         if self._access_token and time.time() < self._token_expires_at - 60:
             return self._access_token
 
-        token_url = f"{self._base_url}/oauth2/token/accessToken"
+        token_url = f"{self.base_url}/oauth2/token/accessToken"
         # trust_env=False prevents httpx from reading HTTP_PROXY / HTTPS_PROXY
         # environment variables.  On Railway the proxy address is a CGNAT IP
         # (100.64.x.x) whose TCP source port gets forwarded to PhotonPay,
@@ -325,18 +347,17 @@ class PhotonPayService:
             # PhotonPay echoes "path" and "method" back in the response body
             # when it cannot process the request.  This occurs in two formats:
             #
-            #   Old format (credential error):
+            #   Credential error:
             #     {"path": "/token/accessToken", "method": "POST"}
-            #     (optionally with a "timestamp" field — at most 3 keys)
             #
-            #   New format (IP-parse / routing error, e.g. Railway CGNAT):
+            #   IP-parse / routing error (e.g. Railway CGNAT, 0.0.0.0):
             #     {"code": "XXA00001",
             #      "msg": "Failed to parse address100.64.0.6:51376",
             #      "path": "/token/accessToken",
             #      "method": "POST"}
             #
-            # The new format arises when Railway's internal CGNAT proxy
-            # (100.64.x.x) injects an IP:port value that PhotonPay cannot
+            # The IP-parse error arises when Railway's internal CGNAT proxy
+            # (100.64.x.x) injects an IP:port header that PhotonPay cannot
             # parse as a plain IP address.  Both formats share the "path" and
             # "method" echo pattern, so we detect them together.
             # We guard against false positives by requiring "path" to look like
@@ -355,29 +376,57 @@ class PhotonPayService:
                 )
             ):
                 raw_msg = data.get("msg", "")
-                if "address0.0.0.0" in raw_msg or raw_msg == "Failed to parse address0.0.0.0:0":
-                    _hint = (
-                        "Address 0.0.0.0:0 indicates the outbound connection is going "
-                        "through a transparent or private-network proxy that presents no "
-                        "valid source IP to PhotonPay. "
-                        "On Railway, ensure the service has public networking enabled and "
-                        "that no iptables/private-networking rules intercept HTTPS egress. "
-                        "trust_env=False already bypasses HTTP_PROXY/HTTPS_PROXY env vars, "
-                        "but transparent proxies operate below that layer. "
-                        "Set PHOTONPAY_PROXY_URL to an explicit proxy with a valid public "
-                        "source IP (e.g. socks5://user:pass@host:port) to route PhotonPay "
-                        "traffic around the transparent proxy."
-                    )
+                _is_cgnat_error = (
+                    # "Failed to parse address<IP>:<port>" — any private/CGNAT IP
+                    "Failed to parse address" in raw_msg
+                    # Older format that just has the address in msg
+                    or "address0.0.0.0" in raw_msg
+                )
+                if _is_cgnat_error:
+                    # Extract the offending address for context
+                    _addr = ""
+                    if "Failed to parse address" in raw_msg:
+                        _addr = raw_msg.split("Failed to parse address", 1)[1]
+                    if self._is_on_railway:
+                        _hint = (
+                            f"Railway routes all outbound connections through a private/CGNAT "
+                            f"source IP ({_addr or '100.64.x.x'}) that PhotonPay rejects "
+                            f"(error code XXA00001). "
+                            f"IMPORTANT: the Railway TCP database proxy "
+                            f"(e.g. gondola.proxy.rlwy.net:PORT) is for inbound database "
+                            f"connections only — it does NOT affect outbound HTTP and will NOT "
+                            f"fix this error. "
+                            f"You must set PHOTONPAY_PROXY_URL to an external HTTP or SOCKS5 "
+                            f"proxy with a real public IP, e.g.: "
+                            f"PHOTONPAY_PROXY_URL=socks5://user:pass@your-proxy-host:port"
+                        )
+                    elif "0.0.0.0" in raw_msg:
+                        _hint = (
+                            "Address 0.0.0.0:0 indicates the outbound connection is going "
+                            "through a transparent or private-network proxy that presents no "
+                            "valid source IP to PhotonPay. "
+                            "Set PHOTONPAY_PROXY_URL to an explicit HTTP or SOCKS5 proxy with "
+                            "a valid public source IP (e.g. socks5://user:pass@host:port) to "
+                            "route PhotonPay traffic around the transparent proxy."
+                        )
+                    else:
+                        _hint = (
+                            f"PhotonPay received a private/unroutable source IP "
+                            f"({_addr or 'unknown'}) for the outbound connection. "
+                            f"Set PHOTONPAY_PROXY_URL=socks5://user:pass@host:port (or "
+                            f"http://...) to route PhotonPay traffic through a proxy with a "
+                            f"valid public IP."
+                        )
                 else:
                     _hint = (
-                        "This can be caused by a proxy injecting an IP:port value that "
-                        "PhotonPay cannot parse (error code XXA00001). "
-                        "Ensure outbound connections bypass any HTTP proxy (trust_env=False)."
+                        "The token endpoint returned a path/method echo without an access "
+                        "token.  This usually means PHOTONPAY_APP_ID or PHOTONPAY_APP_SECRET "
+                        "is incorrect, or PHOTONPAY_MODE does not match the environment the "
+                        "credentials were issued for (sandbox vs production)."
                     )
                 raise ValueError(
                     "PhotonPay authentication failed — the token endpoint returned a "
                     f"routing/IP-parse error response. {_hint} "
-                    "Verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET. "
                     f"(endpoint: {token_url}, response: {self._compact_json(data)})"
                 )
 
