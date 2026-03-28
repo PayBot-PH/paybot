@@ -74,6 +74,9 @@ PHOTONPAY_BASE_URL = PHOTONPAY_PRODUCTION_URL
 PHOTONPAY_CASHIER_URL = "https://cashier.photonpay.com"
 PHOTONPAY_SANDBOX_CASHIER_URL = "https://cashier1.uat.photontech.cc"
 
+# Default port used when PROXY_HOST is set but PROXY_PORT is 0 (unset).
+_DEFAULT_PROXY_PORT = 8080
+
 
 class PhotonPayService:
     """Service for PhotonPay Open Platform — Alipay and WeChat Pay collection."""
@@ -95,6 +98,13 @@ class PhotonPayService:
         try:
             from core.config import settings as _settings
             self.proxy_url = getattr(_settings, "photonpay_proxy_url", "").strip()
+            # Fall back to general PROXY_HOST / PROXY_PORT when no service-specific URL is set.
+            if not self.proxy_url:
+                proxy_host = getattr(_settings, "proxy_host", "").strip()
+                proxy_port = int(getattr(_settings, "proxy_port", 0))
+                if proxy_host:
+                    port = proxy_port if proxy_port > 0 else _DEFAULT_PROXY_PORT
+                    self.proxy_url = f"http://{proxy_host}:{port}"
         except Exception:
             pass
         # Validate that the proxy URL has a scheme that httpx recognises.
