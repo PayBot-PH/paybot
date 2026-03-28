@@ -1,0 +1,75 @@
+# PayBot — AWS EC2 production docker-compose
+#
+# This file is used by the deploy-ec2.yml GitHub Actions workflow.
+# On your EC2 instance the workflow copies this file to $EC2_APP_DIR/docker-compose.yml
+# before running `docker compose up -d`.
+#
+# ─── Environment ─────────────────────────────────────────────────────────────
+# Create /opt/paybot/backend/.env on the instance with your secrets.
+# At minimum you need:
+#   DATABASE_URL=postgresql+asyncpg://paybot:<password>@db:5432/paybot
+#   TELEGRAM_BOT_TOKEN=...
+#   JWT_SECRET_KEY=...
+#   XENDIT_SECRET_KEY=...       (optional — only if using Xendit)
+#   PAYMONGO_SECRET_KEY=...     (optional — only if using PayMongo)
+#   PAYMONGO_PUBLIC_KEY=...
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: paybot
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in backend/.env}
+      POSTGRES_DB: paybot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paybot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Not exposed externally — only accessible by the app container
+    expose:
+      - "5432"
+
+  app:
+    image: ${APP_IMAGE:-ghcr.io/paybot-ph/paybot:latest}
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://paybot:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in backend/.env}@db:5432/paybot
+      PORT: "8000"
+      ENVIRONMENT: production
+    env_file:
+      - backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "python -m alembic upgrade head &&
+             uvicorn main:app --host 0.0.0.0 --port 8000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    # Nginx logs and optional certbot ACME challenge root
+    # To use certbot HTTP-01 challenge inside the container, add a volume:
+    #   - certbot_webroot:/var/www/certbot
+    # and run certbot with --webroot -w /var/www/certbot
+    # Alternatively obtain the cert on the host (standalone) before starting nginx.
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro         # Place fullchain.pem + privkey.pem here
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - app
+
+volumes:
+  postgres_data:
+  nginx_logs:

@@ -156,6 +156,11 @@ class PhotonPayService:
         self._access_token: Optional[str] = None
         self._token_expires_at: float = 0.0
 
+    @property
+    def is_configured(self) -> bool:
+        """Return True when the minimum required credentials (app_id + app_secret) are present."""
+        return bool(self.app_id and self.app_secret)
+
     def _compact_json(self, value: Any, limit: int = 1800) -> str:
         """Serialize a value to a bounded JSON string for safe error messages."""
         try:

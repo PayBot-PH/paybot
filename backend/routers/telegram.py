@@ -1818,7 +1818,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/scanqr"):
             await tg.send_message(chat_id, _wizard_start(chat_id, "/scanqr"))
 
-        # ==================== /alipay (PhotonPay → Alipay QR) ====================
+        # ==================== /alipay (PhotonPay → Alipay QR, fallback → Xendit QRIS) ====================
         elif text.startswith("/alipay"):
             parts = text.split(maxsplit=2)
             if len(parts) < 2:
@@ -1832,52 +1832,97 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
                     photonpay = PhotonPayService()
-                    backend_url = ""
-                    try:
-                        from core.config import settings as _settings
-                        backend_url = _settings.backend_url
-                    except Exception:
-                        pass
-                    result = await photonpay.create_alipay_session(
-                        amount=amount,
-                        description=description,
-                        notify_url=f"{backend_url}/api/v1/photonpay/webhook",
-                        redirect_url=f"{backend_url}/api/v1/photonpay/redirect/success",
-                        shopper_id=str(chat_id),
-                    )
-                    if result.get("success"):
-                        checkout_url = result.get("checkout_url", "")
-                        ref_num = result.get("req_id", "")
-                        caption = (
-                            f"✅ <b>Alipay Payment Ready!</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
-                            f"📝 {description}\n"
-                            f"🆔 <code>{ref_num}</code>\n\n"
-                            f"📱 Tap the button below to open the Alipay checkout page.\n"
-                            f"💳 Your PHP wallet will be credited automatically once paid."
-                        )
-                        keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay", "url": checkout_url}]]} if checkout_url else None
-                        await tg.send_message(chat_id, caption, reply_markup=keyboard)
+                    if photonpay.is_configured:
+                        backend_url = ""
                         try:
-                            now = datetime.now()
-                            txn = Transactions(
-                                user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
-                                external_id=ref_num, xendit_id=result.get("pay_id", ""),
-                                amount=amount, currency="PHP", status="pending", description=description,
-                                qr_code_url=checkout_url, telegram_chat_id=chat_id,
-                                created_at=now, updated_at=now,
+                            from core.config import settings as _settings
+                            backend_url = _settings.backend_url
+                        except Exception:
+                            pass
+                        result = await photonpay.create_alipay_session(
+                            amount=amount,
+                            description=description,
+                            notify_url=f"{backend_url}/api/v1/photonpay/webhook",
+                            redirect_url=f"{backend_url}/api/v1/photonpay/redirect/success",
+                            shopper_id=str(chat_id),
+                        )
+                        if result.get("success"):
+                            checkout_url = result.get("checkout_url", "")
+                            ref_num = result.get("req_id", "")
+                            caption = (
+                                f"✅ <b>Alipay Payment Ready!</b>\n"
+                                f"━━━━━━━━━━━━━━━━━━━━\n"
+                                f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
+                                f"📝 {description}\n"
+                                f"🆔 <code>{ref_num}</code>\n\n"
+                                f"📱 Tap the button below to open the Alipay checkout page.\n"
+                                f"💳 Your PHP wallet will be credited automatically once paid."
                             )
-                            db.add(txn)
-                            await db.commit()
-                        except Exception as e:
-                            logger.error(f"DB save failed for /alipay: {e}", exc_info=True)
+                            keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay", "url": checkout_url}]]} if checkout_url else None
+                            await tg.send_message(chat_id, caption, reply_markup=keyboard)
                             try:
-                                await db.rollback()
-                            except Exception:
-                                pass
+                                now = datetime.now()
+                                txn = Transactions(
+                                    user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
+                                    external_id=ref_num, xendit_id=result.get("pay_id", ""),
+                                    amount=amount, currency="PHP", status="pending", description=description,
+                                    qr_code_url=checkout_url, telegram_chat_id=chat_id,
+                                    created_at=now, updated_at=now,
+                                )
+                                db.add(txn)
+                                await db.commit()
+                            except Exception as e:
+                                logger.error(f"DB save failed for /alipay (PhotonPay): {e}", exc_info=True)
+                                try:
+                                    await db.rollback()
+                                except Exception:
+                                    pass
+                        else:
+                            await tg.send_message(chat_id, f"❌ Alipay payment failed: {result.get('error', 'Unknown error')}")
                     else:
-                        await tg.send_message(chat_id, f"❌ Alipay payment failed: {result.get('error', 'Unknown error')}")
+                        # Fallback: use Xendit QRIS (Alipay-compatible QR code)
+                        xendit = XenditService()
+                        if not xendit.secret_key:
+                            await tg.send_message(
+                                chat_id,
+                                "❌ <b>Alipay payments are not available at this time.</b>\n\n"
+                                "Neither PhotonPay nor Xendit is configured.",
+                            )
+                            await _safe_log(db, chat_id, username, text)
+                            return {"status": "ok"}
+                        result = await xendit.create_alipay_qr(amount=amount, description=description)
+                        if result.get("success"):
+                            qr_url = result.get("qr_string", "")
+                            ref_num = result.get("external_id", "")
+                            caption = (
+                                f"✅ <b>Alipay Payment Ready!</b>\n"
+                                f"━━━━━━━━━━━━━━━━━━━━\n"
+                                f"💰 Amount: <b>₱{amount:,.2f} PHP</b>\n"
+                                f"📝 {description}\n"
+                                f"🆔 <code>{ref_num}</code>\n\n"
+                                f"📱 Scan the QR code with your Alipay app.\n"
+                                f"💳 Your PHP wallet will be credited automatically once paid."
+                            )
+                            await tg.send_message(chat_id, caption)
+                            try:
+                                now = datetime.now()
+                                txn = Transactions(
+                                    user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
+                                    external_id=ref_num, xendit_id=result.get("id", ""),
+                                    amount=amount, currency="PHP", status="pending", description=description,
+                                    qr_code_url=qr_url, telegram_chat_id=chat_id,
+                                    created_at=now, updated_at=now,
+                                )
+                                db.add(txn)
+                                await db.commit()
+                            except Exception as e:
+                                logger.error(f"DB save failed for /alipay (Xendit): {e}", exc_info=True)
+                                try:
+                                    await db.rollback()
+                                except Exception:
+                                    pass
+                        else:
+                            await tg.send_message(chat_id, f"❌ Alipay payment failed: {result.get('error', 'Unknown error')}")
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
