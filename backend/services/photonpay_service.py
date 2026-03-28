@@ -322,13 +322,27 @@ class PhotonPayService:
                     for key in ("access_token", "accessToken", "token", "data", "result", "body")
                 )
             ):
+                raw_msg = data.get("msg", "")
+                if "address0.0.0.0" in raw_msg or raw_msg == "Failed to parse address0.0.0.0:0":
+                    _hint = (
+                        "Address 0.0.0.0:0 indicates the outbound connection is going "
+                        "through a transparent or private-network proxy that presents no "
+                        "valid source IP to PhotonPay. "
+                        "On Railway, ensure the service has public networking enabled and "
+                        "that no iptables/private-networking rules intercept HTTPS egress. "
+                        "trust_env=False already bypasses HTTP_PROXY/HTTPS_PROXY env vars, "
+                        "but transparent proxies operate below that layer."
+                    )
+                else:
+                    _hint = (
+                        "This can be caused by a proxy injecting an IP:port value that "
+                        "PhotonPay cannot parse (error code XXA00001). "
+                        "Ensure outbound connections bypass any HTTP proxy (trust_env=False)."
+                    )
                 raise ValueError(
                     "PhotonPay authentication failed — the token endpoint returned a "
-                    "routing/IP-parse error response. "
-                    "This can be caused by a proxy injecting an IP:port value that "
-                    "PhotonPay cannot parse (error code XXA00001). "
-                    "Verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET, and ensure "
-                    "outbound connections bypass any HTTP proxy (trust_env=False). "
+                    f"routing/IP-parse error response. {_hint} "
+                    "Verify PHOTONPAY_APP_ID and PHOTONPAY_APP_SECRET. "
                     f"(endpoint: {token_url}, response: {self._compact_json(data)})"
                 )
 
