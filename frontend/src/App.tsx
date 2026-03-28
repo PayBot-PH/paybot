@@ -12,7 +12,6 @@ import Dashboard from './pages/Dashboard';
 import Wallet from './pages/Wallet';
 import Transactions from './pages/Transactions';
 import CreatePayment from './pages/CreatePayment';
-import PaymentsHub from './pages/PaymentsHub';
 import DisbursementsPage from './pages/DisbursementsPage';
 import ReportsPage from './pages/ReportsPage';
 import BotSettings from './pages/BotSettings';
@@ -129,7 +128,6 @@ function AuthAwareShell() {
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/create-payment" element={<CreatePayment />} />
-            <Route path="/payments" element={<PaymentsHub />} />
             <Route path="/scan-qrph" element={<ScanQRPH />} />
             <Route path="/xendit" element={<XenditPage />} />
             <Route path="/disbursements" element={<DisbursementsPage />} />

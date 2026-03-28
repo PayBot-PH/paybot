@@ -12,7 +12,6 @@ export const translations = {
     /* Nav items */
     nav_dashboard: 'Dashboard',
     nav_wallet: 'Wallet',
-    nav_payments_hub: 'Payments Hub',
     nav_scan_qrph: 'Scan QRPH',
     nav_transactions: 'Transactions',
     nav_disbursements: 'Disbursements',
@@ -30,7 +29,7 @@ export const translations = {
     nav_roles: 'Role Management',
     nav_policies: 'Policies',
     nav_contact_support: 'Contact Support',
-    nav_xendit: 'Xendit Gateway',
+    nav_xendit: 'PayBot',
 
     /* User / auth */
     sign_out: 'Sign Out',
@@ -58,7 +57,6 @@ export const translations = {
     /* Nav items */
     nav_dashboard: '仪表板',
     nav_wallet: '钱包',
-    nav_payments_hub: '支付中心',
     nav_scan_qrph: '扫描 QRPH',
     nav_transactions: '交易记录',
     nav_disbursements: '付款',
@@ -76,7 +74,7 @@ export const translations = {
     nav_roles: '角色管理',
     nav_policies: '政策',
     nav_contact_support: '联系支持',
-    nav_xendit: 'Xendit 支付',
+    nav_xendit: 'PayBot',
 
     /* User / auth */
     sign_out: '退出登录',

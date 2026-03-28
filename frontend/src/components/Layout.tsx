@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Bot, BarChart3, Wallet, CreditCard, FileText, Building2, PieChart,
+  Bot, BarChart3, Wallet, FileText, Building2, PieChart,
   WifiOff, LogOut, ShieldCheck, MessageSquare, ScrollText, Crown, User,
   Menu, X, Activity, Send, ClipboardList, DollarSign, ChevronDown,
   MessageCircle, UserCheck, Sun, Moon, ScanLine, ChevronRight,
@@ -106,7 +106,6 @@ export default function Layout({ children, connected }: LayoutProps) {
     {
       label: t('nav_payments'),
       items: [
-        { to: '/payments', icon: CreditCard, label: t('nav_payments_hub') },
         { to: '/xendit', icon: Zap, label: t('nav_xendit') },
         { to: '/scan-qrph', icon: ScanLine, label: t('nav_scan_qrph') },
         { to: '/transactions', icon: FileText, label: t('nav_transactions') },
