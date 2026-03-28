@@ -5,7 +5,7 @@ import {
   WifiOff, LogOut, ShieldCheck, MessageSquare, ScrollText, Crown, User,
   Menu, X, Activity, Send, ClipboardList, DollarSign, ChevronDown,
   MessageCircle, UserCheck, Sun, Moon, ScanLine, ChevronRight,
-  Settings2, Layers, Shield, Zap,
+  Settings2, Layers, Shield, Zap, QrCode,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -107,6 +107,8 @@ export default function Layout({ children, connected }: LayoutProps) {
       label: t('nav_payments'),
       items: [
         { to: '/xendit', icon: Zap, label: t('nav_xendit') },
+        { to: '/alipay', icon: QrCode, label: t('nav_alipay') },
+        { to: '/wechat', icon: QrCode, label: t('nav_wechat') },
         { to: '/scan-qrph', icon: ScanLine, label: t('nav_scan_qrph') },
         { to: '/transactions', icon: FileText, label: t('nav_transactions') },
         { to: '/disbursements', icon: Building2, label: t('nav_disbursements') },
