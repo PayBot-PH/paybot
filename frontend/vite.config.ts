@@ -20,10 +20,10 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     host: '0.0.0.0', // 监听所有网络接口
-    port: parseInt(process.env.VITE_PORT || '3000'),
+    port: parseInt(process.env.FRONTEND_PORT || process.env.VITE_PORT || '3000'),
     proxy: {
       '/api': {
-        target: `http://localhost:8000`,
+        target: `http://localhost:${process.env.BACKEND_PORT || 8000}`,
         changeOrigin: true,
       },
     },
