@@ -1057,22 +1057,26 @@ async def auto_setup_webhook(
             detail="TELEGRAM_BOT_TOKEN is not configured. Add it in your environment variables first.",
         )
 
-    # Detect public URL from request headers (Railway/nginx/cloudflare set these)
-    scheme = request.headers.get("x-forwarded-proto", "https")
-    host = (
-        request.headers.get("x-forwarded-host")
-        or request.headers.get("host")
-        or ""
-    )
-    if not host:
-        raise HTTPException(
-            status_code=400,
-            detail="Cannot detect public URL from request headers. Set PYTHON_BACKEND_URL env var instead.",
+    # Prefer explicit env-var URL (PYTHON_BACKEND_URL / RAILWAY_PUBLIC_DOMAIN) so
+    # that a custom domain is used when set.  Fall back to request headers only
+    # when no env-var override is available.
+    configured_base = settings.backend_url  # reads PYTHON_BACKEND_URL → RAILWAY_PUBLIC_DOMAIN → …
+    if configured_base and not configured_base.startswith("http://127.") and not configured_base.startswith("http://localhost"):
+        detected_base = configured_base.rstrip("/")
+    else:
+        scheme = request.headers.get("x-forwarded-proto", "https")
+        host = (
+            request.headers.get("x-forwarded-host")
+            or request.headers.get("host")
+            or ""
         )
-
-    # Strip port from host if it looks like a public HTTPS deployment
-    detected_base = f"{scheme}://{host}"
-    webhook_url = f"{detected_base.rstrip('/')}/api/v1/telegram/webhook"
+        if not host:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot detect public URL from request headers. Set PYTHON_BACKEND_URL env var instead.",
+            )
+        detected_base = f"{scheme}://{host}"
+    webhook_url = f"{detected_base}/api/v1/telegram/webhook"
 
     service = TelegramService()
 
@@ -3478,10 +3482,15 @@ async def clone_bot_save(
         return {"success": False, "message": info.get("error", "Invalid bot token")}
     bot = info.get("bot", {})
 
-    # Build webhook URL from request host
-    scheme = request.headers.get("x-forwarded-proto", "https")
-    host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
-    webhook_url = f"{scheme}://{host}/api/v1/telegram/webhook" if host else ""
+    # Build webhook URL – prefer env-var domain (RAILWAY_PUBLIC_DOMAIN etc.) over
+    # request headers so that a custom domain is used when configured.
+    configured_base = settings.backend_url
+    if configured_base and not configured_base.startswith("http://127.") and not configured_base.startswith("http://localhost"):
+        webhook_url = f"{configured_base.rstrip('/')}/api/v1/telegram/webhook"
+    else:
+        scheme = request.headers.get("x-forwarded-proto", "https")
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host") or ""
+        webhook_url = f"{scheme}://{host}/api/v1/telegram/webhook" if host else ""
 
     # Register webhook with the custom bot
     if webhook_url:
