@@ -446,3 +446,44 @@ class TestCashierSessionRequestFormat:
                 "Railway's internal proxy and prevent PhotonPay IP-parse errors"
             )
 
+
+class TestProxyUrlValidation:
+    """PHOTONPAY_PROXY_URL values without a valid scheme must be rejected."""
+
+    def setup_method(self):
+        os.environ["PHOTONPAY_APP_ID"] = "test_app_id"
+        os.environ["PHOTONPAY_APP_SECRET"] = "test_app_secret"
+        os.environ.pop("PHOTONPAY_MODE", None)
+        os.environ.pop("PHOTONPAY_BASE_URL", None)
+
+    @pytest.mark.parametrize("bad_url", [
+        "proxy-host:1080",
+        "proxy-host",
+        "//proxy-host:1080",
+        "socks4://proxy-host:1080",
+        "ftp://proxy-host:1080",
+    ])
+    def test_invalid_scheme_is_rejected(self, bad_url):
+        """A PHOTONPAY_PROXY_URL with a bad or missing scheme must be dropped."""
+        with patch("core.config.settings") as mock_settings:
+            mock_settings.photonpay_proxy_url = bad_url
+            service = PhotonPayService()
+        assert service.proxy_url == "", (
+            f"proxy_url should be empty for bad URL {bad_url!r}, got {service.proxy_url!r}"
+        )
+
+    @pytest.mark.parametrize("good_url", [
+        "http://proxy-host:1080",
+        "https://proxy-host:3128",
+        "socks5://user:pass@proxy-host:1080",
+        "SOCKS5://proxy-host:1080",
+    ])
+    def test_valid_scheme_is_kept(self, good_url):
+        """A PHOTONPAY_PROXY_URL with a valid scheme must be preserved as-is."""
+        with patch("core.config.settings") as mock_settings:
+            mock_settings.photonpay_proxy_url = good_url
+            service = PhotonPayService()
+        assert service.proxy_url == good_url.strip(), (
+            f"proxy_url should be kept for valid URL {good_url!r}"
+        )
+
