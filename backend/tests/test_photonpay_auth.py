@@ -193,6 +193,16 @@ class TestCredentialErrorDetection:
         }
         assert self._is_credential_error_response(data)
 
+    def test_detects_xxa00001_zero_address(self):
+        """XXA00001 with 0.0.0.0:0 — transparent/private-network proxy case on Railway."""
+        data = {
+            "code": "XXA00001",
+            "msg": "Failed to parse address0.0.0.0:0",
+            "path": "/token/accessToken",
+            "method": "POST",
+        }
+        assert self._is_credential_error_response(data)
+
     def test_ignores_normal_token_response(self):
         data = {"code": "0", "data": {"accessToken": "tok", "expiresIn": 7200}}
         assert not self._is_credential_error_response(data)
@@ -206,6 +216,59 @@ class TestCredentialErrorDetection:
         # Has path/method but also has a nested "data" object (could be a success response)
         data = {"path": "/token/accessToken", "method": "POST", "data": {"accessToken": "tok"}}
         assert not self._is_credential_error_response(data)
+
+
+class TestRoutingErrorMessages:
+    """Verify that _get_access_token raises context-aware error messages."""
+
+    def setup_method(self):
+        os.environ["PHOTONPAY_APP_ID"] = "test_app_id"
+        os.environ["PHOTONPAY_APP_SECRET"] = "test_app_secret"
+        os.environ.pop("PHOTONPAY_MODE", None)
+        os.environ.pop("PHOTONPAY_BASE_URL", None)
+        self.service = PhotonPayService()
+
+    def _make_mock_client(self, json_body):
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.json.return_value = json_body
+        mock_client = AsyncMock()
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client.post = AsyncMock(return_value=mock_response)
+        return mock_client
+
+    @pytest.mark.asyncio
+    async def test_zero_address_error_mentions_transparent_proxy(self):
+        """0.0.0.0:0 response should raise ValueError mentioning transparent proxy."""
+        mock_client = self._make_mock_client({
+            "code": "XXA00001",
+            "msg": "Failed to parse address0.0.0.0:0",
+            "path": "/token/accessToken",
+            "method": "POST",
+        })
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await self.service._get_access_token()
+        error_msg = str(exc_info.value)
+        assert "0.0.0.0" in error_msg
+        assert "transparent" in error_msg.lower()
+        assert "private-network" in error_msg.lower()
+
+    @pytest.mark.asyncio
+    async def test_cgnat_address_error_mentions_trust_env(self):
+        """100.64.x.x:port response should raise ValueError mentioning trust_env=False."""
+        mock_client = self._make_mock_client({
+            "code": "XXA00001",
+            "msg": "Failed to parse address100.64.0.6:51376",
+            "path": "/token/accessToken",
+            "method": "POST",
+        })
+        with patch("httpx.AsyncClient", return_value=mock_client):
+            with pytest.raises(ValueError) as exc_info:
+                await self.service._get_access_token()
+        error_msg = str(exc_info.value)
+        assert "trust_env" in error_msg
 
 
 class TestTokenRequestFormat:
