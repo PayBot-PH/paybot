@@ -106,6 +106,14 @@ class Settings(BaseSettings):
     # that presents an invalid source IP to PhotonPay (e.g. Railway private networking → 0.0.0.0:0).
     photonpay_proxy_url: str = ""
 
+    # General outbound proxy host and port.  Used as a fallback for any service that needs a
+    # proxy when no service-specific proxy URL is configured (e.g. when PHOTONPAY_PROXY_URL is
+    # empty, the PhotonPay service will construct "http://<proxy_host>:<proxy_port>" instead).
+    # Leave proxy_host empty to disable.  proxy_port defaults to 8080 when proxy_host is set
+    # and proxy_port is 0.
+    proxy_host: str = ""
+    proxy_port: int = 0
+
     # TransFi Checkout API
     transfi_api_key: str = ""
     transfi_mode: str = "production"   # "sandbox" or "production"
