@@ -18,19 +18,20 @@ RUN pnpm build
 
 # ── Stage 2: Python backend ──────────────────────────────────────────────────
 
-FROM python:3.11-alpine3.21
+FROM python:3.11-slim
+
 
 WORKDIR /app/backend
 
 # Install system dependencies
-RUN apk add --no-cache \
-    build-base \
-    postgresql-client \
-    zbar \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    zbar-tools \
     libffi-dev \
-    openssl-dev
+    libssl-dev \
     ca-certificates \
-    && update-ca-certificates
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file and install Python dependencies
 COPY backend/requirements.txt ./requirements.txt
@@ -50,7 +51,8 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
 ENV LOG_LEVEL=info
-ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+# Use certifi's CA bundle for SSL verification
+ENV SSL_CERT_FILE=/usr/local/lib/python3.11/site-packages/certifi/cacert.pem
 
 # Start the server — attempt migrations with a 35s timeout (non-fatal), then start uvicorn.
 # The asyncpg connection timeout in alembic/env.py is 30 s, so 35 s is enough headroom.
