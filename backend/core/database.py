@@ -111,7 +111,11 @@ class DatabaseManager:
             return {}
         # ssl='prefer': attempt SSL (no cert verification); fall back to
         # unencrypted if the server declines — works for both Render and Railway.
-        return {"ssl": "prefer"}
+        # timeout: cap each individual connection attempt so that an unreachable
+        # host doesn't block the application startup indefinitely.  The default
+        # asyncpg timeout is 60 s; 30 s is generous enough for a healthy remote
+        # host while still failing fast when the DB is down.
+        return {"ssl": "prefer", "timeout": 30}
 
     @staticmethod
     def _check_db_exist(raw_url: str) -> bool:
