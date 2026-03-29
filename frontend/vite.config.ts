@@ -84,10 +84,15 @@ export default defineConfig(({ mode }) => ({
     port: parseInt(process.env.FRONTEND_PORT || process.env.VITE_PORT || '3000'),
     proxy: {
       '/api': {
-        target: `http://localhost:${process.env.BACKEND_PORT || 8000}`,
+        // BACKEND_URL must be set to the backend service URL when frontend and backend
+        // run as separate services (e.g. separate Railway services).  Falls back to
+        // localhost for single-container or local-dev deployments.
+        target: process.env.BACKEND_URL || `http://localhost:${process.env.BACKEND_PORT || 8000}`,
         changeOrigin: true,
       },
     },
-    allowedHosts: ['paybot-frontend-production.up.railway.app', 'drl-developers.info'],
+    // Allow all hosts so that Railway / Render reverse-proxy hostnames are never
+    // blocked.  The backend enforces CORS; the Vite host check is redundant here.
+    allowedHosts: true,
   },
 }));
