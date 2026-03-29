@@ -42,6 +42,9 @@ class TelegramWidgetLoginRequest(BaseModel):
     last_name: Optional[str] = None
     username: Optional[str] = None
     photo_url: Optional[str] = None
+    # Cloudflare Turnstile token produced by the frontend widget.
+    # Verified server-side when CLOUDFLARE_TURNSTILE_SECRET_KEY is configured.
+    cf_turnstile_token: Optional[str] = None
 
     # Keep forward-compatible Telegram fields (e.g. allows_write_to_pm)
     # so backend signature verification can include every signed key.
