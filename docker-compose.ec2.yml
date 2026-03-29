@@ -36,6 +36,9 @@ services:
 
   app:
     image: ${APP_IMAGE:-ghcr.io/paybot-ph/paybot:latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
     restart: unless-stopped
     ports:
       - "8000:8000"
