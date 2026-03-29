@@ -80,6 +80,14 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
   },
   preview: {
+    host: '0.0.0.0',
+    port: parseInt(process.env.FRONTEND_PORT || process.env.VITE_PORT || '3000'),
+    proxy: {
+      '/api': {
+        target: `http://localhost:${process.env.BACKEND_PORT || 8000}`,
+        changeOrigin: true,
+      },
+    },
     allowedHosts: ['paybot-frontend-production.up.railway.app', 'drl-developers.info'],
   },
 }));
