@@ -47,7 +47,8 @@ ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
 ENV LOG_LEVEL=info
 
-# Start the server — attempt migrations with a 60s timeout (non-fatal), then start uvicorn.
+# Start the server — attempt migrations with a 35s timeout (non-fatal), then start uvicorn.
+# The asyncpg connection timeout in alembic/env.py is 30 s, so 35 s is enough headroom.
 # `exec` replaces the shell with uvicorn so that uvicorn becomes PID 1 and receives
 # SIGTERM directly from the container runtime for graceful shutdown.
-CMD ["sh", "-c", "timeout 60 alembic upgrade head || echo 'Alembic migration timed out or failed, continuing...' ; exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info --log-config /app/backend/uvicorn_logging.json"]
+CMD ["sh", "-c", "timeout 35 alembic upgrade head || echo 'Alembic migration timed out or failed, continuing...' ; exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info --log-config /app/backend/uvicorn_logging.json"]
