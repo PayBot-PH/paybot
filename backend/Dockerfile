@@ -17,6 +17,7 @@ COPY frontend/ .
 RUN pnpm build
 
 # ── Stage 2: Python backend ──────────────────────────────────────────────────
+
 FROM python:3.11-alpine3.21
 
 WORKDIR /app/backend
@@ -28,6 +29,8 @@ RUN apk add --no-cache \
     zbar \
     libffi-dev \
     openssl-dev
+    ca-certificates \
+    && update-ca-certificates
 
 # Copy requirements file and install Python dependencies
 COPY backend/requirements.txt ./requirements.txt

@@ -37,3 +37,6 @@ qrcode[pil]>=7.4.2
 
 # QR code decoding (requires libzbar0 system library)
 pyzbar>=0.1.9
+
+# Ensure up-to-date CA certificates for SSL verification
+certifi>=2023.7.22
