@@ -499,6 +499,24 @@ class TestTelegramWebhook:
         assert r.status_code == 200
         assert r.json()["status"] == "ok"
 
+    def test_wechat_negative_amount(self, client):
+        r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat -50 desc"))
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+    def test_wechat_not_configured(self, client):
+        """When PhotonPay is not configured, /wechat should respond gracefully without crashing."""
+        import os
+        saved = {k: os.environ.pop(k, None) for k in ("PHOTONPAY_APP_ID", "PHOTONPAY_APP_SECRET")}
+        try:
+            r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/wechat 500 desc"))
+            assert r.status_code == 200
+            assert r.json()["status"] == "ok"
+        finally:
+            for k, v in saved.items():
+                if v is not None:
+                    os.environ[k] = v
+
     def test_link_negative_amount(self, client):
         r = client.post("/api/v1/telegram/webhook", json=_webhook_body("/link -200 desc"))
         assert r.status_code == 200

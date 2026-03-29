@@ -371,7 +371,7 @@ def _start_kb() -> dict:
         "keyboard": [
             [{"text": "💳 /invoice"}, {"text": "📱 /qr"}, {"text": "🔗 /link"}],
             [{"text": "🏦 /va"}, {"text": "📱 /ewallet"}, {"text": "🔴 /alipay"}],
-            [{"text": "💰 /balance"}, {"text": "💸 /disburse"}, {"text": "📊 /report"}],
+            [{"text": "🟢 /wechat"}, {"text": "💰 /balance"}, {"text": "💸 /disburse"}],
             [{"text": "📷 /scanqr"}, {"text": "🏦 /deposit"}, {"text": "📥 /topup"}],
             [{"text": "📋 /list"}, {"text": "💱 /fees"}, {"text": "❓ /help"}],
         ],
@@ -1944,6 +1944,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "WeChat Pay"
                     photonpay = PhotonPayService()
+                    if not photonpay.is_configured:
+                        await tg.send_message(
+                            chat_id,
+                            "❌ <b>WeChat Pay is not available at this time.</b>\n\n"
+                            "PhotonPay is not configured on this bot.",
+                        )
+                        await _safe_log(db, chat_id, username, text)
+                        return {"status": "ok"}
                     backend_url = ""
                     try:
                         from core.config import settings as _settings
