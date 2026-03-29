@@ -1,3 +1,4 @@
+import asyncio
 import importlib
 import logging
 import os
@@ -56,6 +57,8 @@ BOT_COMMANDS = [
     {"command": "sendusd", "description": "Send USD to another user by @username"},
 ]
 
+logger = logging.getLogger(__name__)
+
 
 def setup_logging():
     """Configure the logging system."""
@@ -96,6 +99,31 @@ def setup_logging():
     logger = logging.getLogger(__name__)
     logger.info("=== Logging system initialized ===")
     logger.info(f"Log level: {'INFO' if is_production else 'DEBUG'} (environment: {'production' if is_production else 'development'})")
+
+
+async def _setup_telegram(backend_url: str) -> None:
+    """Register the Telegram webhook and bot commands in the background.
+
+    Running this outside the critical startup path means the health-check
+    endpoint responds immediately after database initialisation, avoiding
+    a Railway 502 when the Telegram API is slow or temporarily unreachable.
+    """
+    try:
+        from services.telegram_service import TelegramService
+        tg = TelegramService()
+        webhook_url = f"{backend_url.rstrip('/')}/api/v1/telegram/webhook"
+        webhook_result = await tg.set_webhook(webhook_url)
+        if webhook_result.get("success"):
+            logger.info(f"Telegram webhook registered: {webhook_url}")
+        else:
+            logger.warning(f"Telegram webhook registration failed: {webhook_result.get('error')}")
+        cmd_result = await tg.set_my_commands(BOT_COMMANDS)
+        if cmd_result.get("success"):
+            logger.info("Telegram bot commands registered successfully")
+        else:
+            logger.warning(f"Telegram bot commands registration failed: {cmd_result.get('error')}")
+    except Exception as e:
+        logger.warning(f"Telegram startup setup failed (non-fatal): {e}")
 
 
 @asynccontextmanager
@@ -160,30 +188,26 @@ async def lifespan(app: FastAPI):
         logger.warning("Skipping mock data initialization because database is not ready.")
     # MODULE_STARTUP_END
 
-    # Auto-register Telegram webhook and bot commands if backend URL is configured
+    # Auto-register Telegram webhook and bot commands if backend URL is configured.
+    # Run this as a background task so it does not delay the health-check response;
+    # the webhook URL only needs to be registered once and is retained by Telegram
+    # across restarts, so a brief delay on first boot is harmless.
+    _telegram_task: asyncio.Task | None = None
     backend_url = settings.backend_url
     _local_prefixes = ("http://127.0.0.1", "https://127.0.0.1", "http://localhost", "https://localhost", "http://0.0.0.0", "https://0.0.0.0")
     if settings.telegram_bot_token and backend_url and not any(backend_url.startswith(p) for p in _local_prefixes):
-        try:
-            from services.telegram_service import TelegramService
-            tg = TelegramService()
-            webhook_url = f"{backend_url.rstrip('/')}/api/v1/telegram/webhook"
-            webhook_result = await tg.set_webhook(webhook_url)
-            if webhook_result.get("success"):
-                logger.info(f"Telegram webhook registered: {webhook_url}")
-            else:
-                logger.warning(f"Telegram webhook registration failed: {webhook_result.get('error')}")
-            cmd_result = await tg.set_my_commands(BOT_COMMANDS)
-            if cmd_result.get("success"):
-                logger.info("Telegram bot commands registered successfully")
-            else:
-                logger.warning(f"Telegram bot commands registration failed: {cmd_result.get('error')}")
-        except Exception as e:
-            logger.warning(f"Telegram startup setup failed (non-fatal): {e}")
+        _telegram_task = asyncio.create_task(_setup_telegram(backend_url))
 
     logger.info("=== Application startup completed successfully ===")
     yield
     # MODULE_SHUTDOWN_START
+    # Cancel the Telegram setup task if it is still running during shutdown.
+    if _telegram_task is not None and not _telegram_task.done():
+        _telegram_task.cancel()
+        try:
+            await _telegram_task
+        except (asyncio.CancelledError, Exception):
+            pass
     await close_database()
     # MODULE_SHUTDOWN_END
 
