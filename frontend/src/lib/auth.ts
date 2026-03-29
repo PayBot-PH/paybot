@@ -53,13 +53,16 @@ export const authApi = {
     throw new Error('Legacy login is disabled. Use Telegram sign-in.');
   },
 
-  async loginWithTelegram(user: TelegramWidgetUser) {
+  async loginWithTelegram(user: TelegramWidgetUser, cfTurnstileToken?: string | null) {
     const response = await fetch('/api/v1/auth/telegram-login-widget', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(user),
+      body: JSON.stringify({
+        ...user,
+        ...(cfTurnstileToken ? { cf_turnstile_token: cfTurnstileToken } : {}),
+      }),
     });
 
     if (!response.ok) {

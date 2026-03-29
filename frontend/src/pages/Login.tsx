@@ -193,7 +193,7 @@ export default function Login() {
       setLocalError(null);
       window.onTelegramAuth = async (tgUser: TelegramWidgetUser) => {
         setSubmitting(true); setLocalError(null);
-        await loginWithTelegram(tgUser);
+        await loginWithTelegram(tgUser, turnstileToken ?? undefined);
         setSubmitting(false);
       };
       widgetContainerRef.current.innerHTML = '';

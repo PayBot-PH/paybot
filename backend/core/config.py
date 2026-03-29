@@ -120,6 +120,11 @@ class Settings(BaseSettings):
     transfi_webhook_secret: str = ""
     transfi_base_url: str = ""         # override base URL (leave empty for default)
 
+    # Cloudflare Turnstile (server-side CAPTCHA verification)
+    # Secret key from https://dash.cloudflare.com → Turnstile → your site → Secret Key
+    # When set, every Telegram widget login must include a valid Turnstile token.
+    cloudflare_turnstile_secret_key: str = ""
+
     # USDT TRC20 wallet address for receiving top-up payments
     usdt_trc20_address: str = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
 

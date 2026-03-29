@@ -153,7 +153,7 @@ def _verify_telegram_widget_payload(
         return False, "auth_date_expired"
 
     # Telegram signs all received fields except "hash".
-    fields = payload.model_dump(exclude={"hash"}, exclude_none=True)
+    fields = payload.model_dump(exclude={"hash", "cf_turnstile_token"}, exclude_none=True)
 
     # Build data_check_string from non-empty fields in alphabetical order
     data_check_string = "\n".join(
@@ -181,6 +181,35 @@ def _verify_telegram_widget_payload(
     return True, "ok"
 
 
+async def _verify_turnstile_token(token: str, secret_key: str, remote_ip: Optional[str] = None) -> bool:
+    """Verify a Cloudflare Turnstile token via the siteverify API.
+
+    Returns ``True`` when the token is valid, ``False`` otherwise.
+    See: https://developers.cloudflare.com/turnstile/get-started/server-side-validation/
+    """
+    data: dict = {"secret": secret_key, "response": token}
+    if remote_ip:
+        data["remoteip"] = remote_ip
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://challenges.cloudflare.com/turnstile/v0/siteverify",
+                data=data,
+            )
+        resp.raise_for_status()
+        result = resp.json()
+        success = bool(result.get("success"))
+        if not success:
+            logger.warning(
+                "[_verify_turnstile_token] Turnstile verification failed: error-codes=%s",
+                result.get("error-codes"),
+            )
+        return success
+    except Exception as exc:
+        logger.error("[_verify_turnstile_token] Request failed: %s", exc)
+        return False
+
+
 @router.post("/telegram-login", response_model=TokenExchangeResponse)
 async def telegram_login_legacy_disabled():
     """Legacy endpoint intentionally disabled: use Telegram Login Widget flow instead."""
@@ -191,7 +220,7 @@ async def telegram_login_legacy_disabled():
 
 
 @router.post("/telegram-login-widget", response_model=TokenExchangeResponse)
-async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSession = Depends(get_db)):
+async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """Telegram Login Widget admin login with Telegram-signed payload validation."""
     bot_token = str(getattr(settings, "telegram_bot_token", "") or "")
     allowed_admin_ids, allowed_admin_usernames = _get_allowed_telegram_admin_ids()
@@ -204,6 +233,24 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, db: AsyncSe
         bool(bot_token),
         bool(allowed_admin_ids or allowed_admin_usernames),
     )
+
+    # Cloudflare Turnstile server-side verification (when configured)
+    turnstile_secret = str(getattr(settings, "cloudflare_turnstile_secret_key", "") or "")
+    if turnstile_secret:
+        if not payload.cf_turnstile_token:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Turnstile verification token is required.",
+            )
+        cf_ip = request.headers.get("CF-Connecting-IP")
+        client_ip = request.client.host if request.client else None
+        remote_ip = cf_ip or client_ip
+        token_valid = await _verify_turnstile_token(payload.cf_turnstile_token, turnstile_secret, remote_ip)
+        if not token_valid:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Turnstile verification failed. Please refresh and try again.",
+            )
 
     if not bot_token:
         raise HTTPException(
