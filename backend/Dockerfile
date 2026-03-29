@@ -45,10 +45,12 @@ COPY --from=frontend-builder /app/frontend/dist/ ./static/
 # Expose port 8000 (Railway will use $PORT environment variable)
 EXPOSE 8000
 
+
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
 ENV LOG_LEVEL=info
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
 
 # Start the server — attempt migrations with a 35s timeout (non-fatal), then start uvicorn.
 # The asyncpg connection timeout in alembic/env.py is 30 s, so 35 s is enough headroom.
