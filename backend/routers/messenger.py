@@ -190,13 +190,20 @@ async def send_test_message(
 async def messenger_oauth_authorize(
     request: Request,
     current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     """Return a Facebook OAuth URL for connecting a Facebook Page via one-tap login."""
-    app_id = settings.messenger_app_id
+    # Prefer per-user credentials saved via the Credentials tab over server env vars
+    service = Bot_settingsService(db)
+    db_result = await service.get_list(skip=0, limit=1, user_id=str(current_user.id))
+    user_app_id = ""
+    if db_result["total"] > 0:
+        user_app_id = db_result["items"][0].messenger_app_id or ""
+    app_id = user_app_id or settings.messenger_app_id
     if not app_id:
         raise HTTPException(
             status_code=400,
-            detail="Facebook App ID is not configured. Set MESSENGER_APP_ID or enter it in the Credentials tab first.",
+            detail="Facebook App ID is not configured. Enter it in the Credentials tab and save first.",
         )
     backend_url = _get_backend_url(request)
     redirect_uri = f"{backend_url}/api/v1/messenger/oauth/callback"
@@ -240,10 +247,18 @@ async def messenger_oauth_callback(
     if not user_id:
         return redirect_error("Invalid or expired connection request. Please try connecting again.")
 
-    app_id = settings.messenger_app_id
-    app_secret = settings.messenger_app_secret
+    # Prefer per-user credentials saved via the Credentials tab over server env vars
+    service = Bot_settingsService(db)
+    db_result = await service.get_list(skip=0, limit=1, user_id=user_id)
+    user_app_id = ""
+    user_app_secret = ""
+    if db_result["total"] > 0:
+        user_app_id = db_result["items"][0].messenger_app_id or ""
+        user_app_secret = db_result["items"][0].messenger_app_secret or ""
+    app_id = user_app_id or settings.messenger_app_id
+    app_secret = user_app_secret or settings.messenger_app_secret
     if not app_id or not app_secret:
-        return redirect_error("Facebook App credentials are not configured on the server.")
+        return redirect_error("Facebook App credentials are not configured. Enter your App ID and App Secret in the Credentials tab and save first.")
 
     redirect_uri = f"{backend_url}/api/v1/messenger/oauth/callback"
     token_result = await MessengerService.exchange_code_for_token(code, redirect_uri, app_id, app_secret)
@@ -257,8 +272,6 @@ async def messenger_oauth_callback(
     pages = pages_result["pages"]
     page = pages[0]
 
-    service = Bot_settingsService(db)
-    db_result = await service.get_list(skip=0, limit=1, user_id=user_id)
     update_dict = {
         "messenger_page_id": page.get("id", ""),
         "messenger_page_username": page.get("username", ""),
