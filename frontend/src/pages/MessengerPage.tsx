@@ -79,6 +79,8 @@ export default function MessengerPage() {
   const [testMessage, setTestMessage] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
 
+  const [fbConnecting, setFbConnecting] = useState(false);
+
   const getErr = (e: unknown) => {
     const err = e as { data?: { detail?: string; message?: string }; message?: string };
     return err?.data?.detail || err?.data?.message || err?.message || 'Unknown error';
@@ -129,6 +131,39 @@ export default function MessengerPage() {
     if (user) fetchConfig();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Handle OAuth callback result embedded in the URL by the backend redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get('fb_connected');
+    const fbError = params.get('fb_error');
+    const fbPage = params.get('fb_page');
+    if (connected === '1') {
+      const label = fbPage ? ` "${fbPage}"` : '';
+      toast.success(`Facebook Page${label} connected successfully!`);
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (fbError) {
+      toast.error(`Facebook connection failed: ${fbError}`);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  const handleFacebookConnect = async () => {
+    if (!user) { login(); return; }
+    setFbConnecting(true);
+    try {
+      const res = await client.apiCall.invoke({ url: '/api/v1/messenger/oauth/authorize', method: 'GET', data: {} });
+      if (res.data?.success && res.data?.auth_url) {
+        window.location.href = res.data.auth_url;
+      } else {
+        toast.error(res.data?.detail || 'Could not start Facebook login');
+        setFbConnecting(false);
+      }
+    } catch (e) {
+      toast.error(is401(e) ? 'Please log in first.' : getErr(e));
+      setFbConnecting(false);
+    }
+  };
 
   const handleSaveConfig = async () => {
     setConfigSaving(true);
@@ -258,9 +293,9 @@ export default function MessengerPage() {
                       {[
                         'Create a Facebook App at developers.facebook.com',
                         'Add the Messenger product to your app',
-                        'Generate a Page Access Token for your Facebook Page',
-                        'Set the webhook URL below and enter your verify token',
-                        'Enter your credentials in the Credentials tab and save',
+                        'Enter your App ID & App Secret in the Credentials tab',
+                        'Click "Connect with Facebook" to log in and select your page',
+                        'Register the webhook URL below and set up your verify token',
                       ].map((s, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
                           <span className="h-4 w-4 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
@@ -271,6 +306,27 @@ export default function MessengerPage() {
                       ))}
                     </ol>
                   </div>
+
+                  {/* One-tap Facebook connect button */}
+                  <button
+                    onClick={handleFacebookConnect}
+                    disabled={fbConnecting}
+                    className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 transition-colors"
+                  >
+                    {fbConnecting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                      </svg>
+                    )}
+                    {fbConnecting ? 'Redirecting to Facebook…' : 'Connect with Facebook'}
+                  </button>
+                  {config?.messenger_page_id && (
+                    <p className="text-[11px] text-center text-muted-foreground">
+                      Already connected to page ID <code className="bg-muted px-1 rounded">{config.messenger_page_id}</code>. Click above to reconnect or switch pages.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 

@@ -89,6 +89,58 @@ class MessengerService:
             logger.error(f"Error sending Messenger message: {str(e)}")
             return {"success": False, "error": str(e)}
 
+    @staticmethod
+    async def exchange_code_for_token(
+        code: str, redirect_uri: str, app_id: str, app_secret: str
+    ) -> Dict[str, Any]:
+        """Exchange a Facebook OAuth authorization code for a User Access Token."""
+        timeout = httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0)
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.get(
+                    f"{GRAPH_API_BASE}/oauth/access_token",
+                    params={
+                        "client_id": app_id,
+                        "client_secret": app_secret,
+                        "redirect_uri": redirect_uri,
+                        "code": code,
+                    },
+                )
+                data = response.json()
+                if response.status_code == 200 and "access_token" in data:
+                    return {"success": True, "access_token": data["access_token"]}
+                return {
+                    "success": False,
+                    "error": data.get("error", {}).get("message", "Token exchange failed"),
+                }
+        except Exception as e:
+            logger.error(f"Error exchanging OAuth code: {e}")
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    async def get_user_pages(user_access_token: str) -> Dict[str, Any]:
+        """Return the list of Facebook Pages the authenticated user manages."""
+        timeout = httpx.Timeout(connect=5.0, read=10.0, write=10.0, pool=5.0)
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.get(
+                    f"{GRAPH_API_BASE}/me/accounts",
+                    params={
+                        "access_token": user_access_token,
+                        "fields": "id,name,username,access_token",
+                    },
+                )
+                data = response.json()
+                if response.status_code == 200:
+                    return {"success": True, "pages": data.get("data", [])}
+                return {
+                    "success": False,
+                    "error": data.get("error", {}).get("message", "Failed to fetch pages"),
+                }
+        except Exception as e:
+            logger.error(f"Error fetching user pages: {e}")
+            return {"success": False, "error": str(e)}
+
     async def subscribe_to_webhooks(self, page_id: str) -> Dict[str, Any]:
         """Subscribe the page to Messenger webhook events."""
         if not self.page_access_token:
