@@ -262,6 +262,7 @@ class BotConfigUpdate(BaseModel):
     payment_pending_message: Optional[str] = None
     maintenance_message: Optional[str] = None
     commands_enabled: Optional[str] = None
+    whatsapp_number: Optional[str] = None
 
 
 # ---------- KYB constants ----------
@@ -952,6 +953,7 @@ async def get_bot_config(
         "payment_pending_message": obj.payment_pending_message or "",
         "maintenance_message": obj.maintenance_message or "",
         "commands_enabled": obj.commands_enabled or "",
+        "whatsapp_number": obj.whatsapp_number or "",
     }
 
 
@@ -984,6 +986,7 @@ async def update_bot_config(
         "payment_pending_message": obj.payment_pending_message or "",
         "maintenance_message": obj.maintenance_message or "",
         "commands_enabled": obj.commands_enabled or "",
+        "whatsapp_number": obj.whatsapp_number or "",
     }
 
 

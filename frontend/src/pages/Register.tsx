@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShieldCheck, CheckCircle, AlertCircle, User, Phone, Mail, MapPin, Building2, Send } from 'lucide-react';
 import { APP_NAME, COMPANY_NAME } from '@/lib/brand';
@@ -12,6 +12,12 @@ interface FormData {
   telegram_username: string;
 }
 
+interface SocialConfig {
+  telegram_bot_username: string;
+  messenger_page_username: string;
+  whatsapp_number: string;
+}
+
 const INITIAL_FORM: FormData = {
   full_name: '',
   email: '',
@@ -21,6 +27,40 @@ const INITIAL_FORM: FormData = {
   telegram_username: '',
 };
 
+/* Branded SVG icons for social platforms */
+function TelegramIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="12" fill="#26A5E4" />
+      <path d="M5.5 11.8l2.9 1.1 1.1 3.5c.1.2.3.3.5.2l1.6-1.3 3 2.2c.2.2.5 0 .6-.2l2.3-9.3c.1-.4-.3-.7-.6-.5L5.3 11.1c-.3.1-.2.6.2.7z" fill="white" />
+    </svg>
+  );
+}
+
+function WhatsAppIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="12" fill="#25D366" />
+      <path d="M17.5 6.5A7.4 7.4 0 0 0 6.2 17.1L5 19l1.9-1.2a7.4 7.4 0 0 0 10.6-6.4 7.3 7.3 0 0 0-2.1-5.1-7.3 7.3 0 0 0-.9.2zm-5.3 11.4a6.1 6.1 0 0 1-3.1-.9l-.2-.1-2 .5.5-1.9-.2-.2a6.2 6.2 0 1 1 5 2.6zm3.4-4.7c-.2-.1-1-.5-1.2-.5-.2-.1-.3-.1-.4.1-.1.2-.5.5-.6.7-.1.1-.2.1-.4 0-.2-.1-.8-.3-1.5-1-.6-.5-.9-1.1-1-1.3-.1-.2 0-.3.1-.4l.3-.3.2-.3v-.3c0-.1-.4-1-.6-1.3-.1-.3-.3-.3-.4-.3h-.4c-.1 0-.4.1-.6.3-.2.2-.8.8-.8 1.9s.8 2.2.9 2.4c.1.1 1.6 2.5 3.9 3.5.5.2.9.4 1.3.5.5.2 1 .1 1.3.1.4-.1 1.2-.5 1.4-1 .2-.5.2-.9.1-1-.1-.2-.2-.2-.4-.3z" fill="white" />
+    </svg>
+  );
+}
+
+function MessengerIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="12" fill="url(#msgGradReg)" />
+      <defs>
+        <linearGradient id="msgGradReg" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#00C6FF" />
+          <stop offset="1" stopColor="#0068FF" />
+        </linearGradient>
+      </defs>
+      <path d="M12 4C7.58 4 4 7.36 4 11.5c0 2.2 1.02 4.17 2.63 5.52V19l2.42-1.33c.64.18 1.33.28 2.04.28H12c4.42 0 8-3.36 8-7.5S16.42 4 12 4zm.79 9.78l-2.04-2.18-3.98 2.18 4.38-4.65 2.09 2.18 3.94-2.18-4.39 4.65z" fill="white" />
+    </svg>
+  );
+}
+
 export default function Register() {
   const navigate = useNavigate();
   const [form, setForm] = useState<FormData>(INITIAL_FORM);
@@ -29,6 +69,14 @@ export default function Register() {
   const [success, setSuccess] = useState(false);
   const [kybId, setKybId] = useState<number | null>(null);
   const [kycId, setKycId] = useState<string | null>(null);
+  const [socialConfig, setSocialConfig] = useState<SocialConfig | null>(null);
+
+  useEffect(() => {
+    fetch('/api/v1/auth/social-config')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setSocialConfig(d))
+      .catch(() => {});
+  }, []);
 
   const handleChange = (field: keyof FormData, value: string) => {
     setForm((f) => ({ ...f, [field]: value }));
@@ -307,6 +355,52 @@ export default function Register() {
               )}
             </button>
           </form>
+
+          {/* ── Social sign-up options ────────────────────────── */}
+          {socialConfig && (socialConfig.telegram_bot_username || socialConfig.whatsapp_number || socialConfig.messenger_page_username) && (
+            <div className="mt-5">
+              <div className="relative flex items-center gap-3 mb-4">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-muted-foreground text-xs shrink-0">or sign up via</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+              <div className="flex flex-col gap-2.5">
+                {socialConfig.telegram_bot_username && (
+                  <a
+                    href={`https://t.me/${socialConfig.telegram_bot_username}?start=register`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 w-full border border-border bg-white hover:bg-sky-50 hover:border-sky-300 rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-colors"
+                  >
+                    <TelegramIcon size={22} />
+                    <span>Sign up with Telegram</span>
+                  </a>
+                )}
+                {socialConfig.whatsapp_number && (
+                  <a
+                    href={`https://wa.me/${socialConfig.whatsapp_number.replace(/\D/g, '')}?text=Hi%2C+I+want+to+register`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 w-full border border-border bg-white hover:bg-green-50 hover:border-green-300 rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-colors"
+                  >
+                    <WhatsAppIcon size={22} />
+                    <span>Sign up with WhatsApp</span>
+                  </a>
+                )}
+                {socialConfig.messenger_page_username && (
+                  <a
+                    href={`https://m.me/${socialConfig.messenger_page_username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 w-full border border-border bg-white hover:bg-blue-50 hover:border-blue-300 rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-colors"
+                  >
+                    <MessengerIcon size={22} />
+                    <span>Sign up with Messenger</span>
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
 
           <p className="text-muted-foreground text-xs text-center mt-5">
             Already have an account?{' '}

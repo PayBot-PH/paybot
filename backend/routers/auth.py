@@ -26,6 +26,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import RedirectResponse
 from models.auth import User
 from models.admin_users import AdminUser
+from models.bot_settings import Bot_settings
 from models.kyb_registrations import KybRegistration
 from schemas.auth import (
     PlatformTokenExchangeRequest,
@@ -429,6 +430,30 @@ async def telegram_login_config():
         )
 
     return {"bot_username": username}
+
+
+@router.get("/social-config")
+async def social_config(db: AsyncSession = Depends(get_db)):
+    """Public endpoint: returns social channel contact info for sign-up/login buttons."""
+    # Telegram bot username
+    telegram_bot_username = (
+        os.getenv("VITE_TELEGRAM_BOT_USERNAME") or settings.telegram_bot_username or ""
+    ).strip().lstrip("@")
+
+    # Messenger page username and WhatsApp number from the first BotSettings row
+    messenger_page_username = ""
+    whatsapp_number = ""
+    result = await db.execute(select(Bot_settings).limit(1))
+    row = result.scalar_one_or_none()
+    if row:
+        messenger_page_username = (row.messenger_page_username or "").strip()
+        whatsapp_number = (row.whatsapp_number or "").strip()
+
+    return {
+        "telegram_bot_username": telegram_bot_username,
+        "messenger_page_username": messenger_page_username,
+        "whatsapp_number": whatsapp_number,
+    }
 
 
 @router.get("/telegram-login-diagnostic")
