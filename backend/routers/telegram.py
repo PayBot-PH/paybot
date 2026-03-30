@@ -24,6 +24,7 @@ from models.refunds import Refunds
 from models.subscriptions import Subscriptions
 from schemas.auth import UserResponse
 from services.telegram_service import TelegramService, _resolve_bot_token
+from services.bot_event_handler import handle_bot_event, BotEvent
 from services.xendit_service import XenditService
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
@@ -43,7 +44,30 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
 
+from fastapi import Body
 # Transaction types that credit / debit the USD wallet (keep in sync with wallet.py)
+# Telegram webhook event (POST)
+@router.post("/webhook")
+async def telegram_webhook_event(request: Request):
+    data = await request.json()
+    try:
+        message = None
+        chat_id = None
+        if "message" in data:
+            message = data["message"].get("text", "")
+            chat_id = str(data["message"]["chat"]["id"])
+        elif "edited_message" in data:
+            message = data["edited_message"].get("text", "")
+            chat_id = str(data["edited_message"]["chat"]["id"])
+        if chat_id and message:
+            event = BotEvent(platform="telegram", user_id=chat_id, message=message, raw_event=data)
+            reply = await handle_bot_event(event)
+            svc = TelegramService()
+            await svc.send_message(chat_id, reply)
+        return {"success": True}
+    except Exception as e:
+        logger.error(f"Telegram webhook error: {e}")
+        return {"success": False, "error": str(e)}
 _USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
 _USD_DEBIT_TYPES = ("usdt_send", "usd_send", "admin_debit")
 
