@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from models.app_settings import AppSettings
 from pydantic import BaseModel
 from schemas.auth import UserResponse
+from services.exchange_rate_service import fetch_live_usdt_php_rate, get_cache_status as _get_exchange_rate_cache_status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,6 +32,12 @@ class MaintenanceUpdateRequest(BaseModel):
 
 class UsdtPhpRateResponse(BaseModel):
     rate: float
+
+
+class LiveUsdtPhpRateResponse(BaseModel):
+    rate: float
+    source: str
+    cached: bool
 
 
 class UsdtPhpRateUpdateRequest(BaseModel):
@@ -120,6 +127,29 @@ async def get_usdt_php_rate_endpoint(db: AsyncSession = Depends(get_db)):
     """Return the current USDT→PHP exchange rate used for topup conversion. Publicly accessible."""
     rate = await get_usdt_php_rate(db)
     return UsdtPhpRateResponse(rate=rate)
+
+
+@router.get("/usdt-php-rate/live", response_model=LiveUsdtPhpRateResponse)
+async def get_live_usdt_php_rate():
+    """Fetch the real-time USDT→PHP exchange rate from CoinGecko. Publicly accessible.
+
+    Results are cached for 5 minutes to stay within free-tier API limits.
+    """
+    try:
+        rate = await fetch_live_usdt_php_rate()
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    _, is_cached = _get_exchange_rate_cache_status()
+
+    return LiveUsdtPhpRateResponse(
+        rate=rate,
+        source="CoinGecko",
+        cached=is_cached,
+    )
 
 
 @router.put("/usdt-php-rate", response_model=UsdtPhpRateResponse)
