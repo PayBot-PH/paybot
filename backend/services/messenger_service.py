@@ -1,7 +1,6 @@
 import hashlib
 import hmac
 import logging
-import os
 from typing import Any, Dict, Optional
 
 import httpx
@@ -12,12 +11,7 @@ GRAPH_API_BASE = "https://graph.facebook.com/v19.0"
 
 
 def _resolve_page_access_token() -> str:
-    """Try multiple methods to resolve the Facebook Page Access Token."""
-    token = os.environ.get("MESSENGER_PAGE_ACCESS_TOKEN", "")
-    if token:
-        logger.info("MESSENGER_PAGE_ACCESS_TOKEN resolved via os.environ")
-        return token
-
+    """Resolve the Facebook Page Access Token via pydantic-settings."""
     try:
         from core.config import settings
         token = settings.messenger_page_access_token
@@ -26,12 +20,6 @@ def _resolve_page_access_token() -> str:
             return token
     except (AttributeError, ImportError) as e:
         logger.warning(f"Failed to get messenger token via settings: {e}")
-
-    for alt_name in ["FB_PAGE_ACCESS_TOKEN", "FACEBOOK_PAGE_ACCESS_TOKEN"]:
-        token = os.environ.get(alt_name, "")
-        if token:
-            logger.info(f"MESSENGER_PAGE_ACCESS_TOKEN resolved via {alt_name}")
-            return token
 
     logger.warning("MESSENGER_PAGE_ACCESS_TOKEN could not be resolved")
     return ""

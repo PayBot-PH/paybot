@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import logging
 from datetime import datetime
 from typing import Optional
@@ -158,7 +160,7 @@ async def verify_webhook(
     # Accept the global verify token or a per-deployment environment variable
     expected_token = settings.messenger_verify_token or ""
 
-    if hub_verify_token and expected_token and hub_verify_token == expected_token:
+    if hub_verify_token and expected_token and hmac.compare_digest(hub_verify_token, expected_token):
         return Response(content=hub_challenge or "", media_type="text/plain")
 
     raise HTTPException(status_code=403, detail="Verification token mismatch")
