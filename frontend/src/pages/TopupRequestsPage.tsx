@@ -35,6 +35,8 @@ export default function TopupRequestsPage() {
   const [rateLoading, setRateLoading] = useState(false);
   const [rateInput, setRateInput] = useState('');
   const [rateEditMode, setRateEditMode] = useState(false);
+  const [liveRateLoading, setLiveRateLoading] = useState(false);
+  const [liveRate, setLiveRate] = useState<number | null>(null);
   const [trc20Address, setTrc20Address] = useState('');
   const [addressLoading, setAddressLoading] = useState(false);
   const [addressInput, setAddressInput] = useState('');
@@ -50,6 +52,23 @@ export default function TopupRequestsPage() {
       }
     } catch (e) { console.error(e); }
   }, []);
+
+  const fetchLiveRate = async () => {
+    setLiveRateLoading(true); setError('');
+    try {
+      const res = await fetch('/api/v1/app-settings/usdt-php-rate/live');
+      if (res.ok) {
+        const d = await res.json();
+        setLiveRate(d.rate);
+        setRateInput(d.rate.toFixed(2));
+        if (!rateEditMode) setRateEditMode(true);
+      } else {
+        const d = await res.json();
+        setError(d.detail || 'Failed to fetch live rate.');
+      }
+    } catch (e: any) { setError(e.message || 'Failed to fetch live rate.'); }
+    setLiveRateLoading(false);
+  };
 
   const fetchAddress = useCallback(async () => {
     try {
@@ -79,12 +98,19 @@ export default function TopupRequestsPage() {
         setUsdtPhpRate(d.rate);
         setRateInput(String(d.rate));
         setRateEditMode(false);
+        setLiveRate(null);
       } else {
         const d = await res.json();
         setError(d.detail || 'Failed to update rate');
       }
     } catch (e: any) { setError(e.message); }
     setRateLoading(false);
+  };
+
+  const cancelRateEdit = () => {
+    setRateEditMode(false);
+    setRateInput(String(usdtPhpRate));
+    setLiveRate(null);
   };
 
   const saveAddress = async () => {
@@ -197,9 +223,18 @@ export default function TopupRequestsPage() {
                 ) : (
                   <p className="text-foreground font-bold text-lg">₱{usdtPhpRate.toFixed(2)} <span className="text-muted-foreground text-sm font-normal">per USDT</span></p>
                 )}
+                {liveRate !== null && (
+                  <p className="text-blue-400 text-xs mt-0.5">Live market rate: ₱{liveRate.toFixed(2)} <span className="text-muted-foreground">(CoinGecko)</span></p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <button
+                onClick={fetchLiveRate}
+                disabled={liveRateLoading}
+                className="text-xs px-3 py-1.5 rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 disabled:opacity-50 transition-colors">
+                {liveRateLoading ? 'Fetching…' : 'Live Rate'}
+              </button>
               {rateEditMode ? (
                 <>
                   <button
@@ -209,7 +244,7 @@ export default function TopupRequestsPage() {
                     {rateLoading ? 'Saving…' : 'Save Rate'}
                   </button>
                   <button
-                    onClick={() => { setRateEditMode(false); setRateInput(String(usdtPhpRate)); }}
+                    onClick={cancelRateEdit}
                     className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
                     Cancel
                   </button>
