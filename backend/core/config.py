@@ -80,6 +80,12 @@ class Settings(BaseSettings):
     telegram_bot_username: str = ""
     xendit_secret_key: str = ""
 
+    # Facebook Messenger API
+    messenger_app_id: str = ""
+    messenger_app_secret: str = ""
+    messenger_verify_token: str = ""
+    messenger_page_access_token: str = ""
+
     # PayMongo API
     paymongo_secret_key: str = ""
     paymongo_public_key: str = ""

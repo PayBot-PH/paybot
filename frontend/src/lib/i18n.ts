@@ -32,6 +32,7 @@ export const translations = {
     nav_xendit: 'PayBot',
     nav_alipay: 'Alipay',
     nav_wechat: 'WeChat Pay',
+    nav_messenger: 'Messenger',
 
     /* User / auth */
     sign_out: 'Sign Out',
@@ -79,6 +80,7 @@ export const translations = {
     nav_xendit: 'PayBot',
     nav_alipay: '支付宝',
     nav_wechat: '微信支付',
+    nav_messenger: 'Messenger',
 
     /* User / auth */
     sign_out: '退出登录',
