@@ -29,6 +29,7 @@ import {
   Globe,
   Webhook,
   Key,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -42,6 +43,7 @@ interface MessengerConfig {
   id?: number;
   messenger_bot_status: string;
   messenger_page_id: string;
+  messenger_page_username: string;
   messenger_page_access_token: string;
   messenger_app_id: string;
   messenger_app_secret: string;
@@ -51,6 +53,7 @@ interface MessengerConfig {
 const EMPTY_CONFIG: MessengerConfig = {
   messenger_bot_status: 'inactive',
   messenger_page_id: '',
+  messenger_page_username: '',
   messenger_page_access_token: '',
   messenger_app_id: '',
   messenger_app_secret: '',
@@ -75,6 +78,8 @@ export default function MessengerPage() {
   const [recipientId, setRecipientId] = useState('');
   const [testMessage, setTestMessage] = useState('');
   const [sendLoading, setSendLoading] = useState(false);
+
+  const [fbConnecting, setFbConnecting] = useState(false);
 
   const getErr = (e: unknown) => {
     const err = e as { data?: { detail?: string; message?: string }; message?: string };
@@ -126,6 +131,39 @@ export default function MessengerPage() {
     if (user) fetchConfig();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  // Handle OAuth callback result embedded in the URL by the backend redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const connected = params.get('fb_connected');
+    const fbError = params.get('fb_error');
+    const fbPage = params.get('fb_page');
+    if (connected === '1') {
+      const label = fbPage ? ` "${fbPage}"` : '';
+      toast.success(`Facebook Page${label} connected successfully!`);
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (fbError) {
+      toast.error(`Facebook connection failed: ${fbError}`);
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  const handleFacebookConnect = async () => {
+    if (!user) { login(); return; }
+    setFbConnecting(true);
+    try {
+      const res = await client.apiCall.invoke({ url: '/api/v1/messenger/oauth/authorize', method: 'GET', data: {} });
+      if (res.data?.success && res.data?.auth_url) {
+        window.location.href = res.data.auth_url;
+      } else {
+        toast.error(res.data?.detail || 'Could not start Facebook login');
+        setFbConnecting(false);
+      }
+    } catch (e) {
+      toast.error(is401(e) ? 'Please log in first.' : getErr(e));
+      setFbConnecting(false);
+    }
+  };
 
   const handleSaveConfig = async () => {
     setConfigSaving(true);
@@ -255,9 +293,9 @@ export default function MessengerPage() {
                       {[
                         'Create a Facebook App at developers.facebook.com',
                         'Add the Messenger product to your app',
-                        'Generate a Page Access Token for your Facebook Page',
-                        'Set the webhook URL below and enter your verify token',
-                        'Enter your credentials in the Credentials tab and save',
+                        'Enter your App ID & App Secret in the Credentials tab',
+                        'Click "Connect with Facebook" to log in and select your page',
+                        'Register the webhook URL below and set up your verify token',
                       ].map((s, i) => (
                         <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
                           <span className="h-4 w-4 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">
@@ -268,6 +306,27 @@ export default function MessengerPage() {
                       ))}
                     </ol>
                   </div>
+
+                  {/* One-tap Facebook connect button */}
+                  <button
+                    onClick={handleFacebookConnect}
+                    disabled={fbConnecting}
+                    className="w-full flex items-center justify-center gap-2.5 rounded-xl bg-[#1877F2] hover:bg-[#166FE5] disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 transition-colors"
+                  >
+                    {fbConnecting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <svg className="h-4 w-4 shrink-0" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                      </svg>
+                    )}
+                    {fbConnecting ? 'Redirecting to Facebook…' : 'Connect with Facebook'}
+                  </button>
+                  {config?.messenger_page_id && (
+                    <p className="text-[11px] text-center text-muted-foreground">
+                      Already connected to page ID <code className="bg-muted px-1 rounded">{config.messenger_page_id}</code>. Click above to reconnect or switch pages.
+                    </p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -310,6 +369,55 @@ export default function MessengerPage() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* m.me Link */}
+              {localConfig.messenger_page_username && (
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle className="text-foreground flex items-center space-x-2">
+                      <ExternalLink className="h-5 w-5 text-blue-400" />
+                      <span>Messenger Link</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Share this link so users can start a conversation with your page on Messenger.
+                    </p>
+                    <div className="bg-muted/60 rounded-lg p-3 space-y-1">
+                      <p className="text-xs text-muted-foreground">m.me link</p>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`https://m.me/${localConfig.messenger_page_username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-mono text-blue-400 hover:underline break-all flex-1"
+                        >
+                          https://m.me/{localConfig.messenger_page_username}
+                        </a>
+                        <button
+                          onClick={() =>
+                            copyToClipboard(
+                              `https://m.me/${localConfig.messenger_page_username}`,
+                              'm.me link copied'
+                            )
+                          }
+                          className="text-muted-foreground hover:text-foreground shrink-0"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        <a
+                          href={`https://m.me/${localConfig.messenger_page_username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-foreground shrink-0"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Page Information */}
               <Card className="bg-card border-border">
@@ -520,6 +628,21 @@ export default function MessengerPage() {
                         onChange={(e) => setLocalConfig((prev) => ({ ...prev, messenger_page_id: e.target.value }))}
                         className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-sm"
                       />
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Page Username</Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none">m.me/</span>
+                        <Input
+                          placeholder="paybotph"
+                          value={localConfig.messenger_page_username}
+                          onChange={(e) => setLocalConfig((prev) => ({ ...prev, messenger_page_username: e.target.value }))}
+                          className="pl-[3.25rem] bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-sm"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Your Facebook Page username (the part after <code className="bg-muted px-1 rounded">m.me/</code>). Used to generate your shareable Messenger link.
+                      </p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground">Page Access Token</Label>

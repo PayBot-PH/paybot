@@ -1,10 +1,13 @@
 import hashlib
 import hmac
 import logging
+import time
 from datetime import datetime
 from typing import Optional
+from urllib.parse import urlencode, quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +28,7 @@ router = APIRouter(prefix="/api/v1/messenger", tags=["messenger"])
 class MessengerConfigUpdate(BaseModel):
     messenger_bot_status: Optional[str] = None
     messenger_page_id: Optional[str] = None
+    messenger_page_username: Optional[str] = None
     messenger_page_access_token: Optional[str] = None
     messenger_app_id: Optional[str] = None
     messenger_app_secret: Optional[str] = None
@@ -44,11 +48,52 @@ def _config_response(obj) -> dict:
         "id": obj.id,
         "messenger_bot_status": obj.messenger_bot_status or "inactive",
         "messenger_page_id": obj.messenger_page_id or "",
+        "messenger_page_username": obj.messenger_page_username or "",
         "messenger_page_access_token": obj.messenger_page_access_token or "",
         "messenger_app_id": obj.messenger_app_id or "",
         "messenger_app_secret": obj.messenger_app_secret or "",
         "messenger_verify_token": obj.messenger_verify_token or "",
     }
+
+
+def _get_backend_url(request: Request) -> str:
+    """Determine the public-facing backend URL from request headers."""
+    mgx_external_domain = request.headers.get("mgx-external-domain")
+    x_forwarded_host = request.headers.get("x-forwarded-host")
+    host = request.headers.get("host")
+    scheme = request.headers.get("x-forwarded-proto", "https")
+    effective_host = mgx_external_domain or x_forwarded_host or host
+    if effective_host:
+        return f"{scheme}://{effective_host}"
+    return settings.backend_url
+
+
+def _generate_oauth_state(user_id: str) -> str:
+    """Generate a short-lived HMAC-signed state token for Facebook OAuth."""
+    ts = str(int(time.time()))
+    msg = f"{user_id}:{ts}"
+    secret = (settings.jwt_secret_key or "paybot-oauth").encode()
+    mac = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
+    return f"{msg}:{mac}"
+
+
+def _verify_oauth_state(state: str, max_age: int = 600) -> Optional[str]:
+    """Verify the OAuth state and return the user_id, or None if invalid."""
+    try:
+        parts = state.split(":")
+        if len(parts) != 3:
+            return None
+        user_id, ts, mac = parts
+        msg = f"{user_id}:{ts}"
+        secret = (settings.jwt_secret_key or "paybot-oauth").encode()
+        expected = hmac.new(secret, msg.encode(), hashlib.sha256).hexdigest()
+        if not hmac.compare_digest(expected, mac):
+            return None
+        if abs(int(time.time()) - int(ts)) > max_age:
+            return None
+        return user_id
+    except Exception:
+        return None
 
 
 # ---------- Routes ----------
@@ -139,6 +184,98 @@ async def send_test_message(
     if result_send.get("success"):
         return {"success": True, "message": "Message sent", "message_id": result_send.get("message_id")}
     raise HTTPException(status_code=400, detail=result_send.get("error", "Failed to send message"))
+
+
+@router.get("/oauth/authorize")
+async def messenger_oauth_authorize(
+    request: Request,
+    current_user: UserResponse = Depends(get_current_user),
+):
+    """Return a Facebook OAuth URL for connecting a Facebook Page via one-tap login."""
+    app_id = settings.messenger_app_id
+    if not app_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Facebook App ID is not configured. Set MESSENGER_APP_ID or enter it in the Credentials tab first.",
+        )
+    backend_url = _get_backend_url(request)
+    redirect_uri = f"{backend_url}/api/v1/messenger/oauth/callback"
+    state = _generate_oauth_state(str(current_user.id))
+    auth_url = (
+        "https://www.facebook.com/v19.0/dialog/oauth"
+        f"?client_id={quote(app_id)}"
+        f"&redirect_uri={quote(redirect_uri)}"
+        f"&scope=pages_messaging%2Cpages_manage_metadata"
+        f"&state={quote(state)}"
+        f"&response_type=code"
+    )
+    return {"success": True, "auth_url": auth_url, "redirect_uri": redirect_uri}
+
+
+@router.get("/oauth/callback")
+async def messenger_oauth_callback(
+    request: Request,
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    error_description: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Handle the Facebook OAuth redirect and save the connected Page credentials."""
+    backend_url = _get_backend_url(request)
+
+    def redirect_error(msg: str) -> RedirectResponse:
+        return RedirectResponse(
+            url=f"{backend_url}/messenger?{urlencode({'fb_error': msg})}",
+            status_code=302,
+        )
+
+    if error:
+        return redirect_error(error_description or error)
+
+    if not code or not state:
+        return redirect_error("Missing code or state parameters.")
+
+    user_id = _verify_oauth_state(state)
+    if not user_id:
+        return redirect_error("Invalid or expired connection request. Please try connecting again.")
+
+    app_id = settings.messenger_app_id
+    app_secret = settings.messenger_app_secret
+    if not app_id or not app_secret:
+        return redirect_error("Facebook App credentials are not configured on the server.")
+
+    redirect_uri = f"{backend_url}/api/v1/messenger/oauth/callback"
+    token_result = await MessengerService.exchange_code_for_token(code, redirect_uri, app_id, app_secret)
+    if not token_result.get("success"):
+        return redirect_error(token_result.get("error", "Token exchange failed."))
+
+    pages_result = await MessengerService.get_user_pages(token_result["access_token"])
+    if not pages_result.get("success") or not pages_result.get("pages"):
+        return redirect_error("No Facebook Pages found. Make sure you manage at least one Facebook Page.")
+
+    pages = pages_result["pages"]
+    page = pages[0]
+
+    service = Bot_settingsService(db)
+    db_result = await service.get_list(skip=0, limit=1, user_id=user_id)
+    update_dict = {
+        "messenger_page_id": page.get("id", ""),
+        "messenger_page_username": page.get("username", ""),
+        "messenger_page_access_token": page.get("access_token", ""),
+        "messenger_bot_status": "active",
+        "updated_at": datetime.utcnow(),
+    }
+    if db_result["total"] == 0:
+        update_dict.update({"bot_status": "inactive", "maintenance_mode": "off", "created_at": datetime.utcnow()})
+        await service.create(update_dict, user_id=user_id)
+    else:
+        obj = db_result["items"][0]
+        await service.update(obj.id, update_dict, user_id=user_id)
+
+    logger.info(f"Facebook Page '{page.get('name')}' (id={page.get('id')}) connected for user {user_id}")
+    params = urlencode({"fb_connected": "1", "fb_page": page.get("name", ""), "fb_pages": len(pages)})
+    return RedirectResponse(url=f"{backend_url}/messenger?{params}", status_code=302)
 
 
 @router.get("/webhook")
