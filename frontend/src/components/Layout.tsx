@@ -77,6 +77,9 @@ export default function Layout({ children, connected }: LayoutProps) {
   useEffect(() => {
     setOpenGroups((prev) => {
       const next = new Set(prev);
+      if (['/xendit', '/alipay', '/wechat'].some((r) => path.startsWith(r))) {
+        next.add('gateways');
+      }
       if (['/usdt-send-requests', '/topup-requests', '/bank-deposits'].some((r) => path.startsWith(r))) {
         next.add('requests');
       }
@@ -106,9 +109,17 @@ export default function Layout({ children, connected }: LayoutProps) {
     {
       label: t('nav_payments'),
       items: [
-        { to: '/xendit', icon: Zap, label: t('nav_xendit') },
-        { to: '/alipay', icon: QrCode, label: t('nav_alipay') },
-        { to: '/wechat', icon: QrCode, label: t('nav_wechat') },
+        {
+          type: 'group' as const,
+          key: 'gateways',
+          icon: Zap,
+          label: t('nav_gateways'),
+          children: [
+            { to: '/xendit', icon: Zap, label: t('nav_xendit') },
+            { to: '/alipay', icon: QrCode, label: t('nav_alipay') },
+            { to: '/wechat', icon: QrCode, label: t('nav_wechat') },
+          ],
+        },
         { to: '/scan-qrph', icon: ScanLine, label: t('nav_scan_qrph') },
         { to: '/transactions', icon: FileText, label: t('nav_transactions') },
         { to: '/disbursements', icon: Building2, label: t('nav_disbursements') },
