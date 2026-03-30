@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Bot, BarChart3, Wallet, FileText, Building2, PieChart,
-  WifiOff, LogOut, ShieldCheck, MessageSquare, ScrollText, Crown, User,
-  Menu, X, Activity, Send, ClipboardList, DollarSign, ChevronDown,
+  Bot, LayoutDashboard, Wallet, FileText, Building2, Activity,
+  WifiOff, LogOut, ShieldCheck, MessageSquare, Crown, User,
+  Menu, X, Send, ClipboardList, DollarSign, ChevronDown,
   MessageCircle, UserCheck, Sun, Moon, ScanLine, ChevronRight,
-  Settings2, Layers, Shield, Zap, QrCode,
+  Settings2, Inbox, Shield, Zap, QrCode, ArrowRightLeft, BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -102,7 +102,7 @@ export default function Layout({ children, connected }: LayoutProps) {
     {
       label: t('nav_overview'),
       items: [
-        { to: '/', icon: BarChart3, label: t('nav_dashboard') },
+        { to: '/', icon: LayoutDashboard, label: t('nav_dashboard') },
         { to: '/wallet', icon: Wallet, label: t('nav_wallet') },
       ],
     },
@@ -122,8 +122,8 @@ export default function Layout({ children, connected }: LayoutProps) {
         },
         { to: '/scan-qrph', icon: ScanLine, label: t('nav_scan_qrph') },
         { to: '/transactions', icon: FileText, label: t('nav_transactions') },
-        { to: '/disbursements', icon: Building2, label: t('nav_disbursements') },
-        { to: '/reports', icon: PieChart, label: t('nav_reports') },
+        { to: '/disbursements', icon: ArrowRightLeft, label: t('nav_disbursements') },
+        { to: '/reports', icon: Activity, label: t('nav_reports') },
       ],
     },
     /* Bot section — shown to admins / can_manage_bot users */
@@ -153,7 +153,7 @@ export default function Layout({ children, connected }: LayoutProps) {
             {
               type: 'group' as const,
               key: 'requests',
-              icon: Layers,
+              icon: Inbox,
               label: t('nav_requests'),
               badge: 'Super',
               children: [
@@ -179,7 +179,7 @@ export default function Layout({ children, connected }: LayoutProps) {
     {
       label: t('nav_help'),
       items: [
-        { to: '/policies', icon: ScrollText, label: t('nav_policies') },
+        { to: '/policies', icon: BookOpen, label: t('nav_policies') },
       ],
     },
   ];
@@ -202,13 +202,17 @@ export default function Layout({ children, connected }: LayoutProps) {
                 <div key={group.key}>
                   <button
                     onClick={() => toggleGroup(group.key)}
-                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
+                    className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 border-l-2 ${
                       hasActiveChild
-                        ? 'text-primary bg-accent'
-                        : 'text-foreground/70 hover:text-foreground hover:bg-muted'
+                        ? 'text-primary bg-primary/10 border-primary dark:bg-primary/15'
+                        : 'text-foreground/70 hover:text-foreground hover:bg-muted border-transparent'
                     }`}
                   >
-                    <group.icon className="h-4 w-4 shrink-0" />
+                    <div className={`flex items-center justify-center h-6 w-6 rounded-lg shrink-0 transition-all duration-150 ${
+                      hasActiveChild ? 'bg-primary text-white shadow-sm' : 'text-current'
+                    }`}>
+                      <group.icon className="h-3.5 w-3.5" />
+                    </div>
                     <span className="flex-1 truncate text-left">{group.label}</span>
                     {group.badge && (
                       <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
@@ -228,10 +232,10 @@ export default function Layout({ children, connected }: LayoutProps) {
                             key={to}
                             to={to}
                             onClick={onNav}
-                            className={`flex items-center gap-3 pl-7 pr-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
+                            className={`flex items-center gap-3 pl-7 pr-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 border-l-2 ${
                               active
-                                ? 'bg-primary text-white shadow-sm'
-                                : 'text-foreground/60 hover:text-foreground hover:bg-muted'
+                                ? 'bg-primary/10 text-primary border-primary font-semibold dark:bg-primary/15'
+                                : 'text-foreground/60 hover:text-foreground hover:bg-muted border-transparent'
                             }`}
                           >
                             <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -258,13 +262,17 @@ export default function Layout({ children, connected }: LayoutProps) {
                 key={item.to}
                 to={item.to}
                 onClick={onNav}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
+                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 border-l-2 ${
                   active
-                    ? 'bg-primary text-white shadow-sm'
-                    : 'text-foreground/70 hover:text-foreground hover:bg-muted'
+                    ? 'bg-primary/10 text-primary border-primary font-semibold dark:bg-primary/15'
+                    : 'text-foreground/70 hover:text-foreground hover:bg-muted border-transparent'
                 }`}
               >
-                <item.icon className="h-4 w-4 shrink-0" />
+                <div className={`flex items-center justify-center h-6 w-6 rounded-lg shrink-0 transition-all duration-150 ${
+                  active ? 'bg-primary text-white shadow-sm' : 'text-current'
+                }`}>
+                  <item.icon className="h-3.5 w-3.5" />
+                </div>
                 <span className="flex-1 truncate">{item.label}</span>
                 {item.badge && (
                   <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
@@ -283,9 +291,11 @@ export default function Layout({ children, connected }: LayoutProps) {
           href={SUPPORT_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150"
+          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 border-l-2 border-transparent"
         >
-          <MessageCircle className="h-4 w-4 shrink-0" />
+          <div className="flex items-center justify-center h-6 w-6 rounded-lg shrink-0">
+            <MessageCircle className="h-3.5 w-3.5" />
+          </div>
           <span>{t('nav_contact_support')}</span>
         </a>
       </div>
