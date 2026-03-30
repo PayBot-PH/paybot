@@ -186,10 +186,10 @@ export default function Layout({ children, connected }: LayoutProps) {
 
   /* ─── NavLinks renderer ─────────────────────────────────────── */
   const NavLinks = ({ onNav }: { onNav?: () => void }) => (
-    <nav className="flex-1 overflow-y-auto py-3">
+    <nav className="flex-1 overflow-y-auto py-3 px-2">
       {navSections.map((section) => (
         <div key={section.label} className="mb-1">
-          <p className="px-4 py-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          <p className="px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
             {section.label}
           </p>
           {section.items.map((entry) => {
@@ -202,17 +202,16 @@ export default function Layout({ children, connected }: LayoutProps) {
                 <div key={group.key}>
                   <button
                     onClick={() => toggleGroup(group.key)}
-                    className={`w-full flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
                       hasActiveChild
                         ? 'text-primary bg-accent'
-                        : 'text-gray-600 hover:text-primary hover:bg-accent'
+                        : 'text-foreground/70 hover:text-foreground hover:bg-muted'
                     }`}
-                    style={{ width: 'calc(100% - 1rem)' }}
                   >
                     <group.icon className="h-4 w-4 shrink-0" />
                     <span className="flex-1 truncate text-left">{group.label}</span>
                     {group.badge && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 text-orange-500 border border-orange-200">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
                         {group.badge}
                       </span>
                     )}
@@ -221,7 +220,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                     />
                   </button>
                   {isOpen && (
-                    <div className="mt-0.5 mb-1">
+                    <div className="mt-0.5 mb-1 ml-3">
                       {group.children.map(({ to, icon: Icon, label, badge }) => {
                         const active = isActive(to);
                         return (
@@ -229,16 +228,16 @@ export default function Layout({ children, connected }: LayoutProps) {
                             key={to}
                             to={to}
                             onClick={onNav}
-                            className={`flex items-center gap-3 ml-5 mr-2 pl-4 pr-3 py-1.5 rounded-md text-sm font-medium transition-all duration-150 border-l-2 ${
+                            className={`flex items-center gap-3 pl-7 pr-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
                               active
-                                ? 'border-primary bg-accent text-primary'
-                                : 'border-transparent text-gray-500 hover:text-primary hover:bg-accent hover:border-blue-200'
+                                ? 'bg-primary text-white shadow-sm'
+                                : 'text-foreground/60 hover:text-foreground hover:bg-muted'
                             }`}
                           >
                             <Icon className="h-3.5 w-3.5 shrink-0" />
                             <span className="flex-1 truncate text-xs">{label}</span>
                             {badge && (
-                              <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-orange-50 text-orange-500 border border-orange-200">
+                              <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
                                 {badge}
                               </span>
                             )}
@@ -259,16 +258,16 @@ export default function Layout({ children, connected }: LayoutProps) {
                 key={item.to}
                 to={item.to}
                 onClick={onNav}
-                className={`flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium transition-all duration-150 ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
                   active
-                    ? 'bg-accent text-primary font-semibold border-l-2 border-primary'
-                    : 'text-gray-600 hover:text-primary hover:bg-accent'
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-foreground/70 hover:text-foreground hover:bg-muted'
                 }`}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
                 <span className="flex-1 truncate">{item.label}</span>
                 {item.badge && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-50 text-orange-500 border border-orange-200">
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
                     {item.badge}
                   </span>
                 )}
@@ -279,12 +278,12 @@ export default function Layout({ children, connected }: LayoutProps) {
       ))}
 
       {/* Contact Support */}
-      <div className="mb-1 mt-1">
+      <div className="mb-1 mt-1 px-2">
         <a
           href={SUPPORT_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex items-center gap-3 mx-2 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-150"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150"
         >
           <MessageCircle className="h-4 w-4 shrink-0" />
           <span>{t('nav_contact_support')}</span>
@@ -297,13 +296,15 @@ export default function Layout({ children, connected }: LayoutProps) {
     <div className="h-screen overflow-hidden bg-background text-foreground flex">
 
       {/* ─── Desktop Sidebar ─── */}
-      <aside className="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 z-40 bg-background border-r border-border">
+      <aside className="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 z-40 bg-card border-r border-border shadow-sm">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-2.5 px-4 h-14 border-b border-border shrink-0 bg-gradient-to-r from-[#0070FF] to-[#0099FF] group hover:shadow-lg transition-all duration-300">
-          <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 shrink-0 rounded-lg animate-logo-entrance group-hover:animate-logo-bounce group-hover:drop-shadow-lg" />
-          <div className="group-hover:translate-y-0.5 transition-transform duration-300">
-            <p className="text-sm font-bold leading-tight text-white">{APP_NAME}</p>
-            <p className="text-[10px] text-blue-100 leading-tight">{APP_SUBTITLE}</p>
+        <Link to="/" className="flex items-center gap-3 px-4 h-14 border-b border-border shrink-0 group">
+          <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-sm group-hover:shadow-md transition-shadow">
+            <img src="/logo.svg" alt={APP_NAME} className="h-5 w-5 shrink-0" />
+          </div>
+          <div>
+            <p className="text-sm font-bold leading-tight text-foreground">{APP_NAME}</p>
+            <p className="text-[10px] text-muted-foreground leading-tight">{APP_SUBTITLE}</p>
           </div>
         </Link>
 
@@ -311,17 +312,17 @@ export default function Layout({ children, connected }: LayoutProps) {
 
         {/* User */}
         <div className="shrink-0 border-t border-border p-3">
-          <div className="flex items-center gap-2 px-2 py-2 rounded-md bg-[#EBF5FF] border border-[#BFDBFE]">
+          <div className="flex items-center gap-2 px-2 py-2 rounded-xl bg-accent/50 border border-accent">
             <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-              {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-400" /> : <User className="h-3.5 w-3.5 text-primary" />}
+              {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-500" /> : <User className="h-3.5 w-3.5 text-primary" />}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium truncate">{userName}</p>
+              <p className="text-xs font-semibold truncate">{userName}</p>
               <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? t('super_admin') : t('admin')}</p>
             </div>
             <button
               onClick={() => logout()}
-              className="p-1 rounded text-muted-foreground hover:text-red-400 transition-colors"
+              className="p-1 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
               title="Sign out"
             >
               <LogOut className="h-3.5 w-3.5" />
@@ -333,14 +334,16 @@ export default function Layout({ children, connected }: LayoutProps) {
       {/* ─── Mobile Drawer ─── */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative z-10 w-64 h-full bg-background border-r border-border flex flex-col">
-            <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0 bg-gradient-to-r from-[#0070FF] to-[#0099FF]">
-              <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-2.5 group hover:opacity-90 transition-opacity">
-                <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 rounded-lg animate-logo-entrance group-hover:scale-110 transition-transform duration-300" />
-                <p className="text-sm font-bold text-white group-hover:translate-x-1 transition-transform duration-300">{APP_NAME}</p>
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          <aside className="relative z-10 w-64 h-full bg-card border-r border-border flex flex-col shadow-xl">
+            <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0">
+              <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 group">
+                <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center shrink-0">
+                  <img src="/logo.svg" alt={APP_NAME} className="h-5 w-5" />
+                </div>
+                <p className="text-sm font-bold text-foreground">{APP_NAME}</p>
               </Link>
-              <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded text-white/80 hover:text-white">
+              <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -348,7 +351,7 @@ export default function Layout({ children, connected }: LayoutProps) {
             <div className="shrink-0 border-t border-border p-3">
               <button
                 onClick={() => logout()}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
               >
                 <LogOut className="h-4 w-4" />
                 {t('sign_out')}
@@ -362,18 +365,20 @@ export default function Layout({ children, connected }: LayoutProps) {
       <div className="flex-1 flex flex-col min-h-0 md:ml-56">
 
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-background/80 backdrop-blur-md border-b border-border/70 shadow-sm shrink-0 transition-colors duration-200">
+        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-card/95 backdrop-blur-md border-b border-border shrink-0">
           <button
-            className="md:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             onClick={() => setSidebarOpen(true)}
           >
             <Menu className="h-5 w-5" />
           </button>
 
-          {/* Page title from path */}
-          <div className="md:hidden flex items-center gap-2 group hover:bg-muted px-2 py-1 rounded-md transition-all duration-200 cursor-pointer">
-            <img src="/logo.svg" alt={APP_NAME} className="h-6 w-6 rounded animate-logo-entrance group-hover:animate-pulse-brand" />
-            <span className="text-sm font-bold group-hover:text-primary transition-colors">{APP_NAME}</span>
+          {/* Mobile brand */}
+          <div className="md:hidden flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
+              <img src="/logo.svg" alt={APP_NAME} className="h-4 w-4" />
+            </div>
+            <span className="text-sm font-bold text-foreground">{APP_NAME}</span>
           </div>
 
           <div className="flex-1" />
@@ -381,7 +386,7 @@ export default function Layout({ children, connected }: LayoutProps) {
           {/* Theme toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
             title={theme === 'dark' ? t('switch_light') : t('switch_dark')}
           >
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -390,7 +395,7 @@ export default function Layout({ children, connected }: LayoutProps) {
           {/* Language toggle */}
           <button
             onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
-            className="p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs font-semibold w-8 h-8 flex items-center justify-center"
+            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs font-semibold w-8 h-8 flex items-center justify-center"
             title={language === 'en' ? t('switch_chinese') : t('switch_english')}
           >
             {language === 'en' ? '中' : 'EN'}
@@ -399,12 +404,11 @@ export default function Layout({ children, connected }: LayoutProps) {
           {/* Live indicator */}
           {connected !== undefined && (
             connected ? (
-              <div className="flex items-center gap-1.5 text-emerald-400 text-[11px] font-medium">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded-full">
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
                 </span>
-                <Activity className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{t('live')}</span>
               </div>
             ) : (
@@ -422,21 +426,21 @@ export default function Layout({ children, connected }: LayoutProps) {
                 onClick={() => setUserMenuOpen((v) => !v)}
                 className="hidden md:flex items-center gap-2 pl-3 border-l border-border text-muted-foreground hover:text-foreground transition-colors"
               >
-                <div className="h-7 w-7 rounded-full bg-muted border border-border flex items-center justify-center">
-                  {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-400" /> : <User className="h-3.5 w-3.5 text-primary" />}
+                <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                  {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-500" /> : <User className="h-3.5 w-3.5 text-primary" />}
                 </div>
-                <span className="text-xs font-medium max-w-[100px] truncate">{userName}</span>
+                <span className="text-xs font-semibold max-w-[100px] truncate">{userName}</span>
                 <ChevronDown className="h-3.5 w-3.5" />
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-44 bg-card/90 backdrop-blur-md border border-border rounded-lg shadow-xl py-1 z-50">
-                  <div className="px-3 py-2 border-b border-border">
-                    <p className="text-xs font-medium truncate">{userName}</p>
-                    <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? t('super_administrator') : t('administrator')}</p>
+                <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-2xl shadow-xl py-1.5 z-50">
+                  <div className="px-4 py-2.5 border-b border-border">
+                    <p className="text-sm font-semibold truncate">{userName}</p>
+                    <p className="text-[11px] text-muted-foreground">{isSuperAdmin ? t('super_administrator') : t('administrator')}</p>
                   </div>
                   <button
                     onClick={() => { setUserMenuOpen(false); logout(); }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
                   >
                     <LogOut className="h-4 w-4" />
                     {t('sign_out')}
