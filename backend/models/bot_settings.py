@@ -36,5 +36,7 @@ class Bot_settings(Base):
     messenger_app_id            = Column(String, nullable=True)
     messenger_app_secret        = Column(String, nullable=True)
     messenger_verify_token      = Column(String, nullable=True)
+    # WhatsApp contact number (used for social sign-up links)
+    whatsapp_number             = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), nullable=True)

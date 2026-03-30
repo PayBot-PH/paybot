@@ -153,6 +153,31 @@ const MARQUEE_ROW_2 = [
 
 /* ═══════════════════════════════════════════════════════════════ */
 
+/* ─── Social platform icons ─────────────────────────────────── */
+function WhatsAppIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="12" fill="#25D366" />
+      <path d="M17.5 6.5A7.4 7.4 0 0 0 6.2 17.1L5 19l1.9-1.2a7.4 7.4 0 0 0 10.6-6.4 7.3 7.3 0 0 0-2.1-5.1-7.3 7.3 0 0 0-.9.2zm-5.3 11.4a6.1 6.1 0 0 1-3.1-.9l-.2-.1-2 .5.5-1.9-.2-.2a6.2 6.2 0 1 1 5 2.6zm3.4-4.7c-.2-.1-1-.5-1.2-.5-.2-.1-.3-.1-.4.1-.1.2-.5.5-.6.7-.1.1-.2.1-.4 0-.2-.1-.8-.3-1.5-1-.6-.5-.9-1.1-1-1.3-.1-.2 0-.3.1-.4l.3-.3.2-.3v-.3c0-.1-.4-1-.6-1.3-.1-.3-.3-.3-.4-.3h-.4c-.1 0-.4.1-.6.3-.2.2-.8.8-.8 1.9s.8 2.2.9 2.4c.1.1 1.6 2.5 3.9 3.5.5.2.9.4 1.3.5.5.2 1 .1 1.3.1.4-.1 1.2-.5 1.4-1 .2-.5.2-.9.1-1-.1-.2-.2-.2-.4-.3z" fill="white" />
+    </svg>
+  );
+}
+
+function MessengerIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="12" cy="12" r="12" fill="url(#msgGradLogin)" />
+      <defs>
+        <linearGradient id="msgGradLogin" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+          <stop stopColor="#00C6FF" />
+          <stop offset="1" stopColor="#0068FF" />
+        </linearGradient>
+      </defs>
+      <path d="M12 4C7.58 4 4 7.36 4 11.5c0 2.2 1.02 4.17 2.63 5.52V19l2.42-1.33c.64.18 1.33.28 2.04.28H12c4.42 0 8-3.36 8-7.5S16.42 4 12 4zm.79 9.78l-2.04-2.18-3.98 2.18 4.38-4.65 2.09 2.18 3.94-2.18-4.39 4.65z" fill="white" />
+    </svg>
+  );
+}
+
 export default function Login() {
   const { user, loginWithTelegram, loading, error } = useAuth();
   const [submitting, setSubmitting] = useState(false);
@@ -166,6 +191,14 @@ export default function Login() {
   const [botUsername, setBotUsername] = useState<string>(
     (import.meta.env.VITE_TELEGRAM_BOT_USERNAME || '').trim()
   );
+  const [socialConfig, setSocialConfig] = useState<{ whatsapp_number: string; messenger_page_username: string } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/v1/auth/social-config')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d && setSocialConfig(d))
+      .catch(() => {});
+  }, []);
 
   const scrollToLogin = () => {
     setMobileNavOpen(false);
@@ -711,6 +744,43 @@ export default function Login() {
               <p className="text-[#595959] text-sm text-center mb-4">Checking session…</p>
             )}
             <div className="border-t border-[#E8EAED] pt-4 sm:pt-5 space-y-3">
+              {/* Social login options */}
+              {socialConfig && (socialConfig.whatsapp_number || socialConfig.messenger_page_username) && (
+                <>
+                  <div className="relative flex items-center gap-2 mb-1">
+                    <div className="flex-1 h-px bg-[#E8EAED]" />
+                    <span className="text-[#595959] text-xs shrink-0">or sign in via</span>
+                    <div className="flex-1 h-px bg-[#E8EAED]" />
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    {socialConfig.whatsapp_number && (
+                      <a
+                        href={`https://wa.me/${socialConfig.whatsapp_number.replace(/\D/g, '')}?text=Hi%2C+I+want+to+sign+in`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 w-full border border-[#E8EAED] bg-white hover:bg-green-50 hover:border-green-300 rounded-xl px-4 py-3 text-sm font-medium text-[#141414] transition-colors"
+                      >
+                        <WhatsAppIcon size={20} />
+                        <span>Continue with WhatsApp</span>
+                      </a>
+                    )}
+                    {socialConfig.messenger_page_username && (
+                      <a
+                        href={`https://m.me/${socialConfig.messenger_page_username}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 w-full border border-[#E8EAED] bg-white hover:bg-blue-50 hover:border-blue-300 rounded-xl px-4 py-3 text-sm font-medium text-[#141414] transition-colors"
+                      >
+                        <MessengerIcon size={20} />
+                        <span>Continue with Messenger</span>
+                      </a>
+                    )}
+                    <div className="relative flex items-center gap-2 my-1">
+                      <div className="flex-1 h-px bg-[#E8EAED]" />
+                    </div>
+                  </div>
+                </>
+              )}
               <Link
                 to="/register"
                 className="flex items-center justify-between w-full bg-[#F5F7FA] hover:bg-[#E8F4FF] border border-[#E8EAED] hover:border-[#0070FF]/30 text-[#0070FF] hover:text-[#0070FF] text-sm font-semibold py-3 sm:py-3.5 px-4 sm:px-5 rounded-xl transition-all group"

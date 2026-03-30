@@ -98,6 +98,7 @@ interface BotConfig {
   payment_pending_message: string;
   maintenance_message: string;
   commands_enabled: string;
+  whatsapp_number: string;
 }
 
 // Bot commands reference
@@ -260,6 +261,7 @@ export default function BotSettings() {
     welcome_message_en: '', welcome_message_zh: '',
     payment_success_message: '', payment_failed_message: '',
     payment_pending_message: '', maintenance_message: '', commands_enabled: '',
+    whatsapp_number: '',
   });
 
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(
@@ -404,7 +406,7 @@ export default function BotSettings() {
 
   const handleResetConfig = () => {
     if (botConfig) setLocalConfig(botConfig);
-    else setLocalConfig({ bot_status: 'inactive', maintenance_mode: 'off', welcome_message_en: '', welcome_message_zh: '', payment_success_message: '', payment_failed_message: '', payment_pending_message: '', maintenance_message: '', commands_enabled: '' });
+    else setLocalConfig({ bot_status: 'inactive', maintenance_mode: 'off', welcome_message_en: '', welcome_message_zh: '', payment_success_message: '', payment_failed_message: '', payment_pending_message: '', maintenance_message: '', commands_enabled: '', whatsapp_number: '' });
     toast.info('Changes discarded');
   };
 
@@ -671,6 +673,25 @@ export default function BotSettings() {
                         <p className="text-xs text-amber-300">Maintenance mode is active. Edit the message in the <strong>Messages</strong> tab.</p>
                       </div>
                     )}
+                  </CardContent>
+                </Card>
+
+                {/* Social Channel Numbers */}
+                <Card className="bg-card border-border">
+                  <CardHeader><CardTitle className="text-foreground flex items-center gap-2"><Globe className="h-5 w-5 text-green-400" />Social Sign-up Channels</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">Configure social platform contact details shown as alternative sign-up and login options on the registration page.</p>
+                    <div>
+                      <Label className="text-muted-foreground mb-1.5 block">WhatsApp Number</Label>
+                      <Input
+                        type="tel"
+                        placeholder="e.g. 639171234567 (country code + number)"
+                        value={localConfig.whatsapp_number}
+                        onChange={(e) => setLocalConfig(prev => ({ ...prev, whatsapp_number: e.target.value }))}
+                        className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                      />
+                      <p className="text-[11px] text-muted-foreground mt-1">Include country code without + (e.g. 63 for Philippines). Leave blank to hide the WhatsApp button.</p>
+                    </div>
                   </CardContent>
                 </Card>
 
