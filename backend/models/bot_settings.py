@@ -31,6 +31,7 @@ class Bot_settings(Base):
     # Messenger (Facebook) channel fields
     messenger_bot_status        = Column(String, nullable=True, default='inactive')
     messenger_page_id           = Column(String, nullable=True)
+    messenger_page_username     = Column(String, nullable=True)
     messenger_page_access_token = Column(String, nullable=True)
     messenger_app_id            = Column(String, nullable=True)
     messenger_app_secret        = Column(String, nullable=True)

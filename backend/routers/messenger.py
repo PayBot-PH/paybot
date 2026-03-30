@@ -25,6 +25,7 @@ router = APIRouter(prefix="/api/v1/messenger", tags=["messenger"])
 class MessengerConfigUpdate(BaseModel):
     messenger_bot_status: Optional[str] = None
     messenger_page_id: Optional[str] = None
+    messenger_page_username: Optional[str] = None
     messenger_page_access_token: Optional[str] = None
     messenger_app_id: Optional[str] = None
     messenger_app_secret: Optional[str] = None
@@ -44,6 +45,7 @@ def _config_response(obj) -> dict:
         "id": obj.id,
         "messenger_bot_status": obj.messenger_bot_status or "inactive",
         "messenger_page_id": obj.messenger_page_id or "",
+        "messenger_page_username": obj.messenger_page_username or "",
         "messenger_page_access_token": obj.messenger_page_access_token or "",
         "messenger_app_id": obj.messenger_app_id or "",
         "messenger_app_secret": obj.messenger_app_secret or "",

@@ -29,6 +29,7 @@ import {
   Globe,
   Webhook,
   Key,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -42,6 +43,7 @@ interface MessengerConfig {
   id?: number;
   messenger_bot_status: string;
   messenger_page_id: string;
+  messenger_page_username: string;
   messenger_page_access_token: string;
   messenger_app_id: string;
   messenger_app_secret: string;
@@ -51,6 +53,7 @@ interface MessengerConfig {
 const EMPTY_CONFIG: MessengerConfig = {
   messenger_bot_status: 'inactive',
   messenger_page_id: '',
+  messenger_page_username: '',
   messenger_page_access_token: '',
   messenger_app_id: '',
   messenger_app_secret: '',
@@ -311,6 +314,55 @@ export default function MessengerPage() {
                 </CardContent>
               </Card>
 
+              {/* m.me Link */}
+              {localConfig.messenger_page_username && (
+                <Card className="bg-card border-border">
+                  <CardHeader>
+                    <CardTitle className="text-foreground flex items-center space-x-2">
+                      <ExternalLink className="h-5 w-5 text-blue-400" />
+                      <span>Messenger Link</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Share this link so users can start a conversation with your page on Messenger.
+                    </p>
+                    <div className="bg-muted/60 rounded-lg p-3 space-y-1">
+                      <p className="text-xs text-muted-foreground">m.me link</p>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={`https://m.me/${localConfig.messenger_page_username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-mono text-blue-400 hover:underline break-all flex-1"
+                        >
+                          https://m.me/{localConfig.messenger_page_username}
+                        </a>
+                        <button
+                          onClick={() =>
+                            copyToClipboard(
+                              `https://m.me/${localConfig.messenger_page_username}`,
+                              'm.me link copied'
+                            )
+                          }
+                          className="text-muted-foreground hover:text-foreground shrink-0"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        <a
+                          href={`https://m.me/${localConfig.messenger_page_username}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-foreground shrink-0"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Page Information */}
               <Card className="bg-card border-border">
                 <CardHeader>
@@ -520,6 +572,21 @@ export default function MessengerPage() {
                         onChange={(e) => setLocalConfig((prev) => ({ ...prev, messenger_page_id: e.target.value }))}
                         className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-sm"
                       />
+                    </div>
+                    <div>
+                      <Label className="text-muted-foreground">Page Username</Label>
+                      <div className="relative mt-1">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none">m.me/</span>
+                        <Input
+                          placeholder="paybotph"
+                          value={localConfig.messenger_page_username}
+                          onChange={(e) => setLocalConfig((prev) => ({ ...prev, messenger_page_username: e.target.value }))}
+                          className="pl-[3.25rem] bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-sm"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Your Facebook Page username (the part after <code className="bg-muted px-1 rounded">m.me/</code>). Used to generate your shareable Messenger link.
+                      </p>
                     </div>
                     <div>
                       <Label className="text-muted-foreground">Page Access Token</Label>
