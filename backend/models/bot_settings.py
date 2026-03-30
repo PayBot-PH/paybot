@@ -28,5 +28,12 @@ class Bot_settings(Base):
     # Bot behaviour
     maintenance_mode            = Column(String, nullable=True, default='off')
     commands_enabled            = Column(Text, nullable=True)   # JSON array of command names
+    # Messenger (Facebook) channel fields
+    messenger_bot_status        = Column(String, nullable=True, default='inactive')
+    messenger_page_id           = Column(String, nullable=True)
+    messenger_page_access_token = Column(String, nullable=True)
+    messenger_app_id            = Column(String, nullable=True)
+    messenger_app_secret        = Column(String, nullable=True)
+    messenger_verify_token      = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), nullable=True)

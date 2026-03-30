@@ -126,6 +126,9 @@ export default function Layout({ children, connected }: LayoutProps) {
             ...(permissions?.can_manage_bot || isSuperAdmin
               ? [{ to: '/bot-settings', icon: Bot, label: t('nav_bot_settings') }]
               : []),
+            ...(permissions?.can_manage_bot || isSuperAdmin
+              ? [{ to: '/messenger', icon: MessageCircle, label: t('nav_messenger') }]
+              : []),
           ] as NavEntry[],
         }]
       : []),
