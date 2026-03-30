@@ -16,6 +16,7 @@ import {
   DollarSign,
   Clock,
   CheckCircle,
+  XCircle,
   Bot,
   Wallet,
   CreditCard,
@@ -31,7 +32,7 @@ import {
   Zap,
   ShieldCheck,
   RefreshCw,
-  Banknote,
+  Activity,
   MessageSquare,
   Sun,
   Sunset,
@@ -138,8 +139,17 @@ function StatCard({
     ? 'bg-red-100 dark:bg-red-500/15'
     : 'bg-blue-100 dark:bg-blue-500/15';
 
+  const accentBorderMap: Record<string, string> = {
+    emerald: 'border-t-2 border-t-emerald-400 dark:border-t-emerald-500',
+    amber:   'border-t-2 border-t-amber-400 dark:border-t-amber-500',
+    red:     'border-t-2 border-t-red-400 dark:border-t-red-500',
+  };
+  const accentBorder =
+    Object.entries(accentBorderMap).find(([key]) => color.includes(key))?.[1] ??
+    'border-t-2 border-t-blue-400 dark:border-t-blue-500';
+
   return (
-    <Card className="bg-card border-border hover:shadow-md transition-all duration-200">
+    <Card className={`bg-card border-border hover:shadow-md transition-all duration-200 ${accentBorder}`}>
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
@@ -392,14 +402,14 @@ export default function Dashboard() {
         </Link>
 
         <StatCard label="Total Transactions" value={stats.total_count} sub={`₱${fmt(stats.total_amount || 0)}`}
-          icon={<TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />} color="text-foreground" loading={loading} />
+          icon={<Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />} color="text-foreground" loading={loading} />
         <StatCard label="Paid" value={stats.paid_count} sub={`₱${fmt(stats.paid_amount || 0)}`}
           icon={<CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />} color="text-emerald-600 dark:text-emerald-400" loading={loading} />
         <StatCard label="Pending" value={stats.pending_count} sub={`₱${fmt(stats.pending_amount || 0)}`}
           icon={<Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />} color="text-amber-600 dark:text-amber-400" loading={loading} />
         <StatCard label="Expired" value={stats.expired_count}
           sub={stats.expired_count > 0 ? `of ${stats.total_count} total` : undefined}
-          icon={<Banknote className="h-5 w-5 text-red-600 dark:text-red-400" />} color="text-red-600 dark:text-red-400" loading={loading} />
+          icon={<XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />} color="text-red-600 dark:text-red-400" loading={loading} />
       </div>
 
       {/* ═══════════════════════════════════════════════
@@ -473,7 +483,7 @@ export default function Dashboard() {
               {[
                 { to: '/payments',      icon: CreditCard,   label: 'Payments Hub',  bg: 'bg-blue-50 dark:bg-blue-500/10',     text: 'text-blue-600 dark:text-blue-400',     hover: 'hover:bg-blue-100 dark:hover:bg-blue-500/20' },
                 { to: '/disbursements', icon: Send,          label: 'Disbursements', bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', hover: 'hover:bg-emerald-100 dark:hover:bg-emerald-500/20' },
-                { to: '/transactions',  icon: RefreshCw,     label: 'Transactions',  bg: 'bg-cyan-50 dark:bg-cyan-500/10',     text: 'text-cyan-600 dark:text-cyan-400',     hover: 'hover:bg-cyan-100 dark:hover:bg-cyan-500/20' },
+                { to: '/transactions',  icon: FileText,      label: 'Transactions',  bg: 'bg-cyan-50 dark:bg-cyan-500/10',     text: 'text-cyan-600 dark:text-cyan-400',     hover: 'hover:bg-cyan-100 dark:hover:bg-cyan-500/20' },
                 { to: '/reports',       icon: PieChart,      label: 'Analytics',     bg: 'bg-violet-50 dark:bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400', hover: 'hover:bg-violet-100 dark:hover:bg-violet-500/20' },
                 { to: '/wallet',        icon: Wallet,        label: 'Wallet',        bg: 'bg-indigo-50 dark:bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400', hover: 'hover:bg-indigo-100 dark:hover:bg-indigo-500/20' },
                 { to: '/disbursements', icon: RotateCcw,     label: 'Refunds',       bg: 'bg-orange-50 dark:bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', hover: 'hover:bg-orange-100 dark:hover:bg-orange-500/20' },
@@ -514,7 +524,7 @@ export default function Dashboard() {
         <Card className="bg-card border-border lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
             <CardTitle className="text-foreground text-sm font-semibold flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <Activity className="h-4 w-4 text-muted-foreground" />
               Recent Transactions
             </CardTitle>
             <Link to="/transactions">
