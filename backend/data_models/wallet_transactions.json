@@ -1,0 +1,62 @@
+{
+    "title": "wallet_transactions",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID"
+        },
+        "wallet_id": {
+            "type": "integer",
+            "description": "Associated wallet ID"
+        },
+        "transaction_type": {
+            "type": "string",
+            "description": "Type: top_up, send, withdraw, receive"
+        },
+        "amount": {
+            "type": "number",
+            "description": "Transaction amount"
+        },
+        "balance_before": {
+            "type": "number",
+            "description": "Balance before transaction"
+        },
+        "balance_after": {
+            "type": "number",
+            "description": "Balance after transaction"
+        },
+        "recipient": {
+            "type": "string",
+            "description": "Recipient identifier for send transactions"
+        },
+        "note": {
+            "type": "string",
+            "description": "Optional note or description"
+        },
+        "status": {
+            "type": "string",
+            "description": "Transaction status: completed, pending, failed"
+        },
+        "reference_id": {
+            "type": "string",
+            "description": "Reference to external transaction"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id",
+        "wallet_id",
+        "transaction_type",
+        "amount"
+    ]
+}

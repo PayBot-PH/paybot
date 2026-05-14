@@ -1,0 +1,57 @@
+{
+    "title": "refunds",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID"
+        },
+        "transaction_id": {
+            "type": "integer",
+            "description": "Original transaction ID"
+        },
+        "external_id": {
+            "type": "string",
+            "description": "External reference ID"
+        },
+        "xendit_id": {
+            "type": "string",
+            "description": "Xendit refund ID"
+        },
+        "amount": {
+            "type": "number",
+            "description": "Refund amount"
+        },
+        "reason": {
+            "type": "string",
+            "description": "Refund reason"
+        },
+        "status": {
+            "type": "string",
+            "description": "Status: pending, completed, failed"
+        },
+        "refund_type": {
+            "type": "string",
+            "description": "Type: full, partial"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        },
+        "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id",
+        "amount"
+    ]
+}

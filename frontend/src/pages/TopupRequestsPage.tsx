@@ -1,0 +1,436 @@
+import { useEffect, useState, useCallback } from 'react';
+import Layout from '@/components/Layout';
+import { CheckCircle, XCircle, Clock, Eye, RefreshCw, DollarSign, TrendingUp } from 'lucide-react';
+
+interface TopupRequest {
+  id: number;
+  chat_id: string;
+  telegram_username: string | null;
+  amount_usdt: number;
+  receipt_file_id: string | null;
+  status: string;
+  note: string | null;
+  approved_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+const statusConfig: Record<string, { color: string; dot: string; icon: React.ReactNode }> = {
+  pending:  { color: 'bg-amber-500/20 text-amber-400 border-amber-500/30',   dot: 'bg-amber-400',   icon: <Clock className="h-3.5 w-3.5" /> },
+  approved: { color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400', icon: <CheckCircle className="h-3.5 w-3.5" /> },
+  rejected: { color: 'bg-red-500/20 text-red-400 border-red-500/30',         dot: 'bg-red-400',     icon: <XCircle className="h-3.5 w-3.5" /> },
+};
+
+const fmt_time = (s: string | null) => s ? new Date(s).toLocaleString() : '—';
+
+export default function TopupRequestsPage() {
+  const [requests, setRequests] = useState<TopupRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<string>('pending');
+  const [actionLoading, setActionLoading] = useState<number | null>(null);
+  const [note, setNote] = useState('');
+  const [activeId, setActiveId] = useState<number | null>(null);
+  const [error, setError] = useState('');
+  const [usdtPhpRate, setUsdtPhpRate] = useState<number>(58.0);
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateInput, setRateInput] = useState('');
+  const [rateEditMode, setRateEditMode] = useState(false);
+  const [liveRateLoading, setLiveRateLoading] = useState(false);
+  const [liveRate, setLiveRate] = useState<number | null>(null);
+  const [trc20Address, setTrc20Address] = useState('');
+  const [addressLoading, setAddressLoading] = useState(false);
+  const [addressInput, setAddressInput] = useState('');
+  const [addressEditMode, setAddressEditMode] = useState(false);
+
+  const fetchRate = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/app-settings/usdt-php-rate');
+      if (res.ok) {
+        const d = await res.json();
+        setUsdtPhpRate(d.rate);
+        setRateInput(String(d.rate));
+      }
+    } catch (e) { console.error(e); }
+  }, []);
+
+  const fetchLiveRate = async () => {
+    setLiveRateLoading(true); setError('');
+    try {
+      const res = await fetch('/api/v1/app-settings/usdt-php-rate/live');
+      if (res.ok) {
+        const d = await res.json();
+        setLiveRate(d.rate);
+        setRateInput(d.rate.toFixed(2));
+        if (!rateEditMode) setRateEditMode(true);
+      } else {
+        const d = await res.json();
+        setError(d.detail || 'Failed to fetch live rate.');
+      }
+    } catch (e: any) { setError(e.message || 'Failed to fetch live rate.'); }
+    setLiveRateLoading(false);
+  };
+
+  const fetchAddress = useCallback(async () => {
+    try {
+      const res = await fetch('/api/v1/app-settings/usdt-trc20-address');
+      if (res.ok) {
+        const d = await res.json();
+        setTrc20Address(d.address);
+        setAddressInput(d.address);
+      } else {
+        setError('Failed to load TRC20 deposit address.');
+      }
+    } catch (e) { console.error(e); setError('Failed to load TRC20 deposit address.'); }
+  }, []);
+
+  const saveRate = async () => {
+    const parsed = parseFloat(rateInput);
+    if (!parsed || parsed <= 0) { setError('Rate must be a positive number.'); return; }
+    setRateLoading(true); setError('');
+    try {
+      const res = await fetch('/api/v1/app-settings/usdt-php-rate', {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rate: parsed }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setUsdtPhpRate(d.rate);
+        setRateInput(String(d.rate));
+        setRateEditMode(false);
+        setLiveRate(null);
+      } else {
+        const d = await res.json();
+        setError(d.detail || 'Failed to update rate');
+      }
+    } catch (e: any) { setError(e.message); }
+    setRateLoading(false);
+  };
+
+  const cancelRateEdit = () => {
+    setRateEditMode(false);
+    setRateInput(String(usdtPhpRate));
+    setLiveRate(null);
+  };
+
+  const saveAddress = async () => {
+    const addr = addressInput.trim();
+    if (!addr) { setError('Address must not be empty.'); return; }
+    if (!addr.startsWith('T') || addr.length !== 34) {
+      setError("Invalid TRC20 address. Must start with 'T' and be exactly 34 characters.");
+      return;
+    }
+    setAddressLoading(true); setError('');
+    try {
+      const res = await fetch('/api/v1/app-settings/usdt-trc20-address', {
+        method: 'PUT', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address: addr }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        setTrc20Address(d.address);
+        setAddressInput(d.address);
+        setAddressEditMode(false);
+      } else {
+        const d = await res.json();
+        setError(d.detail || 'Failed to update address');
+      }
+    } catch (e: any) { setError(e.message); }
+    setAddressLoading(false);
+  };
+
+  const fetchRequests = useCallback(async () => {
+    setLoading(true);
+    try {
+      const url = filter ? `/api/v1/topup?status=${filter}` : '/api/v1/topup';
+      const res = await fetch(url, { credentials: 'include' });
+      if (res.ok) { const d = await res.json(); setRequests(d.items || []); }
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  }, [filter]);
+
+  useEffect(() => {
+    fetchRate();
+    fetchAddress();
+    fetchRequests();
+    const id = setInterval(fetchRequests, 30000);
+    return () => clearInterval(id);
+  }, [fetchRate, fetchAddress, fetchRequests]);
+
+  const doAction = async (id: number, action: 'approve' | 'reject') => {
+    setActionLoading(id); setError('');
+    try {
+      const res = await fetch(`/api/v1/topup/${id}/${action}`, {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: note || (action === 'approve' ? 'Approved' : 'Rejected by admin') }),
+      });
+      if (res.ok) {
+        setNote(''); setActiveId(null);
+        fetchRequests();
+      } else {
+        const d = await res.json();
+        setError(d.detail || `Failed to ${action}`);
+      }
+    } catch (e: any) { setError(e.message); }
+    setActionLoading(null);
+  };
+
+  const pending_count = requests.filter(r => r.status === 'pending').length;
+
+  return (
+    <Layout>
+      <div className="space-y-5">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-xl font-bold text-foreground flex items-center gap-2 flex-wrap">
+              Topup Requests
+              {pending_count > 0 && (
+                <span className="bg-amber-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{pending_count}</span>
+              )}
+            </h1>
+            <p className="text-muted-foreground text-sm mt-0.5">Review and approve USDT TRC20 → PHP wallet top-ups</p>
+          </div>
+          <button onClick={fetchRequests}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm border border-border px-3 py-1.5 rounded-lg transition-colors shrink-0">
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </button>
+        </div>
+
+        {/* Exchange rate card */}
+        <div className="bg-background border border-blue-500/20 rounded-2xl p-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                <TrendingUp className="h-4 w-4 text-blue-400" />
+              </div>
+              <div>
+                <p className="text-muted-foreground text-xs">USDT → PHP Exchange Rate</p>
+                {rateEditMode ? (
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-muted-foreground text-sm">₱</span>
+                    <input
+                      type="number"
+                      value={rateInput}
+                      onChange={e => setRateInput(e.target.value)}
+                      step="0.01"
+                      min="0.01"
+                      className="w-28 bg-muted border border-border rounded-lg px-2 py-1 text-sm text-foreground focus:outline-none focus:border-blue-500/50"
+                    />
+                    <span className="text-muted-foreground text-xs">PHP per USDT</span>
+                  </div>
+                ) : (
+                  <p className="text-foreground font-bold text-lg">₱{usdtPhpRate.toFixed(2)} <span className="text-muted-foreground text-sm font-normal">per USDT</span></p>
+                )}
+                {liveRate !== null && (
+                  <p className="text-blue-400 text-xs mt-0.5">Live market rate: ₱{liveRate.toFixed(2)} <span className="text-muted-foreground">(CoinGecko)</span></p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={fetchLiveRate}
+                disabled={liveRateLoading}
+                className="text-xs px-3 py-1.5 rounded-lg border border-blue-500/30 text-blue-400 hover:bg-blue-500/10 disabled:opacity-50 transition-colors">
+                {liveRateLoading ? 'Fetching…' : 'Live Rate'}
+              </button>
+              {rateEditMode ? (
+                <>
+                  <button
+                    onClick={saveRate}
+                    disabled={rateLoading}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white disabled:opacity-50 transition-colors">
+                    {rateLoading ? 'Saving…' : 'Save Rate'}
+                  </button>
+                  <button
+                    onClick={cancelRateEdit}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setRateEditMode(true)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                  Edit Rate
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* TRC20 deposit address card */}
+        <div className="bg-background border border-teal-500/20 rounded-2xl p-4">
+          <div className="flex items-start justify-between flex-wrap gap-3">
+            <div className="flex items-start gap-3 min-w-0 flex-1">
+              <div className="h-9 w-9 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center shrink-0">
+                <DollarSign className="h-4 w-4 text-teal-400" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-muted-foreground text-xs">USDT TRC20 Deposit Address</p>
+                {addressEditMode ? (
+                  <input
+                    type="text"
+                    value={addressInput}
+                    onChange={e => setAddressInput(e.target.value)}
+                    placeholder="T… (34-char TRC20 address)"
+                    className="mt-1 w-full bg-muted border border-border rounded-lg px-2 py-1 text-sm text-foreground font-mono focus:outline-none focus:border-teal-500/50"
+                  />
+                ) : (
+                  <p className="text-foreground font-mono text-sm mt-0.5 break-all">{trc20Address || '—'}</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {addressEditMode ? (
+                <>
+                  <button
+                    onClick={saveAddress}
+                    disabled={addressLoading}
+                    className="text-xs px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white disabled:opacity-50 transition-colors">
+                    {addressLoading ? 'Saving…' : 'Save Address'}
+                  </button>
+                  <button
+                    onClick={() => { setAddressEditMode(false); setAddressInput(trc20Address); }}
+                    className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setAddressEditMode(true)}
+                  className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors">
+                  Edit Address
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="overflow-x-auto [overflow-scrolling:touch]">
+          <div className="flex gap-2 min-w-max">
+          {['pending', 'approved', 'rejected', ''].map((s) => (
+            <button key={s || 'all'} onClick={() => setFilter(s)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
+                filter === s ? 'bg-blue-600 text-white' : 'bg-muted text-muted-foreground hover:text-white'
+              }`}>
+              {s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All'}
+            </button>
+          ))}
+          </div>
+        </div>
+
+        {error && <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/25 rounded-xl px-4 py-3">{error}</p>}
+
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-background border border-border/40 rounded-2xl p-4 animate-pulse">
+                <div className="flex items-center gap-4">
+                  <div className="h-10 w-10 rounded-xl bg-muted/50" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-32 bg-muted/50 rounded" />
+                    <div className="h-3 w-48 bg-muted/30 rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : requests.length === 0 ? (
+          <div className="bg-background border border-border/40 rounded-2xl p-12 flex flex-col items-center text-center">
+            <div className="h-12 w-12 bg-muted rounded-2xl flex items-center justify-center mb-3">
+              <DollarSign className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-muted-foreground font-medium">No {filter} requests</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {requests.map(req => {
+              const sc = statusConfig[req.status] || statusConfig.pending;
+              const isActive = activeId === req.id;
+              const phpEquivalent = (req.amount_usdt * usdtPhpRate).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              return (
+                <div key={req.id} className="bg-background border border-border/40 rounded-2xl overflow-hidden">
+                  <div className="p-4 flex items-start gap-4">
+                    <div className="h-10 w-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                      <DollarSign className="h-5 w-5 text-emerald-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-foreground font-semibold">
+                          {req.telegram_username ? `@${req.telegram_username}` : req.chat_id}
+                        </p>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-medium ${sc.color}`}>
+                          {sc.icon} {req.status}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground text-sm mt-0.5">
+                        <span className="text-emerald-400 font-bold">${req.amount_usdt.toFixed(2)} USDT</span>
+                        <span className="text-muted-foreground mx-1">→</span>
+                        <span className="text-blue-400 font-semibold">₱{phpEquivalent} PHP</span>
+                        {' · '}Request #{req.id}
+                        {' · '}{fmt_time(req.created_at)}
+                      </p>
+                      {req.note && <p className="text-muted-foreground text-xs mt-1">Note: {req.note}</p>}
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className={`text-xs ${req.receipt_file_id ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {req.receipt_file_id ? '📎 Receipt uploaded' : '⚠️ No receipt yet'}
+                        </span>
+                        {req.receipt_file_id && (
+                          <a href={`/api/v1/telegram/file/${req.receipt_file_id}`}
+                            target="_blank" rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1 transition-colors">
+                            <Eye className="h-3 w-3" /> View
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    {req.status === 'pending' && (
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button onClick={() => setActiveId(isActive ? null : req.id)}
+                          className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:border-slate-400 transition-colors">
+                          {isActive ? 'Cancel' : 'Review'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action panel */}
+                  {isActive && req.status === 'pending' && (
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3">
+                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-3 py-2 mb-3 text-xs text-blue-300">
+                        💱 Approving will credit <strong>₱{phpEquivalent} PHP</strong> to the user's wallet
+                        {' '}(${req.amount_usdt.toFixed(2)} USDT × ₱{usdtPhpRate.toFixed(2)} rate)
+                      </div>
+                      <p className="text-muted-foreground text-xs mb-2">Add a note (optional):</p>
+                      <input
+                        value={note} onChange={e => setNote(e.target.value)}
+                        placeholder="e.g. Receipt verified, transaction confirmed"
+                        className="w-full bg-muted/60 border border-border/40 rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-500/50 mb-3"
+                      />
+                      <div className="flex gap-2">
+                        <button onClick={() => doAction(req.id, 'approve')}
+                          disabled={actionLoading === req.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold py-2 rounded-xl transition-colors text-sm">
+                          {actionLoading === req.id ? <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                          Approve & Credit ₱{phpEquivalent} PHP
+                        </button>
+                        <button onClick={() => doAction(req.id, 'reject')}
+                          disabled={actionLoading === req.id}
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-red-600/80 hover:bg-red-600 disabled:opacity-50 text-white font-semibold py-2 rounded-xl transition-colors text-sm">
+                          <XCircle className="h-4 w-4" /> Reject
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </Layout>
+  );
+}

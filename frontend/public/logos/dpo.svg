@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Medium blue — clearly distinct from BSP navy and PCI red -->
+  <circle cx="50" cy="50" r="50" fill="#0F62A8"/>
+  <!-- Outer ring -->
+  <circle cx="50" cy="50" r="47" fill="none" stroke="rgba(255,255,255,0.45)" stroke-width="1.5"/>
+  <!-- Inner ring -->
+  <circle cx="50" cy="50" r="40.5" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+  <!-- Privacy eye symbol — ellipse lens -->
+  <path d="M23 37 Q50 20 77 37 Q50 54 23 37Z"
+        fill="none" stroke="white" stroke-width="2.5" stroke-linejoin="round" opacity="0.92"/>
+  <!-- Pupil (outer white ring) -->
+  <circle cx="50" cy="37" r="7.5" fill="white" opacity="0.92"/>
+  <!-- Pupil inner (blue cutout for depth) -->
+  <circle cx="50" cy="37" r="3.5" fill="#0F62A8"/>
+  <!-- "NPC" bold white, centered below eye -->
+  <text x="50" y="63" text-anchor="middle" dominant-baseline="middle"
+        font-family="'Arial Black',Arial,sans-serif" font-weight="900"
+        font-size="18" fill="white">NPC</text>
+  <!-- "PHILIPPINES" small -->
+  <text x="50" y="75" text-anchor="middle"
+        font-family="Arial,Helvetica,sans-serif" font-size="6" font-weight="600"
+        fill="rgba(255,255,255,0.75)" letter-spacing="0.5">PHILIPPINES</text>
+  <!-- "DPO · REGISTERED" tiny -->
+  <text x="50" y="85" text-anchor="middle"
+        font-family="Arial,Helvetica,sans-serif" font-size="5.8" font-weight="500"
+        fill="rgba(255,255,255,0.58)" letter-spacing="0.4">DPO · REGISTERED</text>
+</svg>
