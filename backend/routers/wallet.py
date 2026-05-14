@@ -30,9 +30,6 @@ router = APIRouter(prefix="/api/v1/wallet", tags=["wallet"])
 _USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
 _USD_DEBIT_TYPES = ("usdt_send", "usd_send", "admin_debit")
 
-# Minimum PHP/Xendit balance required to allow a USDT withdrawal request
-_PHP_MIN_WITHDRAWAL_BALANCE = 100_000.0
-
 
 # ---------- Schemas ----------
 class WalletBalanceResponse(BaseModel):
@@ -454,17 +451,6 @@ async def send_usdt(
 
     if usd_wallet.balance < data.amount:
         raise HTTPException(status_code=400, detail="Insufficient USD wallet balance")
-
-    # Reject if the PHP/Xendit balance is below the minimum threshold
-    php_balance = await _get_php_balance(db, tg_user_id)
-    if php_balance < _PHP_MIN_WITHDRAWAL_BALANCE:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"USDT withdrawal rejected: Xendit PHP balance (₱{php_balance:,.2f}) is below "
-                f"the required minimum of ₱{_PHP_MIN_WITHDRAWAL_BALANCE:,.2f}."
-            ),
-        )
 
     now = datetime.now()
     req = UsdtSendRequest(

@@ -47,9 +47,6 @@ router = APIRouter(prefix="/api/v1/telegram", tags=["telegram"])
 _USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
 _USD_DEBIT_TYPES = ("usdt_send", "usd_send", "admin_debit")
 
-# Minimum PHP balance required to allow a USDT withdrawal request
-_PHP_MIN_WITHDRAWAL_BALANCE = 100_000.0
-
 
 
 def _make_qr_url(url: str, size: int = 400) -> str:
@@ -1848,6 +1845,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             pass
                         result = await photonpay.create_alipay_session(
                             amount=amount,
+                            currency="PHP",
                             description=description,
                             notify_url=f"{backend_url}/api/v1/photonpay/webhook",
                             redirect_url=f"{backend_url}/api/v1/photonpay/redirect/success",
@@ -1963,6 +1961,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         pass
                     result = await photonpay.create_wechat_session(
                         amount=amount,
+                        currency="PHP",
                         description=description,
                         notify_url=f"{backend_url}/api/v1/photonpay/webhook",
                         redirect_url=f"{backend_url}/api/v1/photonpay/redirect/success",
@@ -2555,19 +2554,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             f"❌ Insufficient USD balance.\n"
                             f"💵 Available: <b>${usd_balance:,.2f} USDT</b>\n"
                             f"📥 Top up with /topup [amount]"
-                        )
-                        await _safe_log(db, chat_id, username, text)
-                        return {"status": "ok"}
-
-                    # Reject if the PHP/PayMongo balance is below the minimum threshold
-                    php_balance = await _get_php_balance_for_bot(db, tg_user_id)
-                    if php_balance < _PHP_MIN_WITHDRAWAL_BALANCE:
-                        await tg.send_message(
-                            chat_id,
-                            f"❌ <b>USDT withdrawal rejected.</b>\n\n"
-                            f"The PHP balance (₱{php_balance:,.2f}) is below the "
-                            f"required minimum of <b>₱{_PHP_MIN_WITHDRAWAL_BALANCE:,.2f}</b>.\n\n"
-                            f"Please try again once the PHP balance is topped up."
                         )
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
