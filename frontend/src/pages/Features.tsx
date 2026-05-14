@@ -33,7 +33,7 @@ import {
   Layers,
   BadgeCheck,
 } from 'lucide-react';
-import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
+import { APP_NAME, COMPANY_NAME, SUPPORT_LINKS, SUPPORT_URL } from '@/lib/brand';
 
 /* ─── Screenshot gallery ─────────────────────────────────────── */
 function PaymentsHubMockup() {
@@ -620,166 +620,24 @@ export default function Features() {
               </>
             )}
           </div>
-          <p className="text-slate-500 text-xs text-center mt-3">
-            {DEMO_YOUTUBE_ID ? (
-              <>Embedded YouTube demo · Contact{' '}</>
-            ) : (
-              <>Video demo coming soon · Contact{' '}</>
-            )}
-            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" aria-label="Contact traxionpay on Telegram" className="text-sky-400 hover:text-sky-300 transition-colors">
-              @traxionpay
-            </a>{' '}
-            for a live walkthrough
-          </p>
-        </div>
-      </section>
-
-      {/* Payment Methods */}
-      <section className="max-w-6xl mx-auto px-4 pb-20">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full px-4 py-1.5 text-emerald-300 text-xs font-semibold mb-4 uppercase tracking-wider">
-            <Layers className="h-3.5 w-3.5" /> Accepted Methods
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white">Supports All Major PH Payment Channels</h2>
-          <p className="text-slate-400 mt-3 max-w-xl mx-auto">
-            From e-wallets to bank virtual accounts — collect payments the way your customers prefer.
-          </p>
-        </div>
-
-        {/* E-Wallets row */}
-        <div className="mb-6">
-          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider text-center mb-4">E-Wallets</p>
-          <div className="flex flex-wrap justify-center gap-3">
-            {[
-              { src: '/logos/gcash.svg', label: 'GCash', bg: 'bg-blue-500/10 border-blue-500/20' },
-              { src: '/logos/maya.svg', label: 'Maya', bg: 'bg-green-500/10 border-green-500/20' },
-              { src: '/logos/grab.svg', label: 'GrabPay', bg: 'bg-green-600/10 border-green-600/20' },
-              { src: '/logos/alipay.svg', label: 'Alipay', bg: 'bg-sky-500/10 border-sky-500/20' },
-              { src: '/logos/wechat.svg', label: 'WeChat Pay', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-            ].map(({ src, label, bg }) => (
-              <LogoPill key={label} src={src} label={label} bg={bg} />
-            ))}
-          </div>
-        </div>
-
-        {/* Banks row */}
-        <div>
-          <p className="text-slate-500 text-xs font-semibold uppercase tracking-wider text-center mb-4">Virtual Accounts (Bank Transfer)</p>
-          <div className="flex flex-wrap justify-center gap-3">
-            {[
-              { src: '/logos/bdo.svg', label: 'BDO', bg: 'bg-blue-700/10 border-blue-700/20' },
-              { src: '/logos/bpi.svg', label: 'BPI', bg: 'bg-red-500/10 border-red-500/20' },
-              { src: '/logos/unionbank.svg', label: 'UnionBank', bg: 'bg-orange-500/10 border-orange-500/20' },
-              { src: '/logos/rcbc.svg', label: 'RCBC', bg: 'bg-yellow-600/10 border-yellow-600/20' },
-              { src: '/logos/metrobank.svg', label: 'Metrobank', bg: 'bg-blue-800/10 border-blue-800/20' },
-              { src: '/logos/psbank.svg', label: 'PSBank', bg: 'bg-slate-500/10 border-slate-500/20' },
-            ].map(({ src, label, bg }) => (
-              <LogoPill key={label} src={src} label={label} bg={bg} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Stats bar */}
-      <section className="border-y border-white/5 bg-white/[0.02]">
-        <div className="max-w-6xl mx-auto px-4 py-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
-            {[
-              { icon: <Lock className="h-5 w-5 text-emerald-400 mx-auto mb-2" />, label: 'Telegram Auth Only', sub: 'Secure by design' },
-              { icon: <Zap className="h-5 w-5 text-amber-400 mx-auto mb-2" />, label: 'PH Payment Gateways', sub: 'Multiple payment options' },
-              { icon: <Monitor className="h-5 w-5 text-blue-400 mx-auto mb-2" />, label: 'Mobile Friendly', sub: 'Works on any device' },
-              { icon: <CheckCircle2 className="h-5 w-5 text-sky-400 mx-auto mb-2" />, label: '7 Payment Methods', sub: 'VA, QR, eWallet & more' },
-            ].map((b) => (
-              <div key={b.label} className="py-2">
-                {b.icon}
-                <p className="text-white text-sm font-semibold">{b.label}</p>
-                <p className="text-slate-500 text-xs mt-0.5">{b.sub}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Bot features */}
-      <section className="max-w-6xl mx-auto px-4 py-20">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 rounded-full px-4 py-1.5 text-blue-300 text-xs font-semibold mb-4 uppercase tracking-wider">
-            <Bot className="h-3.5 w-3.5" /> Telegram Bot
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white">Everything via Telegram</h2>
-          <p className="text-slate-400 mt-3 max-w-xl mx-auto">
-            22 commands covering the full payment lifecycle — no app install required.
-          </p>
-        </div>
-
-        {/* Command quick-reference */}
-        <div className="mb-10 rounded-2xl bg-slate-900/60 border border-slate-700/40 overflow-hidden">
-          <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-800/60 border-b border-slate-700/40">
-            <Terminal className="h-3.5 w-3.5 text-slate-400" />
-            <span className="text-slate-400 text-xs font-medium">Common Commands</span>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-0 divide-y sm:divide-y-0 sm:divide-x divide-slate-700/30">
-            {[
-              { cmd: '/invoice', desc: 'Create a payment invoice', color: 'text-blue-400' },
-              { cmd: '/qr', desc: 'Generate a QR code payment', color: 'text-purple-400' },
-              { cmd: '/alipay', desc: 'Alipay / WeChat QR payment', color: 'text-red-400' },
-              { cmd: '/paylink', desc: 'Generate a payment link', color: 'text-cyan-400' },
-              { cmd: '/va', desc: 'Create a virtual bank account', color: 'text-amber-400' },
-              { cmd: '/balance', desc: 'Check your wallet balance', color: 'text-emerald-400' },
-              { cmd: '/disburse', desc: 'Send money to a bank account', color: 'text-orange-400' },
-              { cmd: '/refund', desc: 'Refund a transaction', color: 'text-rose-400' },
-              { cmd: '/transactions', desc: 'View recent transactions', color: 'text-slate-300' },
-            ].map(({ cmd, desc, color }) => (
-              <div key={cmd} className="flex items-center gap-3 px-4 py-3">
-                <code className={`text-xs font-mono font-bold ${color} shrink-0`}>{cmd}</code>
-                <span className="text-slate-500 text-xs">{desc}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {botFeatures.map((f) => <FeatureCard key={f.title} {...f} />)}
-        </div>
-      </section>
-
-      {/* Admin features */}
-      <section className="max-w-6xl mx-auto px-4 pb-20">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 bg-purple-500/10 border border-purple-500/20 rounded-full px-4 py-1.5 text-purple-300 text-xs font-semibold mb-4 uppercase tracking-wider">
-            <Monitor className="h-3.5 w-3.5" /> Admin Dashboard
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white">Powerful Web Dashboard</h2>
-          <p className="text-slate-400 mt-3 max-w-xl mx-auto">
-            A full admin portal accessible only to authorized Telegram accounts.
-          </p>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {adminFeatures.map((f) => <FeatureCard key={f.title} {...f} />)}
-        </div>
-      </section>
-
-      {/* CTA */}
-      <section className="max-w-6xl mx-auto px-4 pb-24">
-        <div className="relative overflow-hidden bg-gradient-to-br from-blue-900/50 via-slate-800/60 to-purple-900/30 border border-blue-700/30 rounded-3xl p-10 md:p-16 text-center">
-          <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 to-transparent pointer-events-none" />
-          <div className="relative">
-            <div className="h-14 w-14 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-5 shadow-2xl shadow-blue-500/30">
-              <Bot className="h-7 w-7 text-white" />
-            </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-3">Ready to get started?</h2>
-            <p className="text-slate-400 mb-8 max-w-md mx-auto">
-              Sign in with your authorized Telegram account to access the {APP_NAME} admin dashboard.
+          <div className="text-slate-500 text-center mt-3 space-y-3">
+            <p className="text-xs">
+              {DEMO_YOUTUBE_ID ? (
+                <>Embedded YouTube demo · Contact{' '}</>
+              ) : (
+                <>Video demo coming soon · Contact{' '}</>
+              )}
             </p>
-            <Link to="/login"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold px-8 py-3.5 rounded-xl transition-all shadow-xl shadow-blue-500/25">
-              Sign in with Telegram <ArrowRight className="h-4 w-4" />
-            </Link>
             <p className="mt-5 text-slate-500 text-sm">
               Need access?{' '}
-              <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 transition-colors">
-                Contact @traxionpay
-              </a>
+              {SUPPORT_LINKS.map((link, index) => (
+                <span key={link.handle}>
+                  <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 transition-colors">
+                    Contact {link.handle}
+                  </a>
+                  {index === SUPPORT_LINKS.length - 2 ? ' and ' : index < SUPPORT_LINKS.length - 1 ? ', ' : ''}
+                </span>
+              ))}
             </p>
           </div>
         </div>

@@ -7,7 +7,7 @@ import {
   UserPlus, Menu, X, Lock,
 } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
-import { APP_NAME, SUPPORT_URL } from '@/lib/brand';
+import { APP_NAME, SUPPORT_LINKS, SUPPORT_URL } from '@/lib/brand';
 import AppFooter from '@/components/AppFooter';
 
 declare global {
@@ -792,10 +792,15 @@ export default function Login() {
               </Link>
               <p className="text-[#595959] text-xs text-center pt-1">
                 Need access?{' '}
-                <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer"
-                  className="text-[#0070FF] hover:text-[#005FDD] transition-colors">
-                  Contact @traxionpay
-                </a>
+                {SUPPORT_LINKS.map((link, index) => (
+                <span key={link.handle}>
+                  <a href={link.href} target="_blank" rel="noopener noreferrer"
+                    className="text-[#0070FF] hover:text-[#005FDD] transition-colors">
+                    Contact {link.handle}
+                  </a>
+                  {index === SUPPORT_LINKS.length - 2 ? ' and ' : index < SUPPORT_LINKS.length - 1 ? ', ' : ''}
+                </span>
+              ))}
               </p>
             </div>
           </div>
