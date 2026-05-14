@@ -1,0 +1,200 @@
+name: Deploy to AWS Lightsail
+
+# DEPRECATED: Railway-only repo. This workflow is intentionally disabled.
+on: []
+
+env:
+  # Override AWS_REGION with a GitHub repository variable if needed.
+  AWS_REGION: ${{ vars.AWS_REGION || 'us-east-1' }}
+  # Lightsail Container Service name (e.g. "paybot").
+  # Set the LIGHTSAIL_SERVICE_NAME repository variable to enable Lightsail deploys.
+  SERVICE_NAME: ${{ vars.LIGHTSAIL_SERVICE_NAME || 'paybot' }}
+
+jobs:
+
+  # ── 1. Backend tests ────────────────────────────────────────────────────────
+  test-backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        working-directory: backend
+        run: python -m pytest tests/ -v --tb=short
+
+  # ── 2. Build & deploy to Lightsail Container Service ───────────────────────
+  deploy:
+    name: Build & Deploy to Lightsail
+    runs-on: ubuntu-latest
+    needs: test-backend
+    # Only run when the LIGHTSAIL_SERVICE_NAME repository variable is set.
+    # This lets this workflow coexist with Railway/ECS workflows on the same repo.
+    if: vars.LIGHTSAIL_SERVICE_NAME != ''
+    permissions:
+      contents: read
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── AWS authentication ─────────────────────────────────────────────────
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # ── Build Docker image ─────────────────────────────────────────────────
+      - name: Build Docker image
+        run: docker build -t paybot:latest .
+
+      # ── Push image to Lightsail's built-in container registry ──────────────
+      - name: Push image to Lightsail container registry
+        id: push
+        run: |
+          aws lightsail push-container-image \
+            --service-name "$SERVICE_NAME" \
+            --label paybot \
+            --image paybot:latest
+
+          # Lightsail assigns a version tag; retrieve the latest image reference.
+          IMAGE_NAME=$(aws lightsail get-container-images \
+            --service-name "$SERVICE_NAME" \
+            --query 'containerImages[0].image' \
+            --output text)
+          echo "image=$IMAGE_NAME" >> "$GITHUB_OUTPUT"
+
+      # ── Build the containers JSON with injected secrets ────────────────────
+      # Required secrets must be set in the repository / environment settings.
+      # Optional payment-gateway secrets are only injected when non-empty.
+      - name: Build containers JSON
+        id: containers
+        env:
+          IMAGE_NAME:             ${{ steps.push.outputs.image }}
+          DATABASE_URL:           ${{ secrets.DATABASE_URL }}
+          TELEGRAM_BOT_TOKEN:     ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_USERNAME:  ${{ secrets.TELEGRAM_BOT_USERNAME }}
+          TELEGRAM_ADMIN_IDS:     ${{ secrets.TELEGRAM_ADMIN_IDS }}
+          XENDIT_SECRET_KEY:      ${{ secrets.XENDIT_SECRET_KEY }}
+          JWT_SECRET_KEY:         ${{ secrets.JWT_SECRET_KEY }}
+          ADMIN_USER_PASSWORD:    ${{ secrets.ADMIN_USER_PASSWORD }}
+          PYTHON_BACKEND_URL:     ${{ secrets.PYTHON_BACKEND_URL }}
+          # Optional payment gateways (omit the var to skip)
+          PAYMONGO_SECRET_KEY:    ${{ secrets.PAYMONGO_SECRET_KEY }}
+          PAYMONGO_PUBLIC_KEY:    ${{ secrets.PAYMONGO_PUBLIC_KEY }}
+          PAYMONGO_WEBHOOK_SECRET: ${{ secrets.PAYMONGO_WEBHOOK_SECRET }}
+          PHOTONPAY_APP_ID:       ${{ secrets.PHOTONPAY_APP_ID }}
+          PHOTONPAY_APP_SECRET:   ${{ secrets.PHOTONPAY_APP_SECRET }}
+          PHOTONPAY_SITE_ID:      ${{ secrets.PHOTONPAY_SITE_ID }}
+          TRANSFI_API_KEY:        ${{ secrets.TRANSFI_API_KEY }}
+          TRANSFI_WEBHOOK_SECRET: ${{ secrets.TRANSFI_WEBHOOK_SECRET }}
+        run: |
+          # Default to SQLite when DATABASE_URL is not provided.
+          # Note: SQLite data is ephemeral — it is lost if the container is replaced.
+          # Use a managed PostgreSQL database for persistent production data.
+          DB_URL="${DATABASE_URL:-sqlite+aiosqlite:///./paybot.db}"
+
+          # Build the environment object; optional vars are merged in only when set.
+          ENV_JSON=$(jq -n \
+            --arg db_url         "$DB_URL" \
+            --arg tg_token       "$TELEGRAM_BOT_TOKEN" \
+            --arg tg_username    "$TELEGRAM_BOT_USERNAME" \
+            --arg tg_admins      "$TELEGRAM_ADMIN_IDS" \
+            --arg xendit_key     "$XENDIT_SECRET_KEY" \
+            --arg jwt_key        "$JWT_SECRET_KEY" \
+            --arg admin_pw       "$ADMIN_USER_PASSWORD" \
+            --arg backend_url    "$PYTHON_BACKEND_URL" \
+            --arg pm_secret      "$PAYMONGO_SECRET_KEY" \
+            --arg pm_public      "$PAYMONGO_PUBLIC_KEY" \
+            --arg pm_webhook     "$PAYMONGO_WEBHOOK_SECRET" \
+            --arg pp_app_id      "$PHOTONPAY_APP_ID" \
+            --arg pp_app_secret  "$PHOTONPAY_APP_SECRET" \
+            --arg pp_site_id     "$PHOTONPAY_SITE_ID" \
+            --arg tf_api_key     "$TRANSFI_API_KEY" \
+            --arg tf_webhook     "$TRANSFI_WEBHOOK_SECRET" \
+            '{
+              DATABASE_URL:         $db_url,
+              TELEGRAM_BOT_TOKEN:   $tg_token,
+              TELEGRAM_BOT_USERNAME: $tg_username,
+              TELEGRAM_ADMIN_IDS:   $tg_admins,
+              XENDIT_SECRET_KEY:    $xendit_key,
+              JWT_SECRET_KEY:       $jwt_key,
+              ADMIN_USER_PASSWORD:  $admin_pw,
+              PYTHON_BACKEND_URL:   $backend_url,
+              ENVIRONMENT:          "production",
+              PORT:                 "8000"
+            }
+            + (if $pm_secret    != "" then {PAYMONGO_SECRET_KEY:     $pm_secret}    else {} end)
+            + (if $pm_public    != "" then {PAYMONGO_PUBLIC_KEY:     $pm_public}    else {} end)
+            + (if $pm_webhook   != "" then {PAYMONGO_WEBHOOK_SECRET: $pm_webhook}   else {} end)
+            + (if $pp_app_id    != "" then {PHOTONPAY_APP_ID:        $pp_app_id}    else {} end)
+            + (if $pp_app_secret != "" then {PHOTONPAY_APP_SECRET:   $pp_app_secret} else {} end)
+            + (if $pp_site_id   != "" then {PHOTONPAY_SITE_ID:       $pp_site_id}   else {} end)
+            + (if $tf_api_key   != "" then {TRANSFI_API_KEY:         $tf_api_key}   else {} end)
+            + (if $tf_webhook   != "" then {TRANSFI_WEBHOOK_SECRET:  $tf_webhook}   else {} end)')
+
+          # Wrap in the top-level containers object expected by the Lightsail API.
+          CONTAINERS_JSON=$(jq -n \
+            --arg image "$IMAGE_NAME" \
+            --argjson env "$ENV_JSON" \
+            '{"paybot": {"image": $image, "environment": $env, "ports": {"8000": "HTTP"}}}')
+
+          echo "json=$CONTAINERS_JSON" >> "$GITHUB_OUTPUT"
+          # Also write to a temp file for safe shell interpolation in the next step.
+          echo "$CONTAINERS_JSON" > /tmp/containers.json
+
+      # ── Create the deployment ──────────────────────────────────────────────
+      - name: Deploy to Lightsail
+        run: |
+          PUBLIC_ENDPOINT='{"containerName":"paybot","containerPort":8000,"healthCheck":{"healthyThreshold":2,"unhealthyThreshold":2,"timeoutSeconds":5,"intervalSeconds":30,"path":"/health","successCodes":"200"}}'
+
+          aws lightsail create-container-service-deployment \
+            --service-name "$SERVICE_NAME" \
+            --containers "file:///tmp/containers.json" \
+            --public-endpoint "$PUBLIC_ENDPOINT"
+
+      # ── Wait for the deployment to stabilise ──────────────────────────────
+      - name: Wait for deployment to stabilise
+        run: |
+          echo "Waiting for deployment to reach RUNNING state…"
+          for i in $(seq 1 40); do
+            STATE=$(aws lightsail get-container-services \
+              --service-name "$SERVICE_NAME" \
+              --query 'containerServices[0].state' \
+              --output text)
+            if [ "$STATE" = "RUNNING" ]; then
+              URL=$(aws lightsail get-container-services \
+                --service-name "$SERVICE_NAME" \
+                --query 'containerServices[0].url' \
+                --output text)
+              echo "✅ Deployment complete!"
+              echo "🌐 App URL: $URL"
+              echo ""
+              echo "Next step: configure webhooks (Telegram, Xendit, PayMongo) to point to the URL above."
+              echo "See the Lightsail section in DEPLOYMENT.md for full post-deploy instructions."
+              exit 0
+            elif [ "$STATE" = "DEPLOYING" ] || [ "$STATE" = "UPDATING" ]; then
+              echo "  State: $STATE (attempt $i/40) — waiting 15 s…"
+              sleep 15
+            else
+              echo "❌ Unexpected state: $STATE"
+              exit 1
+            fi
+          done
+          echo "❌ Timed out waiting for deployment."
+          exit 1

@@ -1,0 +1,56 @@
+# PayBot — Demo / local development compose file
+#
+# Usage:
+#   1. Copy backend/.env.example to backend/.env and fill in your secrets.
+#   2. docker compose up -d
+#   3. docker compose exec app python -m alembic upgrade head
+#   4. Open http://localhost:8000 in your browser.
+#
+# Required variables in backend/.env (see backend/.env.example):
+#   TELEGRAM_BOT_TOKEN   – Token from @BotFather
+#   XENDIT_SECRET_KEY    – Xendit API secret key
+#   JWT_SECRET_KEY       – Random secret for signing admin JWTs
+#   ADMIN_USER_PASSWORD  – Password for the admin account
+#   TELEGRAM_ADMIN_IDS   – Comma-separated Telegram user IDs with admin access
+
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: paybot
+      POSTGRES_PASSWORD: paybot_dev_password
+      POSTGRES_DB: paybot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paybot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://paybot:paybot_dev_password@db:5432/paybot
+      PORT: "8000"
+      ENVIRONMENT: production
+    env_file:
+      - backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    # Run Alembic migrations before starting the server
+    command: >
+      sh -c "python -m alembic upgrade head &&
+             python -m uvicorn main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,37 @@
+{
+    "title": "wallets",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID"
+        },
+        "balance": {
+            "type": "number",
+            "description": "Current wallet balance"
+        },
+        "currency": {
+            "type": "string",
+            "description": "Currency code, default PHP"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        },
+        "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id",
+        "balance"
+    ]
+}
