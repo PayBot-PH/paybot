@@ -1836,6 +1836,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
                     photonpay = PhotonPayService()
+                    result = None
+                    use_xendit_fallback = False
+                    
                     if photonpay.is_configured:
                         backend_url = ""
                         try:
@@ -1883,8 +1886,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 except Exception:
                                     pass
                         else:
-                            await tg.send_message(chat_id, f"❌ Alipay payment failed: {result.get('error', 'Unknown error')}")
+                            logger.warning(f"PhotonPay Alipay failed: {result.get('error', 'Unknown error')} — trying Xendit fallback")
+                            use_xendit_fallback = True
                     else:
+                        use_xendit_fallback = True
+                    
+                    if use_xendit_fallback:
                         # Fallback: use Xendit QRIS (Alipay-compatible QR code)
                         xendit = XenditService()
                         if not xendit.secret_key:
@@ -1999,7 +2006,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             except Exception:
                                 pass
                     else:
-                        await tg.send_message(chat_id, f"❌ WeChat Pay failed: {result.get('error', 'Unknown error')}")
+                        error_msg = result.get('error', 'Unknown error')
+                        logger.warning(f"WeChat Pay failed: {error_msg}")
+                        await tg.send_message(
+                            chat_id,
+                            f"❌ <b>WeChat Pay temporarily unavailable.</b>\n\n"
+                            f"Error: <code>{error_msg[:100]}</code>\n\n"
+                            f"Please try again in a moment."
+                        )
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
