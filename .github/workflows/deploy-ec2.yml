@@ -1,10 +1,7 @@
 name: Deploy to AWS EC2
 
-# Triggers on push to main or manually via the Actions UI.
-on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+# DEPRECATED: Railway-only repo. This workflow is intentionally disabled.
+on: []
 
 # ─── Required GitHub Secrets ─────────────────────────────────────────────────
 # EC2_HOST        – Public IP or DNS name of your EC2 instance

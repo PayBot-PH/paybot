@@ -276,7 +276,6 @@ A full-featured web dashboard for managing everything visually:
 |-------------|-----|
 | **Local dev** (Vite dev server) | `http://localhost:3000` |
 | **Local / Docker** (backend serves built UI) | `http://localhost:8000` |
-| **AWS Lightsail** | `https://<service>.cs.amazonlightsail.com` |
 
 ---
 
@@ -340,64 +339,19 @@ docker build -t paybot .
 docker run -p 8000:8000 --env-file .env paybot
 ```
 
-### ☁️ Deploy to AWS (one command)
+### ☁️ Deploy to Railway
 
-> **Prerequisites:** [AWS CLI](https://aws.amazon.com/cli/) configured, [Docker](https://docs.docker.com/get-docker/), and [jq](https://stedolan.github.io/jq/) installed.
+Railway is the only supported production deployment for this repository.
 
-```bash
-./aws/setup.sh \
-  --telegram-token   "YOUR_BOT_TOKEN" \
-  --telegram-username "your_bot_username" \
-  --telegram-admin-ids "123456789" \
-  --xendit-key       "xnd_production_..." \
-  --github-repo      "PayBot-PH/paybot"   # optional: auto-sets CI/CD secrets
-```
+The GitHub Actions workflow in `.github/workflows/deploy.yml` runs on every push to `main` and deploys the app to Railway when `RAILWAY_TOKEN` and `RAILWAY_SERVICE_ID` are configured.
 
-The script provisions the full stack (VPC → RDS → ECR → ECS Fargate → ALB), builds and pushes the Docker image, registers the Telegram webhook, and prints the live URL — all in one command.  Passwords and JWT secrets are auto-generated and saved to `.env.aws`.
+To deploy:
 
-See [DEPLOYMENT.md → AWS Deployment](DEPLOYMENT.md#aws-deployment-ecs-fargate) for the full reference, including HTTPS setup, monitoring, and teardown.
+1. Push a commit to `main`
+2. Open GitHub Actions → `Deploy to Production`
+3. Verify the deployment succeeds and the Railway service is healthy
 
----
-
-## ☁️ Deploy on AWS Lightsail
-
-AWS Lightsail Container Service is the recommended production deployment — it handles HTTPS, load balancing, and a built-in container registry automatically.  Cost starts at **~$10/month** (micro, 1 GB RAM).
-
-### Step 1 — Provision the container service
-
-```bash
-# Clone the repo, then run the one-time setup script
-AWS_REGION=ap-southeast-1 \
-LIGHTSAIL_SERVICE_NAME=paybot \
-LIGHTSAIL_POWER=micro \
-bash lightsail/setup.sh
-```
-
-Add `CREATE_DB=true DB_PASSWORD=<password>` to also provision a managed PostgreSQL database (~$15/month extra, recommended for production).
-
-### Step 2 — Configure GitHub secrets & variables
-
-In **Settings → Secrets and variables → Actions** add:
-
-| Type | Name | Value |
-|------|------|-------|
-| Variable | `LIGHTSAIL_SERVICE_NAME` | `paybot` |
-| Variable | `AWS_REGION` | e.g. `ap-southeast-1` |
-| Secret | `AWS_ACCESS_KEY_ID` | IAM access key |
-| Secret | `AWS_SECRET_ACCESS_KEY` | IAM secret key |
-| Secret | `TELEGRAM_BOT_TOKEN` | From @BotFather |
-| Secret | `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram user IDs |
-| Secret | `JWT_SECRET_KEY` | `openssl rand -hex 32` |
-| Secret | `ADMIN_USER_PASSWORD` | Dashboard password |
-| Secret | `XENDIT_SECRET_KEY` | Xendit secret key |
-| Secret | `DATABASE_URL` | PostgreSQL URL (or omit for SQLite) |
-| Secret | `PYTHON_BACKEND_URL` | Lightsail service URL from Step 1 |
-
-### Step 3 — Deploy
-
-Push to `main` (or trigger manually via **Actions → Deploy to AWS Lightsail**).  The workflow builds the Docker image, pushes it, and deploys — all automatically.
-
-> 📖 See [DEPLOYMENT.md](DEPLOYMENT.md) for the complete guide including custom domains, scaling, and webhook configuration.
+For local development, continue using `bash start_app_v2.sh` or Docker.
 
 ---
 
@@ -406,8 +360,6 @@ Push to `main` (or trigger manually via **Actions → Deploy to AWS Lightsail**)
 ```
 paybot/
 ├── Dockerfile                        # Container config (multi-stage: React + Python)
-├── lightsail/                        # AWS Lightsail deployment helpers
-│   └── setup.sh                      # One-time infrastructure provisioning script
 ├── start_app_v2.sh                   # Local startup script
 ├── backend/                          # Python FastAPI backend
 │   ├── main.py                       # App entry point (auto-discovers routers)
@@ -536,7 +488,7 @@ curl https://your-domain.com/api/v1/telegram/bot-info
 
 | Problem | Solution |
 |---------|----------|
-| "No API Key detected" | Set `XENDIT_SECRET_KEY` in Lightsail secrets / environment variables |
+| "No API Key detected" | Set `XENDIT_SECRET_KEY` in Railway environment variables |
 | "TELEGRAM_BOT_TOKEN is not configured" | Set `TELEGRAM_BOT_TOKEN`; check via `GET /api/v1/telegram/debug-token-check` |
 | Bot shows "Not Connected" | Verify token: `https://api.telegram.org/bot<TOKEN>/getMe` |
 | Database errors | Check `DATABASE_URL` format: `postgresql+asyncpg://user:pass@host:5432/db`; run `alembic upgrade head` |
@@ -555,7 +507,7 @@ MIT License — see [LICENSE](LICENSE) for details.
 Special thanks to **Sir Den Russell "Camus" Leonardo** and the **DRL Solutions** team for their exceptional work on bot development and payment integration.
 
 **Powered by:**
-[Xendit](https://www.xendit.co/) · [PayMongo](https://www.paymongo.com/) · [Telegram Bot API](https://core.telegram.org/bots/api) · [AWS Lightsail](https://aws.amazon.com/lightsail/) · [shadcn/ui](https://ui.shadcn.com/)
+[Xendit](https://www.xendit.co/) · [PayMongo](https://www.paymongo.com/) · [Telegram Bot API](https://core.telegram.org/bots/api) · [shadcn/ui](https://ui.shadcn.com/)
 
 ---
 

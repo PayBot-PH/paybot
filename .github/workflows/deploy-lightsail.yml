@@ -1,14 +1,7 @@
 name: Deploy to AWS Lightsail
 
-# Trigger on every push to main (after passing tests) or manually.
-on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-      - 'railway.toml'
-      - 'railway.json'
-  workflow_dispatch:
+# DEPRECATED: Railway-only repo. This workflow is intentionally disabled.
+on: []
 
 env:
   # Override AWS_REGION with a GitHub repository variable if needed.
