@@ -1836,9 +1836,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Alipay payment"
                     photonpay = PhotonPayService()
-                    result = None
-                    use_xendit_fallback = False
-                    
                     if photonpay.is_configured:
                         backend_url = ""
                         try:
