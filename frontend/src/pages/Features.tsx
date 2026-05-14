@@ -33,7 +33,7 @@ import {
   Layers,
   BadgeCheck,
 } from 'lucide-react';
-import { APP_NAME, COMPANY_NAME, SUPPORT_URL } from '@/lib/brand';
+import { APP_NAME, COMPANY_NAME, SUPPORT_LINKS, SUPPORT_URL } from '@/lib/brand';
 
 /* ─── Screenshot gallery ─────────────────────────────────────── */
 function PaymentsHubMockup() {
@@ -626,9 +626,20 @@ export default function Features() {
             ) : (
               <>Video demo coming soon · Contact{' '}</>
             )}
-            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" aria-label="Contact traxionpay on Telegram" className="text-sky-400 hover:text-sky-300 transition-colors">
-              @traxionpay
-            </a>{' '}
+            {SUPPORT_LINKS.map((link, index) => (
+              <span key={link.handle}>
+                <a
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={`Contact ${link.handle} on Telegram`}
+                  className="text-sky-400 hover:text-sky-300 transition-colors"
+                >
+                  {link.handle}
+                </a>
+                {index === SUPPORT_LINKS.length - 2 ? ' and ' : index < SUPPORT_LINKS.length - 1 ? ', ' : ''}
+              </span>
+            ))}{' '}
             for a live walkthrough
           </p>
         </div>
@@ -777,9 +788,14 @@ export default function Features() {
             </Link>
             <p className="mt-5 text-slate-500 text-sm">
               Need access?{' '}
-              <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 transition-colors">
-                Contact @traxionpay
-              </a>
+              {SUPPORT_LINKS.map((link, index) => (
+                <span key={link.handle}>
+                  <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 transition-colors">
+                    Contact {link.handle}
+                  </a>
+                  {index === SUPPORT_LINKS.length - 2 ? ' and ' : index < SUPPORT_LINKS.length - 1 ? ', ' : ''}
+                </span>
+              ))}
             </p>
           </div>
         </div>

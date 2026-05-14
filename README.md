@@ -516,5 +516,5 @@ Special thanks to **Sir Den Russell "Camus" Leonardo** and the **DRL Solutions**
   <br/>
   <strong>PayBot Philippines</strong> — Built with ❤️ for Philippine merchants, businesses, and developers
   <br/>
-  <a href="https://t.me/traxionpay">@traxionpay</a> · <a href="https://t.me/traxionpay">Support</a>
+  <a href="https://t.me/lnspired">@lnspired</a> and <a href="https://t.me/mm6668mm">@mm6668mm</a> · <a href="https://t.me/lnspired">Support</a>
 </p>
