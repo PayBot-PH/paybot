@@ -620,12 +620,14 @@ export default function Features() {
               </>
             )}
           </div>
-          <p className="text-slate-500 text-xs text-center mt-3">
-            {DEMO_YOUTUBE_ID ? (
-              <>Embedded YouTube demo · Contact{' '}</>
-            ) : (
-              <>Video demo coming soon · Contact{' '}</>
-            )}
+          <div className="text-slate-500 text-center mt-3 space-y-3">
+            <p className="text-xs">
+              {DEMO_YOUTUBE_ID ? (
+                <>Embedded YouTube demo · Contact{' '}</>
+              ) : (
+                <>Video demo coming soon · Contact{' '}</>
+              )}
+            </p>
             <p className="mt-5 text-slate-500 text-sm">
               Need access?{' '}
               {SUPPORT_LINKS.map((link, index) => (
@@ -636,8 +638,6 @@ export default function Features() {
                   {index === SUPPORT_LINKS.length - 2 ? ' and ' : index < SUPPORT_LINKS.length - 1 ? ', ' : ''}
                 </span>
               ))}
-            </p>
-
             </p>
           </div>
         </div>
