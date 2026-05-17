@@ -1,0 +1,38 @@
+{
+  "family": "paybot",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "PLACEHOLDER",
+  "taskRoleArn": "PLACEHOLDER",
+  "containerDefinitions": [
+    {
+      "name": "paybot",
+      "image": "PLACEHOLDER",
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "PLACEHOLDER",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "paybot"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      },
+      "essential": true
+    }
+  ]
+}
