@@ -1685,10 +1685,6 @@ export default function AdminManagement() {
         {activeTab === 'usd-wallets' && isSuperAdmin && (
           <UsdWalletsTab onError={setError} />
         )}
-        {/* ── PHP Wallets Tab ── */}
-        {activeTab === 'php-wallets' && isSuperAdmin && (
-          <PhpWalletsTab onError={setError} />
-        )}
       </div>
     </Layout>
   );
