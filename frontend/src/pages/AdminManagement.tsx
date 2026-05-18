@@ -1393,17 +1393,11 @@ export default function AdminManagement() {
       id: 'php-wallets',
       label: 'PHP Wallets',
       icon: <WalletIcon className="h-3.5 w-3.5" />,
-    }] : []),
-    ...(isSuperAdmin ? [{
+    }, {
       id: 'usd-wallets',
       label: 'USD Wallets',
       icon: <WalletIcon className="h-3.5 w-3.5" />,
     }] : []),
-      ...(isSuperAdmin ? [{
-        id: 'php-wallets',
-        label: 'PHP Wallets',
-        icon: <WalletIcon className="h-3.5 w-3.5" />,
-      }] : []),
   ];
 
   return (
