@@ -200,6 +200,29 @@ export default function Login() {
       .catch(() => {});
   }, []);
 
+  // When a Turnstile token is obtained, optionally verify it server-side to set a verification cookie
+  useEffect(() => {
+    if (!turnstileToken) return;
+    const verify = async () => {
+      try {
+        const res = await fetch('/api/v1/auth/turnstile/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: turnstileToken }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setLocalError(data?.detail || 'Turnstile verification failed');
+          setTurnstileToken(null);
+        }
+      } catch (e) {
+        setLocalError('Turnstile verification failed');
+        setTurnstileToken(null);
+      }
+    };
+    verify();
+  }, [turnstileToken]);
+
   const scrollToLogin = () => {
     setMobileNavOpen(false);
     loginSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
