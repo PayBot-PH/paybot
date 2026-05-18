@@ -3,11 +3,16 @@ import asyncio
 import os
 import hashlib
 import hmac
+import tempfile
 import time
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
-os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:////tmp/test_paybot_{os.getpid()}.db")
+_tmp_db_dir = Path(tempfile.gettempdir())
+_os_db_path = _tmp_db_dir / f"test_paybot_{os.getpid()}.db"
+
+os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:///{_os_db_path.as_posix()}")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-ci")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "123456:TEST_BOT_TOKEN")
 os.environ.setdefault("TELEGRAM_ADMIN_IDS", "123456789")
@@ -1562,6 +1567,72 @@ class TestUsdtPhpConversion:
         note = r.json().get("note", "")
         # note should contain "USDT" and "PHP" conversion info
         assert "PHP" in note or "USDT" in note
+
+    def test_admin_php_wallet_adjust_credits_and_debits(self, client, auth_headers):
+        """Super admin can credit and debit a user's PHP wallet."""
+        import asyncio
+        from core.database import db_manager
+        from sqlalchemy import select
+        from models.wallets import Wallets
+        from models.wallet_transactions import Wallet_transactions
+
+        target_user_id = "tg-900123"
+
+        r1 = client.post(
+            f"/api/v1/wallet/admin/php-wallets/{target_user_id}/adjust",
+            json={"amount": 1500.0, "note": "Manual top-up"},
+            headers=auth_headers,
+        )
+        assert r1.status_code == 200
+        assert r1.json()["message"] == f"Successfully credited ₱1,500.00 PHP for {target_user_id}"
+        assert r1.json()["balance"] == pytest.approx(1500.0, abs=0.01)
+
+        r2 = client.post(
+            f"/api/v1/wallet/admin/php-wallets/{target_user_id}/adjust",
+            json={"amount": -500.0, "note": "Manual deduction"},
+            headers=auth_headers,
+        )
+        assert r2.status_code == 200
+        assert r2.json()["balance"] == pytest.approx(1000.0, abs=0.01)
+
+        async def verify():
+            async with db_manager.async_session_maker() as db:
+                wallet_res = await db.execute(
+                    select(Wallets).where(Wallets.user_id == target_user_id, Wallets.currency == "PHP")
+                )
+                wallet = wallet_res.scalar_one_or_none()
+                txn_res = await db.execute(
+                    select(Wallet_transactions)
+                    .where(Wallet_transactions.user_id == target_user_id)
+                    .order_by(Wallet_transactions.id.desc())
+                )
+                txns = txn_res.scalars().all()
+                return wallet, txns
+
+        wallet, txns = asyncio.run(verify())
+        assert wallet is not None
+        assert wallet.balance == pytest.approx(1000.0, abs=0.01)
+        assert any(t.transaction_type == "admin_credit" and t.amount == pytest.approx(1500.0, abs=0.01) for t in txns)
+        assert any(t.transaction_type == "admin_debit" and t.amount == pytest.approx(500.0, abs=0.01) for t in txns)
+
+    def test_admin_php_wallet_adjust_insufficient_balance_is_rejected(self, client, auth_headers):
+        """Debiting more than the PHP wallet balance should be rejected."""
+        target_user_id = "tg-900124"
+
+        r1 = client.post(
+            f"/api/v1/wallet/admin/php-wallets/{target_user_id}/adjust",
+            json={"amount": 100.0, "note": "Seed balance"},
+            headers=auth_headers,
+        )
+        assert r1.status_code == 200
+
+        r2 = client.post(
+            f"/api/v1/wallet/admin/php-wallets/{target_user_id}/adjust",
+            json={"amount": -200.0, "note": "Too much deduction"},
+            headers=auth_headers,
+        )
+        assert r2.status_code == 400
+        assert "Insufficient balance" in r2.json().get("detail", "")
 
 
 # ---------------------------------------------------------------------------

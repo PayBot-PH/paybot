@@ -4,13 +4,18 @@ import hashlib
 import hmac
 import json
 import os
+import tempfile
 import time
 import uuid
+from pathlib import Path
 
 import pytest
 
+_tmp_db_dir = Path(tempfile.gettempdir())
+_os_db_path = _tmp_db_dir / f"test_paymongo_{os.getpid()}.db"
+
 # Ensure test env vars are set before importing main
-os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:////tmp/test_paymongo_{os.getpid()}.db")
+os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:///{_os_db_path.as_posix()}")
 os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-ci")
 os.environ.setdefault("TELEGRAM_BOT_TOKEN", "123456:TEST_BOT_TOKEN")
 os.environ.setdefault("TELEGRAM_ADMIN_IDS", "123456789")

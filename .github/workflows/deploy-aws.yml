@@ -1,7 +1,8 @@
 name: Deploy to AWS
 
-# DEPRECATED: Railway-only repo. This workflow is intentionally disabled.
-on: []
+on:
+  push:
+    branches: [main]
 
 env:
   # Override AWS_REGION with a GitHub repository variable if needed.

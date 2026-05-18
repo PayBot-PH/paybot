@@ -72,7 +72,7 @@ interface CryptoTopupRequest {
   created_at: string | null;
 }
 
-type AdminTab = 'admins' | 'users' | 'roles' | 'crypto' | 'php-wallets' | 'usd-wallets';
+type AdminTab = 'admins' | 'users' | 'roles' | 'crypto' | 'usd-wallets' | 'php-wallets';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1214,6 +1214,158 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
   );
 }
 
+// ── PHP Wallets Tab (Super Admin Only) ───────────────────────────────────────
+
+interface PhpWalletEntry {
+  user_id: string;
+  telegram_username: string | null;
+  balance: number;
+  wallet_id: number;
+}
+
+function PhpWalletsTab({ onError }: { onError: (msg: string) => void }) {
+  const [wallets, setWallets] = useState<PhpWalletEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [adjusting, setAdjusting] = useState<string | null>(null);
+  const [adjustAmount, setAdjustAmount] = useState<Record<string, string>>({});
+  const [adjustNote, setAdjustNote] = useState<Record<string, string>>({});
+
+  const fetchWallets = async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/v1/wallet/admin/php-wallets');
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setWallets(data.items || []);
+    } catch (e: unknown) {
+      onError(e instanceof Error ? e.message : 'Failed to load PHP wallets');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchWallets(); }, []);
+
+  const handleAdjust = async (userId: string, isCredit: boolean) => {
+    const rawAmt = parseFloat(adjustAmount[userId] || '0');
+    if (!rawAmt || rawAmt <= 0) { onError('Enter a valid positive amount'); return; }
+    const amount = isCredit ? rawAmt : -rawAmt;
+    setAdjusting(userId);
+    try {
+      const encoded = encodeURIComponent(userId);
+      const res = await fetch(`/api/v1/wallet/admin/php-wallets/${encoded}/adjust`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount, note: adjustNote[userId] || '' }),
+      });
+      const data = await res.json();
+      if (!res.ok) { onError(data.detail || 'Adjustment failed'); return; }
+      setAdjustAmount(prev => ({ ...prev, [userId]: '' }));
+      setAdjustNote(prev => ({ ...prev, [userId]: '' }));
+      await fetchWallets();
+    } catch (e: unknown) {
+      onError(e instanceof Error ? e.message : 'Adjustment failed');
+    } finally {
+      setAdjusting(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {[1, 2, 3].map(i => (
+          <div key={i} className="h-24 rounded-xl bg-card border border-border animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (wallets.length === 0) {
+    return (
+      <Card className="bg-card border-border">
+        <CardContent className="flex flex-col items-center justify-center py-14 text-center">
+          <div className="h-14 w-14 rounded-2xl bg-muted/40 flex items-center justify-center mb-3">
+            <WalletIcon className="h-7 w-7 text-muted-foreground" />
+          </div>
+          <p className="text-foreground font-semibold text-sm">No PHP wallets yet</p>
+          <p className="text-muted-foreground text-xs mt-1">PHP wallets are created when users receive PHP credits.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-muted-foreground text-xs">
+        {wallets.length} PHP wallet{wallets.length !== 1 ? 's' : ''} — use Credit/Debit to adjust balances
+      </p>
+      {wallets.map(w => (
+        <Card key={w.wallet_id} className="bg-card border-border">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="h-9 w-9 rounded-xl bg-amber-500/15 border border-amber-500/25 flex items-center justify-center shrink-0">
+                  <WalletIcon className="h-4 w-4 text-amber-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-foreground font-semibold text-sm truncate">
+                    {w.telegram_username ? `@${w.telegram_username}` : w.user_id}
+                  </p>
+                  <p className="text-muted-foreground text-xs">{w.user_id}</p>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-amber-400 font-bold text-lg">₱{w.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                <p className="text-muted-foreground text-[10px]">PHP</p>
+              </div>
+            </div>
+
+            {/* Adjust form */}
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  placeholder="Amount"
+                  value={adjustAmount[w.user_id] || ''}
+                  onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
+                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/40 transition-colors"
+                />
+                <input
+                  type="text"
+                  placeholder="Note (optional)"
+                  value={adjustNote[w.user_id] || ''}
+                  onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
+                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500/40 transition-colors"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => handleAdjust(w.user_id, true)}
+                  disabled={adjusting === w.user_id}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3"
+                >
+                  {adjusting === w.user_id ? '...' : '+ Credit'}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => handleAdjust(w.user_id, false)}
+                  disabled={adjusting === w.user_id}
+                  className="flex-1 bg-red-700 hover:bg-red-800 text-white text-xs px-3"
+                >
+                  {adjusting === w.user_id ? '...' : '− Debit'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function AdminManagement() {
@@ -1397,6 +1549,11 @@ export default function AdminManagement() {
       label: 'USD Wallets',
       icon: <WalletIcon className="h-3.5 w-3.5" />,
     }] : []),
+      ...(isSuperAdmin ? [{
+        id: 'php-wallets',
+        label: 'PHP Wallets',
+        icon: <WalletIcon className="h-3.5 w-3.5" />,
+      }] : []),
   ];
 
   return (
@@ -1683,6 +1840,10 @@ export default function AdminManagement() {
         {/* ── USD Wallets Tab ── */}
         {activeTab === 'usd-wallets' && isSuperAdmin && (
           <UsdWalletsTab onError={setError} />
+        )}
+        {/* ── PHP Wallets Tab ── */}
+        {activeTab === 'php-wallets' && isSuperAdmin && (
+          <PhpWalletsTab onError={setError} />
         )}
       </div>
     </Layout>
