@@ -75,5 +75,5 @@ jobs:
         run: |
           set -e
           railway login --apiKey "$RAILWAY_API_KEY"
-          # Deploy the current directory to the specified project and environment
-          railway up --projectId "$RAILWAY_PROJECT_ID" --environment production --detach --yes
+          # Deploy the previously pushed GHCR image directly to Railway
+          railway up --project "$RAILWAY_PROJECT_ID" --environment production --image ghcr.io/${{ github.repository }}:latest --detach --yes
