@@ -25,6 +25,7 @@ from models.subscriptions import Subscriptions
 from schemas.auth import UserResponse
 from services.telegram_service import TelegramService, _resolve_bot_token
 from services.xendit_service import XenditService
+from services.maya_service import MayaService
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
 from services.photonpay_service import PhotonPayService
@@ -2118,8 +2119,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         "MAYA": "PH_MAYA", "PAYMAYA": "PH_MAYA", "PH_MAYA": "PH_MAYA",
                     }
                     channel = channel_map.get(provider, f"PH_{provider}")
-                    xendit = XenditService()
-                    result = await xendit.create_ewallet_charge(amount=amount, channel_code=channel)
+                    maya = MayaService()
+                    result = await maya.create_ewallet_charge(amount=amount, channel_code=channel)
                     if result.get("success"):
                         checkout = result.get("checkout_url", "")
                         reply = (
@@ -2133,7 +2134,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             now = datetime.now()
                             txn = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="ewallet",
-                                external_id=result.get("external_id", ""), xendit_id=result.get("charge_id", ""),
+                                external_id=result.get("external_id", ""), xendit_id=result.get("checkout_id", ""),
                                 amount=amount, currency="PHP", status="pending",
                                 description=f"E-Wallet: {provider}", payment_url=checkout,
                                 telegram_chat_id=chat_id, created_at=now, updated_at=now,

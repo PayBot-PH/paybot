@@ -7,7 +7,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/PayBot-Admin%20Dashboard-2563EB?style=for-the-badge&logo=telegram&logoColor=white" alt="PayBot" />
-  <img src="https://img.shields.io/badge/Payments-Xendit%20%7C%20PayMongo%20%7C%20PhotonPay-10B981?style=for-the-badge" alt="Payments" />
+  <img src="https://img.shields.io/badge/Payments-Maya%20Manager%20%7C%20PayMongo%20%7C%20PhotonPay-10B981?style=for-the-badge" alt="Payments" />
   <img src="https://img.shields.io/badge/Made%20for-Philippines-0EA5E9?style=for-the-badge" alt="Philippines" />
   <img src="https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge" alt="MIT License" />
 </p>
@@ -15,7 +15,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/TypeScript-React%2018-3178C6?style=flat-square&logo=typescript" />
   <img src="https://img.shields.io/badge/Python-FastAPI-009688?style=flat-square&logo=python" />
-  <img src="https://img.shields.io/badge/Xendit-API-5C6BC0?style=flat-square" />
+  <img src="https://img.shields.io/badge/Maya%20Manager-API-5C6BC0?style=flat-square" />
   <img src="https://img.shields.io/badge/PayMongo-API-E91E63?style=flat-square" />
   <img src="https://img.shields.io/badge/Telegram-Bot%20API-26A5E4?style=flat-square&logo=telegram" />
 </p>
@@ -445,7 +445,10 @@ curl https://your-domain.com/api/v1/telegram/bot-info
 | `TELEGRAM_BOT_USERNAME` | Bot username (without @) | ✅ |
 | `TELEGRAM_ADMIN_IDS` | Comma-separated super-admin Telegram IDs | ✅ |
 | `JWT_SECRET_KEY` | Secret key for JWT signing | ✅ |
-| `XENDIT_SECRET_KEY` | Xendit API secret key | ✅ |
+| `MAYA_SECRET_KEY` | Maya Manager API secret key | ✅ |
+| `MAYA_MODE` | Maya Manager mode (`sandbox` or `live`) | ❌ |
+| `MAYA_BASE_URL` | Optional override for Maya API base URL | ❌ |
+| `XENDIT_SECRET_KEY` | Xendit API secret key | ❌ |
 | `DATABASE_URL` | `postgresql+asyncpg://user:pass@host/db` | ✅ |
 | `PAYMONGO_SECRET_KEY` | PayMongo secret API key | ❌ |
 | `PAYMONGO_PUBLIC_KEY` | PayMongo public API key | ❌ |
@@ -498,6 +501,48 @@ curl https://your-domain.com/api/v1/telegram/bot-info
 ---
 
 ## 🐛 Troubleshooting
+
+## Secrets — Quick Setup Steps
+
+Add these exact secret names to GitHub Actions (Repository → Settings → Secrets and variables → Actions) and to your Railway project (Project → Variables) as noted.
+
+- `RAILWAY_API_KEY` — Railway project token for CI deploy.
+  - Get: Railway → Project → Settings → Tokens → New Token.
+  - Store: GitHub secret `RAILWAY_API_KEY`.
+
+- `RAILWAY_PROJECT_ID` — Railway project ID used by the deploy step.
+  - Get: Railway project → Settings → Project ID (or copy from URL).
+  - Store: GitHub secret `RAILWAY_PROJECT_ID`.
+
+- `VITE_TURNSTILE_SITE_KEY` — Cloudflare Turnstile site key (frontend build-time).
+  - Get: Cloudflare Dashboard → Turnstile → Site Key (docs: https://developers.cloudflare.com/turnstile/).
+  - Store: GitHub secret `VITE_TURNSTILE_SITE_KEY`.
+  - If you build with Docker directly, pass it as a build arg: `docker build --build-arg VITE_TURNSTILE_SITE_KEY=... .`
+
+- `CLOUDFLARE_TURNSTILE_SECRET_KEY` — Turnstile secret for server verification.
+  - Get: Cloudflare Dashboard → Turnstile → Secret Key.
+  - Store: Railway variable `CLOUDFLARE_TURNSTILE_SECRET_KEY` (runtime).
+
+- `CF_API_TOKEN` & `CF_ZONE_ID` — optional: Cloudflare API token and Zone ID for cache purge.
+  - Get token: Cloudflare → My Profile → API Tokens → Create Token (use Zone:Cache Purge template).
+  - Get zone: Cloudflare → Overview → Zone ID.
+  - Store: GitHub secrets `CF_API_TOKEN`, `CF_ZONE_ID`.
+
+- `TELEGRAM_BOT_TOKEN` — Bot token from @BotFather (used by backend).
+  - Get: Telegram → Message @BotFather → Manage bot → API Token.
+  - Store: Railway variable `TELEGRAM_BOT_TOKEN`.
+
+- `VITE_TELEGRAM_BOT_USERNAME` — Optional frontend bot username (without `@`).
+  - Get: @BotFather or bot profile → username.
+  - Store: GitHub secret `VITE_TELEGRAM_BOT_USERNAME`.
+
+- `TELEGRAM_ADMIN_IDS` — Comma-separated admin IDs or `@usernames`.
+  - Get numeric IDs via @userinfobot or from Telegram Login Widget network payload.
+  - Store: Railway variable `TELEGRAM_ADMIN_IDS`.
+
+- `JWT_SECRET_KEY`, `DATABASE_URL`, payment keys (Xendit / PayMongo) — generate or copy from provider dashboards and store in Railway variables.
+
+If you want, I can add step-by-step screenshots or open a PR updating `DEPLOYMENT.md` with exact UI paths for GitHub and Railway. 
 
 | Problem | Solution |
 |---------|----------|

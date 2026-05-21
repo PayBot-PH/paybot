@@ -16,6 +16,7 @@ from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from schemas.auth import UserResponse
 from services.xendit_service import XenditService
+from services.maya_service import MayaService
 from services.event_bus import payment_event_bus
 
 logger = logging.getLogger(__name__)
@@ -79,9 +80,9 @@ async def create_invoice(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a Xendit invoice"""
+    """Create a Maya Manager checkout invoice"""
     try:
-        service = XenditService()
+        service = MayaService()
         result = await service.create_invoice(
             amount=data.amount,
             description=data.description,
@@ -101,14 +102,14 @@ async def create_invoice(
             user_id=str(current_user.id),
             transaction_type="invoice",
             external_id=result.get("external_id", ""),
-            xendit_id=result.get("invoice_id", ""),
+            xendit_id=result.get("checkout_id", ""),
             amount=data.amount,
             currency="PHP",
             status="pending",
             description=data.description,
             customer_name=data.customer_name,
             customer_email=data.customer_email,
-            payment_url=result.get("invoice_url", ""),
+            payment_url=result.get("checkout_url", ""),
             created_at=now,
             updated_at=now,
         )
@@ -121,8 +122,8 @@ async def create_invoice(
             message="Invoice created successfully",
             data={
                 "transaction_id": txn.id,
-                "invoice_id": result.get("invoice_id", ""),
-                "invoice_url": result.get("invoice_url", ""),
+                "checkout_id": result.get("checkout_id", ""),
+                "checkout_url": result.get("checkout_url", ""),
                 "external_id": result.get("external_id", ""),
                 "amount": data.amount,
             },
@@ -139,51 +140,10 @@ async def create_qr_code(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a QR code payment"""
-    try:
-        service = XenditService()
-        result = await service.create_qr_code(
-            amount=data.amount,
-            description=data.description,
-        )
-
-        if not result.get("success"):
-            return PaymentResponse(
-                success=False,
-                message=result.get("error", "Failed to create QR code"),
-            )
-
-        now = datetime.now()
-        txn = Transactions(
-            user_id=str(current_user.id),
-            transaction_type="qr_code",
-            external_id=result.get("external_id", ""),
-            xendit_id=result.get("qr_id", ""),
-            amount=data.amount,
-            currency="PHP",
-            status="pending",
-            description=data.description,
-            qr_code_url=result.get("qr_string", ""),
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(txn)
-        await db.commit()
-        await db.refresh(txn)
-
-        return PaymentResponse(
-            success=True,
-            message="QR code created successfully",
-            data={
-                "transaction_id": txn.id,
-                "qr_id": result.get("qr_id", ""),
-                "qr_string": result.get("qr_string", ""),
-                "external_id": result.get("external_id", ""),
-                "amount": data.amount,
-            },
-        )
-    except Exception as e:
-        logger.error(f"Error creating QR code: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return PaymentResponse(
+        success=False,
+        message="Maya Manager checkout integration does not support QR code creation.",
+    )
 
 
 @router.post("/create-alipay-qr", response_model=PaymentResponse)
@@ -193,51 +153,10 @@ async def create_alipay_qr(
     db: AsyncSession = Depends(get_db),
 ):
     """Create an Alipay QR code payment"""
-    try:
-        service = XenditService()
-        result = await service.create_alipay_qr(
-            amount=data.amount,
-            description=data.description,
-        )
-
-        if not result.get("success"):
-            return PaymentResponse(
-                success=False,
-                message=result.get("error", "Failed to create Alipay QR code"),
-            )
-
-        now = datetime.now()
-        txn = Transactions(
-            user_id=str(current_user.id),
-            transaction_type="alipay_qr",
-            external_id=result.get("external_id", ""),
-            xendit_id=result.get("qr_id", ""),
-            amount=data.amount,
-            currency="PHP",
-            status="pending",
-            description=data.description,
-            qr_code_url=result.get("qr_string", ""),
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(txn)
-        await db.commit()
-        await db.refresh(txn)
-
-        return PaymentResponse(
-            success=True,
-            message="Alipay QR code created successfully",
-            data={
-                "transaction_id": txn.id,
-                "qr_id": result.get("qr_id", ""),
-                "qr_string": result.get("qr_string", ""),
-                "external_id": result.get("external_id", ""),
-                "amount": data.amount,
-            },
-        )
-    except Exception as e:
-        logger.error(f"Error creating Alipay QR code: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return PaymentResponse(
+        success=False,
+        message="Maya Manager checkout integration does not support Alipay QR code creation.",
+    )
 
 
 @router.post("/create-payment-link", response_model=PaymentResponse)
@@ -246,9 +165,9 @@ async def create_payment_link(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a payment link"""
+    """Create a Maya Manager checkout link"""
     try:
-        service = XenditService()
+        service = MayaService()
         result = await service.create_payment_link(
             amount=data.amount,
             description=data.description,
@@ -267,14 +186,14 @@ async def create_payment_link(
             user_id=str(current_user.id),
             transaction_type="payment_link",
             external_id=result.get("external_id", ""),
-            xendit_id=result.get("payment_link_id", ""),
+            xendit_id=result.get("checkout_id", ""),
             amount=data.amount,
             currency="PHP",
             status="pending",
             description=data.description,
             customer_name=data.customer_name,
             customer_email=data.customer_email,
-            payment_url=result.get("payment_link_url", ""),
+            payment_url=result.get("checkout_url", ""),
             created_at=now,
             updated_at=now,
         )
@@ -287,8 +206,8 @@ async def create_payment_link(
             message="Payment link created successfully",
             data={
                 "transaction_id": txn.id,
-                "payment_link_id": result.get("payment_link_id", ""),
-                "payment_link_url": result.get("payment_link_url", ""),
+                "checkout_id": result.get("checkout_id", ""),
+                "checkout_url": result.get("checkout_url", ""),
                 "external_id": result.get("external_id", ""),
                 "amount": data.amount,
             },
@@ -565,38 +484,25 @@ class FeeCalcRequest(BaseModel):
 async def get_xendit_balance(
     current_user: UserResponse = Depends(get_current_user),
 ):
-    """Get Xendit account balance"""
-    try:
-        service = XenditService()
-        result = await service.get_balance()
-        if not result.get("success"):
-            raise HTTPException(status_code=502, detail=result.get("error", "Failed to fetch balance"))
-        return {"success": True, "balance": result.get("balance", 0), "currency": "PHP"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching Xendit balance: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """Get Maya Manager account balance"""
+    service = MayaService()
+    result = await service.get_balance()
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error", "Balance lookup unavailable")}
+    return {"success": True, "balance": result.get("balance", 0), "currency": "PHP"}
 
 
-# ==================== AVAILABLE BANKS ====================
-
+# ==================== AVAILABLE BANKS ====
 @router.get("/available-banks")
 async def get_available_banks(
     current_user: UserResponse = Depends(get_current_user),
 ):
-    """Get list of available banks for virtual accounts and disbursements"""
-    try:
-        service = XenditService()
-        result = await service.get_available_banks()
-        if not result.get("success"):
-            raise HTTPException(status_code=502, detail=result.get("error", "Failed to fetch banks"))
-        return {"success": True, "banks": result.get("banks", [])}
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error fetching available banks: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """Get list of available banks"""
+    service = MayaService()
+    result = await service.get_available_banks()
+    if not result.get("success"):
+        return {"success": False, "error": result.get("error", "Bank list unavailable"), "banks": []}
+    return {"success": True, "banks": result.get("banks", [])}
 
 
 # ==================== FEE CALCULATOR ====================
@@ -625,47 +531,10 @@ async def create_virtual_account(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a virtual account payment"""
-    try:
-        service = XenditService()
-        result = await service.create_virtual_account(
-            amount=data.amount,
-            bank_code=data.bank_code,
-            name=data.name,
-        )
-        if not result.get("success"):
-            return PaymentResponse(success=False, message=result.get("error", "Failed to create virtual account"))
-        now = datetime.now()
-        txn = Transactions(
-            user_id=str(current_user.id),
-            transaction_type="virtual_account",
-            external_id=result.get("external_id", ""),
-            xendit_id=result.get("va_id", ""),
-            amount=data.amount,
-            currency="PHP",
-            status="pending",
-            description=f"VA: {data.bank_code} — {data.name}",
-            customer_name=data.name,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(txn)
-        await db.commit()
-        await db.refresh(txn)
-        return PaymentResponse(
-            success=True,
-            message="Virtual account created successfully",
-            data={
-                "transaction_id": txn.id,
-                "va_id": result.get("va_id", ""),
-                "account_number": result.get("account_number", ""),
-                "bank_code": data.bank_code,
-                "external_id": result.get("external_id", ""),
-                "amount": data.amount,
-            },
-        )
-    except Exception as e:
-        logger.error(f"Error creating virtual account: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return PaymentResponse(
+        success=False,
+        message="Maya Manager checkout integration does not support virtual account creation.",
+    )
 
 
 # ==================== E-WALLET CHARGE ====================
@@ -676,9 +545,9 @@ async def create_ewallet_charge(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create an e-wallet charge"""
+    """Create a Maya Manager e-wallet checkout"""
     try:
-        service = XenditService()
+        service = MayaService()
         result = await service.create_ewallet_charge(
             amount=data.amount,
             channel_code=data.channel_code,
@@ -691,7 +560,7 @@ async def create_ewallet_charge(
             user_id=str(current_user.id),
             transaction_type="ewallet",
             external_id=result.get("external_id", ""),
-            xendit_id=result.get("charge_id", ""),
+            xendit_id=result.get("checkout_id", ""),
             amount=data.amount,
             currency="PHP",
             status="pending",
@@ -708,7 +577,7 @@ async def create_ewallet_charge(
             message="E-wallet charge created successfully",
             data={
                 "transaction_id": txn.id,
-                "charge_id": result.get("charge_id", ""),
+                "checkout_id": result.get("checkout_id", ""),
                 "checkout_url": result.get("checkout_url", ""),
                 "external_id": result.get("external_id", ""),
                 "amount": data.amount,
@@ -728,53 +597,13 @@ async def create_disbursement(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a bank disbursement (send money)"""
-    try:
-        service = XenditService()
-        result = await service.create_disbursement(
-            amount=data.amount,
-            bank_code=data.bank_code,
-            account_number=data.account_number,
-            account_name=data.account_name,
-            description=data.description,
-        )
-        if not result.get("success"):
-            return PaymentResponse(success=False, message=result.get("error", "Failed to create disbursement"))
-        now = datetime.now()
-        disb = Disbursements(
-            user_id=str(current_user.id),
-            external_id=result.get("external_id", ""),
-            xendit_id=result.get("disbursement_id", ""),
-            amount=data.amount,
-            currency="PHP",
-            bank_code=data.bank_code,
-            account_number=data.account_number,
-            account_name=data.account_name,
-            description=data.description or "Disbursement",
-            status="pending",
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(disb)
-        await db.commit()
-        await db.refresh(disb)
-        return PaymentResponse(
-            success=True,
-            message="Disbursement created successfully",
-            data={
-                "disbursement_id": disb.id,
-                "xendit_id": result.get("disbursement_id", ""),
-                "external_id": result.get("external_id", ""),
-                "amount": data.amount,
-                "status": result.get("status", "pending"),
-            },
-        )
-    except Exception as e:
-        logger.error(f"Error creating disbursement: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return PaymentResponse(
+        success=False,
+        message="Maya Manager checkout integration does not support disbursements.",
+    )
 
 
-# ==================== REFUND ====================
-
+# ==================== REFUND ====
 @router.post("/create-refund", response_model=PaymentResponse)
 async def create_refund(
     data: CreateRefundRequest,
@@ -782,53 +611,7 @@ async def create_refund(
     db: AsyncSession = Depends(get_db),
 ):
     """Refund a transaction"""
-    try:
-        # Look up the original transaction
-        result = await db.execute(
-            select(Transactions).where(
-                Transactions.id == data.transaction_id,
-                Transactions.user_id == str(current_user.id),
-            )
-        )
-        txn = result.scalar_one_or_none()
-        if not txn:
-            raise HTTPException(status_code=404, detail="Transaction not found")
-
-        service = XenditService()
-        refund_result = await service.create_refund(
-            invoice_id=txn.xendit_id or txn.external_id,
-            amount=data.amount,
-            reason=data.reason,
-        )
-        if not refund_result.get("success"):
-            return PaymentResponse(success=False, message=refund_result.get("error", "Failed to create refund"))
-
-        now = datetime.now()
-        refund = Refunds(
-            user_id=str(current_user.id),
-            transaction_id=txn.id,
-            xendit_id=refund_result.get("refund_id", ""),
-            amount=data.amount,
-            reason=data.reason or "REQUESTED_BY_CUSTOMER",
-            status="pending",
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(refund)
-        await db.commit()
-        await db.refresh(refund)
-        return PaymentResponse(
-            success=True,
-            message="Refund created successfully",
-            data={
-                "refund_id": refund.id,
-                "xendit_id": refund_result.get("refund_id", ""),
-                "amount": data.amount,
-                "status": refund_result.get("status", "pending"),
-            },
-        )
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error creating refund: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return PaymentResponse(
+        success=False,
+        message="Maya Manager checkout integration does not support refunds through this route.",
+    )

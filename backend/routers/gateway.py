@@ -17,6 +17,7 @@ from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from schemas.auth import UserResponse
 from services.xendit_service import XenditService
+from services.maya_service import MayaService
 from services.paymongo_service import PayMongoService
 from services.event_bus import payment_event_bus
 
@@ -128,7 +129,7 @@ async def create_ewallet_charge(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        service = XenditService()
+        service = MayaService()
         result = await service.create_ewallet_charge(
             amount=data.amount, channel_code=data.channel_code, mobile_number=data.mobile_number,
         )
@@ -137,7 +138,7 @@ async def create_ewallet_charge(
         now = datetime.now()
         txn = Transactions(
             user_id=str(current_user.id), transaction_type="ewallet",
-            external_id=result.get("external_id", ""), xendit_id=result.get("charge_id", ""),
+            external_id=result.get("external_id", ""), xendit_id=result.get("checkout_id", ""),
             amount=data.amount, currency="PHP", status="pending",
             description=f"E-Wallet: {data.channel_code}",
             payment_url=result.get("checkout_url", ""), created_at=now, updated_at=now,
@@ -145,7 +146,7 @@ async def create_ewallet_charge(
         db.add(txn)
         await db.commit()
         return GatewayResponse(success=True, message="E-wallet charge created", data={
-            "transaction_id": txn.id, "charge_id": result.get("charge_id", ""),
+            "transaction_id": txn.id, "checkout_id": result.get("checkout_id", ""),
             "checkout_url": result.get("checkout_url", ""),
             "external_id": result.get("external_id", ""), "amount": data.amount,
         })

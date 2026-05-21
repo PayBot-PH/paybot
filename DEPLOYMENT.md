@@ -71,7 +71,9 @@ Railway will automatically create services based on your `railway.toml` configur
 |--------------|-------------|---------------|
 | `DATABASE_URL` | PostgreSQL connection string (auto-added by Railway) | `postgresql://user:pass@host:5432/db` |
 | `TELEGRAM_BOT_TOKEN` | Your Telegram bot token | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11` |
-| `XENDIT_SECRET_KEY` | Your Xendit API secret key | `xnd_production_...` |
+| `MAYA_SECRET_KEY` | Your Maya Manager API secret key | `maya_live_...` |
+| `MAYA_MODE` | Maya Manager mode (`sandbox` or `live`) | `sandbox` |
+| `MAYA_BASE_URL` | Optional Maya Manager base URL override | `https://...` |
 | `PYTHON_BACKEND_URL` | Your Railway backend public URL (for Telegram webhook) | `https://paybot-backend-production-84b2.up.railway.app` |
 | `JWT_SECRET_KEY` | Secret key for signing JWT tokens | Run `python -c "import secrets; print(secrets.token_hex(32))"` |
 | `ADMIN_USER_PASSWORD` | Password for admin dashboard login | `your_secure_password` |
@@ -94,6 +96,9 @@ Railway will automatically create services based on your `railway.toml` configur
 
 | Variable | Description |
 |----------|-------------|
+| `MAYA_SECRET_KEY` | Maya Manager secret key for checkout integration |
+| `MAYA_MODE` | Maya Manager mode (`sandbox` or `live`) |
+| `MAYA_BASE_URL` | Optional Maya Manager base URL override |
 | `PAYMONGO_SECRET_KEY` | PayMongo secret key (cards, GCash, GrabPay, Maya, Alipay, WeChat via PayMongo) |
 | `PAYMONGO_PUBLIC_KEY` | PayMongo public key |
 | `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret for signature verification |
@@ -176,6 +181,7 @@ Use these exact repository/environment secret names when configuring the `produc
 - `RAILWAY_API_KEY` — Railway project API key for production deployments.
 - `RAILWAY_PROJECT_ID` — Railway project ID used by the action to deploy the built GHCR image.
 - `VITE_TURNSTILE_SITE_KEY` — Cloudflare Turnstile site key injected into the frontend build.
+  - If you build the Docker image yourself, pass it as a build arg: `docker build --build-arg VITE_TURNSTILE_SITE_KEY=... .`
 - `CLOUDFLARE_TURNSTILE_SECRET_KEY` — Cloudflare Turnstile secret key used by backend runtime verification.
 - `CF_API_TOKEN` — Cloudflare API token for optional cache purge after deploy.
 - `CF_ZONE_ID` — Cloudflare Zone ID for optional cache purge after deploy.

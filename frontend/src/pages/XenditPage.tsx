@@ -439,12 +439,12 @@ export default function XenditPage() {
         {/* ── Header ─────────────────────────────────────────── */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-white">PayBot</h1>
+            <h1 className="text-2xl font-bold text-white">Maya Manager</h1>
             <p className="text-slate-400 text-sm mt-0.5">
-              Manage all PayBot payment operations from one place
+              Manage all Maya payment operations from one place
             </p>
           </div>
-          <Badge className="bg-blue-600 text-white">PayBot</Badge>
+          <Badge className="bg-blue-600 text-white">Maya</Badge>
         </div>
 
         {/* ── Balance + Fee Calculator ────────────────────────── */}
@@ -453,7 +453,7 @@ export default function XenditPage() {
           <Card className="bg-slate-800/60 border-slate-700">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm text-slate-400 flex items-center gap-2">
-                <Wallet className="h-4 w-4 text-blue-400" /> PayBot Balance
+                <Wallet className="h-4 w-4 text-blue-400" /> Maya Balance
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -734,7 +734,7 @@ export default function XenditPage() {
               {/* ── Refund ───────────────────────────────────── */}
               <TabsContent value="refund" className="space-y-3">
                 <p className="text-xs text-slate-400">
-                  Refund a previously paid PayBot invoice. Find the transaction ID in the Transactions page.
+                  Refund a previously paid Maya invoice. Find the transaction ID in the Transactions page.
                 </p>
                 <div className="space-y-1.5">
                   <Label>Transaction ID</Label>
@@ -787,7 +787,7 @@ export default function XenditPage() {
           <CardHeader>
             <CardTitle className="text-white text-sm flex items-center gap-2">
               <ArrowUpRight className="h-4 w-4 text-blue-400" />
-              Telegram Bot Commands — PayBot
+              Telegram Bot Commands — Maya
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -820,7 +820,7 @@ export default function XenditPage() {
           <CardHeader>
             <CardTitle className="text-white text-sm flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-amber-400" />
-              PayBot Fee Schedule (Philippines)
+              Maya Fee Schedule (Philippines)
             </CardTitle>
           </CardHeader>
           <CardContent>

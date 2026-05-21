@@ -80,6 +80,11 @@ class Settings(BaseSettings):
     telegram_bot_username: str = ""
     xendit_secret_key: str = ""
 
+    # Maya Manager Checkout API
+    maya_secret_key: str = ""
+    maya_mode: str = "sandbox"  # "sandbox" or "live"
+    maya_base_url: str = ""
+
     # Facebook Messenger API
     messenger_app_id: str = ""
     messenger_app_secret: str = ""
@@ -160,8 +165,10 @@ class Settings(BaseSettings):
             "telegram_bot_token",
             "telegram_bot_username",
             "xendit_secret_key",
+            "maya_secret_key",
             "paymongo_secret_key",
             "paymongo_public_key",
+            "cloudflare_turnstile_secret_key",
             "jwt_secret_key",
         ):
             val = getattr(self, field, None)

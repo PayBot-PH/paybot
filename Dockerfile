@@ -5,6 +5,11 @@ USER root
 
 WORKDIR /app/frontend
 
+ARG VITE_TURNSTILE_SITE_KEY=""
+ARG VITE_TELEGRAM_BOT_USERNAME=""
+ENV VITE_TURNSTILE_SITE_KEY=${VITE_TURNSTILE_SITE_KEY}
+ENV VITE_TELEGRAM_BOT_USERNAME=${VITE_TELEGRAM_BOT_USERNAME}
+
 # Enable and pin the exact pnpm version declared in package.json
 RUN corepack enable && corepack prepare pnpm@8.10.0 --activate
 

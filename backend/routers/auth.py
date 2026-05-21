@@ -427,8 +427,9 @@ async def turnstile_verify(payload: TurnstileVerifyRequest, request: Request, re
     if not valid:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Turnstile verification failed")
     secure = os.getenv("ENVIRONMENT", "prod").lower() not in ("dev", "development", "local")
-    response.set_cookie(key="turnstile_verified", value="1", httponly=True, secure=secure, max_age=86400, path="/")
-    return JSONResponse({"success": True})
+    resp = JSONResponse({"success": True})
+    resp.set_cookie(key="turnstile_verified", value="1", httponly=True, secure=secure, max_age=86400, path="/")
+    return resp
 
 
 @router.get("/telegram-login-config")
