@@ -19,7 +19,8 @@ from models.usdt_send_requests import UsdtSendRequest
 from models.admin_users import AdminUser
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
-from services.xendit_service import XenditService
+# Xendit has been removed; use Maya Manager where applicable or fall back to stored balances.
+from services.maya_service import MayaService
 from routers.app_settings import get_usdt_trc20_address
 
 logger = logging.getLogger(__name__)
@@ -270,20 +271,12 @@ async def get_balance(
     if currency_upper == "PHP":
         wallet = await get_or_create_wallet(db, user_id, "PHP")
 
-        # Super admin: sync balance from the realtime Xendit account balance
+        # Super admin: live gateway balance sync removed (Xendit deprecated).
+        # Maya Manager does not provide a balance endpoint via the checkout API,
+        # so we rely on the stored wallet balance here.
         perms = current_user.permissions
         if perms and perms.is_super_admin:
-            svc = XenditService()
-            xendit_result = await svc.get_balance()
-            if xendit_result.get("success"):
-                live_balance = float(xendit_result.get("balance", 0))
-                if live_balance != wallet.balance:
-                    wallet.balance = live_balance
-                    wallet.updated_at = datetime.now()
-                    await db.commit()
-                    await db.refresh(wallet)
-            else:
-                logger.warning("Xendit get_balance failed: %s", xendit_result.get("error"))
+            logger.debug("Live gateway balance sync disabled: using stored wallet balance for super admin")
 
         return WalletBalanceResponse(
             wallet_id=wallet.id,
@@ -669,8 +662,9 @@ async def create_topup(
     if req.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be greater than zero")
 
-    xendit = XenditService()
-    result = await xendit.create_invoice(
+    # Use Maya Manager to create a checkout/invoice for wallet top-up
+    maya = MayaService()
+    result = await maya.create_invoice(
         amount=req.amount,
         description=req.description or "Wallet Top Up",
         customer_name=req.customer_name,

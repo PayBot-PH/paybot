@@ -16,7 +16,7 @@ from models.customers import Customers
 from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from schemas.auth import UserResponse
-from services.xendit_service import XenditService
+# Xendit removed. Use Maya Manager for supported checkout flows.
 from services.maya_service import MayaService
 from services.paymongo_service import PayMongoService
 from services.event_bus import payment_event_bus
@@ -96,10 +96,8 @@ async def create_virtual_account(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        service = XenditService()
-        result = await service.create_virtual_account(amount=data.amount, bank_code=data.bank_code, name=data.name)
-        if not result.get("success"):
-            return GatewayResponse(success=False, message=result.get("error", "Failed"))
+        # Virtual Accounts are Xendit-specific and not supported by Maya Manager.
+        return GatewayResponse(success=False, message="Virtual accounts are not supported after removing Xendit. Use an alternative gateway.")
         now = datetime.now()
         txn = Transactions(
             user_id=str(current_user.id), transaction_type="virtual_account",
@@ -163,14 +161,8 @@ async def create_disbursement(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        service = XenditService()
-        result = await service.create_disbursement(
-            amount=data.amount, bank_code=data.bank_code,
-            account_number=data.account_number, account_name=data.account_name,
-            description=data.description,
-        )
-        if not result.get("success"):
-            return GatewayResponse(success=False, message=result.get("error", "Failed"))
+        # Disbursements are not supported via Maya Manager checkout integration.
+        return GatewayResponse(success=False, message="Disbursements are not supported after removing Xendit. Use an alternative payout provider.")
         now = datetime.now()
         disb = Disbursements(
             user_id=str(current_user.id), external_id=result.get("external_id", ""),
@@ -248,8 +240,9 @@ async def create_refund(
         if data.amount > txn.amount:
             return GatewayResponse(success=False, message="Refund amount exceeds transaction amount")
 
-        service = XenditService()
-        result = await service.create_refund(invoice_id=txn.xendit_id, amount=data.amount, reason=data.reason)
+        # Refunds via Xendit were removed. Maya Manager checkout integration
+        # does not support refunds via this API. Return an informative error.
+        return GatewayResponse(success=False, message="Refunds are not supported after removing Xendit. Operation not available.")
 
         now = datetime.now()
         refund_type = "full" if data.amount >= txn.amount else "partial"
@@ -438,7 +431,9 @@ async def list_customers(
 # ==================== FEE CALCULATION ====================
 @router.post("/calculate-fees")
 async def calculate_fees(data: FeeCalcRequest):
-    service = XenditService()
+    # Use Maya fee estimates (Xendit removed). Maya and our local fee table
+    # share the same `calculate_fees` signature.
+    service = MayaService()
     result = service.calculate_fees(data.amount, data.method)
     return result
 
@@ -448,11 +443,8 @@ async def calculate_fees(data: FeeCalcRequest):
 async def get_xendit_balance(
     current_user: UserResponse = Depends(get_current_user),
 ):
-    service = XenditService()
-    result = await service.get_balance()
-    if result.get("success"):
-        return {"success": True, "balance": result.get("balance", 0)}
-    return {"success": False, "error": result.get("error", "Failed")}
+    # Xendit has been removed; live balance lookup is unavailable.
+    return {"success": False, "error": "Xendit integration removed: balance lookup unavailable."}
 
 
 # ==================== PAYMONGO BALANCE ====================
@@ -478,11 +470,9 @@ async def get_paymongo_balance(
 async def get_available_banks(
     current_user: UserResponse = Depends(get_current_user),
 ):
-    service = XenditService()
-    result = await service.get_available_banks()
-    if result.get("success"):
-        return {"success": True, "banks": result.get("banks", [])}
-    return {"success": False, "banks": []}
+    # Available banks list was previously provided by Xendit. Not available
+    # when Xendit has been removed. Return empty list and a helpful message.
+    return {"success": False, "banks": [], "message": "Available bank list unavailable: Xendit integration removed."}
 
 
 # ==================== REPORTS & ANALYTICS ====================
@@ -619,8 +609,8 @@ async def expire_invoice(
     if txn.status != "pending":
         return GatewayResponse(success=False, message="Only pending transactions can be expired")
     if txn.xendit_id:
-        service = XenditService()
-        await service.expire_invoice(txn.xendit_id)
+        # Previously would expire invoices via Xendit. Xendit removed — skipping external expire.
+        logger.debug("Skipping external invoice expire: Xendit integration removed (txn.xendit_id=%s)", txn.xendit_id)
     txn.status = "expired"
     txn.updated_at = datetime.now()
     await db.commit()

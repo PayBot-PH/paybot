@@ -37,7 +37,8 @@ from schemas.auth import (
 )
 from services.auth import AuthService
 from services.telegram_service import TelegramService
-from services.xendit_service import XenditService
+# Xendit removed; KYC via Xendit is no longer performed. Maya Manager checkout
+# integration does not provide customer KYC creation via this API.
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -974,22 +975,10 @@ async def register(body: RegisterRequest, db: AsyncSession = Depends(get_db)):
             xendit_customer_id=None,
         )
 
-    # Create Xendit customer for KYC (best-effort)
+    # Xendit has been removed. Skip creating an external Xendit customer
+    # during KYB registration. The KYB record will be persisted locally and
+    # reviewed by an admin without external KYC linkage.
     xendit_customer_id: Optional[str] = None
-    try:
-        xendit = XenditService()
-        mobile = body.phone if body.phone.startswith("+") else f"{_PH_COUNTRY_CODE}{body.phone.lstrip('0')}"
-        result = await xendit.create_customer(
-            reference_id=ref_id,
-            given_names=body.full_name,
-            email=body.email,
-            mobile_number=mobile,
-            description=body.business_name or "",
-        )
-        if result.get("success"):
-            xendit_customer_id = result.get("customer_id")
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Xendit create_customer failed during registration: %s", exc)
 
     # Persist KYB record
     kyb = KybRegistration(

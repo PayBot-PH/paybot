@@ -24,7 +24,6 @@ from models.refunds import Refunds
 from models.subscriptions import Subscriptions
 from schemas.auth import UserResponse
 from services.telegram_service import TelegramService, _resolve_bot_token
-from services.xendit_service import XenditService
 from services.maya_service import MayaService
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
@@ -1734,7 +1733,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Invoice payment"
-                    xendit = XenditService()
+                    xendit = MayaService()
                     result = await xendit.create_invoice(amount=amount, description=description)
                     if result.get("success"):
                         invoice_url = result.get('invoice_url', '')
@@ -1788,7 +1787,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "QR payment"
-                    xendit = XenditService()
+                    xendit = MayaService()
                     result = await xendit.create_qr_code(amount=amount, description=description)
                     if result.get("success"):
                         reply = (
@@ -1887,7 +1886,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             await tg.send_message(chat_id, f"❌ Alipay payment failed: {result.get('error', 'Unknown error')}")
                     else:
                         # Fallback: use Xendit QRIS (Alipay-compatible QR code)
-                        xendit = XenditService()
+                        xendit = MayaService()
                         if not xendit.secret_key:
                             await tg.send_message(
                                 chat_id,
@@ -2017,7 +2016,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Payment link"
-                    xendit = XenditService()
+                    xendit = MayaService()
                     result = await xendit.create_payment_link(amount=amount, description=description)
                     if result.get("success"):
                         link_url = result.get('payment_link_url', '')
@@ -2069,7 +2068,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     bank_code = parts[2].upper()
-                    xendit = XenditService()
+                    xendit = MayaService()
                     result = await xendit.create_virtual_account(amount=amount, bank_code=bank_code, name=username)
                     if result.get("success"):
                         reply = (
@@ -2190,7 +2189,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     bank_code = parts[2].upper()
                     account_number = parts[3]
                     account_name = parts[4]
-                    xendit = XenditService()
+                    xendit = MayaService()
                     result = await xendit.create_disbursement(
                         amount=amount, bank_code=bank_code,
                         account_number=account_number, account_name=account_name,
@@ -2288,7 +2287,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     elif refund_amount > txn.amount:
                         await tg.send_message(chat_id, "❌ Refund amount exceeds transaction amount.")
                     else:
-                        xendit = XenditService()
+                        xendit = MayaService()
                         ref_result = await xendit.create_refund(invoice_id=txn.xendit_id, amount=refund_amount)
                         ref_type = "full" if refund_amount >= txn.amount else "partial"
                         if ref_result.get("success"):
@@ -2943,7 +2942,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 try:
                     amount = float(parts[1])
                     method = parts[2].lower()
-                    xendit = XenditService()
+                    xendit = MayaService()
                     fees = xendit.calculate_fees(amount, method)
                     reply = (
                         f"💱 <b>Fee Calculation</b>\n\n💰 Amount: ₱{amount:,.2f}\n📋 Method: {method}\n"
