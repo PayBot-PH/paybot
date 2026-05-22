@@ -489,34 +489,50 @@ class TestPayMongoGetBalance:
 # ---------------------------------------------------------------------------
 
 class TestSuperAdminWalletBalance:
-    """Test that the super admin's PHP wallet balance is synced from Xendit."""
+    """Test that the super admin's PHP wallet balance uses the stored wallet balance."""
 
-    def test_super_admin_balance_synced_from_xendit(self, client, auth_headers):
-        """Super admin's PHP wallet balance is updated from Xendit realtime balance."""
-        from unittest.mock import AsyncMock, patch, MagicMock
+    def test_super_admin_balance_uses_stored_wallet_balance(self, client, auth_headers):
+        """Super admin's PHP wallet balance is returned from the stored wallet row."""
+        import asyncio
+        from datetime import datetime
+        from core.database import db_manager
+        from models.wallets import Wallets
 
-        live_php_balance = 9876.50
+        user_id = "123456789"
+        stored_balance = 9876.50
 
-        mock_response = MagicMock()
-        mock_response.json.return_value = {"balance": live_php_balance}
-        mock_response.raise_for_status = MagicMock()
+        async def seed_wallet():
+            from sqlalchemy import select
 
-        with patch("httpx.AsyncClient") as mock_client_cls:
-            mock_client = AsyncMock()
-            mock_client.get = AsyncMock(return_value=mock_response)
-            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-            mock_client.__aexit__ = AsyncMock(return_value=False)
-            mock_client_cls.return_value = mock_client
+            async with db_manager.async_session_maker() as db:
+                result = await db.execute(
+                    select(Wallets).where(
+                        Wallets.user_id == user_id,
+                        Wallets.currency == "PHP",
+                    )
+                )
+                wallet = result.scalar_one_or_none()
+                if wallet:
+                    wallet.balance = stored_balance
+                    wallet.updated_at = datetime.now()
+                else:
+                    wallet = Wallets(
+                        user_id=user_id,
+                        currency="PHP",
+                        balance=stored_balance,
+                        created_at=datetime.now(),
+                        updated_at=datetime.now(),
+                    )
+                    db.add(wallet)
+                await db.commit()
 
-            r = client.get("/api/v1/wallet/balance?currency=PHP", headers=auth_headers)
+        asyncio.run(seed_wallet())
 
-        # The test user (123456789) is added as a super admin in TELEGRAM_ADMIN_IDS
-        # so the endpoint should attempt to sync from Xendit.
+        r = client.get("/api/v1/wallet/balance?currency=PHP", headers=auth_headers)
         assert r.status_code == 200
         data = r.json()
         assert data["currency"] == "PHP"
-        # Balance should reflect the mocked Xendit live balance
-        assert data["balance"] == pytest.approx(live_php_balance, abs=0.01)
+        assert data["balance"] == pytest.approx(stored_balance, abs=0.01)
 
     def test_wallet_balance_endpoint_requires_auth(self, client):
         """The /wallet/balance endpoint requires authentication."""

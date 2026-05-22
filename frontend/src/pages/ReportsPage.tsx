@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
+import { fmtCurrencyPhp } from '@/lib/format';
 
 interface ReportData {
   period: string; start_date: string; end_date: string;
@@ -80,7 +81,8 @@ export default function ReportsPage() {
     setFeeLoading(false);
   };
 
-  const fmt = (n: number) => `₱${n.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+  // use shared safe currency formatter
+  const fmt = (n: number | undefined | null) => fmtCurrencyPhp(n ?? 0);
 
   const typeLabels: Record<string, string> = {
     invoice: 'Invoice', qr_code: 'QR Code', payment_link: 'Payment Link',

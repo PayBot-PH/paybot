@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { client } from '@/lib/api';
+import { fmtCurrencyPhp } from '@/lib/format';
 import { toast } from 'sonner';
 
 export interface PaymentEvent {
@@ -55,12 +56,8 @@ export function usePaymentEvents({
 
     if (eventType === 'wallet_update') {
       const txnType = event.transaction_type || '';
-      const amount = event.amount
-        ? `₱${event.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
-        : '';
-      const balance = event.balance != null
-        ? `₱${event.balance.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
-        : '';
+      const amount = event.amount != null ? fmtCurrencyPhp(event.amount) : '';
+      const balance = event.balance != null ? fmtCurrencyPhp(event.balance) : '';
 
       if (txnType === 'top_up') {
         toast.success(`💰 Wallet Top-Up! +${amount}`, {
@@ -99,9 +96,7 @@ export function usePaymentEvents({
       payment_link: 'Payment Link',
     };
     const label = typeLabel[event.transaction_type || ''] || 'Payment';
-    const amount = event.amount
-      ? `₱${event.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
-      : '';
+    const amount = event.amount != null ? fmtCurrencyPhp(event.amount) : '';
 
     if (event.new_status === 'paid') {
       toast.success(`${emoji} ${label} Paid! ${amount}`, {

@@ -1,3 +1,4 @@
+import { fmt, fmtUsd } from '@/lib/format';
 import React, { useEffect, useState } from 'react';
 import Layout from '../components/Layout';
 import { useAuth } from '../contexts/AuthContext';
@@ -1021,7 +1022,7 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-teal-400 font-bold text-lg">${w.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                <p className="text-teal-400 font-bold text-lg">${fmtUsd(w.balance)}</p>
                 <p className="text-muted-foreground text-[10px]">USD</p>
               </div>
             </div>
@@ -1167,7 +1168,7 @@ function PhpWalletsTab({ onError }: { onError: (msg: string) => void }) {
                 </div>
               </div>
               <div className="text-right shrink-0">
-                <p className="text-amber-400 font-bold text-lg">₱{w.balance.toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                <p className="text-amber-400 font-bold text-lg">₱{fmt(w.balance)}</p>
                 <p className="text-muted-foreground text-[10px]">PHP</p>
               </div>
             </div>

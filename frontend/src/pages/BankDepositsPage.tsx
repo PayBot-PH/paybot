@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
+import { fmt } from '@/lib/format';
 import { CheckCircle, XCircle, Clock, Eye, RefreshCw, Building2 } from 'lucide-react';
 
 interface BankDepositRequest {
@@ -138,7 +139,7 @@ export default function BankDepositsPage() {
               const sc = statusConfig[req.status] || statusConfig.pending;
               const isActive = activeId === req.id;
               const emoji = channelEmoji[req.channel] || '🏦';
-              const phpFormatted = req.amount_php.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              const phpFormatted = fmt(req.amount_php);
               return (
                 <div key={req.id} className="bg-background border border-border/40 rounded-2xl overflow-hidden">
                   <div className="p-4 flex items-start gap-4">

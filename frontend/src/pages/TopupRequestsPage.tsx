@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import Layout from '@/components/Layout';
+import { fmt } from '@/lib/format';
 import { CheckCircle, XCircle, Clock, Eye, RefreshCw, DollarSign, TrendingUp } from 'lucide-react';
 
 interface TopupRequest {
@@ -350,7 +351,7 @@ export default function TopupRequestsPage() {
             {requests.map(req => {
               const sc = statusConfig[req.status] || statusConfig.pending;
               const isActive = activeId === req.id;
-              const phpEquivalent = (req.amount_usdt * usdtPhpRate).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+              const phpEquivalent = fmt(req.amount_usdt * usdtPhpRate);
               return (
                 <div key={req.id} className="bg-background border border-border/40 rounded-2xl overflow-hidden">
                   <div className="p-4 flex items-start gap-4">

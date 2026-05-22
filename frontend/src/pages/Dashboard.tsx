@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Layout from '@/components/Layout';
 import { APP_DESCRIPTION } from '@/lib/brand';
+import { fmt, fmtShort, fmtUsd } from '@/lib/format';
 import {
   FileText,
   QrCode,
@@ -81,9 +82,7 @@ const typeConfig: Record<string, { icon: React.ReactNode; bg: string }> = {
   wechat_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />,    bg: 'bg-green-100 dark:bg-green-500/15' },
 };
 
-const fmt = (n: number) => n.toLocaleString('en-PH', { minimumFractionDigits: 2 });
-const fmtShort = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : fmt(n);
-const fmtUsd = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// number formatting helpers imported from lib/format
 
 // Seeded random — deterministic per calendar day, changes at midnight
 function _sr(seed: number) { const x = Math.sin(seed + 93012) * 49297; return x - Math.floor(x); }
@@ -390,7 +389,7 @@ export default function Dashboard() {
               <p className="text-xl sm:text-2xl font-bold text-white transition-all duration-300">
                 {loading
                   ? <span className="inline-block w-24 h-8 bg-white/20 rounded-lg animate-pulse" />
-                  : `$${usdWalletBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                  : `$${fmtUsd(usdWalletBalance)}`
                 }
               </p>
               <div className="flex items-center gap-1 mt-2 text-emerald-100 text-xs group-hover:text-white transition-colors">

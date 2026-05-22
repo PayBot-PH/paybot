@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
+import { fmt } from '@/lib/format';
 
 interface Disbursement {
   id: number; external_id: string; amount: number; bank_code: string;
@@ -235,7 +236,7 @@ export default function DisbursementsPage() {
                         <p className="text-xs text-muted-foreground truncate">{d.description || d.external_id}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-mono text-red-400">-₱{d.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-sm font-mono text-red-400">-₱{fmt(d.amount)}</p>
                         {statusBadge(d.status)}
                       </div>
                     </div>
@@ -274,7 +275,7 @@ export default function DisbursementsPage() {
                         <p className="text-xs text-muted-foreground truncate">{r.reason || 'No reason'}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-mono text-orange-400">₱{r.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-sm font-mono text-orange-400">₱{fmt(r.amount)}</p>
                         {statusBadge(r.status)}
                       </div>
                     </div>
@@ -322,7 +323,7 @@ export default function DisbursementsPage() {
                         {statusBadge(s.status)}
                       </div>
                       <div className="flex items-center justify-between text-xs text-muted-foreground">
-                        <span>₱{s.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}/{s.interval}</span>
+                        <span>₱{fmt(s.amount)}/{s.interval}</span>
                         <span>{s.customer_name || 'No customer'}</span>
                       </div>
                       {s.next_billing_date && <p className="text-xs text-muted-foreground mt-1">Next: {s.next_billing_date.split('T')[0]}</p>}
@@ -376,7 +377,7 @@ export default function DisbursementsPage() {
                       <div className="flex items-center space-x-2 flex-shrink-0">
                         <div className="text-right">
                           <p className="text-xs text-muted-foreground">{c.total_payments || 0} payments</p>
-                          <p className="text-xs text-muted-foreground">₱{(c.total_amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p>
+                          <p className="text-xs text-muted-foreground">₱{fmt(c.total_amount || 0)}</p>
                         </div>
                         <Button size="sm" variant="ghost" onClick={() => handleDeleteCustomer(c.id)} className="text-red-400 hover:text-red-300 h-8 w-8 p-0">
                           <Trash2 className="h-3.5 w-3.5" />

@@ -53,6 +53,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
+import { fmt } from '@/lib/format';
 
 const TUTORIAL_KEY = 'bot_settings_tutorial_done_v1';
 
@@ -378,7 +379,7 @@ export default function BotSettings() {
     setSimLoading(true);
     try {
       const res = await client.apiCall.invoke({ url: '/api/v1/events/simulate', method: 'POST', data: { transaction_type: simType, status: simStatus, amount, description: simDescription } });
-      if (res.data?.success) toast.success('Test event sent!', { description: `${simType} -> ${simStatus.toUpperCase()} (amount: ${amount.toLocaleString()})`, duration: 5000 });
+      if (res.data?.success) toast.success('Test event sent!', { description: `${simType} -> ${simStatus.toUpperCase()} (amount: ${fmt(amount)})`, duration: 5000 });
       else toast.error('Failed to simulate webhook');
     } catch (e) { toast.error(is401(e) ? 'Please log in first.' : getErr(e)); }
     finally { setSimLoading(false); }

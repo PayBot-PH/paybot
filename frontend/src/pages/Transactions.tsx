@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
+import { fmt } from '@/lib/format';
 
 interface Transaction {
   id: number;
@@ -283,7 +284,7 @@ export default function Transactions() {
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4 text-right">
                             <span className="text-sm font-mono font-medium text-foreground">
-                              ₱{txn.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                              ₱{fmt(txn.amount)}
                             </span>
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4 text-center">
