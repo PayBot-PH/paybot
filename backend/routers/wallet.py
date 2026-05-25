@@ -145,6 +145,13 @@ class AdminWalletAdjustRequest(BaseModel):
     note: str = ""
 
 
+class WalletTransferRequest(BaseModel):
+    recipient_user_id: str
+    amount: float
+    currency: str = "PHP"
+    note: str = ""
+
+
 # ---------- Helpers ----------
 def _tg_user_id(user_id: str) -> str:
     """Return the Telegram-prefixed user_id used by the bot for wallet storage."""
@@ -247,6 +254,14 @@ def publish_wallet_event(user_id: str, wallet: Wallets, txn_type: str, amount: f
         "amount": amount,
         "transaction_id": txn_id,
     })
+
+
+def _normalize_wallet_user_id(wallet_user_id: str, currency: str) -> str:
+    normalized = wallet_user_id.strip()
+    if currency.upper() == "USD":
+        normalized = normalized[3:] if normalized.startswith("tg-") else normalized
+        return _tg_user_id(normalized)
+    return normalized
 
 
 # ---------- Routes ----------
@@ -921,6 +936,99 @@ async def reject_crypto_topup(
 
 
 # ---------- User-to-User USD Transfer ----------
+
+@router.post("/transfer", response_model=WalletActionResponse, status_code=201)
+async def transfer_wallet_balance(
+    data: WalletTransferRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Transfer funds between two user wallets for PHP or USD."""
+    if data.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+
+    currency_upper = data.currency.upper().strip() or "PHP"
+    recipient_user_id = _normalize_wallet_user_id(data.recipient_user_id, currency_upper)
+    sender_user_id = str(current_user.id)
+    if currency_upper == "USD":
+        sender_user_id = _tg_user_id(sender_user_id)
+
+    if not recipient_user_id:
+        raise HTTPException(status_code=400, detail="Recipient user ID is required")
+    if recipient_user_id == sender_user_id:
+        raise HTTPException(status_code=400, detail="Cannot transfer to yourself")
+
+    sender_wallet = await get_or_create_wallet(db, sender_user_id, currency_upper)
+    recipient_wallet = await get_or_create_wallet(db, recipient_user_id, currency_upper)
+
+    if currency_upper == "USD":
+        sender_balance = await _compute_usd_balance(db, sender_user_id)
+        if sender_balance < data.amount:
+            raise HTTPException(status_code=400, detail=f"Insufficient USD balance (${sender_balance:,.2f})")
+        if sender_wallet.balance != sender_balance:
+            sender_wallet.balance = sender_balance
+            sender_wallet.updated_at = datetime.now()
+
+    if sender_wallet.balance < data.amount:
+        raise HTTPException(status_code=400, detail=f"Insufficient {currency_upper} balance")
+
+    now = datetime.now()
+    sender_balance_before = sender_wallet.balance
+    sender_wallet.balance = max(0.0, sender_wallet.balance - data.amount)
+    sender_wallet.updated_at = now
+
+    recipient_balance_before = recipient_wallet.balance
+    recipient_wallet.balance += data.amount
+    recipient_wallet.updated_at = now
+
+    debit_type = "usd_send" if currency_upper == "USD" else "send"
+    credit_type = "usd_receive" if currency_upper == "USD" else "receive"
+    sender_note = data.note or f"Sent to {recipient_user_id}"
+    recipient_note = data.note or f"Received from {sender_user_id}"
+
+    debit_txn = Wallet_transactions(
+        user_id=sender_user_id,
+        wallet_id=sender_wallet.id,
+        transaction_type=debit_type,
+        amount=data.amount,
+        balance_before=sender_balance_before,
+        balance_after=sender_wallet.balance,
+        recipient=recipient_user_id,
+        note=sender_note,
+        status="completed",
+        reference_id=f"{debit_type}-{sender_wallet.id}-{int(now.timestamp())}",
+        created_at=now,
+    )
+    db.add(debit_txn)
+
+    credit_txn = Wallet_transactions(
+        user_id=recipient_user_id,
+        wallet_id=recipient_wallet.id,
+        transaction_type=credit_type,
+        amount=data.amount,
+        balance_before=recipient_balance_before,
+        balance_after=recipient_wallet.balance,
+        recipient=sender_user_id,
+        note=recipient_note,
+        status="completed",
+        reference_id=f"{credit_type}-{recipient_wallet.id}-{int(now.timestamp())}",
+        created_at=now,
+    )
+    db.add(credit_txn)
+
+    await db.commit()
+    await db.refresh(debit_txn)
+
+    publish_wallet_event(sender_user_id, sender_wallet, debit_type, data.amount, debit_txn.id)
+    publish_wallet_event(recipient_user_id, recipient_wallet, credit_type, data.amount, credit_txn.id)
+
+    return WalletActionResponse(
+        success=True,
+        message=f"Successfully transferred {currency_upper} {data.amount:,.2f} to {recipient_user_id}",
+        balance=sender_wallet.balance,
+        transaction_id=debit_txn.id,
+    )
+
 
 @router.post("/send-usd", response_model=WalletActionResponse, status_code=201)
 async def send_usd_to_user(
