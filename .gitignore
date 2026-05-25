@@ -69,3 +69,5 @@ frontend/package-lock.json
 .dev.vars*
 !.dev.vars.example
 !.env.example
+my-release-key.keystore
+keystore.base64
