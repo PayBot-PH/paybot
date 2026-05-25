@@ -12,7 +12,11 @@ jobs:
     env:
       NODE_VERSION: '18'
       JAVA_VERSION: '17'
-      ANDROID_SDK_ROOT: ${{ runner.temp }}/android-sdk
+      ANDROID_SDK_ROOT: ${{ github.workspace }}/android-sdk
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
     steps:
       - name: Checkout
@@ -60,15 +64,13 @@ jobs:
           echo "unsigned_path=$(cat unsigned_path.txt)" >> $GITHUB_OUTPUT
 
       - name: Decode keystore (if provided)
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
         run: |
           echo "$KEYSTORE_BASE64" | base64 --decode > keystore.jks
           echo "keystore created"
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
 
       - name: Sign and zipalign (if keystore present)
-        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
         run: |
           APK_UNSIGNED=$(cat unsigned_path.txt)
           BUILD_TOOLS=$(ls -d $ANDROID_SDK_ROOT/build-tools/* | tail -n1)
@@ -80,10 +82,6 @@ jobs:
           $ZIPALIGN -v -p 4 "$APK_UNSIGNED" "$ALIGNED"
           $APKSIGNER sign --ks keystore.jks --ks-key-alias "$KEY_ALIAS" --ks-pass pass:$KEYSTORE_PASSWORD --key-pass pass:$KEY_PASSWORD --out "$SIGNED" "$ALIGNED"
           echo "signed=$SIGNED" >> $GITHUB_OUTPUT
-        env:
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
