@@ -3,12 +3,12 @@ import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   ArrowRight, ChevronRight, CheckCircle2,
-  UserPlus, Menu, X, Lock, Mail, Key, Eye, EyeOff, Loader2
+  UserPlus, Menu, X, Lock, Mail, Key, Eye, EyeOff, Loader2, XCircle
 } from 'lucide-react';
 import { APP_NAME, SUPPORT_LINKS, SUPPORT_URL } from '@/lib/brand';
 import AppFooter from '@/components/AppFooter';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/button'; // Note: using direct html input for better control in this specific design
+import { Input } from '@/components/ui/input';
 
 /* ─── Logo helpers ──────────────────────────────────────────────── */
 
@@ -259,7 +259,7 @@ export default function Login() {
               <div>
                 <div className="flex justify-between items-center mb-1.5 px-1">
                   <label className="text-sm font-semibold text-[#141414]">Password</label>
-                  <Link to="/forgot-password" size="sm" className="text-xs text-blue-600 font-medium hover:underline">Forgot password?</Link>
+                  <Link to="/forgot-password" className="text-xs text-blue-600 font-medium hover:underline">Forgot password?</Link>
                 </div>
                 <div className="relative">
                   <Key className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-[#9CA3AF]" />
@@ -333,10 +333,3 @@ export default function Login() {
   );
 }
 
-function XCircle({ className }: { className?: string }) {
-  return (
-    <svg className={className} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>
-    </svg>
-  );
-}
