@@ -32,7 +32,7 @@ export const LoginScreen = ({ navigation }) => {
       console.log('Logging in with:', email, 'on device:', deviceId);
 
       // Call real login API in production
-      const response = await fetch('https://telegram.drl-developers.info/api/v1/auth/terminal-login', {
+      const response = await fetch('https://paybot-production-7350.up.railway.app/api/v1/auth/terminal-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, device_id: deviceId }),
@@ -50,13 +50,7 @@ export const LoginScreen = ({ navigation }) => {
         await signIn(result.access_token);
         Toast.show({ type: 'success', text1: 'Login successful' });
       } else {
-        // Fallback for demo if API fails but email is provided
-        if (email.includes('@')) {
-           await signIn('demo_token');
-           Toast.show({ type: 'success', text1: 'Demo mode active' });
-        } else {
-           throw new Error(result.detail || 'Invalid credentials');
-        }
+        throw new Error(result.detail || 'Invalid credentials');
       }
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Login failed', text2: error.message });
