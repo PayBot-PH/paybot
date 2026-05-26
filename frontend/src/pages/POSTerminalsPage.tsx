@@ -73,6 +73,8 @@ export default function POSTerminalsPage() {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 10000); // Polling every 10s for real-time feel
+    return () => clearInterval(interval);
   }, []);
 
   const handleAssign = async () => {

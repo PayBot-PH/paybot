@@ -22,6 +22,7 @@ from schemas.pos_terminal import (
 )
 from services.maya_service import MayaService
 from services.paymongo_service import PayMongoService
+from services.event_bus import event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -558,6 +559,14 @@ class POSTerminalService:
             transaction.status = status
             if status == "completed":
                 transaction.completed_at = datetime.utcnow()
+                # Trigger sync event for system-wide notification (Bot, Dashboard etc.)
+                await event_bus.emit("payment_completed", {
+                    "user_id": transaction.user_id,
+                    "amount": transaction.amount,
+                    "order_id": transaction.order_id,
+                    "terminal_id": transaction.terminal_id,
+                    "completed_at": transaction.completed_at.isoformat()
+                })
             elif status == "failed" and failure_reason:
                 transaction.failure_reason = failure_reason
 
