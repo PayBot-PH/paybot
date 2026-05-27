@@ -4,6 +4,7 @@ from models.pos_terminal import POSTerminalDevice, POSTerminal
 from sqlalchemy import select
 
 async def check_db():
+    await db_manager.init_db()
     async with db_manager.async_session_maker() as session:
         # Check devices
         res = await session.execute(select(POSTerminalDevice))
