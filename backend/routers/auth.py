@@ -697,14 +697,21 @@ async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)
             )
         )
         terminal = res.scalar_one_or_none()
+        
+        # If no linked terminal, we still allow login for admins so they can reach the dashboard
+        # and register their device. We only block non-admin users without an authorized device.
         if not terminal:
-            # Check if device is authorized but not linked
             from models.pos_terminal import POSTerminalDevice
             device_res = await db.execute(
                 select(POSTerminalDevice).where(POSTerminalDevice.device_id == payload.device_id)
             )
             device = device_res.scalar_one_or_none()
-            if not device or not device.is_authorized:
+            
+            # If user is admin, allow them in even if device isn't linked yet
+            # This allows them to see the dashboard and assign themselves a terminal
+            if authenticated_user.role == "admin":
+                logger.info(f"Admin login allowed for unlinked device: {payload.device_id}")
+            elif not device or not device.is_authorized:
                  raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="This device is not authorized. Please contact your administrator.",

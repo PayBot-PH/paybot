@@ -11,8 +11,21 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
 import { AuthContext } from '../App';
+import { SvgXml } from 'react-native-svg';
 
 import DeviceInfo from 'react-native-device-info';
+
+const LOGO_XML = `
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100">
+  <rect width="100" height="100" fill="#1557D0" rx="24"/>
+  <rect x="20" y="32" width="60" height="46" rx="12" fill="none" stroke="white" stroke-width="5.5" stroke-linejoin="round"/>
+  <line x1="50" y1="32" x2="50" y2="19" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+  <circle cx="50" cy="14" r="6" fill="white"/>
+  <rect x="26" y="46" width="20" height="12" rx="6" fill="white"/>
+  <rect x="54" y="46" width="20" height="12" rx="6" fill="white"/>
+  <path d="M 36 67 Q 50 77 64 67" fill="none" stroke="white" stroke-width="4.5" stroke-linecap="round"/>
+</svg>
+`;
 
 export const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState('');
@@ -62,6 +75,9 @@ export const LoginScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
+        <View style={styles.logoContainer}>
+          <SvgXml xml={LOGO_XML} width={100} height={100} />
+        </View>
         <Text style={styles.title}>PayBot POS</Text>
         <Text style={styles.subtitle}>Log in to your terminal</Text>
 
@@ -120,6 +136,10 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     textAlign: 'center',
     marginBottom: 48,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
   },
   input: {
     backgroundColor: '#F3F4F6',
