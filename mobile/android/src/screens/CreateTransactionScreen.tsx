@@ -17,6 +17,7 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { WebView } from 'react-native-webview';
 import QRCode from 'react-native-qrcode-svg';
+import { terminalApi } from '../api/terminal';
 import { Config } from '../Config';
 import { Strings } from '../strings';
 
@@ -30,27 +31,6 @@ const COLORS = {
   white: '#FFFFFF',
   text: '#111827',
   textSecondary: '#6B7280',
-};
-
-const api = {
-  createTransaction: async (token, terminalId, data) => {
-    const response = await fetch(
-      `${Config.API_BASE_URL}/pos-terminals/${terminalId}/transactions`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      }
-    );
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(error || 'Failed to create transaction');
-    }
-    return response.json();
-  },
 };
 
 const PaymentOptionCard = ({ title, subLabel, icon, logos, onPress }) => (
@@ -119,7 +99,7 @@ export const CreateTransactionScreen = ({ route, navigation }) => {
   };
 
   const createMutation = useMutation(
-    (method) => api.createTransaction(token, terminal.id, {
+    (method) => terminalApi.createTransaction(terminal.id, {
       amount: parseFloat(amount) * 100,
       payment_method: method,
       description: 'Terminal Sale'
@@ -144,23 +124,18 @@ export const CreateTransactionScreen = ({ route, navigation }) => {
     if (orderId && (qrContent || checkoutUrl) && paymentStatus === 'pending') {
       interval = setInterval(async () => {
         try {
-          const response = await fetch(`${Config.API_BASE_URL}/pos-terminals/transactions/${orderId}`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
-          if (response.ok) {
-            const result = await response.json();
-            const status = result.data?.transaction?.status;
-            if (status === 'completed') {
-              setPaymentStatus('completed');
-              clearInterval(interval);
-              Toast.show({ type: 'success', text1: 'Payment Received!' });
-            }
+          const result = await terminalApi.getTransaction(orderId);
+          const status = result.data?.transaction?.status;
+          if (status === 'completed') {
+            setPaymentStatus('completed');
+            clearInterval(interval);
+            Toast.show({ type: 'success', text1: 'Payment Received!' });
           }
         } catch (e) {}
       }, 3000);
     }
     return () => clearInterval(interval);
-  }, [orderId, qrContent, checkoutUrl, paymentStatus, token]);
+  }, [orderId, qrContent, checkoutUrl, paymentStatus]);
 
   if (showWebView && checkoutUrl) {
     return (

@@ -111,10 +111,6 @@ const AppStack = () => {
 
 // Root Navigator
 const RootNavigator = ({ isLoggedIn }) => {
-  console.log('RootNavigator: isLoggedIn =', isLoggedIn);
-  console.log('LoginScreen exists:', !!LoginScreen);
-  console.log('HomeScreen exists:', !!HomeScreen);
-
   return (
     <NavigationContainer>
       {isLoggedIn ? <AppStack /> : <AuthStack />}

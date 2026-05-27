@@ -10,17 +10,15 @@ import {
   RefreshControl,
   SafeAreaView,
   StatusBar,
-  Dimensions,
 } from 'react-native';
 import { useQuery } from 'react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
+import DeviceInfo from 'react-native-device-info';
 import { terminalApi } from '../api/terminal';
 import { Config } from '../Config';
 import { Strings } from '../strings';
-
-const { width } = Dimensions.get('window');
 
 const COLORS = {
   primary: '#3B82F6',
@@ -33,49 +31,6 @@ const COLORS = {
   textSecondary: '#6B7280',
   border: '#E5E7EB',
   success: '#10B981',
-};
-
-const api = {
-  getTerminals: async (token) => {
-    const response = await fetch(`${Config.API_BASE_URL}/pos-terminals`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch terminals');
-    return response.json();
-  },
-
-  getTransactions: async (token, terminalId) => {
-    const response = await fetch(
-      `${Config.API_BASE_URL}/pos-terminals/${terminalId}/transactions?per_page=20`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    if (!response.ok) throw new Error('Failed to fetch transactions');
-    return response.json();
-  },
-
-  createTransaction: async (token, terminalId, data) => {
-    const response = await fetch(
-      `${Config.API_BASE_URL}/pos-terminals/${terminalId}/transactions`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      }
-    );
-    if (!response.ok) throw new Error('Failed to create transaction');
-    return response.json();
-  },
 };
 
 // Status Badge Component
@@ -205,32 +160,24 @@ export const HomeScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [isDeviceLinked, setIsDeviceLinked] = useState(true);
   const [walletBalance, setWalletBalance] = useState(0);
+  const [deviceId, setDeviceId] = useState('');
 
   const fetchWallet = async () => {
     try {
-      const response = await fetch(`${Config.API_BASE_URL}/wallet/balance?currency=PHP`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setWalletBalance(data.balance);
-      }
+      const data = await terminalApi.getWalletBalance();
+      setWalletBalance(data.balance);
     } catch (err) {
       console.error('Failed to fetch wallet', err);
     }
   };
 
   useEffect(() => {
-    if (token) fetchWallet();
-  }, [token]);
-
-  useEffect(() => {
-    const loadToken = async () => {
+    const bootstrap = async () => {
       const storedToken = await AsyncStorage.getItem('auth_token');
       setToken(storedToken);
+
+      const id = await DeviceInfo.getUniqueId();
+      setDeviceId(id);
 
       try {
         const registration = await terminalApi.registerDevice();
@@ -241,8 +188,12 @@ export const HomeScreen = ({ navigation }) => {
         console.error('Heartbeat failed', err);
       }
     };
-    loadToken();
+    bootstrap();
   }, []);
+
+  useEffect(() => {
+    if (token) fetchWallet();
+  }, [token]);
 
   const terminalsQuery = useQuery(
     ['terminals', token],
@@ -262,11 +213,23 @@ export const HomeScreen = ({ navigation }) => {
     }
   );
 
-  const onRefresh = React.useCallback(() => {
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    terminalsQuery.refetch().then(() => {
-       transactionsQuery.refetch().then(() => setRefreshing(false));
-    });
+    try {
+      await Promise.all([
+        terminalsQuery.refetch(),
+        transactionsQuery.refetch(),
+        fetchWallet(),
+        (async () => {
+          const reg = await terminalApi.registerDevice();
+          if (reg.success && reg.data) setIsDeviceLinked(reg.data.is_linked);
+        })()
+      ]);
+    } catch (e) {
+      console.error('Refresh failed', e);
+    } finally {
+      setRefreshing(false);
+    }
   }, [terminalsQuery, transactionsQuery]);
 
   useEffect(() => {
@@ -286,6 +249,12 @@ export const HomeScreen = ({ navigation }) => {
           <Text style={styles.waitingSubtitle}>
             {Strings.home.waitingSubtitle}
           </Text>
+
+          <View style={styles.deviceIdBox}>
+             <Text style={styles.deviceIdLabel}>DEVICE ID</Text>
+             <Text style={styles.deviceIdText}>{deviceId}</Text>
+          </View>
+
           <TouchableOpacity
             style={styles.refreshButton}
             onPress={async () => {
@@ -738,6 +707,26 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
     lineHeight: 24,
+  },
+  deviceIdBox: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    alignItems: 'center',
+    width: '100%',
+  },
+  deviceIdLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  deviceIdText: {
+    fontSize: 16,
+    fontFamily: 'monospace',
+    color: COLORS.primary,
+    fontWeight: 'bold',
   },
   refreshButton: {
     marginTop: 32,

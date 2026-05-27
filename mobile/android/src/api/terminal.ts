@@ -59,4 +59,16 @@ export const terminalApi = {
     const response = await axios.post(`${BASE_URL}/pos-terminals/${terminalId}/transactions`, data, { headers });
     return response.data;
   },
+
+  getTransaction: async (orderId: string) => {
+    const headers = await getHeaders();
+    const response = await axios.get(`${BASE_URL}/pos-terminals/transactions/${orderId}`, { headers });
+    return response.data;
+  },
+
+  getWalletBalance: async () => {
+    const headers = await getHeaders();
+    const response = await axios.get(`${BASE_URL}/wallet/balance?currency=PHP`, { headers });
+    return response.data;
+  },
 };
