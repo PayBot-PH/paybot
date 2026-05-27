@@ -15,7 +15,6 @@ export const SettingsScreen = ({ navigation }) => {
 
   const handleLogout = async () => {
     await signOut();
-    console.log('Logged out');
   };
 
   const handleSetPin = async () => {

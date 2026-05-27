@@ -44,7 +44,6 @@ export const LoginScreen = ({ navigation }) => {
     setLoading(true);
     try {
       const deviceId = await DeviceInfo.getUniqueId();
-      console.log('Logging in with:', email, 'on device:', deviceId);
 
       // Call real login API in production
       const response = await fetch(`${Config.API_BASE_URL}/auth/terminal-login`, {
