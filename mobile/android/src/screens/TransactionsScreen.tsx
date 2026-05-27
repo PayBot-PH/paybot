@@ -12,6 +12,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useQuery } from 'react-query';
+import { terminalApi } from '../api/terminal';
 import { Config } from '../Config';
 import { Strings } from '../strings';
 
@@ -25,33 +26,6 @@ const COLORS = {
   text: '#111827',
   textSecondary: '#6B7280',
   border: '#E5E7EB',
-};
-
-const api = {
-  getTerminals: async (token) => {
-    const response = await fetch(`${Config.API_BASE_URL}/pos-terminals/`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch terminals');
-    return response.json();
-  },
-
-  getAllTransactions: async (token, terminalId) => {
-    const response = await fetch(
-      `${Config.API_BASE_URL}/pos-terminals/${terminalId}/transactions?per_page=50`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    if (!response.ok) throw new Error('Failed to fetch transactions');
-    return response.json();
-  },
 };
 
 const TransactionItem = ({ item }) => {
@@ -103,7 +77,7 @@ export const TransactionsScreen = () => {
 
   const terminalsQuery = useQuery(
     ['terminals', token],
-    () => api.getTerminals(token),
+    () => terminalApi.getTerminals(),
     { enabled: !!token }
   );
 
@@ -115,7 +89,7 @@ export const TransactionsScreen = () => {
 
   const transactionsQuery = useQuery(
     ['allTransactions', terminalId, token],
-    () => api.getAllTransactions(token, terminalId),
+    () => terminalApi.getTransactions(terminalId),
     { enabled: !!token && !!terminalId }
   );
 
