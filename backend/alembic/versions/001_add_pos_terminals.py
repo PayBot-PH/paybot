@@ -16,7 +16,7 @@ def upgrade() -> None:
     inspector = sa.inspect(conn)
     tables = inspector.get_table_names()
 
-    # Create pos_terminals table if not exists
+    # 1. Create or Update pos_terminals
     if 'pos_terminals' not in tables:
         op.create_table(
             'pos_terminals',
@@ -43,8 +43,19 @@ def upgrade() -> None:
         op.create_index('idx_terminal_code', 'pos_terminals', ['terminal_code'])
         op.create_index('idx_terminal_user_id', 'pos_terminals', ['user_id'])
         op.create_index('idx_terminal_status', 'pos_terminals', ['status'])
+    else:
+        # Table exists, ensure all columns are present
+        cols = [c['name'] for c in inspector.get_columns('pos_terminals')]
+        if 'merchant_id' not in cols:
+            op.add_column('pos_terminals', sa.Column('merchant_id', sa.String(length=64), nullable=True))
+        if 'description' not in cols:
+            op.add_column('pos_terminals', sa.Column('description', sa.Text(), nullable=True))
+        if 'assigned_by' not in cols:
+            op.add_column('pos_terminals', sa.Column('assigned_by', sa.String(length=64), nullable=True))
+        if 'assigned_at' not in cols:
+            op.add_column('pos_terminals', sa.Column('assigned_at', sa.DateTime(timezone=True), nullable=True))
 
-    # Create pos_terminal_requests table if not exists
+    # 2. pos_terminal_requests
     if 'pos_terminal_requests' not in tables:
         op.create_table(
             'pos_terminal_requests',
@@ -72,7 +83,7 @@ def upgrade() -> None:
         op.create_index('idx_request_user_id', 'pos_terminal_requests', ['user_id'])
         op.create_index('idx_request_status', 'pos_terminal_requests', ['status'])
 
-    # Create pos_terminal_transactions table if not exists
+    # 3. pos_terminal_transactions
     if 'pos_terminal_transactions' not in tables:
         op.create_table(
             'pos_terminal_transactions',

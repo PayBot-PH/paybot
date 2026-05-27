@@ -729,20 +729,25 @@ async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)
     
     # Building full claims
     expires_minutes = int(getattr(settings, "jwt_expire_minutes", 60))
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
     
-    token_claims = {
-        "sub": authenticated_user.id,
-        "email": authenticated_user.email,
-        "role": authenticated_user.role,
-        "name": authenticated_user.name,
-        **claims_override
-    }
+    # Fetch real permissions if this user is in AdminUser table
+    from models.admin_users import AdminUser
+    res_perms = await db.execute(select(AdminUser).where(AdminUser.telegram_id == authenticated_user.id))
+    admin_record = res_perms.scalar_one_or_none()
     
-    from core.auth import create_access_token
-    app_token = create_access_token(token_claims, expires_minutes=expires_minutes)
-
-    if authenticated_user.role == "admin":
+    if admin_record:
+        perms = UserPermissions(
+            is_super_admin=admin_record.is_super_admin,
+            can_manage_payments=admin_record.can_manage_payments,
+            can_manage_disbursements=admin_record.can_manage_disbursements,
+            can_view_reports=admin_record.can_view_reports,
+            can_manage_wallet=admin_record.can_manage_wallet,
+            can_manage_transactions=admin_record.can_manage_transactions,
+            can_manage_bot=admin_record.can_manage_bot,
+            can_approve_topups=admin_record.can_approve_topups,
+        )
+    elif authenticated_user.role == "admin":
+        # Fallback for admin role without record
         perms = UserPermissions(
             is_super_admin=True,
             can_manage_payments=True,
@@ -755,6 +760,19 @@ async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)
         )
     else:
         perms = UserPermissions(is_super_admin=False)
+    
+    token_claims = {
+        "sub": authenticated_user.id,
+        "email": authenticated_user.email,
+        "role": authenticated_user.role,
+        "name": authenticated_user.name,
+        "permissions": perms.model_dump(),
+        **claims_override
+    }
+    
+    from core.auth import create_access_token
+    app_token = create_access_token(token_claims, expires_minutes=expires_minutes)
+
     user_resp = UserResponse(
         id=authenticated_user.id,
         email=authenticated_user.email,

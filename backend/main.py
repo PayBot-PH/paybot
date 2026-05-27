@@ -161,15 +161,11 @@ async def lifespan(app: FastAPI):
             "invalidated on restart. Set JWT_SECRET_KEY for production use."
         )
 
-    # Maya Manager / Xendit is optional in some deployments.
-    if not settings.maya_secret_key and not settings.xendit_secret_key:
+    # Maya Manager is the primary payment gateway.
+    if not settings.maya_secret_key:
         logger.warning(
-            "No Maya or Xendit payment gateway API key is configured. Payment features will be unavailable."
+            "MAYA_SECRET_KEY is not configured. Maya-based payment features will be unavailable."
         )
-    elif not settings.maya_secret_key:
-        logger.warning("MAYA_SECRET_KEY is not set. Maya-based payment features will be unavailable.")
-    elif not settings.xendit_secret_key:
-        logger.info("XENDIT_SECRET_KEY is not set. Xendit-based payment features will be unavailable.")
 
     # MODULE_STARTUP_START
     db_ready = False

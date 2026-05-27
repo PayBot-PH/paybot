@@ -25,49 +25,31 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18' # RN 0.73/0.72 works best with Node 18 or 20
 
-      - name: Install npm dependencies
-        run: |
-          if [ -d mobile_native ]; then
-            cd mobile_native
-          else
-            cd mobile
-          fi
-          npm install
-
-      - name: Generate Android native project if missing
-        run: |
-          if [ ! -d mobile/android ] && [ ! -d mobile_native/android ]; then
-            cd mobile
-            npx react-native init tempapp --version 0.72.0 --npm
-            mv tempapp/android ./android
-            rm -rf tempapp
-          else
-            echo "Android native project already exists"
-          fi
+      - name: Install dependencies
+        working-directory: mobile/android
+        run: npm install
 
       - name: Patch react-native-camera build config
         run: |
           python3 - <<'PY'
 import pathlib, re
-for base in [pathlib.Path('mobile_native/android'), pathlib.Path('mobile/android')]:
-    app_build = base / 'app' / 'build.gradle'
-    if not app_build.exists():
-        continue
-    text = app_build.read_text()
-    if 'missingDimensionStrategy' in text and 'react-native-camera' in text:
-        continue
-    lines = text.splitlines()
-    out = []
-    inserted = False
-    for line in lines:
-        out.append(line)
-        if not inserted and re.match(r'^\s*defaultConfig\s*\{', line):
-            out.append("        missingDimensionStrategy 'react-native-camera', 'general'")
-            inserted = True
-    if inserted:
-        app_build.write_text('\n'.join(out) + '\n')
+# The actual Android project is at mobile/android/android
+target = pathlib.Path('mobile/android/android/app/build.gradle')
+if target.exists():
+    text = target.read_text()
+    if 'missingDimensionStrategy' not in text:
+        lines = text.splitlines()
+        out = []
+        inserted = False
+        for line in lines:
+            out.append(line)
+            if not inserted and re.match(r'^\s*defaultConfig\s*\{', line):
+                out.append("        missingDimensionStrategy 'react-native-camera', 'general'")
+                inserted = True
+        if inserted:
+            target.write_text('\n'.join(out) + '\n')
 PY
 
       - name: Decode Android keystore from secret
@@ -75,13 +57,8 @@ PY
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
           if [ -z "${KEYSTORE_BASE64}" ]; then echo "ANDROID_KEYSTORE_BASE64 secret is missing"; exit 1; fi
-          if [ -d mobile_native/android ]; then
-            mkdir -p mobile_native/android/app
-            echo "$KEYSTORE_BASE64" | base64 --decode > mobile_native/android/app/my-release-key.keystore
-          else
-            mkdir -p mobile/android/app
-            echo "$KEYSTORE_BASE64" | base64 --decode > mobile/android/app/my-release-key.keystore
-          fi
+          mkdir -p mobile/android/android/app
+          echo "$KEYSTORE_BASE64" | base64 --decode > mobile/android/android/app/my-release-key.keystore
 
       - name: Write signing properties
         env:
@@ -90,32 +67,23 @@ PY
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           if [ -z "${KEYSTORE_PASSWORD}" ] || [ -z "${KEY_ALIAS}" ] || [ -z "${KEY_PASSWORD}" ]; then echo "One or more signing secrets are missing"; exit 1; fi
-          if [ -d mobile_native/android ]; then
-            TARGET_DIR=mobile_native/android
-          else
-            TARGET_DIR=mobile/android
-          fi
+          TARGET_DIR=mobile/android/android
           cat > "$TARGET_DIR/gradle.properties" <<EOF
-            MYAPP_UPLOAD_STORE_FILE=my-release-key.keystore
-            MYAPP_UPLOAD_STORE_PASSWORD=${KEYSTORE_PASSWORD}
-            MYAPP_UPLOAD_KEY_ALIAS=${KEY_ALIAS}
-            MYAPP_UPLOAD_KEY_PASSWORD=${KEY_PASSWORD}
-            EOF
+MYAPP_UPLOAD_STORE_FILE=my-release-key.keystore
+MYAPP_UPLOAD_STORE_PASSWORD=${KEYSTORE_PASSWORD}
+MYAPP_UPLOAD_KEY_ALIAS=${KEY_ALIAS}
+MYAPP_UPLOAD_KEY_PASSWORD=${KEY_PASSWORD}
+EOF
 
       - name: Make gradlew executable
-        run: |
-          chmod +x mobile_native/android/gradlew || chmod +x mobile/android/gradlew
+        run: chmod +x mobile/android/android/gradlew
 
       - name: Build release APK
-        run: |
-          set -e
-          cd mobile_native/android || cd mobile/android
-          ./gradlew assembleRelease --no-daemon -Pandroid.injected.signing.store.file=app/my-release-key.keystore
+        working-directory: mobile/android/android
+        run: ./gradlew assembleRelease --no-daemon -Pandroid.injected.signing.store.file=app/my-release-key.keystore
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release-apk
-          path: |
-            mobile_native/android/app/build/outputs/apk/release/app-release.apk
-            mobile/android/app/build/outputs/apk/release/app-release.apk
+          path: mobile/android/android/app/build/outputs/apk/release/app-release.apk
