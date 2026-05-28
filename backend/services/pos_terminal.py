@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import select, update, and_, desc
+from sqlalchemy import select, update, and_, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.pos_terminal import (
@@ -252,9 +252,11 @@ class POSTerminalService:
         """List pending terminal requests (admin only)."""
         query = select(POSTerminalRequest).where(POSTerminalRequest.status == "pending")
 
-        # Get total count
-        count_result = await self.db.execute(query)
-        total = len(count_result.scalars().all())
+        # Get total count using func.count()
+        count_result = await self.db.execute(
+            select(func.count()).select_from(POSTerminalRequest).where(POSTerminalRequest.status == "pending")
+        )
+        total = count_result.scalar() or 0
 
         # Get paginated results
         offset = (page - 1) * per_page
@@ -272,9 +274,11 @@ class POSTerminalService:
         """List terminal requests for a user."""
         query = select(POSTerminalRequest).where(POSTerminalRequest.user_id == user_id)
 
-        # Get total count
-        count_result = await self.db.execute(query)
-        total = len(count_result.scalars().all())
+        # Get total count using func.count()
+        count_result = await self.db.execute(
+            select(func.count()).select_from(POSTerminalRequest).where(POSTerminalRequest.user_id == user_id)
+        )
+        total = count_result.scalar() or 0
 
         # Get paginated results
         offset = (page - 1) * per_page
@@ -556,6 +560,7 @@ class POSTerminalService:
             if not transaction:
                 return {"success": False, "error": "Transaction not found"}
 
+            # Update status and timestamp
             transaction.status = status
             if status == "completed":
                 transaction.completed_at = datetime.utcnow()
@@ -570,6 +575,8 @@ class POSTerminalService:
             elif status == "failed" and failure_reason:
                 transaction.failure_reason = failure_reason
 
+            # Ensure transaction is tracked and commit
+            self.db.add(transaction)
             await self.db.commit()
             logger.info(f"Transaction {order_id} status updated to {status}")
             return {"success": True, "message": "Transaction updated"}
