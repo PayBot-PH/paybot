@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Optional, List
+from typing import Optional, List, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
