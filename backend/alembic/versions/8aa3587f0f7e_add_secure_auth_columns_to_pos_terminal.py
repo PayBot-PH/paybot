@@ -35,19 +35,15 @@ def upgrade() -> None:
     if 'is_t0_settlement' not in columns:
         op.add_column('pos_terminals', sa.Column('is_t0_settlement', sa.Boolean(), nullable=False, server_default='false'))
 
-    # Check for index existence is harder, but op.create_index might fail if exists
-    try:
+    # Check for index existence
+    existing_indices = [i['name'] for i in inspector.get_indexes('pos_terminals')]
+    if 'idx_terminal_device_id' not in existing_indices:
         op.create_index('idx_terminal_device_id', 'pos_terminals', ['device_id'])
-    except Exception:
-        pass
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    try:
-        op.drop_index('idx_terminal_device_id', table_name='pos_terminals')
-    except Exception:
-        pass
+    op.drop_index('idx_terminal_device_id', table_name='pos_terminals')
     op.drop_column('pos_terminals', 'is_t0_settlement')
     op.drop_column('pos_terminals', 'authorized_at')
     op.drop_column('pos_terminals', 'operator_pin')
