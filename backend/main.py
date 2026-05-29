@@ -25,6 +25,7 @@ from services.database import initialize_database, close_database
 from services.auth import initialize_admin_user, initialize_demo_users
 import services.wallet_integration # Initialize wallet event handlers
 # MODULE_IMPORTS_END
+from services.scheduler import start_scheduler, stop_scheduler
 
 # Telegram bot commands registered on startup
 BOT_COMMANDS = [
@@ -208,6 +209,11 @@ async def lifespan(app: FastAPI):
             logger.error(f"Mock data initialization failed (non-critical): {e}", exc_info=True)
     else:
         logger.warning("Skipping mock data initialization because database is not ready.")
+    # Start background scheduler (T+1 card settlement sweep)
+    try:
+        await start_scheduler()
+    except Exception as _sched_exc:
+        logger.warning('Scheduler startup failed (non-fatal): %s', _sched_exc)
     # MODULE_STARTUP_END
 
     # Initialize Automated Operations Worker
@@ -234,6 +240,7 @@ async def lifespan(app: FastAPI):
             await _telegram_task
         except (asyncio.CancelledError, Exception):
             pass
+    await stop_scheduler()
     await close_database()
     # MODULE_SHUTDOWN_END
 
