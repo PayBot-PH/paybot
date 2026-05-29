@@ -13,6 +13,7 @@ from models.pos_terminal import (
     POSTerminalDevice,
     TerminalStatus,
 )
+from models.wallet_transactions import Wallet_transactions
 from schemas.pos_terminal import (
     POSTerminalCreate,
     POSTerminalUpdate,
@@ -22,6 +23,7 @@ from schemas.pos_terminal import (
 )
 from services.maya_service import MayaService
 from services.paymongo_service import PayMongoService
+from services.wallets import WalletsService
 from services.event_bus import event_bus
 
 logger = logging.getLogger(__name__)
@@ -564,7 +566,35 @@ class POSTerminalService:
             transaction.status = status
             if status == "completed":
                 transaction.completed_at = datetime.utcnow()
-                # Trigger sync event for system-wide notification (Bot, Dashboard etc.)
+                
+                # Credit merchant wallet
+                try:
+                    wallet_service = WalletsService(self.db)
+                    wallet = await wallet_service.get_or_create_wallet(transaction.user_id, "PHP")
+                    
+                    amount_decimal = float(transaction.amount) / 100.0
+                    balance_before = float(wallet.balance or 0.0)
+                    wallet.balance = balance_before + amount_decimal
+                    wallet.updated_at = datetime.utcnow()
+                    
+                    wtxn = Wallet_transactions(
+                        user_id=transaction.user_id,
+                        wallet_id=wallet.id,
+                        transaction_type="terminal_sale",
+                        amount=amount_decimal,
+                        balance_before=balance_before,
+                        balance_after=wallet.balance,
+                        note=f"Terminal Sale: {transaction.order_id}",
+                        status="completed",
+                        reference_id=transaction.order_id,
+                        created_at=datetime.utcnow(),
+                    )
+                    self.db.add(wtxn)
+                    logger.info(f"Credited wallet for user {transaction.user_id}: {amount_decimal} PHP")
+                except Exception as werr:
+                    logger.error(f"Failed to credit wallet for transaction {order_id}: {werr}")
+
+                # Trigger sync event
                 await event_bus.emit("payment_completed", {
                     "user_id": transaction.user_id,
                     "amount": transaction.amount,

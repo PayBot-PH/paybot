@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 from typing import Optional, Dict, Any, List
 
 from sqlalchemy import select, func
@@ -169,6 +170,30 @@ class WalletsService:
             return result.scalar_one_or_none()
         except Exception as e:
             logger.error(f"Error fetching wallets by {field_name}: {str(e)}")
+            raise
+
+    async def get_or_create_wallet(self, user_id: str, currency: str = "PHP") -> Wallets:
+        """Get user's wallet for a given currency, or create one with 0 balance."""
+        try:
+            result = await self.db.execute(
+                select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == currency)
+            )
+            wallet = result.scalar_one_or_none()
+            if not wallet:
+                now = datetime.now()
+                wallet = Wallets(
+                    user_id=user_id,
+                    balance=0.0,
+                    currency=currency,
+                    created_at=now,
+                    updated_at=now,
+                )
+                self.db.add(wallet)
+                await self.db.commit()
+                await self.db.refresh(wallet)
+            return wallet
+        except Exception as e:
+            logger.error(f"Error in get_or_create_wallet: {e}")
             raise
 
     async def list_by_field(

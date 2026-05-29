@@ -52,7 +52,13 @@ export const LoginScreen = ({ navigation }) => {
         body: JSON.stringify({ email, password, device_id: deviceId }),
       });
 
-      const result = await response.json();
+      let result;
+      const text = await response.text();
+      try {
+        result = JSON.parse(text);
+      } catch (e) {
+        throw new Error('Server returned invalid response. Please check backend logs.');
+      }
 
       if (response.ok && result.access_token) {
         // Save terminal info if available
