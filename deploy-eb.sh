@@ -43,7 +43,7 @@ docker tag ${IMAGE_NAME}:latest ${ECR_REGISTRY}/${IMAGE_NAME}:latest
 docker tag ${IMAGE_NAME}:latest ${ECR_REGISTRY}/${IMAGE_NAME}:${TIMESTAMP}
 
 # 3. Login to ECR
-echo -e "${YELLOW}🔐 Logging into ECR...${NC}"
+echo -e "${YELLOW}���� Logging into ECR...${NC}"
 aws ecr get-login-password --region ${AWS_REGION} | \
   docker login --username AWS --password-stdin ${ECR_REGISTRY} || {
   echo -e "${RED}❌ ECR login failed${NC}"
