@@ -57,14 +57,14 @@ class POSTerminalResponse(POSTerminalBase):
     terminal_code: str
     user_id: str
     device_id: Optional[str] = None
-    merchant_id: Optional[str]
+    merchant_id: Optional[str] = None
     status: TerminalStatusEnum
     is_active: bool
-    assigned_by: Optional[str]
-    assigned_at: Optional[datetime]
+    assigned_by: Optional[str] = None
+    assigned_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
-    deactivated_at: Optional[datetime]
+    deactivated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -115,10 +115,10 @@ class POSTerminalRequestResponse(BaseModel):
     monthly_transaction_volume: Optional[int]
     average_transaction_amount: Optional[int]
     status: str  # pending, approved, rejected
-    rejection_reason: Optional[str]
-    assigned_terminal_id: Optional[int]
-    reviewed_by: Optional[str]
-    reviewed_at: Optional[datetime]
+    rejection_reason: Optional[str] = None
+    assigned_terminal_id: Optional[int] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
@@ -157,18 +157,18 @@ class POSTerminalTransactionResponse(BaseModel):
     amount: int
     currency: str
     payment_method: str
-    maya_checkout_id: Optional[str]
-    paymongo_checkout_id: Optional[str]
-    xendit_invoice_id: Optional[str]
-    payment_url: Optional[str]
+    maya_checkout_id: Optional[str] = None
+    paymongo_checkout_id: Optional[str] = None
+    xendit_invoice_id: Optional[str] = None
+    payment_url: Optional[str] = None
     qr_content: Optional[str] = None
-    customer_name: Optional[str]
-    customer_email: Optional[str]
-    customer_phone: Optional[str]
+    customer_name: Optional[str] = None
+    customer_email: Optional[str] = None
+    customer_phone: Optional[str] = None
     status: str  # pending, completed, failed, cancelled
-    failure_reason: Optional[str]
+    failure_reason: Optional[str] = None
     created_at: datetime
-    completed_at: Optional[datetime]
+    completed_at: Optional[datetime] = None
     updated_at: datetime
 
     class Config:
