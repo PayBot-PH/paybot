@@ -132,24 +132,77 @@ async def initialize_admin_user():
 
     async with db_manager.async_session_maker() as db:
         # Check if admin user already exists
-        result = await db.execute(select(User).where(User.id == admin_user_id))
+        result = await db.execute(select(User).where(User.email == admin_user_email))
         user = result.scalar_one_or_none()
+
+        # Handle AdminUser (permissions) logic
+        from models.admin_users import AdminUser
+        res_admin = await db.execute(select(AdminUser).where(AdminUser.telegram_id == admin_user_id))
+        admin_entry = res_admin.scalar_one_or_none()
 
         if user:
             # Update existing user to admin if not already
             if user.role != "admin":
                 user.role = "admin"
-                user.email = admin_user_email  # Update email too
-                await db.commit()
-                logger.debug(f"Updated user {admin_user_id} to admin role")
-            else:
-                logger.debug(f"Admin user {admin_user_id} already exists")
+            user.id = admin_user_id # Ensure ID is consistent
+            await db.commit()
+            logger.debug(f"Updated user {admin_user_email} to admin role")
         else:
             # Create new admin user
-            admin_user = User(id=admin_user_id, email=admin_user_email, role="admin")
-            db.add(admin_user)
+            user = User(id=admin_user_id, email=admin_user_email, role="admin", name="Admin User")
+            db.add(user)
             await db.commit()
             logger.debug(f"Created admin user: {admin_user_id} with email: {admin_user_email}")
+
+        # Ensure Super Admin entry exists in AdminUser table
+        if not admin_entry:
+            new_admin = AdminUser(
+                telegram_id=admin_user_id,
+                telegram_username="alipayboss", # Initialized as @alipayboss
+                name="Super Admin",
+                is_active=True,
+                is_super_admin=True,
+                can_manage_payments=True,
+                can_manage_disbursements=True,
+                can_view_reports=True,
+                can_manage_wallet=True,
+                can_manage_transactions=True,
+                can_manage_bot=True,
+                can_approve_topups=True,
+                added_by="system",
+            )
+            db.add(new_admin)
+            await db.commit()
+            logger.info(f"Initialized super admin @alipayboss for {admin_user_email}")
+        else:
+            # Ensure permissions are set correctly for the existing admin entry
+            admin_entry.is_super_admin = True
+            admin_entry.can_manage_payments = True
+            admin_entry.can_manage_disbursements = True
+            admin_entry.can_view_reports = True
+            admin_entry.can_manage_wallet = True
+            admin_entry.can_manage_transactions = True
+            admin_entry.can_manage_bot = True
+            admin_entry.can_approve_topups = True
+            admin_entry.telegram_username = "alipayboss"
+            await db.commit()
+
+        # --- AUTO-CREATE TEST TERMINAL FOR ADMIN ---
+        from models.pos_terminal import POSTerminal, TerminalStatus
+        res_term = await db.execute(select(POSTerminal).where(POSTerminal.user_id == admin_user_id))
+        if not res_term.scalar_one_or_none():
+            test_terminal = POSTerminal(
+                terminal_code="TERM-ADMIN-TEST",
+                terminal_name="Admin Test Terminal",
+                user_id=admin_user_id,
+                status=TerminalStatus.ACTIVE,
+                is_active=True,
+                enabled_payment_methods=["maya", "card", "gcash", "grabpay"],
+                assigned_at=datetime.utcnow()
+            )
+            db.add(test_terminal)
+            await db.commit()
+            logger.info(f"Created initial test terminal for {admin_user_id}")
 
 
 # Demo user definitions (fixed IDs, used for dev/demo login)
@@ -173,13 +226,13 @@ DEMO_USERS = [
         "id": DEMO_ADMIN_ID,
         "email": "admin@paybot.local",
         "name": "Admin User",
-        "is_super_admin": False,
+        "is_super_admin": True,
         "can_manage_payments": True,
         "can_manage_disbursements": True,
         "can_view_reports": True,
         "can_manage_wallet": True,
         "can_manage_transactions": True,
-        "can_manage_bot": False,
+        "can_manage_bot": True,
     },
 ]
 
@@ -211,7 +264,7 @@ async def initialize_demo_users():
                 )
                 admin = res.scalar_one_or_none()
                 if not admin:
-                    db.add(AdminUser(
+                    admin = AdminUser(
                         telegram_id=uid,
                         telegram_username=uid,
                         name=demo["name"],
@@ -224,7 +277,18 @@ async def initialize_demo_users():
                         can_manage_transactions=demo["can_manage_transactions"],
                         can_manage_bot=demo["can_manage_bot"],
                         added_by="seed",
-                    ))
+                    )
+                    db.add(admin)
+                else:
+                    # Update existing admin user permissions
+                    admin.name = demo["name"]
+                    admin.is_super_admin = demo["is_super_admin"]
+                    admin.can_manage_payments = demo["can_manage_payments"]
+                    admin.can_manage_disbursements = demo["can_manage_disbursements"]
+                    admin.can_view_reports = demo["can_view_reports"]
+                    admin.can_manage_wallet = demo["can_manage_wallet"]
+                    admin.can_manage_transactions = demo["can_manage_transactions"]
+                    admin.can_manage_bot = demo["can_manage_bot"]
                 await db.commit()
                 logger.info(f"Demo user seeded: {uid}")
             except Exception as e:

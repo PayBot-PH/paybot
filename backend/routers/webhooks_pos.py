@@ -43,7 +43,11 @@ async def maya_payment_webhook(request: Request, db: AsyncSession = Depends(get_
         )
         
         if not webhook_secret:
-            logger.warning("Maya webhook secret not configured, skipping signature verification")
+            # In production, always require signature verification
+            if not settings.debug:
+                logger.error("Maya webhook secret not configured - rejecting webhook in production")
+                raise HTTPException(status_code=403, detail="Webhook not configured")
+            logger.warning("Maya webhook secret not configured, skipping signature verification (DEBUG MODE)")
         elif signature:
             expected_signature = hmac.new(
                 webhook_secret.encode("utf-8"),
@@ -52,8 +56,14 @@ async def maya_payment_webhook(request: Request, db: AsyncSession = Depends(get_
             ).hexdigest()
             
             if not hmac.compare_digest(signature, expected_signature):
-                logger.warning("Invalid Maya webhook signature")
+                logger.warning("Invalid Maya webhook signature - rejecting request")
                 raise HTTPException(status_code=401, detail="Invalid signature")
+        else:
+            # No signature provided
+            if not settings.debug:
+                logger.error("Missing Maya webhook signature - rejecting in production")
+                raise HTTPException(status_code=401, detail="Signature required")
+            logger.warning("Missing Maya webhook signature (DEBUG MODE)")
         
         # Parse payload
         payload = json.loads(body)

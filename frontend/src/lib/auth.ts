@@ -47,10 +47,26 @@ export const authApi = {
     }
   },
 
-  async login(userId: string, password: string) {
-    void userId;
-    void password;
-    throw new Error('Legacy login is disabled. Use Telegram sign-in.');
+  async login(email: string, password: string) {
+    const response = await fetch('/api/v1/auth/terminal-login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data?.detail || 'Login failed');
+    }
+
+    const data = await response.json();
+    if (!data?.access_token) {
+      throw new Error('Login failed: missing access token');
+    }
+
+    setStoredToken(data.access_token);
   },
 
   async loginWithTelegram(user: TelegramWidgetUser, cfTurnstileToken?: string | null) {

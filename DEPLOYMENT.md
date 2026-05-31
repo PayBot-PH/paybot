@@ -1,513 +1,503 @@
 # PayBot Deployment Guide
 
-This guide covers deploying PayBot on **Railway**.
-
-## Prerequisites
-
-- A GitHub account with access to the PayBot repository
-- A Xendit account for payment processing
-- A Telegram Bot Token (create via [@BotFather](https://t.me/botfather))
-- A Railway account ([railway.app](https://railway.app))
-
 ## Table of Contents
-
-### Railway
-1. [Railway Setup](#1-railway-setup)
-2. [Environment Variables Setup](#2-environment-variables-setup)
-3. [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup)
-4. [Database Migration](#4-database-migration)
-5. [Webhook Configuration](#5-webhook-configuration)
-6. [Post-Deployment Steps](#6-post-deployment-steps)
-7. [Troubleshooting](#7-troubleshooting)
+1. [AWS Elastic Beanstalk Deployment](#aws-elastic-beanstalk-deployment)
+2. [Android APK Build](#android-apk-build)
+3. [Environment Variables](#environment-variables)
+4. [Troubleshooting](#troubleshooting)
 
 ---
 
-## 1. Railway Setup
+## AWS Elastic Beanstalk Deployment
 
-### 1.1 Create a New Railway Project
+### Prerequisites
 
-1. Log in to [Railway](https://railway.app)
-2. Click **"New Project"**
-3. Select **"Deploy from GitHub repo"**
-4. Authenticate with GitHub if prompted
-5. Select the `PayBot-PH/paybot` repository
-6. Railway will detect the `railway.toml` configuration automatically
+1. **AWS Account** with permissions for:
+   - EC2
+   - Elastic Beanstalk
+   - ECR (Elastic Container Registry)
+   - RDS (for PostgreSQL)
+   - IAM
 
-### 1.2 Add PostgreSQL Database
+2. **Install AWS CLI**
+   ```bash
+   pip install awscli --upgrade
+   ```
 
-1. In your Railway project dashboard, click **"New"**
-2. Select **"Database"**
-3. Choose **"PostgreSQL"**
-4. Railway will automatically provision a PostgreSQL database
-5. The `DATABASE_URL` environment variable will be automatically added to your backend service
+3. **Install EB CLI**
+   ```bash
+   pip install awsebcli --upgrade
+   ```
 
-### 1.3 Configure Services
+4. **Configure AWS Credentials**
+   ```bash
+   aws configure
+   # Enter your Access Key ID, Secret Access Key, region (ap-southeast-1), and output format (json)
+   ```
 
-Railway will automatically create services based on your `railway.toml` configuration:
+### Step 1: Initial Setup
 
-- **Backend Service**: Runs the FastAPI application (with the React admin UI served as static files)
-- **Database**: PostgreSQL database
+1. **Initialize EB Application** (first time only)
+   ```bash
+   eb init -p docker paybot --region ap-southeast-1
+   ```
 
-### 1.4 Get the DATABASE_URL
+2. **Create ECR Repository**
+   ```bash
+   aws ecr create-repository --repository-name paybot --region ap-southeast-1
+   ```
 
-1. Click on the **PostgreSQL** service in your Railway project
-2. Go to the **"Variables"** tab
-3. Copy the `DATABASE_URL` value (it should look like: `postgresql://user:password@host:port/database`)
-4. This URL is automatically injected into your backend service
+3. **Get your AWS Account ID**
+   ```bash
+   aws sts get-caller-identity --query Account --output text
+   ```
 
----
+### Step 2: Prepare Environment Variables
 
-## 2. Environment Variables Setup
-
-### 2.1 Backend Environment Variables
-
-1. Click on your **Backend Service** in Railway
-2. Go to the **"Variables"** tab
-3. Add the following environment variables:
-
-#### Required Variables:
-
-| Variable Name | Description | Example Value |
-|--------------|-------------|---------------|
-| `DATABASE_URL` | PostgreSQL connection string (auto-added by Railway) | `postgresql://user:pass@host:5432/db` |
-| `TELEGRAM_BOT_TOKEN` | Your Telegram bot token | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11` |
-| `MAYA_SECRET_KEY` | Your Maya Manager API secret key | `maya_live_...` |
-| `MAYA_MODE` | Maya Manager mode (`sandbox` or `live`) | `live` |
-| `MAYA_BASE_URL` | Optional Maya Manager base URL override | `https://pg.paymaya.com/p3/pay` |
-| `PYTHON_BACKEND_URL` | Your Railway backend public URL (for Telegram webhook) | `https://paybot-backend-production-84b2.up.railway.app` |
-| `JWT_SECRET_KEY` | Secret key for signing JWT tokens | Run `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `ADMIN_USER_PASSWORD` | Password for admin dashboard login | `your_secure_password` |
-| `TELEGRAM_ADMIN_IDS` | Comma-separated Telegram numeric IDs or `@usernames` allowed as admin | Find your numeric ID via [@userinfobot](https://t.me/userinfobot); use `@username` format if you prefer (e.g. `@yourname,123456789`) |
-
-#### Optional Variables:
-
-| Variable Name | Description | Default Value |
-|--------------|-------------|---------------|
-| `ENVIRONMENT` | Application environment | `production` |
-| `DEBUG` | Enable debug mode | `false` |
-| `PORT` | Server port (auto-set by Railway) | `8000` |
-| `ALLOWED_ORIGINS` | Comma-separated list of allowed CORS origins | Empty (allows all) |
-| `JWT_ALGORITHM` | JWT signing algorithm | `HS256` |
-| `JWT_EXPIRE_MINUTES` | JWT token expiry in minutes | `60` |
-| `TELEGRAM_BOT_USERNAME` | Bot username without `@` — required for the Telegram Login Widget | — |
-| `TELEGRAM_BOT_OWNER_ID` | Super-admin Telegram user ID (approves KYB registrations) | — |
-
-#### Payment Gateway Secrets (add the ones you need):
-
-| Variable | Description |
-|----------|-------------|
-| `MAYA_SECRET_KEY` | Maya Manager secret key for checkout integration |
-| `MAYA_MODE` | Maya Manager mode (`sandbox` or `live`) |
-| `MAYA_BASE_URL` | Optional Maya Manager base URL override |
-| `PAYMONGO_SECRET_KEY` | PayMongo secret key (cards, GCash, GrabPay, Maya, Alipay, WeChat via PayMongo) |
-| `PAYMONGO_PUBLIC_KEY` | PayMongo public key |
-| `PAYMONGO_WEBHOOK_SECRET` | PayMongo webhook signing secret for signature verification |
-| `PAYMONGO_MODE` | PayMongo mode (`live` or `test`) |
-| `PHOTONPAY_APP_ID` | PhotonPay App ID (Alipay / WeChat Pay via PhotonPay) |
-| `PHOTONPAY_APP_SECRET` | PhotonPay App Secret |
-| `PHOTONPAY_SITE_ID` | PhotonPay Site ID (Collection → Site Management) |
-| `PHOTONPAY_RSA_PRIVATE_KEY` | Merchant RSA private key (PKCS#8 PEM) for signing requests |
-| `PHOTONPAY_RSA_PUBLIC_KEY` | PhotonPay platform RSA public key for webhook verification |
-| `TRANSFI_API_KEY` | TransFi Checkout API key (Alipay / WeChat Pay via TransFi) |
-| `TRANSFI_WEBHOOK_SECRET` | TransFi HMAC-SHA256 webhook secret |
-| `TRANSFI_BASE_URL` | TransFi API base URL |
-
-#### Example ALLOWED_ORIGINS:
-```
-ALLOWED_ORIGINS=https://paybot-backend-production-84b2.up.railway.app,http://localhost:3000
-```
-
-### 2.2 Frontend Environment Variables
-
-The frontend is served directly by the backend as a static SPA, so no separate frontend deployment is needed. All requests to `/api/...` are handled by the backend, and the React app is served from the same URL.
-
----
-
-## 3. GitHub Actions Secrets Setup
-
-The GitHub Actions deployment workflow (`deploy-railway.yml`) deploys to Railway automatically on every push to `main`. It requires a Railway project token configured as a GitHub secret.
-
-### 3.1 Generate a Railway Project Token
-
-A **project token** is a scoped token that grants access only to a specific Railway project and environment. This is the recommended token type for CI/CD.
-
-1. Log in to [Railway](https://railway.app)
-2. Open your project
-3. Go to **Project Settings** → **Tokens**
-4. Click **"New Token"**
-5. Give it a name (e.g., `github-actions`) and select the **production** environment
-6. Copy the generated token
-
-### 3.2 Add the Secrets as GitHub Secrets
-
-The workflow uses the `production` environment in GitHub Actions. You can add secrets either at the repository level or the environment level:
-
-**Option A – Repository environment secrets (recommended):**
-
-1. Go to your GitHub repository → **Settings** → **Environments**
-2. Click on **"production"** (create it if it doesn't exist)
-3. Under **"Environment secrets"**, click **"Add secret"**
-4. Add each required secret (see table below)
-5. Click **"Add secret"**
-
-**Option B – Repository-level secrets:**
-
-1. Go to your GitHub repository → **Settings** → **Secrets and variables** → **Actions**
-2. Click **"New repository secret"**
-3. Add each required secret (see table below)
-
-**Required secrets:**
-
-| Secret Name | Description |
-|-------------|-------------|
-| `RAILWAY_API_KEY` | Railway project API key (see [step 3.1](#31-generate-a-railway-project-token)) |
-| `RAILWAY_PROJECT_ID` | Railway project ID used for direct GHCR image deploy |
-| `VITE_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key used by the frontend login page |
-| `CLOUDFLARE_TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key used by backend verification |
-
-**Optional secrets:**
-
-| Secret Name | Description |
-|-------------|-------------|
-| `CF_API_TOKEN` | Cloudflare API token with `Cache Purge` permission to clear cache after deploy |
-| `CF_ZONE_ID` | Cloudflare Zone ID for your routed domain |
-| `VITE_TELEGRAM_BOT_USERNAME` | Telegram bot username used by the frontend login widget (optional if backend supplies it) |
-| `PYTHON_BACKEND_URL` | Optional backend URL when using a Cloudflare-proxied custom domain |
-
-### ✅ GitHub Secrets Checklist
-
-Use these exact repository/environment secret names when configuring the `production` environment for GitHub Actions.
-
-- `RAILWAY_API_KEY` — Railway project API key for production deployments.
-- `RAILWAY_PROJECT_ID` — Railway project ID used by the action to deploy the built GHCR image.
-- `VITE_TURNSTILE_SITE_KEY` — Cloudflare Turnstile site key injected into the frontend build.
-  - If you build the Docker image yourself, pass it as a build arg: `docker build --build-arg VITE_TURNSTILE_SITE_KEY=... .`
-- `CLOUDFLARE_TURNSTILE_SECRET_KEY` — Cloudflare Turnstile secret key used by backend runtime verification.
-- `CF_API_TOKEN` — Cloudflare API token for optional cache purge after deploy.
-- `CF_ZONE_ID` — Cloudflare Zone ID for optional cache purge after deploy.
-- `VITE_TELEGRAM_BOT_USERNAME` — Optional Telegram bot username for the frontend login widget.
-- `PYTHON_BACKEND_URL` — Optional backend public URL for Telegram webhook / Cloudflare proxied domains.
-
-> `CLOUDFLARE_TURNSTILE_SECRET_KEY` must be set in Railway environment variables (or your production host), not just in frontend build secrets.
-
-> If `RAILWAY_API_KEY` or `RAILWAY_PROJECT_ID` is missing or empty, the deployment step will fail. If `VITE_TURNSTILE_SITE_KEY` is not set, the Cloudflare Turnstile widget will not render in the frontend login flow.
->
-> `CLOUDFLARE_TURNSTILE_SECRET_KEY` is a backend runtime secret and must be set in Railway or your production environment variables so the app can verify Turnstile responses.
-
----
-
-## 4. Database Migration
-
-### Automatic Migrations
-
-Database migrations run **automatically** on each deployment via the pre-deploy command in `railway.toml`:
+Create or update `.env` in the repository root with your credentials:
 
 ```bash
-alembic upgrade head
+# AWS Configuration
+export AWS_ACCOUNT_ID="your-12-digit-account-id"
+export AWS_REGION="ap-southeast-1"
+export EB_APP_NAME="paybot"
+export EB_ENV_NAME="paybot-production"
+
+# Frontend
+export VITE_TURNSTILE_SITE_KEY="your-turnstile-site-key"
+export VITE_TELEGRAM_BOT_USERNAME="your_bot_username"
+
+# Backend - Payment Services
+export XENDIT_SECRET_KEY="your-xendit-secret"
+export PAYMONGO_SECRET_KEY="your-paymongo-secret"
+export PAYMONGO_PUBLIC_KEY="your-paymongo-public"
+export PAYMONGO_WEBHOOK_SECRET="your-webhook-secret"
+
+# Backend - Telegram
+export TELEGRAM_BOT_TOKEN="your-telegram-bot-token"
+export TELEGRAM_ADMIN_IDS="@username,123456789"
+
+# Backend - Security
+export JWT_SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+
+# Backend - PhotonPay (if using)
+export PHOTONPAY_APP_ID="your-app-id"
+export PHOTONPAY_APP_SECRET="your-app-secret"
+export PHOTONPAY_SITE_ID="your-site-id"
+
+# Backend - Database (PostgreSQL recommended for production)
+# AWS RDS PostgreSQL connection string
+export DATABASE_URL="postgresql://username:password@paybot-db.xxxxx.ap-southeast-1.rds.amazonaws.com:5432/paybot"
+
+# Backend - URL Configuration
+export PYTHON_BACKEND_URL="https://paybot-eb-domain.elasticbeanstalk.com"
+export ALLOWED_ORIGINS="https://paybot-eb-domain.elasticbeanstalk.com,http://localhost:3000"
 ```
 
-This runs as a `preDeployCommand` — Railway executes the migration in a one-off container *before* promoting the new deployment live. If the migration fails, the deployment is rolled back and the previous version keeps serving traffic. This prevents broken schema from reaching the running app.
+### Step 3: Deploy to Elastic Beanstalk
 
-### Manual Migration (if needed)
-
-If you need to run migrations manually:
-
-1. Install the Railway CLI:
+1. **Make the deployment script executable**
    ```bash
-   npm install -g @railway/cli
+   chmod +x deploy-eb.sh
    ```
 
-2. Link to your project:
+2. **Load environment variables**
    ```bash
-   railway link
+   source .env
    ```
 
-3. Run migrations:
+3. **Run the deployment script**
    ```bash
-   railway run alembic upgrade head
+   ./deploy-eb.sh
    ```
 
-### Verify Migrations
+4. **Monitor deployment**
+   ```bash
+   # Check status
+   eb status
+   
+   # View logs
+   eb logs --all --stream
+   
+   # SSH into instance
+   eb ssh
+   ```
 
-To check the current migration status:
+### Step 4: Configure RDS Database (Optional but Recommended)
+
+For production, use Amazon RDS instead of SQLite:
+
+1. **Create RDS PostgreSQL Instance**
+   ```bash
+   aws rds create-db-instance \
+     --db-instance-identifier paybot-db \
+     --db-instance-class db.t3.micro \
+     --engine postgres \
+     --master-username postgres \
+     --master-user-password "strong-password" \
+     --allocated-storage 20 \
+     --publicly-accessible \
+     --region ap-southeast-1
+   ```
+
+2. **Wait for creation** (5-10 minutes), then get the endpoint
+   ```bash
+   aws rds describe-db-instances --db-instance-identifier paybot-db \
+     --query 'DBInstances[0].Endpoint.Address' --output text
+   ```
+
+3. **Update DATABASE_URL in EB environment**
+   ```bash
+   eb setenv DATABASE_URL="postgresql://postgres:password@paybot-db.xxxxx.rds.amazonaws.com:5432/paybot"
+   ```
+
+### Step 5: Set Up SSL Certificate (Recommended)
+
+1. **Request certificate in AWS Certificate Manager**
+   ```bash
+   aws acm request-certificate \
+     --domain-name paybot.your-domain.com \
+     --validation-method DNS \
+     --region ap-southeast-1
+   ```
+
+2. **Complete DNS validation** in your domain registrar
+
+3. **Attach to EB environment** via AWS Console or CLI
+
+---
+
+## Android APK Build
+
+### Prerequisites
+
+1. **Node.js** >= 20.19.4
+   ```bash
+   node --version  # should be v20.19.4 or higher
+   ```
+
+2. **JDK 17** (required for React Native 0.72+)
+
+   **macOS (Homebrew):**
+   ```bash
+   brew install openjdk@17
+   export JAVA_HOME=$(/usr/libexec/java_home -v 17)
+   ```
+
+   **Linux (Ubuntu/Debian):**
+   ```bash
+   sudo apt-get install openjdk-17-jdk
+   export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+   ```
+
+   **Windows:**
+   - Download from [oracle.com](https://www.oracle.com/java/technologies/javase/jdk17-archive-downloads.html)
+   - Or install via: `choco install openjdk17`
+
+3. **Android SDK** (via Android Studio)
+   - Install Android Studio
+   - Open SDK Manager (Tools → SDK Manager)
+   - Install Android SDK API 33+
+   - Install Android Build Tools 33.0.0+
+
+4. **Gradle** (comes with React Native)
+
+### Step 1: Generate Signing Keystore
+
+Run this once to create your release signing key:
 
 ```bash
-railway run alembic current
+cd mobile/android/app
+
+keytool -genkey -v \
+  -keystore paybot-release-key.keystore \
+  -keyalg RSA \
+  -keysize 2048 \
+  -validity 10000 \
+  -alias paybot \
+  -keypass your-key-password \
+  -storepass your-keystore-password
+
+# Keep this file safe! Add to .gitignore
+cd ../../..
+echo "mobile/android/app/paybot-release-key.keystore" >> .gitignore
 ```
 
-To see migration history:
+**IMPORTANT:** Back up this keystore file securely. Losing it means you can't update your app on Google Play.
+
+### Step 2: Set Up Environment Variables
 
 ```bash
-railway run alembic history
+export KEYSTORE_PASSWORD="your-keystore-password"
+export KEY_ALIAS="paybot"
+export KEY_PASSWORD="your-key-password"
 ```
 
----
+Or create `mobile/.env.build`:
+```bash
+KEYSTORE_PASSWORD=your-keystore-password
+KEY_ALIAS=paybot
+KEY_PASSWORD=your-key-password
+```
 
-## 5. Webhook Configuration
-
-After deployment, you need to configure webhooks for external services.
-
-### 5.1 Get Your Backend URL
-
-1. Go to your Railway backend service
-2. Click on the **"Settings"** tab
-3. Find the **"Public Networking"** section
-4. Copy your **Railway domain** (e.g., `https://paybot-backend-production-84b2.up.railway.app`)
-
-### 5.2 Xendit Webhook Setup
-
-1. Log in to your [Xendit Dashboard](https://dashboard.xendit.co)
-2. Go to **Settings** → **Webhooks**
-3. Add a new webhook URL:
-   ```
-   https://paybot-backend-production-84b2.up.railway.app/api/v1/xendit/webhook
-   ```
-4. Select the events you want to receive:
-   - `payment.succeeded`
-   - `payment.failed`
-   - `invoice.paid`
-   - `invoice.expired`
-5. Save the webhook configuration
-
-### 5.3 PayMongo Webhook Setup
-
-1. Log in to [PayMongo Dashboard](https://dashboard.paymongo.com) → **Developers → Webhooks**
-2. Create a webhook pointing to:
-   ```
-   https://paybot-backend-production-84b2.up.railway.app/api/v1/paymongo/webhook
-   ```
-3. Enable events: `source.chargeable`, `checkout_session.payment.paid`, `checkout_session.payment.failed`, `payment.paid`, `payment.failed`
-4. Copy the **signing secret** → set as `PAYMONGO_WEBHOOK_SECRET`
-
-### 5.4 TransFi Webhook Setup
-
-1. Log in to your [TransFi Checkout dashboard](https://checkout-dashboard.transfi.com)
-2. Go to **Settings** → **Integration** (or **Webhooks**)
-3. Add a new webhook URL:
-   ```
-   https://<your-railway-domain>/api/v1/transfi/webhook
-   ```
-4. Copy the **webhook secret** and set it as `TRANSFI_WEBHOOK_SECRET` in your environment variables.
-5. Save the webhook configuration.
-
-### 5.5 Telegram Webhook Setup
-
-The Telegram webhook is automatically registered on startup when `PYTHON_BACKEND_URL` is set. To set it up manually:
+### Step 3: Install Dependencies
 
 ```bash
-curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook"
-  }'
+cd mobile
+npm install
+# or
+pnpm install
 ```
 
-Replace `<YOUR_BOT_TOKEN>` with your actual bot token and update the URL with your Railway backend domain.
+### Step 4: Build APK
 
-To verify the webhook is set:
+**Release APK (for Google Play):**
+```bash
+chmod +x build-apk.sh
+./build-apk.sh
+```
+
+Output: `mobile/android/app/build/outputs/apk/release/app-release.apk`
+
+**Debug APK (for testing):**
+```bash
+cd mobile/android
+./gradlew assembleDebug
+cd ../..
+```
+
+Output: `mobile/android/app/build/outputs/apk/debug/app-debug.apk`
+
+### Step 5: Install on Device
+
+**Test Release APK:**
+```bash
+adb install -r mobile/android/app/build/outputs/apk/release/app-release.apk
+```
+
+**Test Debug APK:**
+```bash
+adb install -r mobile/android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+### Step 6: Upload to Google Play Store
+
+1. **Build App Bundle** (recommended format for Play Store)
+   ```bash
+   chmod +x mobile/release-to-playstore.sh
+   ./mobile/release-to-playstore.sh
+   ```
+
+   Output: `mobile/android/app/build/outputs/bundle/release/app-release.aab`
+
+2. **Log in to Google Play Console**
+   - Go to https://play.google.com/console
+   - Select PayBot app
+
+3. **Create Release**
+   - Go to Release → Production
+   - Click "Create Release"
+   - Upload the AAB file
+   - Review store listing
+   - Submit for review
+
+---
+
+## Environment Variables
+
+### Backend (.env)
+
+| Variable | Required | Purpose |
+|----------|----------|----------|
+| `DATABASE_URL` | Yes | Database connection (SQLite or PostgreSQL) |
+| `TELEGRAM_BOT_TOKEN` | Yes | Telegram bot token |
+| `TELEGRAM_ADMIN_IDS` | Yes | Admin user IDs for dashboard access |
+| `JWT_SECRET_KEY` | Yes | JWT secret for authentication |
+| `XENDIT_SECRET_KEY` | Yes | Xendit payment gateway API key |
+| `PAYMONGO_SECRET_KEY` | Yes | PayMongo API secret key |
+| `PAYMONGO_PUBLIC_KEY` | Yes | PayMongo public key |
+| `PYTHON_BACKEND_URL` | Yes | Backend URL for webhooks |
+| `ENVIRONMENT` | Yes | Set to `production` |
+| `LOG_LEVEL` | No | Logging level (default: `info`) |
+
+### Frontend (.env or via build args)
+
+| Variable | Required | Purpose |
+|----------|----------|----------|
+| `VITE_API_URL` | Yes | Backend API URL |
+| `VITE_TELEGRAM_BOT_USERNAME` | Yes | Telegram bot username |
+| `VITE_TURNSTILE_SITE_KEY` | No | Cloudflare Turnstile site key |
+
+### Mobile (app.config.json)
+
+| Variable | Purpose |
+|----------|----------|
+| `apiBaseUrl` | Backend API endpoint |
+| `telegramBotUsername` | Telegram bot for login |
+| `version` | App version |
+| `buildNumber` | Build number for Play Store |
+
+---
+
+## Troubleshooting
+
+### Elastic Beanstalk Issues
+
+**Deployment stuck or slow:**
+```bash
+eb abort
+eb deploy --verbose
+```
+
+**Check logs:**
+```bash
+eb logs --all --stream
+# or
+eb ssh
+tail -f /var/log/eb-activity.log
+```
+
+**Environment issues:**
+```bash
+eb health --refresh
+eb config  # Edit configuration
+```
+
+**Database connection errors:**
+```bash
+# Check RDS security group
+aws rds describe-db-instances --db-instance-identifier paybot-db
+
+# Test connection locally
+psql postgresql://username:password@endpoint:5432/paybot
+```
+
+### Android Build Issues
+
+**Gradle daemon issues:**
+```bash
+cd mobile/android
+./gradlew --stop
+./gradlew clean
+./gradlew assembleRelease
+```
+
+**Java version mismatch:**
+```bash
+echo $JAVA_HOME
+java -version  # Should show version 17
+```
+
+**Dependencies not found:**
+```bash
+cd mobile
+npm install --frozen-lockfile
+cd android
+./gradlew --refresh-dependencies
+```
+
+**Keystore password errors:**
+```bash
+# Verify keystore validity
+keytool -list -v -keystore android/app/paybot-release-key.keystore
+```
+
+**APK not signed:**
+```bash
+# Verify APK signature
+jarsigner -verify -verbose android/app/build/outputs/apk/release/app-release.apk
+```
+
+### Common Errors
+
+| Error | Solution |
+|-------|----------|
+| `no space left on device` | Clean EB instance cache: `eb ssh`, `sudo rm -rf /var/cache/*` |
+| `Database connection refused` | Check RDS security group allows EB instance |
+| `CORS errors` | Update `ALLOWED_ORIGINS` env var |
+| `Telegram webhook failed` | Ensure `PYTHON_BACKEND_URL` is publicly accessible |
+| `Signing certificate not recognized` | Re-generate keystore with correct password |
+
+---
+
+## Monitoring & Maintenance
+
+### EB Monitoring
 
 ```bash
-curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
+# CPU, memory, network stats
+eb health
+
+# View custom metrics
+aws cloudwatch list-metrics --namespace AWS/ElasticBeanstalk
+
+# Create alarms
+aws cloudwatch put-metric-alarm \
+  --alarm-name paybot-high-cpu \
+  --alarm-description "Alert when CPU exceeds 80%" \
+  --namespace AWS/ElasticBeanstalk \
+  --statistic Average \
+  --period 300 \
+  --threshold 80 \
+  --comparison-operator GreaterThanThreshold
 ```
 
----
-
-## 6. Post-Deployment Steps
-
-### 6.1 Verify Backend is Running
-
-Check the health endpoint:
+### Database Backups
 
 ```bash
-curl https://paybot-backend-production-84b2.up.railway.app/health
+# Create manual snapshot
+aws rds create-db-snapshot \
+  --db-instance-identifier paybot-db \
+  --db-snapshot-identifier paybot-snapshot-$(date +%Y%m%d)
+
+# List snapshots
+aws rds describe-db-snapshots --db-instance-identifier paybot-db
 ```
 
-Expected response:
-```json
-{
-  "status": "healthy"
-}
-```
-
-### 6.2 Verify Frontend is Running
-
-Open your Railway backend URL in a browser:
-```
-https://paybot-backend-production-84b2.up.railway.app
-```
-
-### 6.3 Check Database Connection
-
-1. Go to your Railway project dashboard
-2. Click on the backend service
-3. Click on **"Deployments"** tab
-4. Click on the latest deployment
-5. Check the logs for any database connection errors
-
-You should see logs indicating successful database connection:
-```
-Database connection initialized successfully
-Tables initialized successfully
-```
-
-### 6.4 Test Telegram Bot
-
-1. Open Telegram and find your bot
-2. Send `/start` command
-3. Verify the bot responds correctly
-
-### 6.5 Test Payment Functionality
-
-1. Create a test payment through your application
-2. Check the Xendit dashboard to verify the payment was created
-3. Verify webhook events are being received by checking Railway logs
-
-### 6.6 Monitor Logs
-
-To view real-time logs:
-
-1. Go to your Railway project
-2. Click on the backend service
-3. Click on **"Deployments"**
-4. Select the active deployment
-5. View the logs in real-time
-
-Or use the Railway CLI:
+### View Logs
 
 ```bash
-railway logs
+# Stream logs
+eb logs --stream
+
+# Download logs
+eb logs
+
+# SSH and check app logs
+eb ssh
+tail -f /var/log/eb-docker/eb-engine.log
 ```
 
 ---
 
-## 7. Troubleshooting
+## Rollback
 
-### Common Issues
+```bash
+# Show deployment history
+eb appversion
 
-#### Invalid or Missing RAILWAY_API_KEY
+# Rollback to previous version
+eb abort  # Cancel current deployment
+# or
+eb config  # Change EnvironmentVersion
 
-**Error**: `Invalid RAILWAY_API_KEY. Please check that it is valid and has access to the project.`
-
-**Solution**:
-1. Generate a Railway project API key: **Project Settings** → **Tokens** → **New Token** (select the **production** environment)
-2. Add it as a GitHub secret named `RAILWAY_API_KEY` (see [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup) for detailed instructions)
-3. Verify the secret is added to the correct scope: the deploy workflow uses the `production` environment, so the secret should be an **environment secret** under the `production` environment, or a **repository secret**
-4. If the token was previously set but is now expired or revoked, generate a new token and update the secret
-
-#### Missing RAILWAY_PROJECT_ID
-
-**Error**: `RAILWAY_PROJECT_ID is required for deployment.`
-
-**Solution**:
-1. Find your Railway project ID from your Railway project settings or from the Railway dashboard URL
-2. Add it as a GitHub secret named `RAILWAY_PROJECT_ID` (see [GitHub Actions Secrets Setup](#3-github-actions-secrets-setup))
-
-#### Database Connection Errors
-
-**Error**: `Failed to initialize database`
-
-**Solution**:
-1. Verify `DATABASE_URL` is set correctly in environment variables
-2. Check PostgreSQL service is running in Railway
-3. Ensure the database URL format is: `postgresql://user:password@host:port/database`
-
-#### Migration Failures
-
-**Error**: `alembic.util.exc.CommandError: Can't locate revision identified by`
-
-**Solution**:
-1. Check if migrations are in sync:
-   ```bash
-   railway run alembic current
-   ```
-2. If needed, reset to head:
-   ```bash
-   railway run alembic stamp head
-   railway run alembic upgrade head
-   ```
-
-#### CORS Errors
-
-**Error**: `Access to fetch at 'https://backend...' from origin 'https://frontend...' has been blocked by CORS policy`
-
-**Solution**:
-1. Add your frontend URL to `ALLOWED_ORIGINS` environment variable:
-   ```
-   ALLOWED_ORIGINS=https://paybot-backend-production-84b2.up.railway.app,http://localhost:3000
-   ```
-
-#### Port Binding Issues
-
-**Error**: `Address already in use`
-
-**Solution**:
-Railway automatically sets the `PORT` environment variable. Ensure your application uses `$PORT`:
-```python
-uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Manually rollback
+aws elasticbeanstalk update-environment \
+  --application-name paybot \
+  --environment-name paybot-production \
+  --version-label previous-version-label
 ```
 
-#### Telegram Webhook Not Receiving Updates
-
-**Solution**:
-1. Verify webhook is set correctly:
-   ```bash
-   curl "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/getWebhookInfo"
-   ```
-2. Check if the URL is accessible:
-   ```bash
-   curl https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook
-   ```
-3. Delete and reset the webhook:
-   ```bash
-   curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/deleteWebhook"
-   curl -X POST "https://api.telegram.org/bot<YOUR_BOT_TOKEN>/setWebhook" -d "url=https://paybot-backend-production-84b2.up.railway.app/api/v1/telegram/webhook"
-   ```
-
-#### Admin Login Issues
-
-**Error**: `Telegram admin authentication is not configured` (500 error on login)
-
-**Solution**:
-1. Set `ADMIN_USER_PASSWORD` environment variable
-2. Set `TELEGRAM_ADMIN_IDS` to your Telegram numeric user ID (find it via [@userinfobot](https://t.me/userinfobot))
-3. Set `JWT_SECRET_KEY` to a secure random string
-
 ---
 
-## Additional Resources
+## Next Steps
 
-- [Railway Documentation](https://docs.railway.app)
-- [Alembic Documentation](https://alembic.sqlalchemy.org)
-- [FastAPI Documentation](https://fastapi.tiangolo.com)
-- [Xendit API Documentation](https://developers.xendit.co)
-- [Telegram Bot API](https://core.telegram.org/bots/api)
+1. ✅ Deploy backend to EB
+2. ✅ Set up RDS PostgreSQL
+3. ✅ Configure domain & SSL
+4. ✅ Build and test Android APK
+5. ✅ Submit app to Google Play
+6. ✅ Monitor logs and metrics
+7. ✅ Set up CI/CD pipeline (GitHub Actions)
 
----
-
-## Support
-
-If you encounter any issues:
-
-1. Check the service logs (Railway: **Deployments** tab) for detailed error messages
-2. Review the [Troubleshooting](#7-troubleshooting) section
-3. Consult the official documentation links above
-4. Open an issue on the GitHub repository
-
----
-
-## Summary
-
-You should now have PayBot running on Railway:
-
-✅ Backend service running and healthy  
-✅ PostgreSQL database provisioned and connected  
-✅ Database migrations applied automatically on every deploy  
-✅ Environment variables and secrets configured  
-✅ JWT authentication configured for admin dashboard  
-✅ Webhooks configured for Xendit, PayMongo, and Telegram  
-✅ Health checks passing  
-✅ Logs accessible for monitoring  
-
-Your PayBot application is now successfully deployed! 🚀
-
----
+For more help, check AWS docs: https://docs.aws.amazon.com/elasticbeanstalk/

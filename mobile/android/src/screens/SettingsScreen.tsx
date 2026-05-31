@@ -4,6 +4,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { AuthContext } from '../App';
+import { Config } from '../Config';
+import { Strings } from '../strings';
 
 export const SettingsScreen = ({ navigation }) => {
   const { signOut } = useContext(AuthContext);
@@ -13,12 +15,11 @@ export const SettingsScreen = ({ navigation }) => {
 
   const handleLogout = async () => {
     await signOut();
-    console.log('Logged out');
   };
 
   const handleSetPin = async () => {
     if (pin.length !== 4 || !/^\d+$/.test(pin)) {
-      Toast.show({ type: 'error', text1: 'PIN must be 4 digits' });
+      Toast.show({ type: 'error', text1: Strings.settings.pinLengthError });
       return;
     }
 
@@ -27,7 +28,7 @@ export const SettingsScreen = ({ navigation }) => {
       const terminalId = await AsyncStorage.getItem('terminal_id');
       const token = await AsyncStorage.getItem('auth_token');
 
-      const response = await fetch(`https://telegram.drl-developers.info/api/v1/pos-terminals/${terminalId}/pin/set`, {
+      const response = await fetch(`${Config.API_BASE_URL}/pos-terminals/${terminalId}/pin/set`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -38,12 +39,12 @@ export const SettingsScreen = ({ navigation }) => {
 
       if (response.ok) {
         await AsyncStorage.setItem('has_pin', 'true');
-        Toast.show({ type: 'success', text1: 'PIN set successfully' });
+        Toast.show({ type: 'success', text1: Strings.settings.pinSuccess });
         setShowPinModal(false);
         setPin('');
       } else {
         const error = await response.json();
-        throw new Error(error.detail || 'Failed to set PIN');
+        throw new Error(error.detail || Strings.settings.pinFailed);
       }
     } catch (err) {
       Toast.show({ type: 'error', text1: 'Error', text2: err.message });
@@ -55,25 +56,25 @@ export const SettingsScreen = ({ navigation }) => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Settings</Text>
+        <Text style={styles.title}>{Strings.settings.title}</Text>
       </View>
 
       <View style={styles.content}>
         <TouchableOpacity style={styles.item}>
           <MaterialIcons name="person" size={24} color="#4B5563" />
-          <Text style={styles.itemText}>Profile</Text>
+          <Text style={styles.itemText}>{Strings.settings.profile}</Text>
           <MaterialIcons name="chevron-right" size={24} color="#9CA3AF" />
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.item} onPress={() => setShowPinModal(true)}>
           <MaterialIcons name="lock" size={24} color="#4B5563" />
-          <Text style={styles.itemText}>Set Operator PIN</Text>
+          <Text style={styles.itemText}>{Strings.settings.setPin}</Text>
           <MaterialIcons name="chevron-right" size={24} color="#9CA3AF" />
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.item, styles.logoutItem]} onPress={handleLogout}>
           <MaterialIcons name="logout" size={24} color="#EF4444" />
-          <Text style={[styles.itemText, styles.logoutText]}>Logout</Text>
+          <Text style={[styles.itemText, styles.logoutText]}>{Strings.settings.logout}</Text>
         </TouchableOpacity>
       </View>
 
@@ -84,8 +85,8 @@ export const SettingsScreen = ({ navigation }) => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Set Operator PIN</Text>
-            <Text style={styles.modalSubtitle}>Enter a 4-digit PIN for quick terminal access.</Text>
+            <Text style={styles.modalTitle}>{Strings.settings.pinModalTitle}</Text>
+            <Text style={styles.modalSubtitle}>{Strings.settings.pinModalSubtitle}</Text>
 
             <TextInput
               style={styles.pinInput}
@@ -102,14 +103,14 @@ export const SettingsScreen = ({ navigation }) => {
                 style={[styles.modalButton, styles.cancelButton]}
                 onPress={() => { setShowPinModal(false); setPin(''); }}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{Strings.common.cancel}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.modalButton, styles.saveButton]}
                 onPress={handleSetPin}
                 disabled={loading}
               >
-                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save PIN</Text>}
+                {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>{Strings.settings.savePin}</Text>}
               </TouchableOpacity>
             </View>
           </View>

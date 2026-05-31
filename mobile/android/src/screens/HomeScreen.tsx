@@ -10,15 +10,15 @@ import {
   RefreshControl,
   SafeAreaView,
   StatusBar,
-  Dimensions,
 } from 'react-native';
 import { useQuery } from 'react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
+import DeviceInfo from 'react-native-device-info';
 import { terminalApi } from '../api/terminal';
-
-const { width } = Dimensions.get('window');
+import { Config } from '../Config';
+import { Strings } from '../strings';
 
 const COLORS = {
   primary: '#3B82F6',
@@ -31,49 +31,6 @@ const COLORS = {
   textSecondary: '#6B7280',
   border: '#E5E7EB',
   success: '#10B981',
-};
-
-const api = {
-  getTerminals: async (token) => {
-    const response = await fetch('https://telegram.drl-developers.info/api/v1/pos-terminals', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch terminals');
-    return response.json();
-  },
-
-  getTransactions: async (token, terminalId) => {
-    const response = await fetch(
-      `https://telegram.drl-developers.info/api/v1/pos-terminals/${terminalId}/transactions?per_page=20`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    if (!response.ok) throw new Error('Failed to fetch transactions');
-    return response.json();
-  },
-
-  createTransaction: async (token, terminalId, data) => {
-    const response = await fetch(
-      `https://telegram.drl-developers.info/api/v1/pos-terminals/${terminalId}/transactions`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      }
-    );
-    if (!response.ok) throw new Error('Failed to create transaction');
-    return response.json();
-  },
 };
 
 // Status Badge Component
@@ -202,11 +159,25 @@ export const HomeScreen = ({ navigation }) => {
   const [selectedTerminal, setSelectedTerminal] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [isDeviceLinked, setIsDeviceLinked] = useState(true);
+  const [walletBalance, setWalletBalance] = useState(0);
+  const [deviceId, setDeviceId] = useState('');
+
+  const fetchWallet = async () => {
+    try {
+      const data = await terminalApi.getWalletBalance();
+      setWalletBalance(data.balance);
+    } catch (err) {
+      console.error('Failed to fetch wallet', err);
+    }
+  };
 
   useEffect(() => {
-    const loadToken = async () => {
+    const bootstrap = async () => {
       const storedToken = await AsyncStorage.getItem('auth_token');
       setToken(storedToken);
+
+      const id = await DeviceInfo.getUniqueId();
+      setDeviceId(id);
 
       try {
         const registration = await terminalApi.registerDevice();
@@ -217,8 +188,12 @@ export const HomeScreen = ({ navigation }) => {
         console.error('Heartbeat failed', err);
       }
     };
-    loadToken();
+    bootstrap();
   }, []);
+
+  useEffect(() => {
+    if (token) fetchWallet();
+  }, [token]);
 
   const terminalsQuery = useQuery(
     ['terminals', token],
@@ -238,11 +213,36 @@ export const HomeScreen = ({ navigation }) => {
     }
   );
 
-  const onRefresh = React.useCallback(() => {
+  useEffect(() => {
+    if (selectedTerminal && transactionsQuery.data?.data) {
+      const latestTxn = transactionsQuery.data.data[0];
+      if (latestTxn && latestTxn.status === 'pending' && latestTxn.payment_method === 'awaiting_selection') {
+        // Auto-navigate to payment screen for ECR push
+        navigation.navigate('CreateTransaction', {
+          terminal: selectedTerminal,
+          ecrTransaction: latestTxn
+        });
+      }
+    }
+  }, [transactionsQuery.data, selectedTerminal]);
+
+  const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    terminalsQuery.refetch().then(() => {
-       transactionsQuery.refetch().then(() => setRefreshing(false));
-    });
+    try {
+      await Promise.all([
+        terminalsQuery.refetch(),
+        transactionsQuery.refetch(),
+        fetchWallet(),
+        (async () => {
+          const reg = await terminalApi.registerDevice();
+          if (reg.success && reg.data) setIsDeviceLinked(reg.data.is_linked);
+        })()
+      ]);
+    } catch (e) {
+      console.error('Refresh failed', e);
+    } finally {
+      setRefreshing(false);
+    }
   }, [terminalsQuery, transactionsQuery]);
 
   useEffect(() => {
@@ -258,10 +258,16 @@ export const HomeScreen = ({ navigation }) => {
       {!isDeviceLinked ? (
         <View style={styles.waitingContainer}>
           <MaterialIcons name="app-registration" size={80} color={COLORS.primary} />
-          <Text style={styles.waitingTitle}>Waiting for Assignment</Text>
+          <Text style={styles.waitingTitle}>{Strings.home.waitingAssignment}</Text>
           <Text style={styles.waitingSubtitle}>
-            This device has been registered. Please contact your administrator to assign this device to your account.
+            {Strings.home.waitingSubtitle}
           </Text>
+
+          <View style={styles.deviceIdBox}>
+             <Text style={styles.deviceIdLabel}>DEVICE ID</Text>
+             <Text style={styles.deviceIdText}>{deviceId}</Text>
+          </View>
+
           <TouchableOpacity
             style={styles.refreshButton}
             onPress={async () => {
@@ -270,11 +276,11 @@ export const HomeScreen = ({ navigation }) => {
                 setIsDeviceLinked(true);
                 terminalsQuery.refetch();
               } else {
-                Toast.show({ type: 'info', text1: 'Still waiting for assignment' });
+                Toast.show({ type: 'info', text1: Strings.home.stillWaiting });
               }
             }}
           >
-            <Text style={styles.refreshButtonText}>Check Status</Text>
+            <Text style={styles.refreshButtonText}>{Strings.common.checkStatus}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -290,8 +296,16 @@ export const HomeScreen = ({ navigation }) => {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>POS Terminal</Text>
-            <Text style={styles.headerSubtitle}>Accept payments on the go</Text>
+            <View style={styles.headerTop}>
+               <View>
+                 <Text style={styles.headerTitle}>{Config.APP_NAME}</Text>
+                 <Text style={styles.headerSubtitle}>{Strings.home.headerSubtitle}</Text>
+               </View>
+               <View style={styles.walletHeader}>
+                 <Text style={styles.walletLabel}>{Strings.home.walletBalance}</Text>
+                 <Text style={styles.walletValue}>₱{walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+               </View>
+            </View>
           </View>
 
           {/* Setup Guide - only show if no terminals or for new users */}
@@ -299,28 +313,28 @@ export const HomeScreen = ({ navigation }) => {
             <View style={styles.guideCard}>
               <View style={styles.guideHeader}>
                 <MaterialIcons name="security" size={24} color={COLORS.primary} />
-                <Text style={styles.guideTitle}>Activate Real Payments</Text>
+                <Text style={styles.guideTitle}>{Strings.guide.activateTitle}</Text>
               </View>
               <Text style={styles.guideText}>
-                To transform this app into a real Maya terminal, configure your API keys in the backend environment.
+                {Strings.guide.activateText}
               </Text>
               <View style={styles.guideStep}>
                 <Text style={styles.stepNum}>1</Text>
-                <Text style={styles.stepText}>Get your <Text style={styles.bold}>Maya Business Manager</Text> keys</Text>
+                <Text style={styles.stepText}>{Strings.guide.step1}</Text>
               </View>
               <View style={styles.guideStep}>
                 <Text style={styles.stepNum}>2</Text>
-                <Text style={styles.stepText}>Set <Text style={styles.code}>MAYA_BUSINESS_API_KEY</Text> in Railway</Text>
+                <Text style={styles.stepText}>{Strings.guide.step2}</Text>
               </View>
               <View style={styles.guideStep}>
                 <Text style={styles.stepNum}>3</Text>
-                <Text style={styles.stepText}>Set <Text style={styles.code}>MAYA_BUSINESS_MODE</Text> to 'live'</Text>
+                <Text style={styles.stepText}>{Strings.guide.step3}</Text>
               </View>
               <TouchableOpacity
                 style={styles.guideButton}
                 onPress={() => Toast.show({ type: 'info', text1: 'Settings', text2: 'Please configure these in your Railway Dashboard.' })}
               >
-                <Text style={styles.guideButtonText}>View Setup Documentation</Text>
+                <Text style={styles.guideButtonText}>{Strings.guide.viewSetup}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -328,7 +342,7 @@ export const HomeScreen = ({ navigation }) => {
           {/* Terminals Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Your Terminals</Text>
+              <Text style={styles.sectionTitle}>{Strings.home.yourTerminals}</Text>
               {terminalsQuery.isLoading && <ActivityIndicator color={COLORS.primary} />}
             </View>
 
@@ -350,8 +364,8 @@ export const HomeScreen = ({ navigation }) => {
             ) : (
               <View style={styles.emptyState}>
                 <MaterialIcons name="devices" size={48} color={COLORS.textSecondary} />
-                <Text style={styles.emptyStateText}>No terminals assigned yet</Text>
-                <Text style={styles.emptyStateSubtext}>Contact your admin to request a terminal</Text>
+                <Text style={styles.emptyStateText}>{Strings.home.noTerminals}</Text>
+                <Text style={styles.emptyStateSubtext}>{Strings.home.noTerminalsSub}</Text>
               </View>
             )}
           </View>
@@ -367,7 +381,7 @@ export const HomeScreen = ({ navigation }) => {
               }
             >
               <MaterialIcons name="add" size={24} color="#fff" />
-              <Text style={styles.createButtonText}>Create Payment Order</Text>
+              <Text style={styles.createButtonText}>{Strings.home.createPayment}</Text>
             </TouchableOpacity>
           )}
 
@@ -375,7 +389,7 @@ export const HomeScreen = ({ navigation }) => {
           {selectedTerminal && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recent Transactions</Text>
+                <Text style={styles.sectionTitle}>{Strings.home.recentTransactions}</Text>
                 {transactionsQuery.isLoading && <ActivityIndicator color={COLORS.primary} />}
               </View>
 
@@ -391,7 +405,7 @@ export const HomeScreen = ({ navigation }) => {
               ) : (
                 <View style={styles.emptyState}>
                   <MaterialIcons name="receipt" size={48} color={COLORS.textSecondary} />
-                  <Text style={styles.emptyStateText}>No transactions yet</Text>
+                  <Text style={styles.emptyStateText}>{Strings.home.noTransactions}</Text>
                 </View>
               )}
             </View>
@@ -415,6 +429,28 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.dark,
     padding: 20,
     paddingTop: 10,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  walletHeader: {
+    alignItems: 'flex-end',
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    padding: 10,
+    borderRadius: 12,
+  },
+  walletLabel: {
+    color: COLORS.textSecondary,
+    fontSize: 10,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  walletValue: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
   headerTitle: {
     fontSize: 28,
@@ -684,6 +720,26 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
     lineHeight: 24,
+  },
+  deviceIdBox: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    alignItems: 'center',
+    width: '100%',
+  },
+  deviceIdLabel: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  deviceIdText: {
+    fontSize: 16,
+    fontFamily: 'monospace',
+    color: COLORS.primary,
+    fontWeight: 'bold',
   },
   refreshButton: {
     marginTop: 32,

@@ -3,7 +3,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from sqlalchemy import select, update, and_, desc
+from sqlalchemy import select, update, and_, desc, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.pos_terminal import (
@@ -13,6 +13,7 @@ from models.pos_terminal import (
     POSTerminalDevice,
     TerminalStatus,
 )
+from models.wallet_transactions import Wallet_transactions
 from schemas.pos_terminal import (
     POSTerminalCreate,
     POSTerminalUpdate,
@@ -22,6 +23,8 @@ from schemas.pos_terminal import (
 )
 from services.maya_service import MayaService
 from services.paymongo_service import PayMongoService
+from services.wallets import WalletsService
+from services.event_bus import event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -251,9 +254,11 @@ class POSTerminalService:
         """List pending terminal requests (admin only)."""
         query = select(POSTerminalRequest).where(POSTerminalRequest.status == "pending")
 
-        # Get total count
-        count_result = await self.db.execute(query)
-        total = len(count_result.scalars().all())
+        # Get total count using func.count()
+        count_result = await self.db.execute(
+            select(func.count()).select_from(POSTerminalRequest).where(POSTerminalRequest.status == "pending")
+        )
+        total = count_result.scalar() or 0
 
         # Get paginated results
         offset = (page - 1) * per_page
@@ -271,9 +276,11 @@ class POSTerminalService:
         """List terminal requests for a user."""
         query = select(POSTerminalRequest).where(POSTerminalRequest.user_id == user_id)
 
-        # Get total count
-        count_result = await self.db.execute(query)
-        total = len(count_result.scalars().all())
+        # Get total count using func.count()
+        count_result = await self.db.execute(
+            select(func.count()).select_from(POSTerminalRequest).where(POSTerminalRequest.user_id == user_id)
+        )
+        total = count_result.scalar() or 0
 
         # Get paginated results
         offset = (page - 1) * per_page
@@ -555,12 +562,51 @@ class POSTerminalService:
             if not transaction:
                 return {"success": False, "error": "Transaction not found"}
 
+            # Update status and timestamp
             transaction.status = status
             if status == "completed":
                 transaction.completed_at = datetime.utcnow()
+                
+                # Credit merchant wallet
+                try:
+                    wallet_service = WalletsService(self.db)
+                    wallet = await wallet_service.get_or_create_wallet(transaction.user_id, "PHP")
+                    
+                    amount_decimal = float(transaction.amount) / 100.0
+                    balance_before = float(wallet.balance or 0.0)
+                    wallet.balance = balance_before + amount_decimal
+                    wallet.updated_at = datetime.utcnow()
+                    
+                    wtxn = Wallet_transactions(
+                        user_id=transaction.user_id,
+                        wallet_id=wallet.id,
+                        transaction_type="terminal_sale",
+                        amount=amount_decimal,
+                        balance_before=balance_before,
+                        balance_after=wallet.balance,
+                        note=f"Terminal Sale: {transaction.order_id}",
+                        status="completed",
+                        reference_id=transaction.order_id,
+                        created_at=datetime.utcnow(),
+                    )
+                    self.db.add(wtxn)
+                    logger.info(f"Credited wallet for user {transaction.user_id}: {amount_decimal} PHP")
+                except Exception as werr:
+                    logger.error(f"Failed to credit wallet for transaction {order_id}: {werr}")
+
+                # Trigger sync event
+                await event_bus.emit("payment_completed", {
+                    "user_id": transaction.user_id,
+                    "amount": transaction.amount,
+                    "order_id": transaction.order_id,
+                    "terminal_id": transaction.terminal_id,
+                    "completed_at": transaction.completed_at.isoformat()
+                })
             elif status == "failed" and failure_reason:
                 transaction.failure_reason = failure_reason
 
+            # Ensure transaction is tracked and commit
+            self.db.add(transaction)
             await self.db.commit()
             logger.info(f"Transaction {order_id} status updated to {status}")
             return {"success": True, "message": "Transaction updated"}

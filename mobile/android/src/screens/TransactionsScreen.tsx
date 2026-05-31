@@ -12,6 +12,9 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useQuery } from 'react-query';
+import { terminalApi } from '../api/terminal';
+import { Config } from '../Config';
+import { Strings } from '../strings';
 
 const COLORS = {
   primary: '#3B82F6',
@@ -23,33 +26,6 @@ const COLORS = {
   text: '#111827',
   textSecondary: '#6B7280',
   border: '#E5E7EB',
-};
-
-const api = {
-  getTerminals: async (token) => {
-    const response = await fetch('https://paybot-production-7350.up.railway.app/api/v1/pos-terminals/', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    });
-    if (!response.ok) throw new Error('Failed to fetch terminals');
-    return response.json();
-  },
-
-  getAllTransactions: async (token, terminalId) => {
-    const response = await fetch(
-      `https://paybot-production-7350.up.railway.app/api/v1/pos-terminals/${terminalId}/transactions?per_page=50`,
-      {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    );
-    if (!response.ok) throw new Error('Failed to fetch transactions');
-    return response.json();
-  },
 };
 
 const TransactionItem = ({ item }) => {
@@ -73,7 +49,7 @@ const TransactionItem = ({ item }) => {
            />
         </View>
         <View>
-          <Text style={styles.desc}>{item.description || 'POS Sale'}</Text>
+          <Text style={styles.desc}>{item.description || Strings.history.posSale}</Text>
           <Text style={styles.date}>
             {new Date(item.created_at).toLocaleDateString()} • {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
@@ -101,7 +77,7 @@ export const TransactionsScreen = () => {
 
   const terminalsQuery = useQuery(
     ['terminals', token],
-    () => api.getTerminals(token),
+    () => terminalApi.getTerminals(),
     { enabled: !!token }
   );
 
@@ -113,7 +89,7 @@ export const TransactionsScreen = () => {
 
   const transactionsQuery = useQuery(
     ['allTransactions', terminalId, token],
-    () => api.getAllTransactions(token, terminalId),
+    () => terminalApi.getTransactions(terminalId),
     { enabled: !!token && !!terminalId }
   );
 
@@ -125,8 +101,8 @@ export const TransactionsScreen = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
       <View style={styles.header}>
-        <Text style={styles.title}>Transaction History</Text>
-        <Text style={styles.subtitle}>View and manage your terminal sales</Text>
+        <Text style={styles.title}>{Strings.history.title}</Text>
+        <Text style={styles.subtitle}>{Strings.history.subtitle}</Text>
       </View>
 
       {transactionsQuery.isLoading ? (
@@ -146,7 +122,7 @@ export const TransactionsScreen = () => {
       ) : (
         <View style={styles.center}>
           <MaterialIcons name="receipt-long" size={64} color={COLORS.border} />
-          <Text style={styles.emptyText}>No transactions found</Text>
+          <Text style={styles.emptyText}>{Strings.history.empty}</Text>
         </View>
       )}
     </SafeAreaView>

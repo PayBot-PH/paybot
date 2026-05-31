@@ -18,6 +18,7 @@ import BotSettings from './pages/BotSettings';
 import MessengerPage from './pages/MessengerPage';
 import AdminManagement from './pages/AdminManagement';
 import POSTerminalsPage from './pages/POSTerminalsPage';
+import TerminalSimulator from './pages/TerminalSimulator';
 import BotMessagesPage from './pages/BotMessagesPage';
 import TopupRequestsPage from './pages/TopupRequestsPage';
 import UsdtSendRequestsPage from './pages/UsdtSendRequestsPage';
@@ -142,6 +143,7 @@ function AuthAwareShell() {
             <Route path="/messenger" element={<MessengerPage />} />
             <Route path="/admin-management" element={<RequireSuperAdmin><AdminManagement /></RequireSuperAdmin>} />
             <Route path="/pos-terminals" element={<RequireSuperAdmin><POSTerminalsPage /></RequireSuperAdmin>} />
+            <Route path="/terminal-simulator" element={<RequireSuperAdmin><TerminalSimulator /></RequireSuperAdmin>} />
             <Route path="/bot-messages" element={<ProtectedAdminRoute><BotMessagesPage /></ProtectedAdminRoute>} />
             <Route path="/topup-requests" element={<RequireSuperAdmin><TopupRequestsPage /></RequireSuperAdmin>} />
             <Route path="/usdt-send-requests" element={<RequireSuperAdmin><UsdtSendRequestsPage /></RequireSuperAdmin>} />

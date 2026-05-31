@@ -1,137 +1,67 @@
-# FastAPI Modular Template
+# PayBot Backend (Production)
 
-A best-practice FastAPI framework template designed for rapid module development and integration.
+The core API engine for the PayBot Philippines ecosystem, powered by FastAPI and PostgreSQL.
 
 ## 🚀 Features
 
-- **Modular Architecture**: Clean separation of concerns with routers, models, and services
-- **Injection Points**: Easy module integration with marked injection points
-- **Configuration Management**: Environment-based configuration with Pydantic Settings
-- **Development Ready**: Pre-configured with CORS, testing, and development tools
+- **Multi-Gateway Integration**: Seamless support for Maya Business, PayMongo, and PhotonPay.
+- **POS Terminal Engine**: Backend services for managing virtual and physical POS devices.
+- **Event Bus System**: Real-time event synchronization using SSE and internal listeners.
+- **Wallet Infrastructure**: Multi-currency ledger system (PHP/USD/USDT) with atomic transactions.
+- **Security Hardened**: JWT authentication, device binding, and webhook signature verification.
 
 ## 📁 Project Structure
 
 ```
 backend/
-├── main.py                # FastAPI app with MODULE_ injection points
-├── requirements.txt       # Python dependencies
-├── .env.example           # Environment variables template
+├── main.py                # FastAPI entry point & lifespan management
 ├── core/
-│   ├── __init__.py
-│   └── config.py          # Pydantic settings with MODULE_CONFIG injection
-├── routers/               # API route handlers
-│   ├── __init__.py
-├── models/                # Database and Pydantic data models
-│   ├── __init__.py
-├── services/              # Business logic services
-│   ├── __init__.py
-├── dependencies/          # Dependency injection modules
-│   ├── __init__.py
-├── middlewares/           # Custom middleware components
-│   ├── __init__.py
-├── schemas/               # Pydantic request/response models
-│   ├── __init__.py
-├── tests/                 # Test files
-│   ├── __init__.py
-│   ├── conftest.py        # Pytest configuration
-│   └── test_main.py       # Main app tests
-└── utils/                 # Utility functions
-    ├── __init__.py
+│   ├── config.py          # Pydantic settings & ENV management
+│   └── database.py        # SQLAlchemy async engine & session manager
+├── models/                # Database ORM models
+├── routers/               # API endpoints (versioned v1)
+├── services/              # Business logic (Payment Gateways, POS, Wallets)
+├── schemas/               # Pydantic request/response validation
+├── alembic/               # Database migrations
+└── dependencies/          # Shared dependencies (Auth, DB)
 ```
 
-## 🛠 Quick Start
+## 🛠 Setup & Deployment
 
-1. **Install Dependencies**
+### 1. Environment Configuration
+Create a `.env` file based on `.env.example`. For production, ensure all keys are provided:
 
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-2. **Configure Environment**
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your configuration
-   ```
-
-3. **Run the Server**
-
-   ```bash
-   python main.py
-   ```
-
-4. **Test the API**
-   ```bash
-   curl http://localhost:8000/health
-   ```
-
-## 🔌 Module Injection Points
-
-This template includes predefined injection points for easy module integration. All injection points use the `MODULE_` prefix for easy identification:
-
-### main.py
-
-```python
-# MODULE_IMPORTS_START
-# Module imports will be injected here
-# MODULE_IMPORTS_END
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    # MODULE_STARTUP_START
-    # Module startup code will be injected here
-    # MODULE_STARTUP_END
-    yield
-    # MODULE_SHUTDOWN_START
-    # Module shutdown code will be injected here
-    # MODULE_SHUTDOWN_END
-
-# MODULE_MIDDLEWARE_START
-# Module middleware will be injected here
-# MODULE_MIDDLEWARE_END
-
-# MODULE_ROUTERS_START
-# Module routers will be injected here
-# MODULE_ROUTERS_END
+```env
+ENVIRONMENT=production
+MAYA_BUSINESS_MODE=live
+DATABASE_URL=postgresql+asyncpg://...
+TELEGRAM_BOT_TOKEN=...
 ```
 
-### core/config.py
+### 2. Manual Setup
+```bash
+# Install dependencies
+pip install -r requirements.txt
 
-```python
-class Settings(BaseSettings):
-    # ... existing settings ...
+# Run migrations
+alembic upgrade head
 
-    # MODULE_CONFIG_START
-    # Module configuration will be injected here
-    # MODULE_CONFIG_END
+# Start server
+uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
-## 📦 Module Integration
-
-To integrate modules with this template:
-
-1. **Use the module manager**:
-
-   ```bash
-   python manager.py install base <module-name>
-   ```
-
-2. **Manual integration** (modules automatically handle these):
-   - Add imports to `MODULE_IMPORTS` section
-   - Add startup/shutdown logic to respective sections
-   - Add configuration to `MODULE_CONFIG` section
-   - Add routers and middleware to respective sections
+### 3. Railway Deployment
+The backend is optimized for **Railway**. Simply push to the `main` branch to trigger the automatic deployment via GitHub Actions.
 
 ## 🧪 Testing
-
-Run tests with pytest:
-
 ```bash
 pytest tests/ -v
 ```
 
-The template includes:
+## 🔌 API Documentation
+Once running, interactive docs are available at:
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
 
-- Basic API endpoint tests
-- Application lifecycle tests
-- Test client configuration in `conftest.py`
+---
+*Developed by DRL Solutions*

@@ -62,8 +62,17 @@ export default function POSTerminalsPage() {
       const devicesData = await devicesRes.json();
       const terminalsData = await terminalsRes.json();
 
-      setDevices(devicesData.data || []);
-      setTerminals(terminalsData.data || []);
+      if (devicesData.success) {
+        setDevices(devicesData.data || []);
+      } else {
+        throw new Error(devicesData.error || 'Failed to load devices');
+      }
+
+      if (terminalsData.success) {
+        setTerminals(terminalsData.data || []);
+      } else {
+        throw new Error(terminalsData.error || 'Failed to load terminals');
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -73,6 +82,8 @@ export default function POSTerminalsPage() {
 
   useEffect(() => {
     fetchData();
+    const interval = setInterval(fetchData, 10000); // Polling every 10s for real-time feel
+    return () => clearInterval(interval);
   }, []);
 
   const handleAssign = async () => {

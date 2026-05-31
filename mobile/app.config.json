@@ -1,0 +1,30 @@
+{
+  "apiBaseUrl": "https://your-eb-domain.elasticbeanstalk.com/api/v1",
+  "telegramBotUsername": "your_paybot_username",
+  "version": "1.0.0",
+  "buildNumber": 1,
+  "features": {
+    "enableQRScanning": true,
+    "enablePushNotifications": true,
+    "enableBiometric": true,
+    "maxTransactionAmount": 100000
+  },
+  "paymentGateways": {
+    "xendit": {
+      "enabled": true,
+      "publicKey": "your-xendit-public-key"
+    },
+    "paymongo": {
+      "enabled": true,
+      "publicKey": "your-paymongo-public-key"
+    },
+    "photonpay": {
+      "enabled": true,
+      "publicKey": "your-photonpay-public-key"
+    }
+  },
+  "logging": {
+    "level": "info",
+    "enableAnalytics": true
+  }
+}

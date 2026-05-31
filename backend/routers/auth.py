@@ -43,7 +43,7 @@ from services.auth import AuthService
 from services.telegram_service import TelegramService
 # Xendit removed; KYC via Xendit is no longer performed. Maya Manager checkout
 # integration does not provide customer KYC creation via this API.
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, inspect
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
@@ -665,7 +665,7 @@ async def telegram_debug():
 async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     """Secure login for mobile POS clients with device binding."""
     admin_email = getattr(settings, "admin_user_email", "") or "admin@paybot.local"
-    admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
+    admin_password = getattr(settings, "admin_user_password", "") or os.getenv("ADMIN_PASSWORD", "admin123")
 
     authenticated_user = None
     if payload.email == admin_email and payload.password == admin_password:
@@ -685,36 +685,57 @@ async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)
     # Secure Device Binding
     terminal_id = None
     has_pin = False
+    
     if payload.device_id:
-        from models.pos_terminal import POSTerminal
-        # Find terminal assigned to this user and device
-        res = await db.execute(
-            select(POSTerminal).where(
-                and_(
-                    POSTerminal.user_id == authenticated_user.id,
-                    POSTerminal.device_id == payload.device_id
+        try:
+            from models.pos_terminal import POSTerminal, POSTerminalDevice
+            # Check if columns exist before querying to prevent 500 errors on failed migrations
+            mapper = inspect(POSTerminal)
+            if "device_id" in mapper.attrs:
+                # Find terminal assigned to this user and device
+                res = await db.execute(
+                    select(POSTerminal).where(
+                        and_(
+                            POSTerminal.user_id == authenticated_user.id,
+                            POSTerminal.device_id == payload.device_id
+                        )
+                    )
                 )
-            )
-        )
-        terminal = res.scalar_one_or_none()
-        if not terminal:
-            # Check if device is authorized but not linked
-            from models.pos_terminal import POSTerminalDevice
-            device_res = await db.execute(
-                select(POSTerminalDevice).where(POSTerminalDevice.device_id == payload.device_id)
-            )
-            device = device_res.scalar_one_or_none()
-            if not device or not device.is_authorized:
-                 raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="This device is not authorized. Please contact your administrator.",
+                terminal = res.scalar_one_or_none()
+                
+                # If no linked terminal, we still allow login for admins so they can reach the dashboard
+                # and register their device. We only block non-admin users without an authorized device.
+                if not terminal:
+                    device_res = await db.execute(
+                        select(POSTerminalDevice).where(POSTerminalDevice.device_id == payload.device_id)
+                    )
+                    device = device_res.scalar_one_or_none()
+                    
+                    # If user is admin, allow them in even if device isn't linked yet
+                    # This allows them to see the dashboard and assign themselves a terminal
+                    if authenticated_user.role == "admin":
+                        logger.info(f"Admin login allowed for unlinked device: {payload.device_id}")
+                    elif not device or not device.is_authorized:
+                         raise HTTPException(
+                            status_code=status.HTTP_403_FORBIDDEN,
+                            detail="This device is not authorized. Please contact your administrator.",
+                        )
+                else:
+                    terminal_id = terminal.id
+                    has_pin = bool(terminal.operator_pin)
+                    terminal.last_device_id = payload.device_id
+                    terminal.authorized_at = datetime.utcnow()
+                    await db.commit()
+            else:
+                logger.warning("POSTerminal table missing device_id column. Skipping device binding.")
+        except Exception as e:
+            logger.error(f"Error during terminal device binding: {e}")
+            # Fallback: allow login if it's an admin, otherwise block for safety
+            if authenticated_user.role != "admin":
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Database error during device verification."
                 )
-        else:
-            terminal_id = terminal.id
-            has_pin = bool(terminal.operator_pin)
-            terminal.last_device_id = payload.device_id
-            terminal.authorized_at = datetime.utcnow()
-            await db.commit()
 
     auth_service = AuthService(db)
     # Inject device_id into JWT claims for verification on every request
@@ -722,20 +743,50 @@ async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)
     
     # Building full claims
     expires_minutes = int(getattr(settings, "jwt_expire_minutes", 60))
-    expires_at = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+    
+    # Fetch real permissions if this user is in AdminUser table
+    from models.admin_users import AdminUser
+    res_perms = await db.execute(select(AdminUser).where(AdminUser.telegram_id == authenticated_user.id))
+    admin_record = res_perms.scalar_one_or_none()
+    
+    if admin_record:
+        perms = UserPermissions(
+            is_super_admin=admin_record.is_super_admin,
+            can_manage_payments=admin_record.can_manage_payments,
+            can_manage_disbursements=admin_record.can_manage_disbursements,
+            can_view_reports=admin_record.can_view_reports,
+            can_manage_wallet=admin_record.can_manage_wallet,
+            can_manage_transactions=admin_record.can_manage_transactions,
+            can_manage_bot=admin_record.can_manage_bot,
+            can_approve_topups=admin_record.can_approve_topups,
+        )
+    elif authenticated_user.role == "admin":
+        # Fallback for admin role without record
+        perms = UserPermissions(
+            is_super_admin=True,
+            can_manage_payments=True,
+            can_manage_disbursements=True,
+            can_view_reports=True,
+            can_manage_wallet=True,
+            can_manage_transactions=True,
+            can_manage_bot=True,
+            can_approve_topups=True,
+        )
+    else:
+        perms = UserPermissions(is_super_admin=False)
     
     token_claims = {
         "sub": authenticated_user.id,
         "email": authenticated_user.email,
         "role": authenticated_user.role,
         "name": authenticated_user.name,
+        "permissions": perms.model_dump(),
         **claims_override
     }
     
     from core.auth import create_access_token
     app_token = create_access_token(token_claims, expires_minutes=expires_minutes)
 
-    perms = UserPermissions(is_super_admin=(authenticated_user.role == "admin"))
     user_resp = UserResponse(
         id=authenticated_user.id,
         email=authenticated_user.email,

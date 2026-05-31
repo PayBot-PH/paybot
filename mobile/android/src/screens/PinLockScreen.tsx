@@ -10,6 +10,8 @@ import {
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-toast-message';
+import { Config } from '../Config';
+import { Strings } from '../strings';
 
 const { width } = Dimensions.get('window');
 
@@ -53,7 +55,7 @@ export const PinLockScreen = ({ onUnlock, onLogout }) => {
         return;
       }
 
-      const response = await fetch(`https://telegram.drl-developers.info/api/v1/pos-terminals/${terminalId}/pin/verify`, {
+      const response = await fetch(`${Config.API_BASE_URL}/pos-terminals/${terminalId}/pin/verify`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -67,7 +69,7 @@ export const PinLockScreen = ({ onUnlock, onLogout }) => {
       } else {
         setError(true);
         setPin('');
-        Toast.show({ type: 'error', text1: 'Invalid PIN' });
+        Toast.show({ type: 'error', text1: Strings.pinLock.invalidPin });
       }
     } catch (err) {
       console.error('PIN verification failed', err);
@@ -78,8 +80,8 @@ export const PinLockScreen = ({ onUnlock, onLogout }) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <MaterialIcons name="lock" size={48} color={COLORS.primary} />
-        <Text style={styles.title}>Terminal Locked</Text>
-        <Text style={styles.subtitle}>Enter operator PIN to continue</Text>
+        <Text style={styles.title}>{Strings.pinLock.title}</Text>
+        <Text style={styles.subtitle}>{Strings.pinLock.subtitle}</Text>
       </View>
 
       <View style={styles.dotsContainer}>
@@ -119,7 +121,7 @@ export const PinLockScreen = ({ onUnlock, onLogout }) => {
         </View>
         <View style={styles.row}>
           <TouchableOpacity style={styles.key} onPress={onLogout}>
-            <Text style={[styles.keyText, { fontSize: 16, color: COLORS.danger }]}>LOGOUT</Text>
+            <Text style={[styles.keyText, { fontSize: 16, color: COLORS.danger }]}>{Strings.pinLock.logout}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.key} onPress={() => handleKeyPress(0)}>
             <Text style={styles.keyText}>0</Text>

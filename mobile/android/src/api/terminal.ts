@@ -1,8 +1,9 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DeviceInfo from 'react-native-device-info';
+import { Config } from '../Config';
 
-const BASE_URL = 'https://telegram.drl-developers.info/api/v1';
+const BASE_URL = Config.API_BASE_URL;
 
 const getHeaders = async () => {
   const token = await AsyncStorage.getItem('auth_token');
@@ -56,6 +57,24 @@ export const terminalApi = {
   createTransaction: async (terminalId: number, data: any) => {
     const headers = await getHeaders();
     const response = await axios.post(`${BASE_URL}/pos-terminals/${terminalId}/transactions`, data, { headers });
+    return response.data;
+  },
+
+  finalizeEcrTransaction: async (terminalId: number, orderId: string, paymentMethod: string) => {
+    const headers = await getHeaders();
+    const response = await axios.post(`${BASE_URL}/pos-terminals/${terminalId}/transactions/${orderId}/finalize`, { payment_method: paymentMethod }, { headers });
+    return response.data;
+  },
+
+  getTransaction: async (orderId: string) => {
+    const headers = await getHeaders();
+    const response = await axios.get(`${BASE_URL}/pos-terminals/transactions/${orderId}`, { headers });
+    return response.data;
+  },
+
+  getWalletBalance: async () => {
+    const headers = await getHeaders();
+    const response = await axios.get(`${BASE_URL}/wallet/balance?currency=PHP`, { headers });
     return response.data;
   },
 };

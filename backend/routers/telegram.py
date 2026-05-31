@@ -1818,8 +1818,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "Invoice payment"
-                    xendit = MayaService()
-                    result = await xendit.create_invoice(amount=amount, description=description)
+                    maya = MayaService()
+                    result = await maya.create_invoice(amount=amount, description=description)
                     if result.get("success"):
                         invoice_url = result.get('invoice_url', '')
                         ext_id = result.get('external_id', '')
@@ -1872,8 +1872,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "QR payment"
-                    xendit = MayaService()
-                    result = await xendit.create_qr_code(amount=amount, description=description)
+                    maya = MayaService()
+                    result = await maya.create_qr_code(amount=amount, description=description)
                     if result.get("success"):
                         reply = (
                             f"✅ <b>QR Code Created!</b>\n\n💰 ₱{amount:,.2f}\n"
@@ -1970,17 +1970,17 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         else:
                             await tg.send_message(chat_id, f"❌ Alipay payment failed: {result.get('error', 'Unknown error')}")
                     else:
-                        # Fallback: use Xendit QRIS (Alipay-compatible QR code)
-                        xendit = MayaService()
-                        if not xendit.secret_key:
+                        # Fallback: use Maya
+                        maya = MayaService()
+                        if not maya.secret_key:
                             await tg.send_message(
                                 chat_id,
                                 "❌ <b>Alipay payments are not available at this time.</b>\n\n"
-                                "Neither PhotonPay nor Xendit is configured.",
+                                "Neither PhotonPay nor Maya is configured.",
                             )
                             await _safe_log(db, chat_id, username, text)
                             return {"status": "ok"}
-                        result = await xendit.create_alipay_qr(amount=amount, description=description)
+                        result = await maya.create_qr_code(amount=amount, description=description)
                         if result.get("success"):
                             qr_url = result.get("qr_string", "")
                             ref_num = result.get("external_id", "")

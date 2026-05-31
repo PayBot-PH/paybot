@@ -1,5 +1,6 @@
 import logging
-from typing import Optional
+import uuid
+from typing import Optional, List, Dict
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +30,8 @@ from schemas.pos_terminal import (
     POSTerminalDeviceListResponse,
 )
 from services.pos_terminal import POSTerminalService
-from models.pos_terminal import POSTerminal, TerminalStatus
+from services.event_bus import event_bus
+from models.pos_terminal import POSTerminal, TerminalStatus, POSTerminalTransaction
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/pos-terminals", tags=["POS Terminals"])
@@ -495,3 +497,103 @@ async def verify_terminal_pin(
         raise HTTPException(status_code=401, detail="Invalid PIN")
     
     return APIResponse(success=True, message="PIN verified")
+
+
+@router.post("/{terminal_id}/ecr-push", response_model=APIResponse)
+async def ecr_push_transaction(
+    terminal_id: int,
+    amount: float = Body(..., embed=True),
+    description: str = Body("ECR Sale", embed=True),
+    current_admin: str = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    """Push a transaction request from ECR to a terminal."""
+    service = POSTerminalService(db)
+    
+    terminal = await service.get_terminal_by_id(terminal_id)
+    if not terminal:
+        raise HTTPException(status_code=404, detail="Terminal not found")
+    
+    # Create the pending transaction
+    order_id = f"ecr-{uuid.uuid4().hex[:12]}"
+    from models.pos_terminal import POSTerminalTransaction
+    from services.event_bus import event_bus
+    
+    txn = POSTerminalTransaction(
+        terminal_id=terminal_id,
+        user_id=terminal.user_id,
+        order_id=order_id,
+        description=description,
+        amount=int(amount * 100),
+        currency="PHP",
+        payment_method="awaiting_selection",
+        status="pending",
+    )
+    db.add(txn)
+    await db.commit()
+    
+    # Emit event to wake up the physical terminal
+    await event_bus.emit("ecr_push", {
+        "terminal_id": terminal_id,
+        "device_id": terminal.device_id,
+        "order_id": order_id,
+        "amount": amount,
+        "description": description
+    })
+    
+    return APIResponse(
+        success=True, 
+        message="Transaction pushed to terminal",
+        data={"order_id": order_id}
+    )
+
+
+@router.post("/{terminal_id}/transactions/{order_id}/finalize", response_model=CreateCheckoutResponse)
+async def finalize_ecr_transaction(
+    terminal_id: int,
+    order_id: str,
+    payload: Dict[str, str] = Body(...), # expects {"payment_method": "maya"}
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Finalize a transaction that was pushed from ECR."""
+    service = POSTerminalService(db)
+    
+    # 1. Get the existing transaction
+    txn = await service.get_transaction_by_order_id(order_id)
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    
+    if txn.terminal_id != terminal_id:
+        raise HTTPException(status_code=400, detail="Terminal ID mismatch")
+    
+    # 2. Re-use existing create_transaction logic but updating the existing record
+    # Actually, we can just call create_transaction and it will create a NEW one, 
+    # but we want to link it to the ECR one.
+    # Simpler: Create a dummy transaction object and pass it to the logic that creates external payments.
+    
+    from schemas.pos_terminal import POSTerminalTransactionCreate
+    transaction_data = POSTerminalTransactionCreate(
+        amount=txn.amount,
+        payment_method=payload.get("payment_method", "maya"),
+        description=txn.description
+    )
+    
+    # Call the service method that handles gateway integration
+    result = await service.create_transaction(terminal_id, user_id, transaction_data)
+    
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Failed to finalize"))
+    
+    # 3. Mark the ECR transaction as completed (replaced by the new gateway transaction)
+    # or better: update the ECR transaction with gateway info.
+    # For now, let's just return the new checkout info.
+    
+    return CreateCheckoutResponse(
+        success=True,
+        checkout_url=result.get("payment_url", ""),
+        payment_url=result.get("payment_url"),
+        qr_content=result.get("qr_content"),
+        order_id=result.get("order_id"),
+        message=result.get("message"),
+    )

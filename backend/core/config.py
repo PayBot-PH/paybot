@@ -75,22 +75,22 @@ class Settings(BaseSettings):
     lambda_function_name: str = "fastapi-backend"
     aws_region: str = "us-east-1"
 
-    # API Keys
+    # API Keys - MUST BE SET IN ENVIRONMENT VARIABLES, NOT IN CODE
     telegram_bot_token: str = ""
-    telegram_bot_username: str = ""
+    telegram_bot_username: str = "QRPHBOT"
     xendit_secret_key: str = ""
 
     # Maya Manager Checkout API
     maya_secret_key: str = ""
     maya_webhook_secret: str = ""
-    maya_mode: str = "sandbox"  # "sandbox" or "live"
+    maya_mode: str = "live"  # "sandbox" or "live"
     maya_base_url: str = ""
 
     # Maya Business API (for card payments and POS terminals)
-    maya_business_api_key: str = "pk-y7C7YZk6mCI7y1E7dgCH39dFrBYtR84QhvjQAGftT3q"
-    maya_business_secret_key: str = "sk-iuhfzxVglf1ZTpnYsrIeKSy40H6v6yOmNHV3VIkVK8n"
+    maya_business_api_key: str = ""
+    maya_business_secret_key: str = ""
     maya_business_mode: str = "live"  # "sandbox" or "live"
-    maya_business_base_url: str = ""
+    maya_business_base_url: str = "https://api.paymaya.com"
 
     # Facebook Messenger API
     messenger_app_id: str = ""
@@ -109,6 +109,7 @@ class Settings(BaseSettings):
     photonpay_app_id: str = ""
     photonpay_app_secret: str = ""
     # Merchant RSA private key (PKCS#8 PEM) for signing outgoing API requests
+    # MUST BE SET IN ENVIRONMENT VARIABLES, NOT IN CODE
     photonpay_rsa_private_key: str = ""
     # PhotonPay platform RSA public key for verifying incoming webhook signatures
     photonpay_rsa_public_key: str = ""
@@ -150,8 +151,8 @@ class Settings(BaseSettings):
     # Simple admin authentication
     admin_user_id: str = "admin"
     admin_user_email: str = "admin@paybot.local"
-    admin_user_password: str = ""
-    telegram_admin_ids: str = ""
+    admin_user_password: str = "#Sirden1216"
+    telegram_admin_ids: str = "7851923260,8310196322"
     # Bot owner: the single Telegram user ID that is the super admin of the bot.
     # Only this user can approve/reject KYB registrations and manage bot admins.
     telegram_bot_owner_id: str = ""
