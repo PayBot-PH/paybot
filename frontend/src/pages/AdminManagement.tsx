@@ -1518,6 +1518,104 @@ export default function AdminManagement() {
     }
   };
 
+  /* ── Super Admin: API Keys management component ───────────────────── */
+  function AdminApiKeys() {
+    const [keys, setKeys] = useState<any[]>([]);
+    const [loadingKeys, setLoadingKeys] = useState(false);
+    const [svc, setSvc] = useState('');
+    const [kkey, setKkey] = useState('');
+    const [kval, setKval] = useState('');
+    const [savingKey, setSavingKey] = useState(false);
+    const [showSecret, setShowSecret] = useState<Record<number, boolean>>({});
+
+    const fetchKeys = async () => {
+      try {
+        setLoadingKeys(true);
+        const res = await fetch('/api/v1/admin/api-keys');
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        setKeys(data || []);
+      } catch (e) {
+        // ignore for now
+      } finally {
+        setLoadingKeys(false);
+      }
+    };
+
+    useEffect(() => { fetchKeys(); }, []);
+
+    const handleSaveKey = async () => {
+      if (!svc.trim() || !kkey.trim()) return alert('Service and key name required');
+      setSavingKey(true);
+      try {
+        const res = await fetch('/api/v1/admin/api-keys', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ service_name: svc.trim(), config_key: kkey.trim(), config_value: kval }),
+        });
+        if (!res.ok) throw new Error(await res.text());
+        await fetchKeys(); setSvc(''); setKkey(''); setKval('');
+        alert('Saved');
+      } catch (e: any) {
+        alert(e?.message || 'Save failed');
+      } finally { setSavingKey(false); }
+    };
+
+    const handleDeleteKey = async (id: number) => {
+      if (!confirm('Delete API key?')) return;
+      try {
+        const res = await fetch(`/api/v1/admin/api-keys/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(await res.text());
+        await fetchKeys();
+      } catch (e: any) { alert(e?.message || 'Delete failed'); }
+    };
+
+    return (
+      <Card className="mb-5">
+        <CardContent>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-semibold text-sm text-foreground">API Keys (Super Admin)</h3>
+              <p className="text-xs text-muted-foreground">Store gateway credentials securely for integrations.</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+            <input className="input" placeholder="Service (e.g. xendit)" value={svc} onChange={(e) => setSvc(e.target.value)} />
+            <input className="input" placeholder="Key name (e.g. secret_key)" value={kkey} onChange={(e) => setKkey(e.target.value)} />
+            <input className="input" placeholder="Value" value={kval} onChange={(e) => setKval(e.target.value)} />
+          </div>
+          <div className="flex gap-2 mb-4">
+            <Button size="sm" onClick={handleSaveKey} disabled={savingKey} className="bg-blue-600 text-white">{savingKey ? 'Saving…' : 'Save Key'}</Button>
+            <Button size="sm" variant="outline" onClick={() => { setSvc(''); setKkey(''); setKval(''); }}>Reset</Button>
+          </div>
+
+          <div>
+            <div className="text-xs text-muted-foreground mb-2">Existing keys</div>
+            {loadingKeys ? <div>Loading…</div> : (
+              <div className="space-y-2">
+                {keys.map((it: any) => (
+                  <div key={it.id} className="flex items-center gap-3 bg-muted/20 p-2 rounded">
+                    <div className="flex-1">
+                      <div className="text-sm font-medium">{it.service_name} · {it.config_key}</div>
+                      <div className="text-xs text-muted-foreground">{showSecret[it.id] ? it.config_value : (it.config_value ? '••••••••' : '')}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={() => setShowSecret(s => ({ ...s, [it.id]: !s[it.id] }))}>
+                        {showSecret[it.id] ? 'Hide' : 'Show'}
+                      </Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDeleteKey(it.id)}>Delete</Button>
+                    </div>
+                  </div>
+                ))}
+                {keys.length === 0 && <div className="text-sm text-muted-foreground">No API keys configured.</div>}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const activeAdmins = admins.filter((a) => a.is_active);
   const inactiveAdmins = admins.filter((a) => !a.is_active);
 
@@ -1654,6 +1752,9 @@ export default function AdminManagement() {
             </CardContent>
           </Card>
         )}
+
+        {/* Super Admin API Keys */}
+        {isSuperAdmin && <AdminApiKeys />}
 
         {/* Tabs */}
         <TabBar
