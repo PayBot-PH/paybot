@@ -4,12 +4,14 @@ from typing import Dict, List, Optional, Any
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import and_, select, func, case, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
+from models.admin_users import AdminUser
 from schemas.auth import UserResponse
 from core.auth import get_current_user
 from services.xendit_service import XenditService
@@ -528,9 +530,9 @@ async def get_transactions(
 
     return {"items": items, "total": total, "skip": skip, "limit": limit}
 
-# ────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 # Admin endpoints
-# ────────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────────────────
 
 @router.get("/admin/php-wallets", response_model=AdminPhpWalletListResponse)
 async def admin_list_php_wallets(
