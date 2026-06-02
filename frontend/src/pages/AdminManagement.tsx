@@ -657,7 +657,7 @@ function RoleManagementTab({
                           key={admin.id}
                           onClick={() => applyRole(preset, admin)}
                           disabled={!!applying}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all duration-150 disabled:opacity-50"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground tran[...]
                         >
                           {isApplying ? (
                             <div className="h-3 w-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
@@ -1037,14 +1037,14 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
                   placeholder="Amount"
                   value={adjustAmount[w.user_id] || ''}
                   onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:rin[...]
                 />
                 <input
                   type="text"
                   placeholder="Note (optional)"
                   value={adjustNote[w.user_id] || ''}
                   onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:rin[...]
                 />
               </div>
               <div className="flex gap-2">
@@ -1183,14 +1183,14 @@ function PhpWalletsTab({ onError }: { onError: (msg: string) => void }) {
                   placeholder="Amount"
                   value={adjustAmount[w.user_id] || ''}
                   onChange={e => setAdjustAmount(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:rin[...]
                 />
                 <input
                   type="text"
                   placeholder="Note (optional)"
                   value={adjustNote[w.user_id] || ''}
                   onChange={e => setAdjustNote(prev => ({ ...prev, [w.user_id]: e.target.value }))}
-                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                  className="flex-1 bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:rin[...]
                 />
               </div>
               <div className="flex gap-2">
@@ -1382,10 +1382,15 @@ export default function AdminManagement() {
       try {
         setLoadingKeys(true);
         const res = await fetch('/api/v1/admin/api-keys');
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) {
+          const text = await res.text();
+          console.error('API Keys fetch failed:', res.status, text);
+          throw new Error(text || `HTTP ${res.status}`);
+        }
         const data = await res.json();
         setKeys(data || []);
       } catch (e) {
+        console.error('Error fetching API keys:', e);
         // ignore for now
       } finally {
         setLoadingKeys(false);
@@ -1402,10 +1407,15 @@ export default function AdminManagement() {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ service_name: svc.trim(), config_key: kkey.trim(), config_value: kval }),
         });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) {
+          const text = await res.text();
+          console.error('Save failed:', res.status, text);
+          throw new Error(text || `HTTP ${res.status}`);
+        }
         await fetchKeys(); setSvc(''); setKkey(''); setKval('');
         alert('Saved');
       } catch (e: any) {
+        console.error('Error saving key:', e);
         alert(e?.message || 'Save failed');
       } finally { setSavingKey(false); }
     };
@@ -1414,9 +1424,16 @@ export default function AdminManagement() {
       if (!confirm('Delete API key?')) return;
       try {
         const res = await fetch(`/api/v1/admin/api-keys/${id}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) {
+          const text = await res.text();
+          console.error('Delete failed:', res.status, text);
+          throw new Error(text || `HTTP ${res.status}`);
+        }
         await fetchKeys();
-      } catch (e: any) { alert(e?.message || 'Delete failed'); }
+      } catch (e: any) {
+        console.error('Error deleting key:', e);
+        alert(e?.message || 'Delete failed');
+      }
     };
 
     return (
@@ -1633,7 +1650,7 @@ export default function AdminManagement() {
                         placeholder="e.g. 123456789"
                         value={form.telegram_id}
                         onChange={e => setForm(f => ({ ...f, telegram_id: e.target.value }))}
-                        className="w-full bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                        className="w-full bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus[...]
                       />
                     </div>
                     <div>
@@ -1643,7 +1660,7 @@ export default function AdminManagement() {
                         placeholder="@username"
                         value={form.telegram_username}
                         onChange={e => setForm(f => ({ ...f, telegram_username: e.target.value }))}
-                        className="w-full bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                        className="w-full bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus[...]
                       />
                     </div>
                     <div>
@@ -1653,7 +1670,7 @@ export default function AdminManagement() {
                         placeholder="Full name"
                         value={form.name}
                         onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                        className="w-full bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                        className="w-full bg-muted/60 border border-border/60 text-foreground placeholder:text-muted-foreground rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus[...]
                       />
                     </div>
                   </div>
@@ -1666,7 +1683,7 @@ export default function AdminManagement() {
                           onClick={() => setForm(f => ({ ...f, is_super_admin: !f.is_super_admin }))}
                           className={`w-8 h-5 rounded-full relative transition-colors duration-200 cursor-pointer flex-shrink-0 ${form.is_super_admin ? 'bg-amber-500' : 'bg-muted'}`}
                         >
-                          <div className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${form.is_super_admin ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
+                          <div className={`absolute top-0.5 h-3.5 w-3.5 rounded-full bg-white shadow transition-transform duration-200 ${form.is_super_admin ? 'translate-x-3.5' : 'translate-x-0.[...]
                         </div>
                         <span className={`text-xs font-semibold ${form.is_super_admin ? 'text-amber-400' : 'text-muted-foreground'}`}>Super Admin</span>
                       </label>
