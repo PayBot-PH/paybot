@@ -2757,11 +2757,29 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         db.add(credit_txn)
                         await db.commit()
 
+                        # 5. Publish wallet events for real-time updates & bot notifications
                         payment_event_bus.publish({
-                            "event_type": "wallet_update", "user_id": tg_user_id,
-                            "wallet_id": sender_wallet.id, "balance": sender_wallet.balance,
-                            "transaction_type": "usd_send", "amount": amount,
+                            "event_type": "wallet_update",
+                            "user_id": tg_user_id,
+                            "wallet_id": sender_wallet.id,
+                            "balance": sender_wallet.balance,
+                            "currency": "USD",
+                            "transaction_type": "usd_send",
+                            "amount": amount,
                             "transaction_id": debit_txn.id,
+                            "note": f"Sent to @{recipient_username}"
+                        })
+
+                        payment_event_bus.publish({
+                            "event_type": "wallet_update",
+                            "user_id": recipient_tg_user_id,
+                            "wallet_id": recipient_wallet.id,
+                            "balance": recipient_wallet.balance,
+                            "currency": "USD",
+                            "transaction_type": "usd_receive",
+                            "amount": amount,
+                            "transaction_id": credit_txn.id,
+                            "note": f"Received from {sender_note}"
                         })
 
                     except Exception as e:
@@ -2774,23 +2792,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
+                    # Feedback message for the sender (wizard completion)
                     await tg.send_message(
                         chat_id,
-                        f"✅ <b>USD Sent!</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💵 Amount: <b>${amount:,.2f} USD</b>\n"
-                        f"👤 To: <b>@{recipient_username}</b>\n"
-                        f"💰 New Balance: <b>${sender_wallet.balance:,.2f}</b>"
+                        f"✅ <b>Sent Successfully!</b>\n\n💸 ${amount:,.2f} USD → @{recipient_username}\n💰 New Balance: <b>${sender_wallet.balance:,.2f}</b>"
                     )
-                    # Notify recipient
-                    await tg.send_message(
-                        recipient_admin.telegram_id,
-                        f"💵 <b>USD Received!</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💰 Amount: <b>${amount:,.2f} USD</b>\n"
-                        f"👤 From: <b>{sender_note}</b>\n"
-                        f"💰 New Balance: <b>${recipient_wallet.balance:,.2f}</b>"
-                    )
+                    # Recipient notification is handled by the event bus (_sync_wallet_update_to_telegram)
                     logger.info("USD transfer via bot: sender=%s recipient=@%s amount=%s", tg_user_id, recipient_username, amount)
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount. Example: /sendusd 50 @johndoe")
@@ -3009,8 +3016,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 payment_event_bus.publish({
                                     "event_type": "wallet_update", "user_id": tg_user_id,
                                     "wallet_id": wallet.id, "balance": new_balance,
+                                    "currency": "PHP",
                                     "transaction_type": "withdraw", "amount": amount,
                                     "transaction_id": wtxn.id,
+                                })
                                 })
                             except Exception as e:
                                 logger.error(f"DB save failed for /withdraw: {e}", exc_info=True)

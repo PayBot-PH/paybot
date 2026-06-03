@@ -14,7 +14,6 @@ from models.wallet_transactions import Wallet_transactions
 from models.admin_users import AdminUser
 from schemas.auth import UserResponse
 from core.auth import get_current_user
-from services.xendit_service import XenditService
 from services.paymongo_service import PayMongoService
 
 logger = logging.getLogger(__name__)
@@ -268,7 +267,7 @@ async def _get_admin_username(db: AsyncSession, wallet_user_id: str) -> Optional
     return admin.telegram_username if admin else None
 
 
-def publish_wallet_event(user_id: str, wallet: Wallets, txn_type: str, amount: float, txn_id: int):
+def publish_wallet_event(user_id: str, wallet: Wallets, transaction_type: str, amount: float, txn_id: int, note: str = ""):
     """Publish a wallet event to the event bus for real-time updates"""
     from services.event_bus import event_bus
     event_bus.publish({
@@ -276,10 +275,11 @@ def publish_wallet_event(user_id: str, wallet: Wallets, txn_type: str, amount: f
         "user_id": user_id,
         "wallet_id": wallet.id,
         "balance": wallet.balance,
-        "currency": wallet.currency,
-        "txn_type": txn_type,
+        "currency": wallet.currency or "PHP",
+        "transaction_type": transaction_type,
         "amount": amount,
-        "txn_id": txn_id,
+        "transaction_id": txn_id,
+        "note": note,
     })
 
 
@@ -398,7 +398,7 @@ async def send_money(
     await db.commit()
     await db.refresh(txn)
 
-    publish_wallet_event(user_id, wallet, "send", data.amount, txn.id)
+    publish_wallet_event(user_id, wallet, "send", data.amount, txn.id, data.note)
 
     return WalletActionResponse(
         success=True,
@@ -446,7 +446,7 @@ async def withdraw_money(
     await db.commit()
     await db.refresh(txn)
 
-    publish_wallet_event(user_id, wallet, "withdraw", data.amount, txn.id)
+    publish_wallet_event(user_id, wallet, "withdraw", data.amount, txn.id, data.note)
 
     return WalletActionResponse(
         success=True,
@@ -497,7 +497,7 @@ async def send_usdt(
     wallet.updated_at = now
     await db.commit()
 
-    publish_wallet_event(tg_user_id, wallet, "usdt_send", data.amount, txn.id)
+    publish_wallet_event(tg_user_id, wallet, "usdt_send", data.amount, txn.id, data.note)
 
     return WalletActionResponse(
         success=True,
@@ -606,7 +606,7 @@ async def admin_adjust_php_wallet(
     await db.commit()
     await db.refresh(txn)
 
-    publish_wallet_event(wallet_user_id, wallet, txn_type, adj_amount, txn.id)
+    publish_wallet_event(wallet_user_id, wallet, txn_type, adj_amount, txn.id, data.note)
     logger.info(
         "Admin PHP wallet adjust: admin=%s target=%s amount=%s new_balance=%s",
         current_user.id, wallet_user_id, data.amount, wallet.balance,
@@ -696,7 +696,7 @@ async def admin_adjust_usd_wallet(
     await db.commit()
     await db.refresh(txn)
 
-    publish_wallet_event(wallet_user_id, wallet, txn_type, adj_amount, txn.id)
+    publish_wallet_event(wallet_user_id, wallet, txn_type, adj_amount, txn.id, data.note)
     logger.info(
         "Admin USD wallet adjust: admin=%s target=%s amount=%s new_balance=%s",
         current_user.id, wallet_user_id, data.amount, balance_after,
@@ -772,6 +772,20 @@ async def transfer_between_wallets(
     db.add(sender_txn)
     db.add(recipient_txn)
     await db.commit()
+
+    # 5. Publish wallet events for real-time updates & bot notifications
+    # 5. Publish wallet events for real-time updates & bot notifications
+    publish_wallet_event(
+        sender_id, sender_wallet,
+        "send", data.amount, sender_txn.id,
+        data.note or f"Transfer to {data.recipient_user_id}"
+    )
+
+    publish_wallet_event(
+        data.recipient_user_id, recipient_wallet,
+        "receive", data.amount, recipient_txn.id,
+        data.note or f"Transfer from {sender_id}"
+    )
 
     return WalletActionResponse(
         success=True,

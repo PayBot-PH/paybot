@@ -46,19 +46,32 @@ class EventBus:
 
     @classmethod
     def publish(cls, data: Dict[str, Any]):
-        """Sync wrapper for emit (legacy support)."""
+        """Sync wrapper for emit (legacy support).
+        Attempts to route to async emit() if an event loop is running.
+        """
         event_type = data.get("event_type", "status_change")
-        # Run async emit in background if possible, or just append to deque
+
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                # We are in an async context, but called sync publish.
+                # Schedule emit() task to ensure sync handlers are run.
+                loop.create_task(cls.emit(event_type, data))
+                return
+        except RuntimeError:
+            # No running loop in this thread
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.run_coroutine_threadsafe(cls.emit(event_type, data), loop)
+                    return
+            except Exception:
+                pass
+
+        # Fallback: manually append to events if async routing failed
         data["timestamp"] = time.time()
         cls._events.append(data)
-        
-        # We can't easily wait for condition in sync, but we can notify if we have a loop
-        try:
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.run_coroutine_threadsafe(cls._notify_signal(), loop)
-        except Exception:
-            pass
+        logger.warning(f"EventBus.publish fallback used for {event_type} - sync handlers skipped")
 
     @classmethod
     async def _notify_signal(cls):
@@ -112,7 +125,7 @@ class EventBus:
 
     @classmethod
     async def _sync_wallet_update_to_telegram(cls, data: Dict[str, Any]):
-        """Send a Telegram notification to the user for wallet credit/receive events."""
+        """Send a Telegram notification to the user for wallet credit/debit events."""
         try:
             from services.telegram_service import TelegramService
             tg = TelegramService()
@@ -124,73 +137,40 @@ class EventBus:
             txn_type = data.get("transaction_type", "")
             amount = data.get("amount")
             balance = data.get("balance")
-
-            # Only notify on credits / receipts
-            credit_types = ("top_up", "receive", "crypto_topup", "usd_receive", "admin_credit")
-            if txn_type not in credit_types:
-                # If this is a debit/withdrawal, notify about bank processing time
-                debit_types = ("withdraw", "send", "admin_debit")
-                if txn_type in debit_types:
-                    # Inform user that external bank processing may take 1-2 days
-                    try:
-                        note = data.get("note") or ""
-                        amount = data.get("amount")
-                        if amount is None:
-                            amt_str = ""
-                        else:
-                            try:
-                                amt_f = float(amount)
-                                amt_str = f"₱{amt_f:,.2f}"
-                            except Exception:
-                                amt_str = str(amount)
-
-                        bal_str = ""
-                        if balance is not None:
-                            try:
-                                bal_f = float(balance)
-                                bal_str = f"New balance: ₱{bal_f:,.2f}"
-                            except Exception:
-                                bal_str = f"New balance: {balance}"
-
-                        message = (
-                            f"✅ <b>Withdrawal Submitted</b>\n\n"
-                            f"{amt_str}\n"
-                            + (f"{note}\n" if note else "")
-                            + (f"{bal_str}\n" if bal_str else "")
-                            + "⏳ Bank processing typically takes 1–2 business days."
-                        )
-                        await tg.send_message(chat_id=chat_id, text=message)
-                        logger.info(f"Notified Telegram user {chat_id} of withdrawal processing: {txn_type} {amount}")
-                    except Exception as e:
-                        logger.error(f"Failed to notify withdrawal to Telegram: {e}")
-                return
-
-            # Format amount (assume PHP floats for PHP wallet events)
-            if amount is None:
-                amt_str = ""
-            else:
-                try:
-                    amt_f = float(amount)
-                    amt_str = f"₱{amt_f:,.2f}" if data.get("currency", "PHP").upper() == "PHP" else f"${amt_f:,.2f}"
-                except Exception:
-                    amt_str = str(amount)
-
-            bal_str = ""
-            if balance is not None:
-                try:
-                    bal_f = float(balance)
-                    bal_str = f"New balance: ₱{bal_f:,.2f}"
-                except Exception:
-                    bal_str = f"New balance: {balance}"
-
+            currency = data.get("currency", "PHP").upper()
             note = data.get("note") or ""
 
-            message = (
-                f"✅ <b>Wallet Credited</b>\n\n"
-                f"{amt_str}\n"
-                + (f"{note}\n" if note else "")
-                + (f"{bal_str}\n" if bal_str else "")
-            )
+            # Format amount and balance
+            symbol = "₱" if currency == "PHP" else "$"
+            amt_str = f"{symbol}{float(amount):,.2f}" if amount is not None else ""
+            bal_str = f"New balance: {symbol}{float(balance):,.2f}" if balance is not None else ""
+
+            # Define messages based on transaction type
+            messages = {
+                # Credits
+                "receive": f"💰 <b>Incoming Balance Received</b>\n\n{amt_str}\n{note}\n{bal_str}",
+                "usd_receive": f"💰 <b>Incoming USD Received</b>\n\n{amt_str}\n{note}\n{bal_str}",
+                "top_up": f"✅ <b>Wallet Topped Up</b>\n\n{amt_str}\n{note}\n{bal_str}",
+                "crypto_topup": f"✅ <b>USDT Top-up Received</b>\n\n{amt_str}\n{note}\n{bal_str}",
+                "admin_credit": f"💎 <b>Wallet Credited by Admin</b>\n\n{amt_str}\n{note}\n{bal_str}",
+
+                # Debits
+                "send": f"💸 <b>Transfer Successful</b>\n\nSent: {amt_str}\n{note}\n{bal_str}",
+                "usd_send": f"💸 <b>USD Transfer Successful</b>\n\nSent: {amt_str}\n{note}\n{bal_str}",
+                "withdraw": f"✅ <b>Withdrawal Submitted</b>\n\nAmount: {amt_str}\n{note}\n{bal_str}\n\n⏳ Bank processing typically takes 1–2 business days.",
+                "usdt_send": f"📤 <b>USDT Send Request Submitted</b>\n\nAmount: {amt_str}\n{note}\n{bal_str}\n\n⏳ Pending admin approval.",
+                "admin_debit": f"⚠️ <b>Wallet Debited by Admin</b>\n\nAmount: {amt_str}\n{note}\n{bal_str}",
+            }
+
+            message = messages.get(txn_type)
+            if not message:
+                # Default generic notification if type not mapped
+                if any(t in txn_type for t in ("receive", "credit", "topup", "top_up")):
+                    message = f"✅ <b>Wallet Credited</b>\n\n{amt_str}\n{note}\n{bal_str}"
+                elif any(t in txn_type for t in ("send", "withdraw", "debit")):
+                    message = f"✅ <b>Transaction Successful</b>\n\n{amt_str}\n{note}\n{bal_str}"
+                else:
+                    return # Don't send notification for unknown types
 
             await tg.send_message(chat_id=chat_id, text=message)
             logger.info(f"Notified Telegram user {chat_id} of wallet update: {txn_type} {amount}")
