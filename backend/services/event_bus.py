@@ -126,6 +126,10 @@ class EventBus:
     @classmethod
     async def _sync_wallet_update_to_telegram(cls, data: Dict[str, Any]):
         """Send a Telegram notification to the user for wallet credit/debit events."""
+        if data.get("skip_bot_notify"):
+            logger.debug(f"Skipping bot notification as requested for {data.get('transaction_type')}")
+            return
+
         try:
             from services.telegram_service import TelegramService
             tg = TelegramService()

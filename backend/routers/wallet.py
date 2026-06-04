@@ -267,7 +267,7 @@ async def _get_admin_username(db: AsyncSession, wallet_user_id: str) -> Optional
     return admin.telegram_username if admin else None
 
 
-def publish_wallet_event(user_id: str, wallet: Wallets, transaction_type: str, amount: float, txn_id: int, note: str = ""):
+def publish_wallet_event(user_id: str, wallet: Wallets, transaction_type: str, amount: float, txn_id: int, note: str = "", skip_bot_notify: bool = False):
     """Publish a wallet event to the event bus for real-time updates"""
     from services.event_bus import event_bus
     event_bus.publish({
@@ -280,6 +280,7 @@ def publish_wallet_event(user_id: str, wallet: Wallets, transaction_type: str, a
         "amount": amount,
         "transaction_id": txn_id,
         "note": note,
+        "skip_bot_notify": skip_bot_notify,
     })
 
 

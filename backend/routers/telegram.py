@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
@@ -596,6 +596,52 @@ async def _is_authorized_admin(db: AsyncSession, chat_id: str) -> bool:
     except Exception as e:
         logger.warning("DB admin check failed: %s", e)
         return False
+
+
+async def _get_or_promote_recipient(db: AsyncSession, username_or_id: str) -> Optional[AdminUser]:
+    """Find a recipient by username or numeric ID.
+    Looks in AdminUser first, then KybRegistration.
+    If found in KybRegistration, auto-promotes to AdminUser.
+    """
+    cleaned = username_or_id.strip().lstrip("@")
+    if not cleaned:
+        return None
+
+    # 1. Try AdminUser
+    try:
+        res = await db.execute(select(AdminUser).where(
+            or_(AdminUser.telegram_username == cleaned, AdminUser.telegram_id == cleaned)
+        ))
+        admin = res.scalar_one_or_none()
+        if admin:
+            return admin
+    except Exception as e:
+        logger.error(f"Error looking up AdminUser: {e}")
+
+    # 2. Try KybRegistration
+    try:
+        res = await db.execute(select(KybRegistration).where(
+            or_(KybRegistration.telegram_username == cleaned, KybRegistration.chat_id == cleaned)
+        ))
+        kyb = res.scalar_one_or_none()
+        if kyb:
+            # Found in registration but not in admins -> Auto-promote
+            new_admin = AdminUser(
+                telegram_id=kyb.chat_id,
+                telegram_username=kyb.telegram_username,
+                name=kyb.full_name or kyb.telegram_username or "Unknown",
+                is_active=True,
+                is_super_admin=False,
+                added_by="auto_promote",
+            )
+            db.add(new_admin)
+            await db.flush() # Get ID for transaction records
+            logger.info(f"Auto-promoted user {kyb.chat_id} (@{kyb.telegram_username}) to Admin via transfer")
+            return new_admin
+    except Exception as e:
+        logger.error(f"Error looking up/promoting KybRegistration: {e}")
+
+    return None
 
 
 async def _get_admin_user_record(db: AsyncSession, chat_id: str) -> Optional[AdminUser]:
@@ -2408,9 +2454,16 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /balance & /wallet ====================
         elif text.startswith("/balance") or text.startswith("/wallet"):
+            is_wallet_cmd = text.startswith("/wallet")
+            is_super = await _is_super_admin_chat(db, chat_id)
+
+            # Super admins see the live Gateway balance on /balance.
+            # Everyone else (and super admins on /wallet) see their internal stored balance.
+            show_gateway = (not is_wallet_cmd) and is_super
+
             try:
                 php_user_id = str(chat_id)
-                # PHP wallet — get or create, then sync balance from PayMongo live balance
+                # PHP wallet — get or create
                 res = await db.execute(select(Wallets).where(Wallets.user_id == php_user_id, Wallets.currency == "PHP"))
                 wallet = res.scalar_one_or_none()
                 if not wallet:
@@ -2419,21 +2472,24 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     db.add(wallet)
                     await db.commit()
                     await db.refresh(wallet)
-                # Sync PHP balance from PayMongo live account balance
-                try:
-                    pm_svc = PayMongoService()
-                    pm_bal = await pm_svc.get_balance()
-                    if pm_bal.get("success"):
-                        available = pm_bal.get("available", [])
-                        php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
-                        if php_entry is not None:
-                            wallet.balance = float(php_entry["amount"]) / 100.0
-                            wallet.updated_at = datetime.now()
-                            await db.commit()
-                            await db.refresh(wallet)
-                except Exception as pe:
-                    logger.warning(f"PayMongo balance fetch failed for /balance: {pe}")
+
                 php_balance = wallet.balance
+                gateway_label = ""
+
+                if show_gateway:
+                    # Sync/Show PHP balance from PayMongo live account balance
+                    try:
+                        pm_svc = PayMongoService()
+                        pm_bal = await pm_svc.get_balance()
+                        if pm_bal.get("success"):
+                            available = pm_bal.get("available", [])
+                            php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
+                            if php_entry is not None:
+                                php_balance = float(php_entry["amount"]) / 100.0
+                                gateway_label = " (Live Gateway)"
+                    except Exception as pe:
+                        logger.warning(f"PayMongo balance fetch failed for /balance: {pe}")
+
                 # USD wallet — compute balance from transaction history
                 usd_res = await db.execute(
                     select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "USD")
@@ -2453,19 +2509,21 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 )
                 recent_wt = wt_res.scalars().all()
             except Exception as e:
-                logger.error(f"DB failed for /balance: {e}", exc_info=True)
+                logger.error(f"DB failed for balance check: {e}", exc_info=True)
                 php_balance = 0.0
                 usd_balance = 0.0
                 recent_wt = []
+                gateway_label = ""
                 try:
                     await db.rollback()
                 except Exception:
                     pass
 
+            title = "Company Balance" if gateway_label else "Wallet Balances"
             reply = (
-                f"💰 <b>Wallet Balances</b>\n"
+                f"💰 <b>{title}</b>\n"
                 f"━━━━━━━━━━━━━━━━━━━━\n"
-                f"🇵🇭 PHP: <b>₱{php_balance:,.2f}</b>\n"
+                f"🇵🇭 PHP: <b>₱{php_balance:,.2f}</b>{gateway_label}\n"
                 f"💵 USD: <b>${usd_balance:,.2f}</b> (USDT TRC20)\n"
             )
             if recent_wt:
@@ -2646,25 +2704,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
 
-                    # Look up recipient in AdminUser table by telegram_username
-                    try:
-                        rec_res = await db.execute(
-                            select(AdminUser).where(
-                                AdminUser.telegram_username == recipient_username,
-                                AdminUser.is_active.is_(True),
-                            )
-                        )
-                        recipient_admin = rec_res.scalar_one_or_none()
-                    except Exception as e:
-                        logger.error("DB lookup failed for /sendusd: %s", e)
-                        await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
-                        return {"status": "ok"}
+                    # Look up recipient with auto-promotion
+                    recipient_admin = await _get_or_promote_recipient(db, recipient_username)
 
                     if not recipient_admin:
                         await tg.send_message(
                             chat_id,
-                            f"❌ User @{recipient_username} not found or not active.\n"
-                            "Please check the username and try again."
+                            f"❌ User @{recipient_username} not found in our system.\n"
+                            "They must have started the bot or submitted a registration at least once."
                         )
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
@@ -2767,7 +2814,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             "transaction_type": "usd_send",
                             "amount": amount,
                             "transaction_id": debit_txn.id,
-                            "note": f"Sent to @{recipient_username}"
+                            "note": f"Sent to @{recipient_username}",
+                            "skip_bot_notify": True # Fix double notification (we send message below)
                         })
 
                         payment_event_bus.publish({
@@ -2817,36 +2865,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ Amount must be positive.")
                         return {"status": "ok"}
 
-                    # 1. Look up recipient by telegram_username or telegram_id
-                    try:
-                        # Try username first
-                        rec_res = await db.execute(
-                            select(AdminUser).where(
-                                AdminUser.telegram_username == recipient_username,
-                                AdminUser.is_active.is_(True),
-                            )
-                        )
-                        recipient_admin = rec_res.scalar_one_or_none()
-
-                        # Fallback to telegram_id if it's numeric
-                        if not recipient_admin and recipient_username.isdigit():
-                            rec_res = await db.execute(
-                                select(AdminUser).where(
-                                    AdminUser.telegram_id == recipient_username,
-                                    AdminUser.is_active.is_(True),
-                                )
-                            )
-                            recipient_admin = rec_res.scalar_one_or_none()
-                    except Exception as e:
-                        logger.error("DB lookup failed for /send: %s", e)
-                        await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
-                        return {"status": "ok"}
+                    # Look up recipient with auto-promotion
+                    recipient_admin = await _get_or_promote_recipient(db, recipient_username)
 
                     if not recipient_admin:
                         await tg.send_message(
                             chat_id,
-                            f"❌ User <code>{recipient_raw}</code> not found or not active.\n"
-                            "Please check the username/ID and try again."
+                            f"❌ User <code>{recipient_raw}</code> not found in our system.\n"
+                            "They must have started the bot or submitted a registration at least once."
                         )
                         return {"status": "ok"}
 
@@ -2860,9 +2886,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
                     # Check sender's PHP wallet balance
                     try:
-                        # PHP wallet uses plain chat_id in this context (bot uses chat_id, dashboard uses str(user_id))
-                        # We need to ensure we use the same user_id for wallets across systems.
-                        # In /balance, php_user_id = str(chat_id).
                         sender_wallet = await _get_or_create_wallet(db, sender_tg_user_id, "PHP")
                         recipient_wallet = await _get_or_create_wallet(db, recipient_tg_user_id, "PHP")
                     except Exception as e:
@@ -2932,7 +2955,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             "transaction_type": "send",
                             "amount": amount,
                             "transaction_id": sender_txn.id,
-                            "note": f"Sent to {recipient_display}"
+                            "note": f"Sent to {recipient_display}",
+                            "skip_bot_notify": True # Fix double notification
                         })
 
                         payment_event_bus.publish({
