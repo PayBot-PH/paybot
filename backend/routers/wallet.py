@@ -13,7 +13,7 @@ from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from models.admin_users import AdminUser
 from schemas.auth import UserResponse
-from core.auth import get_current_user
+from dependencies.auth import get_current_user
 from services.paymongo_service import PayMongoService
 
 logger = logging.getLogger(__name__)
