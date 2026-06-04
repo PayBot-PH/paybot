@@ -135,7 +135,7 @@ async def _process_scanqr(
 
     external_id = f"qrph-{uuid.uuid4().hex[:12]}"
     reply_lines = [
-        "✅ <b>QRPH Payment Recorded</b>",
+        "✅ <b>Payment Request Recorded</b>",
         "━━━━━━━━━━━━━━━━━━━━",
         f"💰 Amount: <b>₱{amount:,.2f} PHP</b>",
     ]
@@ -147,8 +147,10 @@ async def _process_scanqr(
         reply_lines.append(f"🆔 Reference: <code>{ref_num}</code>")
     reply_lines += [
         "",
-        "⏳ Status: <b>Pending</b>",
-        "💳 Complete the payment via your bank or e-wallet app.",
+        "⏳ Status: <b>Waiting for Payment</b>",
+        "━━━━━━━━━━━━━━━━━━━━",
+        "💳 Please complete the transfer using your preferred Bank or E-Wallet app.",
+        "📷 <b>Note:</b> You can send a screenshot of the receipt here for manual verification if the automatic update is slow.",
     ]
     await tg.send_message(chat_id, "\n".join(reply_lines))
 
@@ -329,8 +331,9 @@ _CMD_STEPS: Dict[str, List[Dict]] = {
         {"key": "id", "type": "str", "prompt": "🆔 Enter the <b>transaction ID</b> to cancel:\n<i>e.g. INV-xxx</i>"},
     ],
     "/remind": [
-        {"key": "id", "type": "str", "prompt": "🆔 Enter the <b>transaction ID</b> to send a reminder:\n<i>e.g. INV-xxx</i>"},
+        {"key": "id", "type": "str", "prompt": "🆔 Enter the <b>transaction ID</b> to remind:\n<i>e.g. INV-xxx</i>"},
     ],
+    "/stats": [],
     "/withdraw": [
         {"key": "bank",    "type": "str",   "prompt": "🏦 Enter the <b>channel / bank</b>:\n<i>GCASH · MAYA · BDO · BPI · UNIONBANK · METROBANK · LANDBANK</i>"},
         {"key": "account", "type": "str",   "prompt": "🔢 Enter the <b>account / mobile number</b>:\n<i>e.g. 09XXXXXXXXX or 1234567890</i>"},
@@ -356,10 +359,16 @@ def _wizard_start(chat_id: str, cmd: str, initial_data: Optional[Dict[str, str]]
         "step": start_step,
         "data": initial_data.copy() if initial_data else {},
     }
+
+    steps = _CMD_STEPS.get(cmd, [])
+    total_steps = len(steps)
+    current_step_num = start_step + 1
+
     return (
-        f"📋 <b>{cmd}</b> — let's fill in the details.\n"
-        f"Type <code>/cancel</code> at any time to abort.\n\n"
-        + _CMD_STEPS[cmd][start_step]["prompt"]
+        f"<b>{cmd} Wizard</b> — Step {current_step_num} of {total_steps}\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"{steps[start_step]['prompt']}\n\n"
+        f"💡 Type /cancel to abort at any time."
     )
 
 def _mask_card_number(card_number: str) -> str:
@@ -374,12 +383,9 @@ def _start_kb() -> dict:
     """Full quick-action keyboard for /start and /help."""
     return {
         "keyboard": [
-            [{"text": "💳 /invoice"}, {"text": "📱 /qr"}, {"text": "🔗 /link"}],
-            [{"text": "🏦 /va"}, {"text": "📱 /ewallet"}, {"text": "💳 /pos"}],
-            [{"text": "🔴 /alipay"}, {"text": "🟢 /wechat"}, {"text": "💰 /balance"}],
-            [{"text": "💸 /disburse"}, {"text": "📷 /scanqr"}, {"text": "🏦 /deposit"}],
-            [{"text": "📥 /topup"}, {"text": "📋 /list"}, {"text": "💱 /fees"}],
-            [{"text": "❓ /help"}],
+            [{"text": "💳 /pay"}, {"text": "💰 /wallet"}, {"text": "📊 /stats"}],
+            [{"text": "📟 /terminal"}, {"text": "📋 /list"}, {"text": "💱 /fees"}],
+            [{"text": "📥 /topup"}, {"text": "🏦 /deposit"}, {"text": "❓ /help"}],
         ],
         "resize_keyboard": True,
         "one_time_keyboard": False,
@@ -1361,7 +1367,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     if not photos:
                         await tg.send_message(
                             chat_id,
-                            "❌ Please upload a photo of the QR code.\n\n" + param["prompt"],
+                            f"❌ <b>Input Required</b>\n━━━━━━━━━━━━━━━━━━━━\nPlease upload a photo to continue.\n\n{param['prompt']}",
                         )
                         return {"status": "ok"}
                     # Use the largest resolution photo (last in list)
@@ -1370,8 +1376,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     if not qr_decoded:
                         await tg.send_message(
                             chat_id,
-                            "❌ Could not detect a QR code in the photo. "
-                            "Please try again with a clearer, well-lit image.\n\n" + param["prompt"],
+                            f"❌ <b>Detection Failed</b>\n━━━━━━━━━━━━━━━━━━━━\nCould not find a QR code in that photo. Please try a clearer image.\n\n{param['prompt']}",
                         )
                         return {"status": "ok"}
                     state["data"][param["key"]] = qr_decoded
@@ -1381,31 +1386,45 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     # "skip" is allowed for optional steps
                     if raw.lower() == "skip" and param.get("optional"):
                         raw = param["default"]
+                    elif not raw and not param.get("optional"):
+                        await tg.send_message(chat_id, f"❌ <b>Input Required</b>\n━━━━━━━━━━━━━━━━━━━━\nThis step cannot be skipped.\n\n{param['prompt']}")
+                        return {"status": "ok"}
 
                     if param["type"] == "float":
                         try:
-                            fval = float(raw)
+                            # Remove currency symbols if user pasted them
+                            clean_raw = raw.replace('₱', '').replace('$', '').replace(',', '').strip()
+                            fval = float(clean_raw)
                             if fval <= 0:
                                 raise ValueError("Must be > 0")
                             state["data"][param["key"]] = str(fval)
                         except ValueError:
                             await tg.send_message(
                                 chat_id,
-                                "❌ Please enter a valid positive number.\n\n" + param["prompt"],
+                                f"❌ <b>Invalid Amount</b>\n━━━━━━━━━━━━━━━━━━━━\nPlease enter a valid number (e.g. 500 or 1250.50).\n\n{param['prompt']}",
                             )
                             return {"status": "ok"}
                     else:
                         if not raw:
-                            await tg.send_message(chat_id, "❌ Value cannot be empty.\n\n" + param["prompt"])
-                            return {"status": "ok"}
-                        state["data"][param["key"]] = raw
+                            state["data"][param["key"]] = param.get("default", "")
+                        else:
+                            state["data"][param["key"]] = raw
 
                 state["step"] += 1
 
             # More steps outstanding?
             if state["step"] < len(steps):
                 next_param = steps[state["step"]]
-                await tg.send_message(chat_id, next_param["prompt"])
+                total_steps = len(steps)
+                current_step_num = state["step"] + 1
+
+                await tg.send_message(
+                    chat_id,
+                    f"<b>{cmd} Wizard</b> — Step {current_step_num} of {total_steps}\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"{next_param['prompt']}\n\n"
+                    f"💡 Type /cancel to abort."
+                )
                 return {"status": "ok"}
 
             # All values collected
@@ -1610,17 +1629,20 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         invoice_url = result.get('invoice_url', '')
                         ext_id = result.get('external_id', '')
                         reply = (
-                            f"✅ <b>Invoice Created!</b>\n"
+                            f"✅ <b>Invoice Ready!</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
                             f"📝 {description}\n"
-                            f"🆔 <code>{ext_id}</code>\n\n"
-                            f"Tap the button below to pay 👇"
+                            f"🆔 Ref: <code>{ext_id}</code>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"📱 Send the link below to your customer or tap the button to pay now."
                         )
                         keyboard = {
-                            "inline_keyboard": [[{"text": "💳 Pay Now", "url": invoice_url}]]
+                            "inline_keyboard": [
+                                [{"text": "💳 Pay Now", "url": invoice_url}],
+                                [{"text": "🔗 Copy Link", "callback_data": f"copy_link:{ext_id}"}]
+                            ]
                         } if invoice_url else None
-                        # Send reply FIRST
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
                         # Then try DB save
                         try:
@@ -1662,9 +1684,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     result = await maya.create_qr_code(amount=amount, description=description)
                     if result.get("success"):
                         reply = (
-                            f"✅ <b>QR Code Created!</b>\n\n💰 ₱{amount:,.2f}\n"
-                            f"📱 QR: <code>{result.get('qr_string', '')}</code>\n"
-                            f"🆔 <code>{result.get('external_id', '')}</code>"
+                            f"✅ <b>QR Code Generated</b>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+                            f"📱 QR String: <code>{result.get('qr_string', '')}</code>\n"
+                            f"🆔 Ref: <code>{result.get('external_id', '')}</code>\n"
+                            f"━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💡 <i>Tip: Tap the QR string to copy it.</i>"
                         )
                         await tg.send_message(chat_id, reply)
                         try:
@@ -2216,15 +2242,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         logger.warning(f"PayMongo balance fetch failed for /balance: {pe}")
 
                 # USD wallet — compute balance from transaction history
-                usd_res = await db.execute(
-                    select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "USD")
-                )
-                usd_wallet = usd_res.scalar_one_or_none()
                 usd_balance = await _compute_usd_balance_for_wallet(db, tg_user_id)
-                if usd_wallet and usd_balance != usd_wallet.balance:
-                    usd_wallet.balance = usd_balance
-                    usd_wallet.updated_at = datetime.now()
-                    await db.commit()
+
                 # Fetch last 3 PHP wallet transactions
                 wt_res = await db.execute(
                     select(Wallet_transactions)
@@ -2244,28 +2263,33 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except Exception:
                     pass
 
-            title = "Company Balance" if gateway_label else "Wallet Balances"
+            title = "Company Balance" if gateway_label else "My Wallet"
             reply = (
                 f"💰 <b>{title}</b>\n"
                 f"━━━━━━━━━━━━━━━━━━━━\n"
                 f"🇵🇭 PHP: <b>₱{php_balance:,.2f}</b>{gateway_label}\n"
                 f"💵 USD: <b>${usd_balance:,.2f}</b> (USDT TRC20)\n"
             )
+
             if recent_wt:
                 t_map = {"send": "📤", "withdraw": "⬇️", "receive": "📥", "topup": "⬆️", "crypto_topup": "⬆️", "usdt_send": "📤"}
                 reply += "\n📜 <b>Recent PHP Activity:</b>\n"
                 for wt in recent_wt:
                     em = t_map.get(wt.transaction_type, "💸")
                     dt = wt.created_at.strftime("%b %d") if wt.created_at else ""
-                    reply += f"  {em} {wt.transaction_type} ₱{wt.amount:,.2f} — {dt}\n"
+                    # Use absolute value for display since we show direction emoji
+                    amt_abs = abs(wt.amount)
+                    reply += f"  {em} {wt.transaction_type.capitalize()} ₱{amt_abs:,.2f} — {dt}\n"
+
             reply += (
-                "\n💵 <b>USD Wallet actions:</b>\n"
-                "  /usdbalance — Full USD details\n"
-                "  /topup [amt] — Top up\n"
-                "  /sendusdt [amt] [address] — Send USDT to TRC20 address\n"
-                "  /sendusd [amt] [@username] — Send USD to a user\n"
+                "\n⚡ <b>Quick Actions:</b>\n"
+                "  /topup — Add funds (USDT)\n"
+                "  /deposit — Add funds (Bank)\n"
+                "  /withdraw — Cash out\n"
+                "  /send — Transfer PHP\n"
+                "  /stats — Personal report"
             )
-            await tg.send_message(chat_id, reply)
+            await tg.send_message(chat_id, reply, reply_markup=_start_kb())
 
         # ==================== /usdbalance ====================
         elif text.startswith("/usdbalance"):
@@ -2748,8 +2772,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ An error occurred processing your request.")
             return {"status": "ok"}
 
-        # ==================== /report ====================
-        elif text.startswith("/report"):
+        # ==================== /report & /stats ====================
+        elif text.startswith("/report") or text.startswith("/stats"):
             parts = text.split(maxsplit=1)
             period = parts[1].strip().lower() if len(parts) > 1 else "monthly"
             if period not in ("daily", "weekly", "monthly"):
@@ -2758,27 +2782,54 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             try:
                 now = datetime.now()
                 start = now - timedelta(days={"daily": 1, "weekly": 7, "monthly": 30}[period])
+
+                # Filter by user unless super admin
+                is_super = await _is_super_admin_chat(db, chat_id)
+                base_query = select(Transactions).where(Transactions.created_at >= start)
+                if not is_super:
+                    base_query = base_query.where(Transactions.user_id == f"tg-{chat_id}")
+
                 paid_r = await db.execute(
                     select(func.coalesce(func.sum(Transactions.amount), 0)).where(
-                        Transactions.status == "paid", Transactions.created_at >= start,
+                        Transactions.status == "paid",
+                        Transactions.id.in_(select(Transactions.id).where(Transactions.created_at >= start))
                     )
                 )
+                if not is_super:
+                    paid_r = await db.execute(
+                        select(func.coalesce(func.sum(Transactions.amount), 0)).where(
+                            Transactions.status == "paid",
+                            Transactions.user_id == f"tg-{chat_id}",
+                            Transactions.created_at >= start
+                        )
+                    )
+
                 paid = float(paid_r.scalar() or 0)
-                total_r = await db.execute(
-                    select(func.count(Transactions.id)).where(Transactions.created_at >= start)
+
+                total_query = select(func.count(Transactions.id)).where(Transactions.created_at >= start)
+                if not is_super:
+                    total_query = total_query.where(Transactions.user_id == f"tg-{chat_id}")
+                total = (await db.execute(total_query)).scalar() or 0
+
+                paid_count_query = select(func.count(Transactions.id)).where(
+                    Transactions.status == "paid",
+                    Transactions.created_at >= start
                 )
-                total = total_r.scalar() or 0
-                paid_c = await db.execute(
-                    select(func.count(Transactions.id)).where(
-                        Transactions.status == "paid", Transactions.created_at >= start,
-                    )
-                )
-                paid_count = paid_c.scalar() or 0
+                if not is_super:
+                    paid_count_query = paid_count_query.where(Transactions.user_id == f"tg-{chat_id}")
+                paid_count = (await db.execute(paid_count_query)).scalar() or 0
+
                 rate = round((paid_count / total * 100) if total > 0 else 0, 1)
+
+                title = "System Report" if is_super else "My Performance"
                 reply = (
-                    f"📊 <b>{period.title()} Report</b>\n\n"
-                    f"💰 Revenue: <b>₱{paid:,.2f}</b>\n📋 Transactions: {total}\n"
-                    f"✅ Paid: {paid_count}\n📈 Success Rate: {rate}%"
+                    f"📊 <b>{title} ({period.title()})</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"💰 Total Paid: <b>₱{paid:,.2f}</b>\n"
+                    f"🔢 Total Txns: <b>{total}</b>\n"
+                    f"✅ Successful: <b>{paid_count}</b>\n"
+                    f"📈 Success Rate: <b>{rate}%</b>\n\n"
+                    f"💡 <i>Tip: Use /report daily | weekly | monthly</i>"
                 )
             except Exception as e:
                 logger.error(f"DB failed for /report: {e}", exc_info=True)
@@ -2787,7 +2838,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     await db.rollback()
                 except Exception:
                     pass
-            await tg.send_message(chat_id, reply)
+            await tg.send_message(chat_id, reply, reply_markup=_start_kb())
 
         # ==================== /fees ====================
         elif text.startswith("/fees"):

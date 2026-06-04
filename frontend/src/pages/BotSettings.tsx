@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -40,7 +40,6 @@ import {
   Key,
   Settings,
   ToggleLeft,
-  FileText,
   Terminal,
   Save,
   RotateCcw,
@@ -102,131 +101,32 @@ interface BotConfig {
   whatsapp_number: string;
 }
 
-// Bot commands reference
 const BOT_COMMANDS = [
-  { cmd: '/start',      emoji: '\u{1F680}', category: 'General',   desc: 'Welcome message + language selection' },
-  { cmd: '/register',   emoji: '\u{1F4E6}', category: 'General',   desc: 'Register your business and request dashboard access' },
-  { cmd: '/login',      emoji: '\u{1F511}', category: 'General',   desc: 'Log in with your Telegram account' },
-  { cmd: '/setpin',     emoji: '\u{1F528}', category: 'General',   desc: 'Set or change your PIN for secure actions' },
-  { cmd: '/logout',     emoji: '\u274C',    category: 'General',   desc: 'Log out of your current session' },
-  { cmd: '/help',       emoji: '\u2753',    category: 'General',   desc: 'Full command reference guide' },
-  { cmd: '/balance',    emoji: '\u{1F4B0}', category: 'Wallet',    desc: 'View PHP wallet balance & history' },
-  { cmd: '/usdbalance', emoji: '\u{1F4B5}', category: 'Wallet',    desc: 'USD wallet balance (USDT TRC20)' },
-  { cmd: '/wallet',     emoji: '\u{1F4B3}', category: 'Wallet',    desc: 'Manage your wallet (Send, Top-up, Withdraw)' },
-  { cmd: '/invoice',    emoji: '\u{1F4B3}', category: 'Payments',  desc: 'Create a Xendit payment invoice' },
-  { cmd: '/qr',         emoji: '\u{1F4F1}', category: 'Payments',  desc: 'Generate a QR code payment' },
-  { cmd: '/link',       emoji: '\u{1F517}', category: 'Payments',  desc: 'Create a payment link' },
-  { cmd: '/va',         emoji: '\u{1F3E6}', category: 'Payments',  desc: 'Generate a virtual bank account' },
-  { cmd: '/ewallet',    emoji: '\u{1F4F2}', category: 'Payments',  desc: 'GCash / Maya / GrabPay e-wallet' },
-  { cmd: '/alipay',     emoji: '\u{1F534}', category: 'Payments',  desc: 'Alipay QR via PhotonPay' },
-  { cmd: '/wechat',     emoji: '\u{1F4AC}', category: 'Payments',  desc: 'WeChat Pay QR via PhotonPay' },
-  { cmd: '/pay',        emoji: '\u{1F4B8}', category: 'Payments',  desc: 'Interactive payment menu' },
-  { cmd: '/deposit',    emoji: '\u{1F4E5}', category: 'Payments',  desc: 'Record a manual bank/e-wallet deposit' },
-  { cmd: '/disburse',   emoji: '\u{1F4B8}', category: 'Transfers', desc: 'Send money to bank account' },
-  { cmd: '/refund',     emoji: '\u21A9\uFE0F', category: 'Transfers', desc: 'Refund a completed payment' },
-  { cmd: '/send',       emoji: '\u{1F4E4}', category: 'Transfers', desc: 'Send PHP to another user' },
-  { cmd: '/sendusdt',   emoji: '\u20BF',    category: 'Transfers', desc: 'Send USDT to a TRC20 address' },
-  { cmd: '/sendusd',    emoji: '\u{1F4B1}', category: 'Transfers', desc: 'Send USD to another user' },
-  { cmd: '/topup',      emoji: '\u2B06\uFE0F', category: 'Transfers', desc: 'Top up PHP wallet via USDT' },
-  { cmd: '/withdraw',   emoji: '\u2B07\uFE0F', category: 'Transfers', desc: 'Withdraw from wallet' },
-  { cmd: '/status',     emoji: '\u{1F50D}', category: 'Tools',     desc: 'Check a payment status by ID' },
-  { cmd: '/list',       emoji: '\u{1F4CB}', category: 'Tools',     desc: 'Recent transactions list' },
-  { cmd: '/report',     emoji: '\u{1F4CA}', category: 'Tools',     desc: 'Daily / weekly / monthly report' },
-  { cmd: '/fees',       emoji: '\u{1F4B1}', category: 'Tools',     desc: 'Payment fee calculator' },
-  { cmd: '/cancel',     emoji: '\u{1F6AB}', category: 'Tools',     desc: 'Cancel a pending payment' },
-  { cmd: '/remind',     emoji: '\u{1F514}', category: 'Tools',     desc: 'Send a payment reminder' },
-  { cmd: '/scanqr',     emoji: '\u{1F4F7}', category: 'Tools',     desc: 'Scan a QRPH code and pay' },
-  { cmd: '/kyb',        emoji: '\u{1FAAA}', category: 'Tools',     desc: 'Begin KYB registration flow' },
-  { cmd: '/terminal',   emoji: '\u{1F4BB}', category: 'Tools',     desc: 'Manage your POS terminals' },
-  { cmd: '/subscribe',  emoji: '\u{1F4E6}', category: 'Tools',     desc: 'Create a recurring subscription' },
+  { cmd: '/start',      emoji: '🚀', category: 'General',   desc: 'Welcome message + language selection' },
+  { cmd: '/help',       emoji: '❓', category: 'General',   desc: 'Full command reference guide' },
+  { cmd: '/balance',    emoji: '💰', category: 'Wallet',    desc: 'View PHP wallet balance & history' },
+  { cmd: '/wallet',     emoji: '💳', category: 'Wallet',    desc: 'Manage your wallet (Send, Top-up, Withdraw)' },
+  { cmd: '/invoice',    emoji: '📄', category: 'Payments',  desc: 'Create a payment invoice' },
+  { cmd: '/qr',         emoji: '📱', category: 'Payments',  desc: 'Generate a QR code payment' },
+  { cmd: '/pay',        emoji: '💳', category: 'Payments',  desc: 'Interactive payment menu' },
+  { cmd: '/disburse',   emoji: '💸', category: 'Transfers', desc: 'Send money to bank account' },
+  { cmd: '/send',       emoji: '📤', category: 'Transfers', desc: 'Send PHP to another user' },
+  { cmd: '/topup',      emoji: '⬆️', category: 'Transfers', desc: 'Top up PHP wallet via USDT' },
+  { cmd: '/status',     emoji: '🔍', category: 'Tools',     desc: 'Check a payment status by ID' },
+  { cmd: '/list',       emoji: '📋', category: 'Tools',     desc: 'Recent transactions list' },
+  { cmd: '/report',     emoji: '📊', category: 'Tools',     desc: 'Daily / weekly / monthly report' },
 ];
 
 const COMMAND_CATEGORIES = ['General', 'Wallet', 'Payments', 'Transfers', 'Tools'];
 
 const DEFAULT_TEMPLATES = {
-  welcome_message_en: `\u{1F44B} Welcome to PayBot PH!\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\nHi {name}! \u{1F389} Your all-in-one Philippine payment gateway is ready.\n\n\u{1F4B3} /invoice \u00B7 /qr \u00B7 /link \u00B7 /va \u00B7 /ewallet\n\u{1F4B8} /disburse \u00B7 /refund \u00B7 /send\n\u{1F4B0} /balance \u00B7 /topup \u00B7 /withdraw\n\u{1F4CA} /report \u00B7 /list \u00B7 /fees\n\nType /help for the full command guide.`,
-  welcome_message_zh: `\u{1F44B} \u6B22\u8FCE\u4F7F\u7528 PayBot PH\uFF01\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\u5C4F {name}\uFF01\u{1F389} \u60A8\u7684\u4E00\u7AD9\u5F0F\u83F2\u5F8B\u5EB3\u652F\u4ED8\u673A\u5668\u4EBA\u5DF2\u5C31\u7EEA\u3002\n\n\u{1F4B3} /invoice \u00B7 /qr \u00B7 /link \u00B7 /va \u00B7 /ewallet\n\u{1F4B8} /disburse \u00B7 /refund \u00B7 /send\n\u{1F4B0} /balance \u00B7 /topup \u00B7 /withdraw\n\u{1F4CA} /report \u00B7 /list \u00B7 /fees\n\n\u8F93\u5165 /help \u67E5\u770B\u5B8C\u6574\u547D\u4EE4\u3002`,
-  payment_success_message: `\u2705 Payment Successful!\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\u{1F4B0} Amount: \u20B1{amount}\n\u{1F4DD} Description: {description}\n\u{1F194} Reference: {external_id}\n\nThank you for your payment! \u{1F389}`,
-  payment_failed_message: `\u274C Payment Failed\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\u{1F4B0} Amount: \u20B1{amount}\n\u{1F4DD} Description: {description}\n\u{1F194} Reference: {external_id}\n\nPlease try again or contact support.`,
-  payment_pending_message: `\u23F3 Payment Pending\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\u{1F4B0} Amount: \u20B1{amount}\n\u{1F4DD} Description: {description}\n\u{1F194} Reference: {external_id}\n\nWaiting for payment confirmation...`,
-  maintenance_message: `\u{1F527} Bot is under maintenance\nWe'll be back shortly. Thank you for your patience!`,
+  welcome_message_en: `👋 Welcome to PayBot PH!\n━━━━━━━━━━━━━━━━━━━━\nHi {name}! 🎉 Your all-in-one Philippine payment gateway is ready.\n\n📄 /invoice · 📱 /qr · 🔗 /link\n💸 /disburse · 📤 /send · 💰 /wallet\n\nType /help for the full guide.`,
+  welcome_message_zh: `👋 欢迎使用 PayBot PH！\n━━━━━━━━━━━━━━━━━━━━\n嗨 {name}！🎉 您的一站式菲律宾支付机器人已就绪。\n\n📄 /invoice · 📱 /qr · 🔗 /link\n💸 /disburse · 📤 /send · 💰 /wallet\n\n输入 /help 查看完整参考。`,
+  payment_success_message: `✅ Payment Successful!\n━━━━━━━━━━━━━━━━━━━━\n💰 Amount: ₱{amount}\n📝 Description: {description}\n🆔 Ref: {external_id}\n\nThank you for your payment! 🎉`,
+  payment_failed_message: `❌ Payment Failed\n━━━━━━━━━━━━━━━━━━━━\n💰 Amount: ₱{amount}\n📝 Description: {description}\n🆔 Ref: {external_id}\n\nPlease try again or contact support.`,
+  payment_pending_message: `⏳ Payment Pending\n━━━━━━━━━━━━━━━━━━━━\n💰 Amount: ₱{amount}\n📝 Description: {description}\n🆔 Ref: {external_id}\n\nWaiting for confirmation...`,
+  maintenance_message: `🛠️ Bot is under maintenance\nWe'll be back shortly. Thank you for your patience!`,
 };
-
-const TUTORIAL_STEPS = [
-  {
-    icon: <MessageSquare className="h-10 w-10 text-blue-400" />,
-    title: 'Create a bot on BotFather',
-    body: 'Open Telegram and search for @BotFather. Send /newbot, pick any display name, then choose a username that ends in "bot". BotFather will give you a bot token.',
-    tip: 'Keep your token safe. Anyone with the token can control your bot.',
-    color: 'blue',
-  },
-  {
-    icon: <Key className="h-10 w-10 text-violet-400" />,
-    title: 'Enter your bot token',
-    body: 'Go to the Overview tab. Paste your BotFather token into the input field, then click Validate Token to confirm it works.',
-    tip: 'The token is stored securely and never shared.',
-    color: 'violet',
-  },
-  {
-    icon: <Webhook className="h-10 w-10 text-purple-400" />,
-    title: 'Setup the webhook',
-    body: 'After validating your token, click Setup Webhook. This registers your bot with this platform so all messages are handled automatically.',
-    tip: 'Webhook = the platform receives messages live, 24/7.',
-    color: 'purple',
-  },
-  {
-    icon: <Sparkles className="h-10 w-10 text-emerald-400" />,
-    title: "You're ready!",
-    body: 'Open Telegram, find your bot, and send /start. Customise welcome messages in the Messages tab and check available commands in the Commands tab.',
-    tip: 'Share your bot link t.me/yourbotusername with customers.',
-    color: 'emerald',
-  },
-];
-
-function TutorialOverlay({ onDone }: { onDone: () => void }) {
-  const [step, setStep] = useState(0);
-  const s = TUTORIAL_STEPS[step];
-  const isLast = step === TUTORIAL_STEPS.length - 1;
-  const colorMap: Record<string, string> = {
-    blue: 'bg-blue-500/15 border-blue-500/30', violet: 'bg-violet-500/15 border-violet-500/30',
-    purple: 'bg-purple-500/15 border-purple-500/30', emerald: 'bg-emerald-500/15 border-emerald-500/30',
-  };
-  const tipMap: Record<string, string> = {
-    blue: 'bg-blue-500/10 border-blue-500/20 text-blue-300', violet: 'bg-violet-500/10 border-violet-500/20 text-violet-300',
-    purple: 'bg-purple-500/10 border-purple-500/20 text-purple-300', emerald: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300',
-  };
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
-      <div className="relative w-full max-w-md bg-card border border-border/60 rounded-2xl shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 pt-5 pb-3">
-          <div className="flex items-center gap-2"><Bot className="h-5 w-5 text-blue-400" /><span className="text-foreground font-bold text-sm">Bot Setup Guide</span></div>
-          <button onClick={onDone} className="text-muted-foreground hover:text-foreground transition-colors"><X className="h-4 w-4" /></button>
-        </div>
-        <div className="flex items-center gap-1.5 px-5 pb-4">
-          {TUTORIAL_STEPS.map((_, i) => (
-            <button key={i} onClick={() => setStep(i)} className={`h-1.5 rounded-full transition-all duration-300 ${i === step ? 'w-6 bg-blue-400' : i < step ? 'w-3 bg-blue-600' : 'w-3 bg-muted'}`} />
-          ))}
-          <span className="ml-auto text-[11px] text-muted-foreground">{step + 1} of {TUTORIAL_STEPS.length}</span>
-        </div>
-        <div className="px-5 pb-5">
-          <div className={`flex items-center justify-center h-20 w-20 rounded-2xl border mx-auto mb-5 ${colorMap[s.color]}`}>{s.icon}</div>
-          <h2 className="text-foreground font-bold text-lg text-center mb-3">{s.title}</h2>
-          <p className="text-muted-foreground text-sm text-center leading-relaxed mb-4">{s.body}</p>
-          <div className={`flex items-start gap-2 rounded-xl border px-3 py-2.5 mb-6 ${tipMap[s.color]}`}>
-            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" /><p className="text-xs leading-relaxed">{s.tip}</p>
-          </div>
-          <div className="flex gap-3">
-            {step > 0 && <Button variant="outline" onClick={() => setStep(step - 1)} className="flex-1 border-border text-muted-foreground hover:text-foreground hover:bg-muted"><ChevronLeft className="h-4 w-4 mr-1" /> Back</Button>}
-            {step === 0 && <Button variant="ghost" onClick={onDone} className="flex-1 text-muted-foreground hover:text-foreground">Skip tutorial</Button>}
-            <Button onClick={isLast ? onDone : () => setStep(step + 1)} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">
-              {isLast ? <><CheckCircle className="h-4 w-4 mr-1" /> Get Started</> : <>Next <ChevronRight className="h-4 w-4 ml-1" /></>}
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function BotSettings() {
   const { user, login } = useAuth();
@@ -273,14 +173,11 @@ export default function BotSettings() {
     whatsapp_number: '',
   });
 
-  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>(
-    Object.fromEntries(COMMAND_CATEGORIES.map(c => [c, true]))
-  );
-
   const getErr = (e: unknown) => {
     const err = e as { data?: { detail?: string; message?: string }; message?: string };
     return err?.data?.detail || err?.data?.message || err?.message || 'Unknown error';
   };
+
   const is401 = (e: unknown) => {
     const err = e as { status?: number; data?: { detail?: string } };
     return err?.status === 401 || (typeof err?.data?.detail === 'string' && err.data.detail.toLowerCase().includes('unauthorized'));
@@ -291,10 +188,9 @@ export default function BotSettings() {
     try {
       const res = await client.apiCall.invoke({ url: '/api/v1/telegram/bot-info', method: 'GET', data: {} });
       if (res.data?.success) setBotInfo(res.data.data as BotInfo);
-      else { setBotError(res.data?.message || 'Failed'); toast.error(res.data?.message || 'Failed to get bot info'); }
+      else setBotError(res.data?.message || 'Failed');
     } catch (e) {
-      if (is401(e)) setBotError('Authentication required.');
-      else { const m = getErr(e); setBotError(m); toast.error(`Bot connection failed: ${m}`); }
+      if (!is401(e)) setBotError(getErr(e));
     } finally { setBotLoading(false); }
   };
 
@@ -303,7 +199,7 @@ export default function BotSettings() {
     try {
       const res = await client.apiCall.invoke({ url: '/api/v1/telegram/webhook-info', method: 'GET', data: {} });
       setWebhookInfo(res.data as WebhookInfo);
-    } catch (e) { if (!is401(e)) toast.error(`Could not fetch webhook status: ${getErr(e)}`); }
+    } catch { /* ignore */ }
     finally { setWebhookInfoLoading(false); }
   };
 
@@ -311,7 +207,7 @@ export default function BotSettings() {
     try {
       const res = await client.apiCall.invoke({ url: '/api/v1/telegram/clone-bot/info', method: 'GET', data: {} });
       setCloneInfo(res.data as CloneBotInfo);
-    } catch { /* silently ignore */ }
+    } catch { /* ignore */ }
   };
 
   const fetchBotConfig = useCallback(async () => {
@@ -320,617 +216,363 @@ export default function BotSettings() {
     try {
       const res = await client.apiCall.invoke({ url: '/api/v1/telegram/bot-config', method: 'GET', data: {} });
       if (res.data?.success) { const cfg = res.data as BotConfig; setBotConfig(cfg); setLocalConfig(cfg); }
-    } catch (e) { if (!is401(e)) toast.error(`Could not load bot config: ${getErr(e)}`); }
+    } catch { /* ignore */ }
     finally { setConfigLoading(false); }
   }, [user]);
 
   useEffect(() => { fetchBotInfo(); }, []);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { if (user) { fetchWebhookInfo(); fetchCloneInfo(); fetchBotConfig(); } }, [user]);
+  useEffect(() => { if (user) { fetchWebhookInfo(); fetchCloneInfo(); fetchBotConfig(); } }, [user, fetchBotConfig]);
 
   const handleCloneValidate = async () => {
-    if (!cloneToken.trim()) { toast.error('Enter a bot token first'); return; }
+    if (!cloneToken.trim()) return;
     setCloneValidating(true); setCloneValidated(null);
     try {
       const res = await client.apiCall.invoke({ url: '/api/v1/telegram/clone-bot/validate', method: 'POST', data: { bot_token: cloneToken.trim() } });
-      if (res.data?.success) { setCloneValidated(res.data.bot as BotInfo); toast.success(`Token valid! Bot: @${(res.data.bot as BotInfo).username}`); }
-      else toast.error(res.data?.message || 'Invalid token');
+      if (res.data?.success) { setCloneValidated(res.data.bot as BotInfo); toast.success('Token verified'); }
+      else toast.error('Invalid token');
     } catch (e) { toast.error(getErr(e)); } finally { setCloneValidating(false); }
   };
 
   const handleCloneSave = async () => {
-    if (!cloneToken.trim()) { toast.error('Validate your token first'); return; }
     setCloneSaving(true);
     try {
       const res = await client.apiCall.invoke({ url: '/api/v1/telegram/clone-bot/save', method: 'POST', data: { bot_token: cloneToken.trim() } });
-      if (res.data?.success) { toast.success('Bot saved and webhook registered!'); await fetchCloneInfo(); setCloneToken(''); setCloneValidated(null); }
-      else toast.error(res.data?.message || 'Save failed');
+      if (res.data?.success) { toast.success('Bot successfully cloned'); await fetchCloneInfo(); setCloneToken(''); setCloneValidated(null); }
     } catch (e) { toast.error(getErr(e)); } finally { setCloneSaving(false); }
-  };
-
-  const handleSetWebhook = async () => {
-    if (!webhookUrl) { toast.error('Enter a webhook URL'); return; }
-    setWebhookLoading(true);
-    try {
-      const res = await client.apiCall.invoke({ url: '/api/v1/telegram/setup-webhook', method: 'POST', data: { webhook_url: webhookUrl } });
-      if (res.data?.success) toast.success('Webhook configured!');
-      else toast.error(res.data?.message || 'Failed');
-    } catch (e) { toast.error(is401(e) ? 'Please log in first.' : getErr(e)); }
-    finally { setWebhookLoading(false); }
   };
 
   const handleAutoSetup = async () => {
     setAutoSetupLoading(true);
     try {
       const res = await client.apiCall.invoke({ url: '/api/v1/telegram/auto-setup', method: 'POST', data: {} });
-      const data = res.data as { success?: boolean; message?: string };
-      if (data?.success) { toast.success(data.message || 'Webhook registered!'); await fetchWebhookInfo(); }
-      else toast.error(data?.message || 'Auto-setup failed');
-    } catch (e) { toast.error(is401(e) ? 'Please log in first.' : `Auto-setup failed: ${getErr(e)}`); }
+      if ((res.data as any)?.success) { toast.success('Webhook auto-registered'); await fetchWebhookInfo(); }
+    } catch (e) { toast.error(getErr(e)); }
     finally { setAutoSetupLoading(false); }
-  };
-
-  const handleSendMessage = async () => {
-    if (!chatId || !testMessage) { toast.error('Enter chat ID and message'); return; }
-    setSendLoading(true);
-    try {
-      const res = await client.apiCall.invoke({ url: '/api/v1/telegram/send-message', method: 'POST', data: { chat_id: chatId, message: testMessage } });
-      if (res.data?.success) { toast.success('Message sent!'); setTestMessage(''); }
-      else toast.error(res.data?.message || 'Failed');
-    } catch (e) { toast.error(is401(e) ? 'Please log in first.' : getErr(e)); }
-    finally { setSendLoading(false); }
-  };
-
-  const handleSimulateWebhook = async () => {
-    const amount = parseFloat(simAmount);
-    if (isNaN(amount) || amount <= 0) { toast.error('Enter a valid amount'); return; }
-    setSimLoading(true);
-    try {
-      const res = await client.apiCall.invoke({ url: '/api/v1/events/simulate', method: 'POST', data: { transaction_type: simType, status: simStatus, amount, description: simDescription } });
-      if (res.data?.success) toast.success('Test event sent!', { description: `${simType} -> ${simStatus.toUpperCase()} (amount: ${fmt(amount)})`, duration: 5000 });
-      else toast.error('Failed to simulate webhook');
-    } catch (e) { toast.error(is401(e) ? 'Please log in first.' : getErr(e)); }
-    finally { setSimLoading(false); }
-  };
-
-  const handleTestBot = async () => {
-    setTestLoading(true); setTestChecks([]); setTestRan(false);
-    try {
-      const res = await client.apiCall.invoke({ url: '/api/v1/telegram/test', method: 'GET', data: {} });
-      const data = res.data as { success?: boolean; checks?: TestCheck[] };
-      if (Array.isArray(data?.checks)) { setTestChecks(data.checks); setTestRan(true); if (data.success) toast.success('Bot is working!'); else toast.error('Some checks failed.'); }
-      else toast.error('Unexpected response');
-    } catch (e) { toast.error(`Test failed: ${getErr(e)}`); } finally { setTestLoading(false); }
   };
 
   const handleSaveConfig = async () => {
     setConfigSaving(true);
     try {
       const res = await client.apiCall.invoke({ url: '/api/v1/telegram/bot-config', method: 'PUT', data: localConfig });
-      if (res.data?.success) { const cfg = res.data as BotConfig; setBotConfig(cfg); setLocalConfig(cfg); toast.success('Bot settings saved!'); }
-      else toast.error('Failed to save settings');
-    } catch (e) { toast.error(is401(e) ? 'Please log in first.' : getErr(e)); }
+      if (res.data?.success) { const cfg = res.data as BotConfig; setBotConfig(cfg); setLocalConfig(cfg); toast.success('Settings saved'); }
+    } catch (e) { toast.error(getErr(e)); }
     finally { setConfigSaving(false); }
-  };
-
-  const handleResetConfig = () => {
-    if (botConfig) setLocalConfig(botConfig);
-    else setLocalConfig({ bot_status: 'inactive', maintenance_mode: 'off', welcome_message_en: '', welcome_message_zh: '', payment_success_message: '', payment_failed_message: '', payment_pending_message: '', maintenance_message: '', commands_enabled: '', whatsapp_number: '' });
-    toast.info('Changes discarded');
-  };
-
-  const setDefaultTemplate = (field: keyof typeof DEFAULT_TEMPLATES) => {
-    setLocalConfig(prev => ({ ...prev, [field]: DEFAULT_TEMPLATES[field] }));
-    toast.success('Default template applied');
-  };
-
-  const copyToClipboard = (text: string, label = 'Copied!') => {
-    navigator.clipboard.writeText(text).then(() => toast.success(label));
   };
 
   const configChanged = JSON.stringify(localConfig) !== JSON.stringify(botConfig);
 
-  const statusColor = (s: string) =>
-    s === 'active' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
-    : s === 'maintenance' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
-    : 'bg-red-500/20 text-red-400 border-red-500/30';
-
-  const UnsavedBar = () => configChanged ? (
-    <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 flex items-center gap-3">
-      <Info className="h-4 w-4 text-blue-400 shrink-0" />
-      <p className="text-sm text-blue-300 flex-1">You have unsaved changes</p>
-      <Button size="sm" variant="outline" onClick={handleResetConfig} className="border-slate-500 text-slate-200 hover:text-white gap-1.5">
-        <RotateCcw className="h-3.5 w-3.5" /> Discard
-      </Button>
-      <Button size="sm" onClick={handleSaveConfig} disabled={configSaving} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
-        {configSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />} Save
-      </Button>
-    </div>
-  ) : null;
-
   return (
     <Layout>
-      {showTutorial && <TutorialOverlay onDone={dismissTutorial} />}
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-start justify-between gap-3 mb-6 flex-wrap">
+      <div className="max-w-6xl mx-auto pb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
-              <Bot className="h-6 w-6 text-blue-400" /> Bot Settings
+            <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
+              <Bot className="h-8 w-8 text-brand-blue-500" />
+              Bot Intelligence
             </h1>
-            <p className="text-muted-foreground text-sm mt-0.5">Configure your Telegram payment bot</p>
+            <p className="text-muted-foreground text-sm font-medium mt-1">Configure your Telegram merchant bot and automated messages</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {botConfig && (
-              <Badge className={`border text-xs ${statusColor(localConfig.bot_status)}`}>
-                {localConfig.bot_status === 'active' ? <CheckCircle className="h-3 w-3 mr-1" /> : localConfig.bot_status === 'maintenance' ? <Wrench className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
-                {localConfig.bot_status === 'active' ? 'Active' : localConfig.bot_status === 'maintenance' ? 'Maintenance' : 'Inactive'}
+          <div className="flex items-center gap-2">
+            {localConfig.bot_status === 'active' && (
+              <Badge className="bg-emerald-500 text-white border-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+                <CheckCircle className="h-3 w-3 mr-1.5 inline" /> Live
               </Badge>
             )}
-            <Button variant="outline" size="sm" onClick={() => setShowTutorial(true)} className="border-slate-500 text-slate-200 hover:text-foreground hover:bg-muted gap-2">
-              <Info className="h-3.5 w-3.5" /> Setup Guide
+            <Button variant="outline" size="sm" onClick={() => setShowTutorial(true)} className="border-border/60 font-bold text-[10px] uppercase tracking-widest h-9 rounded-xl">
+              <Info className="h-3.5 w-3.5 mr-2" /> Help Guide
             </Button>
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-muted/60 border border-border p-1 h-auto flex-wrap gap-1">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground gap-1.5">
-              <Settings className="h-3.5 w-3.5" /> Overview
+        <Tabs defaultValue="overview" className="space-y-8">
+          <TabsList className="bg-muted/50 border border-border/60 p-1 h-auto flex-wrap sm:inline-flex gap-1 rounded-xl">
+            <TabsTrigger value="overview" className="rounded-lg py-2 px-5 data-[state=active]:bg-card data-[state=active]:shadow-sm font-black text-[11px] uppercase tracking-widest">
+              <Settings className="h-3.5 w-3.5 mr-2" /> Overview
             </TabsTrigger>
-            <TabsTrigger value="controls" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground gap-1.5">
-              <ToggleLeft className="h-3.5 w-3.5" /> Controls
+            <TabsTrigger value="messages" className="rounded-lg py-2 px-5 data-[state=active]:bg-card data-[state=active]:shadow-sm font-black text-[11px] uppercase tracking-widest">
+              <MessageSquare className="h-3.5 w-3.5 mr-2" /> Messages
             </TabsTrigger>
-            <TabsTrigger value="messages" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground gap-1.5">
-              <FileText className="h-3.5 w-3.5" /> Messages
+            <TabsTrigger value="commands" className="rounded-lg py-2 px-5 data-[state=active]:bg-card data-[state=active]:shadow-sm font-black text-[11px] uppercase tracking-widest">
+              <Terminal className="h-3.5 w-3.5 mr-2" /> Commands
             </TabsTrigger>
-            <TabsTrigger value="commands" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground gap-1.5">
-              <Terminal className="h-3.5 w-3.5" /> Commands
-            </TabsTrigger>
-            <TabsTrigger value="testing" className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-muted-foreground gap-1.5">
-              <FlaskConical className="h-3.5 w-3.5" /> Testing
+            <TabsTrigger value="testing" className="rounded-lg py-2 px-5 data-[state=active]:bg-card data-[state=active]:shadow-sm font-black text-[11px] uppercase tracking-widest">
+              <FlaskConical className="h-3.5 w-3.5 mr-2" /> Testing
             </TabsTrigger>
           </TabsList>
 
           {/* OVERVIEW */}
-          <TabsContent value="overview" className="space-y-6 mt-0">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Clone Your Bot */}
-              <Card className="md:col-span-2 bg-card border-blue-500/30 ring-1 ring-blue-500/15">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-foreground flex items-center gap-2">
-                    <div className="h-8 w-8 rounded-lg bg-blue-500/20 flex items-center justify-center"><Bot className="h-4 w-4 text-blue-400" /></div>
-                    Clone Your Bot
-                    <Badge className="ml-1 bg-blue-500/15 text-blue-300 border-blue-500/30 border text-[10px]">NEW</Badge>
-                    <button onClick={() => setShowTutorial(true)} className="ml-auto text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1 font-normal">
-                      <Info className="h-3 w-3" /> How it works
-                    </button>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <p className="text-sm text-muted-foreground">Use your own Telegram bot with this platform. Create a bot via <span className="text-blue-400 font-medium">@BotFather</span>, enter the token below, and your bot will support all payment commands.</p>
-                  {cloneInfo?.configured && (
-                    <div className="bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-emerald-400" />
-                        <span className="text-emerald-300 font-semibold text-sm">Bot connected</span>
-                        <Badge className="ml-auto bg-emerald-500/20 text-emerald-400 border-emerald-500/30 border text-[10px]">ACTIVE</Badge>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-muted/60 rounded-lg p-2.5"><p className="text-[10px] text-muted-foreground mb-0.5">Bot Name</p><p className="text-sm text-foreground font-medium">{cloneInfo.bot_name}</p></div>
-                        <div className="bg-muted/60 rounded-lg p-2.5"><p className="text-[10px] text-muted-foreground mb-0.5">Username</p><p className="text-sm text-blue-400 font-mono">@{cloneInfo.bot_username}</p></div>
-                      </div>
-                      {cloneInfo.webhook_url && (
-                        <div className="bg-muted/60 rounded-lg p-2.5">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-[10px] text-muted-foreground">Webhook URL</p>
-                            <button onClick={() => copyToClipboard(cloneInfo.webhook_url!, 'Webhook URL copied')} className="text-muted-foreground hover:text-foreground"><Copy className="h-3 w-3" /></button>
+          <TabsContent value="overview" className="mt-0 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-6">
+                <Card className="border-border/60 shadow-sm overflow-hidden">
+                  <div className="h-1.5 bg-brand-blue-500 w-full" />
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-black uppercase tracking-tight">Merchant Bot Token</CardTitle>
+                    <CardDescription className="font-medium text-xs">Register your custom bot from @BotFather to handle payments</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-6">
+                    {cloneInfo?.configured && (
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-5 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center shadow-sm border border-emerald-100 text-emerald-500">
+                            <Bot className="h-6 w-6" />
                           </div>
-                          <p className="text-[11px] font-mono text-muted-foreground break-all">{cloneInfo.webhook_url}</p>
+                          <div>
+                            <p className="text-sm font-black text-emerald-900 uppercase tracking-tight">{cloneInfo.bot_name}</p>
+                            <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-widest">@{cloneInfo.bot_username}</p>
+                          </div>
                         </div>
-                      )}
-                      <p className="text-[11px] text-muted-foreground">To switch bots, enter a new token below and click Setup Webhook.</p>
-                    </div>
-                  )}
-                  <div>
-                    <Label className="text-muted-foreground mb-1.5 block">BotFather Token</Label>
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <Input type={showToken ? 'text' : 'password'} placeholder="1234567890:AAF..." value={cloneToken}
-                          onChange={(e) => { setCloneToken(e.target.value); setCloneValidated(null); }}
-                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground pr-9 font-mono text-sm" />
-                        <button type="button" onClick={() => setShowToken(!showToken)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                          {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
+                        <Badge className="bg-emerald-500 text-white border-0 font-black text-[9px] uppercase tracking-widest px-3">Connected</Badge>
                       </div>
-                      <Button onClick={handleCloneValidate} disabled={cloneValidating || !cloneToken.trim()} variant="outline" className="border-blue-500/40 text-blue-300 hover:bg-blue-500/10 hover:text-blue-200 shrink-0">
-                        {cloneValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Validate'}
-                      </Button>
-                    </div>
-                  </div>
-                  {cloneValidated && (
-                    <div className="bg-blue-500/10 border border-blue-500/25 rounded-xl p-4 space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center"><Bot className="h-5 w-5 text-blue-400" /></div>
-                        <div><p className="text-foreground font-semibold">{cloneValidated.first_name}</p><p className="text-blue-400 text-sm">@{cloneValidated.username}</p></div>
-                        <Badge className="ml-auto bg-blue-500/20 text-blue-300 border-blue-500/30 border text-[10px]"><CheckCircle className="h-3 w-3 mr-1" /> Valid</Badge>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">BotFather API Token</Label>
+                      <div className="flex gap-2">
+                        <div className="relative flex-1 group">
+                          <Input
+                            type={showToken ? 'text' : 'password'}
+                            placeholder="1234567890:AAF..."
+                            value={cloneToken}
+                            onChange={(e) => { setCloneToken(e.target.value); setCloneValidated(null); }}
+                            className="bg-muted/20 border-border/60 h-12 font-mono text-xs pr-10 rounded-xl"
+                          />
+                          <button onClick={() => setShowToken(!showToken)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-brand-blue-500 transition-colors">
+                            {showToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                        <Button onClick={handleCloneValidate} disabled={cloneValidating || !cloneToken.trim()} variant="outline" className="h-12 border-border/60 font-black text-xs px-6 rounded-xl uppercase tracking-widest">
+                          {cloneValidating ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Verify'}
+                        </Button>
                       </div>
-                      <Button onClick={handleCloneSave} disabled={cloneSaving} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium">
-                        {cloneSaving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : <><Webhook className="h-4 w-4 mr-2" />Setup Webhook</>}
-                      </Button>
                     </div>
-                  )}
-                  <div className="bg-muted/40 rounded-xl p-3 border border-border">
-                    <p className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wide mb-2">Quick steps</p>
-                    <ol className="space-y-1">
-                      {['Open Telegram -> @BotFather -> /newbot', 'Choose a name and @username', 'Copy the token, paste above, click Validate', 'Click Setup Webhook -- done!'].map((s, i) => (
-                        <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                          <span className="h-4 w-4 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">{i + 1}</span>{s}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                </CardContent>
-              </Card>
 
-              {/* Webhook Status */}
-              <Card className={`border ${webhookInfo === null ? 'bg-card border-border' : webhookInfo.is_registered ? 'bg-emerald-900/20 border-emerald-500/40' : 'bg-red-900/20 border-red-500/40'}`}>
-                <CardHeader>
-                  <CardTitle className="text-foreground flex items-center space-x-2">
-                    <Webhook className="h-5 w-5 text-purple-400" /><span>Webhook Status</span>
-                    {webhookInfo && <span className={`ml-auto text-xs font-normal px-2 py-0.5 rounded-full ${webhookInfo.is_registered ? 'bg-emerald-500/20 text-emerald-400' : 'bg-red-500/20 text-red-400'}`}>{webhookInfo.is_registered ? 'Registered' : 'Not Registered'}</span>}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {webhookInfoLoading ? <div className="flex items-center justify-center py-6"><Loader2 className="h-5 w-5 animate-spin text-purple-400" /></div>
-                  : !user ? <p className="text-sm text-muted-foreground">Log in to see webhook status.</p>
-                  : webhookInfo ? (
-                    <>
-                      {!webhookInfo.token_configured && <div className="flex items-start space-x-2 bg-red-500/10 border border-red-500/20 rounded-lg p-3"><AlertTriangle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" /><p className="text-xs text-red-300">TELEGRAM_BOT_TOKEN is not set.</p></div>}
-                      <div className="bg-muted/60 rounded-lg p-3 space-y-1"><p className="text-xs text-muted-foreground">Current webhook URL</p><p className="text-xs font-mono text-foreground break-all">{webhookInfo.webhook_url || <span className="text-red-400 italic">none</span>}</p></div>
-                      {webhookInfo.pending_update_count > 0 && <div className="flex items-center space-x-2 bg-amber-500/10 border border-amber-500/20 rounded-lg p-2"><AlertTriangle className="h-3 w-3 text-amber-400 shrink-0" /><p className="text-xs text-amber-300">{webhookInfo.pending_update_count} pending update(s)</p></div>}
-                      {webhookInfo.last_error_message && <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-2"><p className="text-xs text-red-300">Last error: {webhookInfo.last_error_message}</p></div>}
-                      <p className="text-xs text-muted-foreground">{webhookInfo.message}</p>
-                    </>
-                  ) : <p className="text-xs text-muted-foreground">Could not load webhook status.</p>}
-                  <div className="flex gap-2 pt-1">
-                    <Button onClick={handleAutoSetup} disabled={autoSetupLoading || !user} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-sm">
-                      {autoSetupLoading ? <><Loader2 className="h-3 w-3 mr-1 animate-spin" />Setting up...</> : <><Zap className="h-3 w-3 mr-1" />Auto-Setup</>}
-                    </Button>
-                    <Button onClick={fetchWebhookInfo} disabled={webhookInfoLoading || !user} variant="outline" size="icon" className="border-border text-muted-foreground hover:text-foreground hover:bg-muted">
-                      <RefreshCw className={`h-3 w-3 ${webhookInfoLoading ? 'animate-spin' : ''}`} />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Bot Information */}
-              <Card className="bg-card border-border">
-                <CardHeader><CardTitle className="text-foreground flex items-center space-x-2"><Bot className="h-5 w-5 text-blue-400" /><span>Bot Information</span></CardTitle></CardHeader>
-                <CardContent>
-                  {botLoading ? <div className="flex items-center justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-blue-400" /></div>
-                  : botInfo ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-3">
-                        <div className="h-12 w-12 bg-blue-500/20 rounded-full flex items-center justify-center"><Bot className="h-6 w-6 text-blue-400" /></div>
-                        <div><p className="font-medium text-foreground">{botInfo.first_name}</p><p className="text-sm text-muted-foreground">@{botInfo.username}</p></div>
-                        <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 border ml-auto"><CheckCircle className="h-3 w-3 mr-1" /> Connected</Badge>
-                      </div>
-                      <div className="bg-muted/50 rounded-lg p-3"><p className="text-xs text-muted-foreground">Bot ID</p><code className="text-sm text-foreground font-mono">{botInfo.id}</code></div>
-                      <Button onClick={fetchBotInfo} variant="outline" size="sm" className="w-full border-slate-500 text-slate-200 hover:text-foreground hover:bg-muted">Refresh Info</Button>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <XCircle className="h-12 w-12 text-red-400 mx-auto mb-3" />
-                      <p className="text-muted-foreground mb-3">Bot not connected</p>
-                      {botError && <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-3 text-left"><p className="text-xs text-red-400 font-mono break-all">{botError}</p></div>}
-                      {botError?.includes('Authentication required') && !user
-                        ? <Button onClick={() => login()} size="sm" className="bg-blue-600 hover:bg-blue-700 text-white">Log In</Button>
-                        : <Button onClick={fetchBotInfo} variant="outline" size="sm" className="border-slate-500 text-slate-200 hover:text-foreground hover:bg-muted">Retry</Button>}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          {/* CONTROLS */}
-          <TabsContent value="controls" className="space-y-6 mt-0">
-            {!user ? (
-              <Card className="bg-card border-border"><CardContent className="py-12 text-center"><p className="text-muted-foreground mb-4">Log in to manage bot controls</p><Button onClick={() => login()} className="bg-blue-600 hover:bg-blue-700 text-white">Log In</Button></CardContent></Card>
-            ) : configLoading ? <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-blue-400" /></div>
-            : (
-              <>
-                <UnsavedBar />
-
-                {/* Bot Status */}
-                <Card className="bg-card border-border">
-                  <CardHeader><CardTitle className="text-foreground flex items-center gap-2"><Power className="h-5 w-5 text-emerald-400" />Bot Status</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">Control whether your bot is accepting commands from users.</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {(['active', 'inactive', 'maintenance'] as const).map((status) => (
-                        <button key={status} onClick={() => setLocalConfig(prev => ({ ...prev, bot_status: status }))}
-                          className={`rounded-xl border p-4 text-left transition-all ${localConfig.bot_status === status ? status === 'active' ? 'border-emerald-500/60 bg-emerald-500/10' : status === 'maintenance' ? 'border-amber-500/60 bg-amber-500/10' : 'border-red-500/60 bg-red-500/10' : 'border-border bg-muted/30 hover:border-border'}`}>
-                          <div className="flex items-center gap-2 mb-1">
-                            {status === 'active' && <CheckCircle className="h-4 w-4 text-emerald-400" />}
-                            {status === 'inactive' && <XCircle className="h-4 w-4 text-red-400" />}
-                            {status === 'maintenance' && <Wrench className="h-4 w-4 text-amber-400" />}
-                            <span className={`text-sm font-semibold capitalize ${localConfig.bot_status === status ? status === 'active' ? 'text-emerald-300' : status === 'maintenance' ? 'text-amber-300' : 'text-red-300' : 'text-muted-foreground'}`}>{status}</span>
-                            {localConfig.bot_status === status && <CheckCircle className="h-3.5 w-3.5 ml-auto text-blue-400" />}
-                          </div>
-                          <p className="text-[11px] text-muted-foreground">{status === 'active' ? 'Bot responds to all commands' : status === 'inactive' ? 'Bot ignores all messages' : 'Bot sends maintenance message only'}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Maintenance Mode */}
-                <Card className="bg-card border-border">
-                  <CardHeader><CardTitle className="text-foreground flex items-center gap-2"><Wrench className="h-5 w-5 text-amber-400" />Maintenance Mode</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-foreground text-sm font-medium">Enable maintenance mode</p>
-                        <p className="text-muted-foreground text-xs mt-0.5">Bot sends the maintenance message to all users</p>
-                      </div>
-                      <Switch checked={localConfig.maintenance_mode === 'on'} onCheckedChange={(checked) => setLocalConfig(prev => ({ ...prev, maintenance_mode: checked ? 'on' : 'off', bot_status: checked ? 'maintenance' : prev.bot_status === 'maintenance' ? 'inactive' : prev.bot_status }))} />
-                    </div>
-                    {localConfig.maintenance_mode === 'on' && (
-                      <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex items-start gap-2">
-                        <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-                        <p className="text-xs text-amber-300">Maintenance mode is active. Edit the message in the <strong>Messages</strong> tab.</p>
+                    {cloneValidated && (
+                      <div className="bg-brand-blue-50 border border-brand-blue-100 rounded-2xl p-5 animate-in zoom-in-95">
+                         <div className="flex items-center gap-4 mb-5">
+                            <div className="h-12 w-12 rounded-2xl bg-white flex items-center justify-center shadow-sm text-brand-blue-500">
+                              <Sparkles className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-black text-brand-blue-900 uppercase">{cloneValidated.first_name}</p>
+                              <p className="text-xs font-bold text-brand-blue-600">@{cloneValidated.username}</p>
+                            </div>
+                         </div>
+                         <Button onClick={handleCloneSave} disabled={cloneSaving} className="w-full h-12 bg-brand-blue-500 hover:bg-brand-blue-600 text-white font-black rounded-xl uppercase tracking-widest shadow-lg shadow-brand-blue-500/20 transition-all">
+                           {cloneSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Webhook className="h-4 w-4 mr-2" />}
+                           Complete Installation
+                         </Button>
                       </div>
                     )}
                   </CardContent>
                 </Card>
 
-                {/* Social Channel Numbers */}
-                <Card className="bg-card border-border">
-                  <CardHeader><CardTitle className="text-foreground flex items-center gap-2"><Globe className="h-5 w-5 text-green-400" />Social Sign-up Channels</CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">Configure social platform contact details shown as alternative sign-up and login options on the registration page.</p>
-                    <div>
-                      <Label className="text-muted-foreground mb-1.5 block">WhatsApp Number</Label>
-                      <Input
-                        type="tel"
-                        placeholder="e.g. 639171234567 (country code + number)"
-                        value={localConfig.whatsapp_number}
-                        onChange={(e) => setLocalConfig(prev => ({ ...prev, whatsapp_number: e.target.value }))}
-                        className="bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                      />
-                      <p className="text-[11px] text-muted-foreground mt-1">Include country code without + (e.g. 63 for Philippines). Leave blank to hide the WhatsApp button.</p>
+                <Card className="border-border/60 shadow-sm overflow-hidden">
+                   <CardHeader className="pb-2">
+                    <CardTitle className="text-lg font-black uppercase tracking-tight">Cloud Webhook</CardTitle>
+                    <CardDescription className="font-medium text-xs">Bridge your bot to our cloud payment processors</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="bg-muted/20 border border-border/60 rounded-2xl p-5">
+                       <div className="flex items-center justify-between mb-4">
+                         <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">Deployment Status</p>
+                         {webhookInfo?.is_registered ? (
+                           <Badge className="bg-emerald-500 text-white border-0 font-black text-[8px] uppercase px-2">Healthy</Badge>
+                         ) : <Badge className="bg-rose-500 text-white border-0 font-black text-[8px] uppercase px-2">Disconnected</Badge>}
+                       </div>
+                       <code className="block p-4 bg-black/5 dark:bg-white/5 rounded-xl text-[11px] font-bold text-foreground break-all border border-black/5">
+                         {webhookInfo?.webhook_url || 'https://---'}
+                       </code>
                     </div>
-                  </CardContent>
-                </Card>
-
-                {/* Webhook Configuration */}
-                <Card className="bg-card border-border">
-                  <CardHeader><CardTitle className="text-foreground flex items-center space-x-2"><Webhook className="h-5 w-5 text-purple-400" /><span>Webhook Configuration</span></CardTitle></CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 flex items-start space-x-2">
-                      <Info className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />
-                      <p className="text-xs text-blue-300">Set webhook to: <code className="bg-muted px-1 rounded">https://your-app-url/api/v1/telegram/webhook</code></p>
-                    </div>
-                    <div><Label className="text-muted-foreground">Webhook URL</Label><Input placeholder="https://your-domain.com/api/v1/telegram/webhook" value={webhookUrl} onChange={(e) => setWebhookUrl(e.target.value)} className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" /></div>
-                    <Button onClick={handleSetWebhook} disabled={webhookLoading} className="w-full bg-purple-600 hover:bg-purple-700 text-white">
-                      {webhookLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Setting Webhook...</> : <><Webhook className="h-4 w-4 mr-2" />Set Webhook</>}
+                    <Button onClick={handleAutoSetup} disabled={autoSetupLoading} className="w-full h-12 bg-muted/60 hover:bg-muted border border-border/60 text-foreground font-black rounded-xl uppercase tracking-[0.15em] transition-all">
+                       {autoSetupLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Zap className="h-4 w-4 mr-2 text-amber-500" />}
+                       Auto-Repair Connection
                     </Button>
                   </CardContent>
                 </Card>
+              </div>
 
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={handleResetConfig} className="border-slate-500 text-slate-200 hover:text-foreground gap-1.5"><RotateCcw className="h-4 w-4" /> Discard</Button>
-                  <Button onClick={handleSaveConfig} disabled={configSaving || !configChanged} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
-                    {configSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Settings
-                  </Button>
-                </div>
-              </>
+              <div className="space-y-6">
+                <Card className="border-border/60 shadow-sm">
+                  <CardHeader><CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Bot Engine Control</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      {(['active', 'inactive', 'maintenance'] as const).map(s => (
+                        <button
+                          key={s}
+                          onClick={() => setLocalConfig(prev => ({ ...prev, bot_status: s }))}
+                          className={`w-full p-4 rounded-2xl border-2 flex items-center justify-between transition-all ${
+                            localConfig.bot_status === s
+                              ? 'bg-brand-blue-50 border-brand-blue-500 shadow-sm'
+                              : 'bg-card border-border/40 hover:border-brand-blue-200'
+                          }`}
+                        >
+                          <div className="text-left">
+                            <p className={`text-xs font-black uppercase tracking-widest ${localConfig.bot_status === s ? 'text-brand-blue-600' : 'text-muted-foreground'}`}>{s}</p>
+                            <p className="text-[10px] text-muted-foreground font-medium">{s === 'active' ? 'Full response mode' : s === 'maintenance' ? 'Hold pattern' : 'Offline'}</p>
+                          </div>
+                          {localConfig.bot_status === s && <CheckCircle className="h-4 w-4 text-brand-blue-500" />}
+                        </button>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/60 shadow-sm bg-muted/20">
+                  <CardHeader><CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">CRM Integration</CardTitle></CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">WhatsApp Business</Label>
+                      <Input
+                        placeholder="639171234567"
+                        value={localConfig.whatsapp_number}
+                        onChange={e => setLocalConfig(prev => ({ ...prev, whatsapp_number: e.target.value }))}
+                        className="bg-card border-border/60 h-11 text-sm font-bold rounded-xl"
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            {configChanged && (
+              <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-8">
+                <Card className="bg-brand-blue-600 border-0 shadow-2xl p-4 flex items-center gap-6 rounded-2xl min-w-[320px]">
+                  <p className="text-white text-xs font-black uppercase tracking-widest flex-1">Configuration has unsaved changes</p>
+                  <div className="flex items-center gap-2">
+                    <Button onClick={() => setLocalConfig(botConfig!)} variant="ghost" className="text-white/80 hover:text-white hover:bg-white/10 font-bold text-xs uppercase tracking-tighter h-9 px-4">Discard</Button>
+                    <Button onClick={handleSaveConfig} disabled={configSaving} className="bg-white text-brand-blue-600 hover:bg-white/90 font-black text-xs uppercase tracking-widest h-9 px-6 rounded-xl shadow-sm">
+                      {configSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save Changes'}
+                    </Button>
+                  </div>
+                </Card>
+              </div>
             )}
           </TabsContent>
 
           {/* MESSAGES */}
-          <TabsContent value="messages" className="space-y-6 mt-0">
-            {!user ? (
-              <Card className="bg-card border-border"><CardContent className="py-12 text-center"><p className="text-muted-foreground mb-4">Log in to edit message templates</p><Button onClick={() => login()} className="bg-blue-600 hover:bg-blue-700 text-white">Log In</Button></CardContent></Card>
-            ) : configLoading ? <div className="flex items-center justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-blue-400" /></div>
-            : (
-              <>
-                <UnsavedBar />
-                <div className="bg-muted/40 rounded-xl p-3 border border-border flex items-start gap-2">
-                  <Info className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                  <p className="text-xs text-muted-foreground">Supported placeholders: <code className="bg-muted px-1 rounded text-muted-foreground">{'{name}'}</code> <code className="bg-muted px-1 rounded text-muted-foreground">{'{amount}'}</code> <code className="bg-muted px-1 rounded text-muted-foreground">{'{description}'}</code> <code className="bg-muted px-1 rounded text-muted-foreground">{'{external_id}'}</code>. Leave any field empty to use the built-in default.</p>
-                </div>
-
+          <TabsContent value="messages" className="mt-0 space-y-6">
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {[
-                  { field: 'welcome_message_en' as const, title: 'Welcome Message (English)', icon: <Globe className="h-4 w-4 text-blue-400" />, desc: 'Shown when a user sends /start and selects English.', rows: 7 },
-                  { field: 'welcome_message_zh' as const, title: 'Welcome Message (Chinese)', icon: <Globe className="h-4 w-4 text-red-400" />, desc: 'Shown when a user sends /start and selects Chinese.', rows: 7 },
-                  { field: 'payment_success_message' as const, title: 'Payment Success Message', icon: <CheckCircle className="h-4 w-4 text-emerald-400" />, desc: 'Sent when a payment is confirmed as paid.', rows: 6 },
-                  { field: 'payment_failed_message' as const, title: 'Payment Failed / Expired Message', icon: <XCircle className="h-4 w-4 text-red-400" />, desc: 'Sent when a payment expires or fails.', rows: 6 },
-                  { field: 'payment_pending_message' as const, title: 'Payment Pending Message', icon: <Loader2 className="h-4 w-4 text-amber-400" />, desc: 'Sent when a payment is awaiting confirmation.', rows: 6 },
-                  { field: 'maintenance_message' as const, title: 'Maintenance Message', icon: <Wrench className="h-4 w-4 text-amber-400" />, desc: 'Sent to all users when bot is in maintenance mode.', rows: 4 },
-                ].map(({ field, title, icon, desc, rows }) => (
-                  <Card key={field} className="bg-card border-border">
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-foreground flex items-center gap-2 text-base">{icon}{title}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <p className="text-xs text-muted-foreground">{desc}</p>
-                      <Textarea value={localConfig[field]} onChange={(e) => setLocalConfig(prev => ({ ...prev, [field]: e.target.value }))}
-                        placeholder="Leave empty to use default..." className="bg-muted border-border text-foreground placeholder:text-muted-foreground font-mono text-xs resize-y" rows={rows} />
-                      <div className="flex justify-between items-center">
-                        <span className="text-[11px] text-muted-foreground">{localConfig[field].length} chars</span>
-                        <Button size="sm" variant="outline" onClick={() => setDefaultTemplate(field)} className="border-slate-500 text-muted-foreground hover:text-foreground text-xs gap-1">
-                          <RotateCcw className="h-3 w-3" /> Use Default
-                        </Button>
-                      </div>
+                  { field: 'welcome_message_en' as const, label: 'EN | Welcome', icon: '🇺🇸' },
+                  { field: 'welcome_message_zh' as const, label: 'ZH | 欢迎', icon: '🇨🇳' },
+                  { field: 'payment_success_message' as const, label: 'Success Notification', icon: '✅' },
+                  { field: 'payment_pending_message' as const, label: 'Pending Notification', icon: '⏳' },
+                  { field: 'payment_failed_message' as const, label: 'Failure / Expiry', icon: '❌' },
+                  { field: 'maintenance_message' as const, label: 'Maintenance Notice', icon: '🛠️' },
+                ].map(m => (
+                  <Card key={m.field} className="border-border/60 shadow-sm overflow-hidden">
+                    <div className="bg-muted/30 border-b border-border/40 px-5 py-3 flex items-center justify-between">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                        <span>{m.icon}</span> {m.label}
+                      </p>
+                      <button onClick={() => setLocalConfig(prev => ({...prev, [m.field]: DEFAULT_TEMPLATES[m.field]}))} className="text-[9px] font-black text-brand-blue-500 uppercase tracking-tighter hover:underline">Reset to Default</button>
+                    </div>
+                    <CardContent className="p-4">
+                      <Textarea
+                        value={localConfig[m.field]}
+                        onChange={e => setLocalConfig(prev => ({...prev, [m.field]: e.target.value}))}
+                        className="min-h-[160px] bg-muted/10 border-border/40 text-xs font-bold leading-relaxed resize-none rounded-xl"
+                      />
                     </CardContent>
                   </Card>
                 ))}
-
-                <div className="flex justify-end gap-3">
-                  <Button variant="outline" onClick={handleResetConfig} className="border-slate-500 text-slate-200 hover:text-foreground gap-1.5"><RotateCcw className="h-4 w-4" /> Discard</Button>
-                  <Button onClick={handleSaveConfig} disabled={configSaving || !configChanged} className="bg-blue-600 hover:bg-blue-700 text-white gap-1.5">
-                    {configSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save Messages
-                  </Button>
-                </div>
-              </>
-            )}
+             </div>
           </TabsContent>
 
           {/* COMMANDS */}
-          <TabsContent value="commands" className="space-y-4 mt-0">
-            <Card className="bg-card border-border">
-              <CardHeader><CardTitle className="text-foreground flex items-center gap-2"><Terminal className="h-5 w-5 text-cyan-400" />Available Bot Commands</CardTitle></CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">All commands built into your bot. These are always active for users.</p>
-                <div className="space-y-3">
-                  {COMMAND_CATEGORIES.map((cat) => {
-                    const cmds = BOT_COMMANDS.filter(c => c.category === cat);
-                    const isExpanded = expandedCategories[cat];
-                    return (
-                      <div key={cat} className="border border-border rounded-xl overflow-hidden">
-                        <button onClick={() => setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }))}
-                          className="w-full flex items-center justify-between px-4 py-3 bg-muted/50 hover:bg-muted transition-colors">
-                          <div className="flex items-center gap-2">
-                            <Hash className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-foreground font-medium text-sm">{cat}</span>
-                            <Badge className="bg-muted text-muted-foreground border-0 text-[10px]">{cmds.length}</Badge>
-                          </div>
-                          {isExpanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
-                        </button>
-                        {isExpanded && (
-                          <div className="divide-y divide-slate-700/40">
-                            {cmds.map(({ cmd, emoji, desc }) => (
-                              <div key={cmd} className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors group">
-                                <span className="text-lg w-6 text-center">{emoji}</span>
-                                <code className="text-blue-400 font-mono text-sm font-medium w-28 shrink-0">{cmd}</code>
-                                <p className="text-muted-foreground text-sm flex-1">{desc}</p>
-                                <button onClick={() => copyToClipboard(cmd, `${cmd} copied!`)} className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"><Copy className="h-3.5 w-3.5" /></button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border">
-              <CardHeader><CardTitle className="text-foreground flex items-center gap-2 text-base"><Bot className="h-4 w-4 text-blue-400" />Register with BotFather</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-xs text-muted-foreground">Paste the list below to @BotFather using <code className="bg-muted px-1 rounded">/setcommands</code> to enable autocomplete for users.</p>
-                <div className="relative">
-                  <pre className="bg-background border border-border rounded-lg p-4 text-[11px] text-muted-foreground font-mono overflow-x-auto leading-relaxed whitespace-pre-wrap">
-                    {BOT_COMMANDS.map(c => `${c.cmd.replace('/', '')} - ${c.desc}`).join('\n')}
-                  </pre>
-                  <button onClick={() => copyToClipboard(BOT_COMMANDS.map(c => `${c.cmd.replace('/', '')} - ${c.desc}`).join('\n'), 'Command list copied!')}
-                    className="absolute top-2 right-2 text-muted-foreground hover:text-foreground bg-muted rounded p-1.5"><Copy className="h-3.5 w-3.5" /></button>
-                </div>
-                <ol className="space-y-1">
-                  {['Open Telegram -> @BotFather', 'Send /setcommands and select your bot', 'Paste the list above and send'].map((s, i) => (
-                    <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
-                      <span className="h-4 w-4 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-[10px] font-bold shrink-0 mt-0.5">{i + 1}</span>{s}
-                    </li>
-                  ))}
-                </ol>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* TESTING */}
-          <TabsContent value="testing" className="space-y-6 mt-0">
-            <Card className="bg-card border-border">
-              <CardHeader><CardTitle className="text-foreground flex items-center space-x-2"><FlaskConical className="h-5 w-5 text-green-400" /><span>Test Bot Connection</span></CardTitle></CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">Confirm the bot token is configured and Telegram API is reachable.</p>
-                <Button onClick={handleTestBot} disabled={testLoading} className="w-full bg-green-600 hover:bg-green-700 text-white font-medium">
-                  {testLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Running Tests...</> : <><FlaskConical className="h-4 w-4 mr-2" />Run Bot Test</>}
-                </Button>
-                {testRan && (
-                  <div className="space-y-2 pt-1">
-                    {testChecks.map((check) => (
-                      <div key={check.name} className={`flex items-start space-x-3 rounded-lg p-3 ${check.passed ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
-                        {check.passed ? <CheckCircle className="h-4 w-4 text-emerald-400 mt-0.5 shrink-0" /> : <XCircle className="h-4 w-4 text-red-400 mt-0.5 shrink-0" />}
-                        <div><p className={`text-sm font-medium ${check.passed ? 'text-emerald-300' : 'text-red-300'}`}>{check.name}</p><p className="text-xs text-muted-foreground mt-0.5">{check.detail}</p></div>
+          <TabsContent value="commands" className="mt-0">
+             <Card className="border-border/60 shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg font-black uppercase tracking-tight">Active Commands</CardTitle>
+                  <CardDescription className="text-xs font-medium">Built-in operations supported by the PayBot Kernel</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0 border-t border-border/40">
+                  <div className="divide-y divide-border/30">
+                    {BOT_COMMANDS.map(c => (
+                      <div key={c.cmd} className="flex items-center gap-4 px-6 py-4 hover:bg-muted/30 transition-colors">
+                        <div className="h-10 w-10 rounded-2xl bg-brand-blue-50 flex items-center justify-center shrink-0 border border-brand-blue-100 text-xl shadow-sm">
+                          {c.emoji}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <code className="text-sm font-black text-brand-blue-600 bg-brand-blue-50/50 px-2 py-0.5 rounded-lg tracking-tight">{c.cmd}</code>
+                          <p className="text-[11px] text-muted-foreground font-bold mt-1 uppercase tracking-tight">{c.desc}</p>
+                        </div>
+                        <Badge className="bg-muted text-muted-foreground border-0 font-black text-[8px] uppercase tracking-widest">{c.category}</Badge>
                       </div>
                     ))}
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+             </Card>
+          </TabsContent>
 
-            <Card className="bg-card border-border ring-1 ring-amber-500/20">
-              <CardHeader>
-                <CardTitle className="text-foreground flex items-center space-x-2">
-                  <Zap className="h-5 w-5 text-amber-400" /><span>Simulate Webhook</span>
-                  <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 border text-[10px] ml-2">TEST</Badge>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 flex items-start space-x-2">
-                  <Radio className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
-                  <p className="text-xs text-amber-300">Send a test payment event to verify real-time notifications. No actual payment required.</p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Transaction Type</Label>
-                    <Select value={simType} onValueChange={setSimType}>
-                      <SelectTrigger className="mt-1 bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-muted border-border">
-                        <SelectItem value="invoice" className="text-blue-400">Invoice</SelectItem>
-                        <SelectItem value="qr_code" className="text-purple-400">QR Code</SelectItem>
-                        <SelectItem value="payment_link" className="text-cyan-400">Payment Link</SelectItem>
-                        <SelectItem value="alipay_qr" className="text-red-400">Alipay QR</SelectItem>
-                        <SelectItem value="wechat_qr" className="text-green-400">WeChat QR</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Target Status</Label>
-                    <Select value={simStatus} onValueChange={setSimStatus}>
-                      <SelectTrigger className="mt-1 bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
-                      <SelectContent className="bg-muted border-border">
-                        <SelectItem value="paid" className="text-emerald-400">Paid</SelectItem>
-                        <SelectItem value="expired" className="text-red-400">Expired</SelectItem>
-                        <SelectItem value="pending" className="text-amber-400">Pending</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Amount (PHP)</Label>
-                    <Input type="number" placeholder="1000" value={simAmount} onChange={(e) => setSimAmount(e.target.value)} className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" min="1" />
-                  </div>
-                </div>
-                <div><Label className="text-muted-foreground">Description (optional)</Label><Input placeholder="Test payment for order #123" value={simDescription} onChange={(e) => setSimDescription(e.target.value)} className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" /></div>
-                <Button onClick={handleSimulateWebhook} disabled={simLoading} className="w-full bg-amber-600 hover:bg-amber-700 text-white font-medium">
-                  {simLoading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Sending...</> : <><Zap className="h-4 w-4 mr-2" />Send Test Event</>}
-                </Button>
-              </CardContent>
-            </Card>
+          {/* TESTING */}
+          <TabsContent value="testing" className="mt-0">
+             <Card className="border-border/60 shadow-sm overflow-hidden">
+                <div className="h-1.5 bg-emerald-500 w-full" />
+                <CardHeader>
+                  <CardTitle className="text-lg font-black uppercase tracking-tight">Kernel diagnostics</CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-6">
+                  <Button onClick={handleTestBot} disabled={testLoading} className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl uppercase tracking-widest shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">
+                    {testLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <FlaskConical className="h-5 w-5 mr-2" />}
+                    Initialize Full System Test
+                  </Button>
 
-            <Card className="bg-card border-border">
-              <CardHeader><CardTitle className="text-foreground flex items-center space-x-2"><Send className="h-5 w-5 text-cyan-400" /><span>Send Test Message</span></CardTitle></CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div><Label className="text-muted-foreground">Chat ID</Label><Input placeholder="Telegram chat ID" value={chatId} onChange={(e) => setChatId(e.target.value)} className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground" /></div>
-                  <div className="md:col-span-2">
-                    <Label className="text-muted-foreground">Message</Label>
-                    <div className="flex mt-1 space-x-2">
-                      <Textarea placeholder="Type your test message..." value={testMessage} onChange={(e) => setTestMessage(e.target.value)} className="bg-muted border-border text-foreground placeholder:text-muted-foreground resize-none" rows={1} />
-                      <Button onClick={handleSendMessage} disabled={sendLoading} className="bg-cyan-600 hover:bg-cyan-700 text-white shrink-0">
-                        {sendLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      </Button>
+                  {testRan && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+                      {testChecks.map(check => (
+                        <div key={check.name} className={`p-4 rounded-2xl border-2 ${check.passed ? 'bg-emerald-50 border-emerald-500/30' : 'bg-rose-50 border-rose-500/30'}`}>
+                           <div className="flex items-center gap-2 mb-2">
+                             {check.passed ? <CheckCircle className="h-4 w-4 text-emerald-600" /> : <XCircle className="h-4 w-4 text-rose-600" />}
+                             <p className="text-[10px] font-black uppercase tracking-widest text-foreground">{check.name}</p>
+                           </div>
+                           <p className="text-[11px] font-bold text-muted-foreground leading-tight">{check.detail}</p>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                  )}
+                </CardContent>
+             </Card>
           </TabsContent>
         </Tabs>
       </div>
+
+      {showTutorial && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-6">
+           <Card className="max-w-md border-0 bg-card shadow-2xl rounded-[2.5rem] overflow-hidden animate-in zoom-in-95 duration-300">
+              <div className="bg-brand-blue-500 p-10 flex flex-col items-center text-center">
+                 <div className="h-20 w-20 rounded-[2rem] bg-white/20 backdrop-blur-md flex items-center justify-center mb-6 shadow-inner border border-white/20">
+                   <Sparkles className="h-10 w-10 text-white animate-pulse" />
+                 </div>
+                 <h2 className="text-2xl font-black text-white uppercase tracking-tight">Command Your Bot</h2>
+                 <p className="text-brand-blue-50 text-sm font-bold mt-2 uppercase tracking-widest opacity-80">PayBot Intelligence Engine</p>
+              </div>
+              <CardContent className="p-10 space-y-6">
+                 <div className="space-y-4">
+                    {[
+                      { icon: Key, title: 'Bot Token', desc: 'Secure your API token from @BotFather' },
+                      { icon: Webhook, title: 'Cloud Bridge', desc: 'Auto-setup takes only 2 seconds' },
+                      { icon: MessageSquare, title: 'Personalize', desc: 'Edit welcome messages in EN/ZH' },
+                    ].map((step, i) => (
+                      <div key={i} className="flex gap-4 items-start">
+                         <div className="h-10 w-10 rounded-2xl bg-muted/50 flex items-center justify-center shrink-0 border border-border/40">
+                           <step.icon className="h-5 w-5 text-brand-blue-500" />
+                         </div>
+                         <div>
+                           <p className="text-xs font-black uppercase tracking-widest text-foreground">{step.title}</p>
+                           <p className="text-xs font-medium text-muted-foreground mt-0.5">{step.desc}</p>
+                         </div>
+                      </div>
+                    ))}
+                 </div>
+                 <Button onClick={dismissTutorial} className="w-full h-14 bg-brand-blue-500 hover:bg-brand-blue-600 text-white font-black rounded-2xl shadow-xl shadow-brand-blue-500/20 uppercase tracking-widest transition-all active:scale-95 mt-4">
+                    Get Started
+                 </Button>
+              </CardContent>
+           </Card>
+        </div>
+      )}
     </Layout>
   );
 }

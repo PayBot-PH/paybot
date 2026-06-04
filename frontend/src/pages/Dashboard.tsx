@@ -27,8 +27,6 @@ import {
   CalendarDays,
   Users,
   Crown,
-  User,
-  ArrowUpRight,
   ArrowRight,
   Zap,
   ShieldCheck,
@@ -70,6 +68,15 @@ interface Transaction {
   payment_url: string;
 }
 
+interface BotLog {
+  id: number;
+  log_type: string;
+  message: string;
+  telegram_username: string;
+  command: string;
+  created_at: string;
+}
+
 const defaultStats: Stats = {
   total_count: 0, paid_count: 0, pending_count: 0, expired_count: 0,
   total_amount: 0, paid_amount: 0, pending_amount: 0,
@@ -83,26 +90,24 @@ const defaultUsdtStats: UsdtStats = {
 };
 
 const statusConfig: Record<string, { color: string; dot: string }> = {
-  paid:    { color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30', dot: 'bg-emerald-500 dark:bg-emerald-400' },
-  pending: { color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30',           dot: 'bg-amber-500 dark:bg-amber-400' },
-  expired: { color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30',                       dot: 'bg-red-500 dark:bg-red-400' },
+  paid:    { color: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20', dot: 'bg-emerald-500' },
+  pending: { color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',     dot: 'bg-amber-500' },
+  expired: { color: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',        dot: 'bg-rose-500' },
 };
 
 const typeConfig: Record<string, { icon: React.ReactNode; bg: string }> = {
-  invoice:      { icon: <FileText className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />,   bg: 'bg-blue-100 dark:bg-blue-500/15' },
-  qr_code:      { icon: <QrCode className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />,   bg: 'bg-purple-100 dark:bg-purple-500/15' },
-  payment_link: { icon: <LinkIcon className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />,   bg: 'bg-cyan-100 dark:bg-cyan-500/15' },
-  alipay_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />,      bg: 'bg-red-100 dark:bg-red-500/15' },
-  wechat_qr:    { icon: <QrCode className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />,    bg: 'bg-green-100 dark:bg-green-500/15' },
+  invoice:      { icon: <FileText className="h-4 w-4 text-brand-blue-500" />,   bg: 'bg-brand-blue-50' },
+  qr_code:      { icon: <QrCode className="h-4 w-4 text-purple-500" />,     bg: 'bg-purple-50' },
+  payment_link: { icon: <LinkIcon className="h-4 w-4 text-cyan-500" />,     bg: 'bg-cyan-50' },
+  alipay_qr:    { icon: <QrCode className="h-4 w-4 text-rose-500" />,       bg: 'bg-rose-50' },
+  wechat_qr:    { icon: <QrCode className="h-4 w-4 text-emerald-500" />,     bg: 'bg-emerald-50' },
 };
-
-// number formatting helpers imported from lib/format
 
 function getGreeting() {
   const hour = new Date().getHours();
-  if (hour < 12) return { text: 'Good morning', icon: <Sun className="h-4 w-4 text-amber-400" /> };
-  if (hour < 18) return { text: 'Good afternoon', icon: <Sunset className="h-4 w-4 text-orange-400" /> };
-  return { text: 'Good evening', icon: <Moon className="h-4 w-4 text-indigo-400" /> };
+  if (hour < 12) return { text: 'Good morning', icon: <Sun className="h-5 w-5 text-amber-400" /> };
+  if (hour < 18) return { text: 'Good afternoon', icon: <Sunset className="h-5 w-5 text-orange-400" /> };
+  return { text: 'Good evening', icon: <Moon className="h-5 w-5 text-indigo-400" /> };
 }
 
 function formatTxnDate(dateStr: string): string {
@@ -132,43 +137,18 @@ function StatCard({
   color: string;
   loading: boolean;
 }) {
-  const iconBg = color.includes('emerald')
-    ? 'bg-emerald-100 dark:bg-emerald-500/15'
-    : color.includes('amber')
-    ? 'bg-amber-100 dark:bg-amber-500/15'
-    : color.includes('red')
-    ? 'bg-red-100 dark:bg-red-500/15'
-    : 'bg-blue-100 dark:bg-blue-500/15';
-
-  const accentBorderMap: Record<string, string> = {
-    emerald: 'border-t-2 border-t-emerald-400 dark:border-t-emerald-500',
-    amber:   'border-t-2 border-t-amber-400 dark:border-t-amber-500',
-    red:     'border-t-2 border-t-red-400 dark:border-t-red-500',
-  };
-  const accentBorder =
-    Object.entries(accentBorderMap).find(([key]) => color.includes(key))?.[1] ??
-    'border-t-2 border-t-blue-400 dark:border-t-blue-500';
-
   return (
-    <Card className={`bg-card border-border hover:shadow-md transition-all duration-200 ${accentBorder}`}>
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-medium text-muted-foreground mb-2">{label}</p>
-            <p className={`text-2xl font-bold ${color} transition-all duration-300`}>
-              {loading ? (
-                <span className="inline-block w-10 h-7 bg-muted/60 rounded-lg animate-pulse" />
-              ) : value}
+    <Card className="bg-card border-border/60 shadow-sm hover:shadow-md transition-all duration-200">
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <div className="space-y-1">
+            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{label}</p>
+            <p className={`text-2xl font-black ${color}`}>
+              {loading ? '---' : value}
             </p>
-            {sub && (
-              <p className="text-[11px] text-muted-foreground mt-1.5 truncate">
-                {loading ? (
-                  <span className="inline-block w-20 h-3 bg-muted/40 rounded animate-pulse" />
-                ) : sub}
-              </p>
-            )}
+            {sub && <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tight">{sub}</p>}
           </div>
-          <div className={`h-10 w-10 rounded-2xl flex items-center justify-center shrink-0 ${iconBg}`}>
+          <div className="h-10 w-10 rounded-2xl bg-muted/30 flex items-center justify-center shrink-0">
             {icon}
           </div>
         </div>
@@ -182,10 +162,12 @@ export default function Dashboard() {
   const [stats, setStats] = useState<Stats>(defaultStats);
   const [usdtStats, setUsdtStats] = useState<UsdtStats>(defaultUsdtStats);
   const [recentTxns, setRecentTxns] = useState<Transaction[]>([]);
+  const [recentLogs, setRecentLogs] = useState<BotLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatedTxnIds, setUpdatedTxnIds] = useState<Set<number>>(new Set());
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [usdWalletBalance, setUsdWalletBalance] = useState<number>(0);
+  const [apiStatus, setApiStatus] = useState<'healthy' | 'degrading' | 'offline'>('healthy');
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -196,44 +178,43 @@ export default function Dashboard() {
         client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=PHP', method: 'GET', data: {} }),
         client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=USD', method: 'GET', data: {} }),
         client.apiCall.invoke({ url: '/api/v1/wallet/usdt-stats', method: 'GET', data: {} }),
+        client.entities.bot_logs.query({ query: {}, sort: '-created_at', limit: 5 }),
       ]);
 
       if (results[0].status === 'fulfilled') {
         const statsData = results[0].value?.data;
         if (statsData) setStats(statsData);
       } else {
-        console.warn('Failed to fetch transaction stats:', results[0].reason);
+        setApiStatus('degrading');
       }
 
       if (results[1].status === 'fulfilled') {
         const txnData = results[1].value?.data?.items;
         if (txnData) setRecentTxns(txnData);
-      } else {
-        console.warn('Failed to fetch recent transactions:', results[1].reason);
       }
 
       if (isSuperAdmin && results[2] && results[2].status === 'fulfilled') {
         const walletData = results[2].value?.data;
         if (walletData?.balance != null) setWalletBalance(walletData.balance);
-      } else if (isSuperAdmin) {
-        console.warn('Failed to fetch wallet balance:', results[2]?.reason);
       }
 
       if (results[3].status === 'fulfilled') {
         const usdData = results[3].value?.data;
         if (usdData?.balance != null) setUsdWalletBalance(usdData.balance);
-      } else {
-        console.warn('Failed to fetch USD wallet balance:', results[3].reason);
       }
 
       if (results[4].status === 'fulfilled') {
         const usdtData = results[4].value?.data;
         if (usdtData) setUsdtStats(usdtData);
-      } else {
-        console.warn('Failed to fetch USDT stats:', results[4].reason);
+      }
+
+      if (results[5].status === 'fulfilled') {
+        const logData = results[5].value?.data?.items;
+        if (logData) setRecentLogs(logData);
       }
     } catch (err) {
       console.error('Unexpected error in fetchData:', err);
+      setApiStatus('offline');
     }
   }, [user, isSuperAdmin]);
 
@@ -259,7 +240,7 @@ export default function Dashboard() {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -278,396 +259,385 @@ export default function Dashboard() {
 
   return (
     <Layout connected={connected}>
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {/* ═══════════════════════════════════════════════
+            HERO BANNER — Clean GCash Business style
+        ═══════════════════════════════════════════════ */}
+        <div className="relative overflow-hidden rounded-3xl mb-8 bg-gradient-to-r from-brand-blue-600 via-brand-blue-500 to-brand-blue-400 shadow-xl shadow-brand-blue-500/20">
+          {/* Subtle decorative circles */}
+          <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10 blur-2xl" />
+          <div className="absolute -left-10 -bottom-10 h-40 w-40 rounded-full bg-white/5 blur-xl" />
 
-      {/* ═══════════════════════════════════════════════
-          HERO BANNER — Clean GCash Business style
-      ═══════════════════════════════════════════════ */}
-      <div className="relative overflow-hidden rounded-2xl mb-6 bg-gradient-to-r from-[#007AFF] to-[#0055C8] shadow-lg shadow-blue-500/20">
-        {/* Subtle decorative circle */}
-        <div className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-white/5" />
-        <div className="absolute -right-4 -bottom-10 h-36 w-36 rounded-full bg-white/5" />
+          <div className="relative px-8 py-8 sm:py-10">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+              {/* Left: Brand + greeting */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center shadow-inner">
+                    {greeting.icon}
+                  </div>
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                      {greeting.text}{userName ? `, ${userName}` : ''}
+                    </h1>
+                    <p className="text-brand-blue-50/90 text-sm font-medium">
+                      {APP_DESCRIPTION}
+                    </p>
+                  </div>
+                </div>
 
-        <div className="relative px-6 py-5 sm:py-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-5">
-            {/* Left: Brand + greeting */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 mb-1">
-                {greeting.icon}
-                <h1 className="text-xl sm:text-2xl font-bold text-white">
-                  {greeting.text}{userName ? `, ${userName}` : ''}
-                </h1>
-              </div>
-              <p className="text-blue-100/80 text-sm max-w-md leading-relaxed">
-                {APP_DESCRIPTION}
-              </p>
-
-              {/* Role badge */}
-              <div className="flex items-center gap-2 flex-wrap pt-1">
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-                  isSuperAdmin
-                    ? 'bg-amber-500/20 text-amber-200'
-                    : 'bg-white/15 text-white'
-                }`}>
-                  {isSuperAdmin ? <Crown className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
-                  {isSuperAdmin ? 'Super Administrator' : 'Administrator'}
-                </span>
-                {!loading && stats.total_count > 0 && (
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-white/15 text-white">
-                    <TrendingUp className="h-3 w-3" />
-                    {successRate}% success rate
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Right: Quick live stats */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-between sm:justify-end shrink-0">
-              <div className="text-center px-4 py-3 rounded-2xl bg-white/10">
-                <p className="text-xl sm:text-2xl font-bold text-white">
-                  {loading ? <span className="inline-block w-10 h-7 bg-white/15 rounded-lg animate-pulse" /> : stats.total_count}
-                </p>
-                <p className="text-blue-100/80 text-[11px] mt-0.5 font-medium">Total Txns</p>
-              </div>
-              <div className="text-center px-4 py-3 rounded-2xl bg-white/10">
-                <p className="text-xl sm:text-2xl font-bold text-emerald-300">
-                  {loading ? <span className="inline-block w-10 h-7 bg-white/15 rounded-lg animate-pulse" /> : stats.paid_count}
-                </p>
-                <p className="text-blue-100/80 text-[11px] mt-0.5 font-medium">Completed</p>
-              </div>
-              <div className="text-center px-4 py-3 rounded-2xl bg-white/10">
-                <p className="text-xl sm:text-2xl font-bold text-white">
-                  {loading
-                    ? <span className="inline-block w-14 h-7 bg-white/15 rounded-lg animate-pulse" />
-                    : `₱${fmtShort(stats.paid_amount)}`
-                  }
-                </p>
-                <p className="text-blue-100/80 text-[11px] mt-0.5 font-medium">Revenue</p>
+                {/* Role badge */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border-0 ${
+                    isSuperAdmin
+                      ? 'bg-amber-400 text-amber-950'
+                      : 'bg-white/20 text-white backdrop-blur-sm'
+                  }`}>
+                    {isSuperAdmin ? <Crown className="h-3 w-3 mr-1.5 inline" /> : <ShieldCheck className="h-3 w-3 mr-1.5 inline" />}
+                    {isSuperAdmin ? 'Super Admin' : 'Admin'}
+                  </Badge>
+                  {!loading && stats.total_count > 0 && (
+                    <Badge className="bg-emerald-400/90 text-emerald-950 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border-0">
+                      <TrendingUp className="h-3 w-3 mr-1.5 inline" />
+                      {successRate}% Success
+                    </Badge>
+                  )}
+                </div>
               </div>
 
-              {/* Refresh */}
-              <button
-                onClick={() => { setLoading(true); fetchData().finally(() => setLoading(false)); }}
-                disabled={loading}
-                className="h-10 w-10 flex items-center justify-center rounded-2xl bg-white/10 text-white/80 hover:text-white hover:bg-white/20 transition-all duration-150 disabled:opacity-40"
-                title="Refresh data"
-              >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-              </button>
+              {/* Right: Quick live stats */}
+              <div className="flex items-center gap-3 self-end md:self-center">
+                <div className="flex items-center gap-2 bg-black/10 backdrop-blur-md p-1 rounded-2xl border border-white/10">
+                  <div className="text-center px-5 py-3">
+                    <p className="text-xl sm:text-2xl font-black text-white">
+                      {loading ? '---' : stats.total_count}
+                    </p>
+                    <p className="text-brand-blue-50/60 text-[9px] font-bold uppercase tracking-wider">Total</p>
+                  </div>
+                  <div className="w-px h-10 bg-white/10" />
+                  <div className="text-center px-5 py-3">
+                    <p className="text-xl sm:text-2xl font-black text-emerald-300">
+                      {loading ? '---' : stats.paid_count}
+                    </p>
+                    <p className="text-brand-blue-50/60 text-[9px] font-bold uppercase tracking-wider">Paid</p>
+                  </div>
+                </div>
+
+                {/* Refresh */}
+                <Button
+                  variant="ghost"
+                  onClick={() => { setLoading(true); fetchData().finally(() => setLoading(false)); }}
+                  disabled={loading}
+                  className="h-14 w-14 rounded-2xl bg-white/10 text-white hover:bg-white/20 border border-white/10 transition-all active:scale-95"
+                >
+                  <RefreshCw className={`h-6 w-6 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ═══════════════════════════════════════════════
-          WALLET CARDS + STAT CARDS ROW
-      ═══════════════════════════════════════════════ */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 mb-6">
-        {/* PHP Wallet (Maya Business) - Super Admin Only */}
-        {isSuperAdmin && (
-          <Link to="/wallet" className="col-span-1 block group">
-            <Card className="h-full bg-primary border-0 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 hover:scale-[1.02] transition-all duration-200 cursor-pointer">
-              <CardContent className="p-4 sm:p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-semibold text-blue-100">PHP Wallet (Maya)</p>
+        {/* ═══════════════════════════════════════════════
+            WALLET CARDS ROW
+        ═══════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {/* PHP Wallet */}
+          <Link to="/wallet" className="group block">
+            <Card className="h-full bg-brand-blue-500 border-0 shadow-lg shadow-brand-blue-500/20 hover:shadow-brand-blue-500/40 hover:-translate-y-1 transition-all duration-300 overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-125 transition-transform">
+                <Wallet className="h-20 w-20" />
+              </div>
+              <CardContent className="p-6 relative z-10">
+                <div className="flex items-center gap-2 mb-4">
                   <div className="h-8 w-8 bg-white/20 rounded-xl flex items-center justify-center">
                     <Wallet className="h-4 w-4 text-white" />
                   </div>
+                  <p className="text-[10px] font-black text-white/80 uppercase tracking-widest">Main Wallet (PHP)</p>
                 </div>
-                <p className="text-xl sm:text-2xl font-bold text-white transition-all duration-300">
-                  {loading
-                    ? <span className="inline-block w-24 h-8 bg-white/20 rounded-lg animate-pulse" />
-                    : `₱${fmt(walletBalance || 0)}`
-                  }
+                <p className="text-3xl font-black text-white tracking-tight">
+                  {loading ? '₱ --.--' : `₱${fmt(walletBalance || 0)}`}
                 </p>
-                <div className="flex items-center gap-1 mt-2 text-blue-100 text-xs group-hover:text-white transition-colors">
-                  <span>View wallet</span>
-                  <ArrowUpRight className="h-3 w-3" />
+                <div className="flex items-center gap-1.5 mt-4 text-white/90 text-xs font-bold group-hover:gap-2 transition-all">
+                  <span>Manage Funds</span>
+                  <ArrowRight className="h-3 w-3" />
                 </div>
               </CardContent>
             </Card>
           </Link>
-        )}
 
-        {/* USD Wallet - Visible to All Admins */}
-        <Link to="/wallet" className="col-span-1 block group">
-          <Card className="h-full bg-gradient-to-br from-emerald-500 to-emerald-700 border-0 shadow-md shadow-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/30 hover:scale-[1.02] transition-all duration-200 cursor-pointer">
-            <CardContent className="p-4 sm:p-5">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-semibold text-emerald-100">USD Wallet</p>
-                <div className="h-8 w-8 bg-white/20 rounded-xl flex items-center justify-center">
-                  <DollarSign className="h-4 w-4 text-white" />
+          {/* USD Wallet */}
+          <Link to="/wallet" className="group block">
+            <Card className="h-full bg-emerald-600 border-0 shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/40 hover:-translate-y-1 transition-all duration-300 overflow-hidden relative">
+              <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:scale-125 transition-transform">
+                <DollarSign className="h-20 w-20" />
+              </div>
+              <CardContent className="p-6 relative z-10">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="h-8 w-8 bg-white/20 rounded-xl flex items-center justify-center">
+                    <Zap className="h-4 w-4 text-white" />
+                  </div>
+                  <p className="text-[10px] font-black text-white/80 uppercase tracking-widest">USDT TRC-20</p>
                 </div>
-              </div>
-              <p className="text-xl sm:text-2xl font-bold text-white transition-all duration-300">
-                {loading
-                  ? <span className="inline-block w-24 h-8 bg-white/20 rounded-lg animate-pulse" />
-                  : `$${fmtUsd(usdWalletBalance)}`
-                }
-              </p>
-              <div className="flex items-center gap-1 mt-2 text-emerald-100 text-xs group-hover:text-white transition-colors">
-                <span>Crypto balance</span>
-                <ArrowUpRight className="h-3 w-3" />
-              </div>
-            </CardContent>
-          </Card>
-        </Link>
+                <p className="text-3xl font-black text-white tracking-tight">
+                  {loading ? '$ --.--' : `$${fmtUsd(usdWalletBalance)}`}
+                </p>
+                <div className="flex items-center gap-1.5 mt-4 text-white/90 text-xs font-bold group-hover:gap-2 transition-all">
+                  <span>Settlement</span>
+                  <ArrowRight className="h-3 w-3" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <StatCard label="Total Transactions" value={stats.total_count} sub={`₱${fmt(stats.total_amount || 0)}`}
-          icon={<Activity className="h-5 w-5 text-blue-600 dark:text-blue-400" />} color="text-foreground" loading={loading} />
-        <StatCard label="Paid" value={stats.paid_count} sub={`₱${fmt(stats.paid_amount || 0)}`}
-          icon={<CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />} color="text-emerald-600 dark:text-emerald-400" loading={loading} />
-        <StatCard label="Pending" value={stats.pending_count} sub={`₱${fmt(stats.pending_amount || 0)}`}
-          icon={<Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />} color="text-amber-600 dark:text-amber-400" loading={loading} />
-        <StatCard label="Expired" value={stats.expired_count}
-          sub={stats.expired_count > 0 ? `of ${stats.total_count} total` : undefined}
-          icon={<XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />} color="text-red-600 dark:text-red-400" loading={loading} />
-      </div>
+          <StatCard label="Total Volume" value={`₱${fmt(stats.total_amount || 0)}`} sub={`${stats.total_count} transactions`}
+            icon={<Activity className="h-5 w-5 text-brand-blue-500" />} color="text-foreground" loading={loading} />
 
-      {/* ═══════════════════════════════════════════════
-          USDT SETTLEMENT
-      ═══════════════════════════════════════════════ */}
-      <Card className="mb-6 border-border bg-card">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between mb-5">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-2xl bg-emerald-100 dark:bg-emerald-500/15 flex items-center justify-center">
-                <DollarSign className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <h2 className="text-foreground font-bold text-sm">USDT Settlement</h2>
-                <p className="text-muted-foreground text-[11px]">Daily volume · TRC-20 · Resets at midnight</p>
-              </div>
-            </div>
-            <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2.5 py-1 rounded-full flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse inline-block" />
-              LIVE
-            </span>
+          <StatCard label="Success Rate" value={`${successRate}%`} sub={`${stats.paid_count} completed`}
+            icon={<CheckCircle className="h-5 w-5 text-emerald-500" />} color="text-emerald-600 dark:text-emerald-400" loading={loading} />
+        </div>
+
+        {/* ═══════════════════════════════════════════════
+            MAIN CONTENT GRID
+        ═══════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Quick Actions & Live Activity */}
+          <div className="space-y-6">
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-4 pt-6">
+                <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <Zap className="h-4 w-4 text-brand-blue-500" />
+                  Quick Actions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-6">
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { to: '/payments',      icon: CreditCard,   label: 'Payments',  bg: 'bg-brand-blue-50',     text: 'text-brand-blue-600' },
+                    { to: '/disbursements', icon: Send,          label: 'Payouts',   bg: 'bg-emerald-50',        text: 'text-emerald-600' },
+                    { to: '/transactions',  icon: FileText,      label: 'History',   bg: 'bg-cyan-50',           text: 'text-cyan-600' },
+                    { to: '/wallet',        icon: Wallet,        label: 'Wallet',    bg: 'bg-indigo-50',         text: 'text-indigo-600' },
+                    { to: '/reports',       icon: PieChart,      label: 'Insights',  bg: 'bg-violet-50',         text: 'text-violet-600' },
+                    { to: '/bot-messages',  icon: MessageSquare, label: 'Messages',  bg: 'bg-pink-50',           text: 'text-pink-600' },
+                  ].map(({ to, icon: Icon, label, bg, text }) => (
+                    <Link key={label} to={to} className="block group">
+                      <div className={`w-full flex flex-col items-center gap-2 p-4 rounded-2xl transition-all duration-200 ${bg} ${text} hover:scale-[1.02] active:scale-95 shadow-sm hover:shadow-md`}>
+                        <Icon className="h-6 w-6" />
+                        <span className="text-[10px] font-black uppercase tracking-wider">{label}</span>
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-4 pt-6">
+                <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <Bot className="h-4 w-4 text-brand-blue-500" />
+                  Live Bot Logs
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-6">
+                {loading ? (
+                  <div className="space-y-4">
+                    {[1, 2, 3].map(i => <div key={i} className="h-12 bg-muted/40 animate-pulse rounded-xl" />)}
+                  </div>
+                ) : recentLogs.length === 0 ? (
+                  <div className="py-10 text-center text-muted-foreground italic text-xs">No recent activity</div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentLogs.map(log => (
+                      <div key={log.id} className="flex gap-3 items-start animate-in fade-in slide-in-from-left-2 duration-300">
+                        <div className="h-8 w-8 rounded-full bg-brand-blue-50 flex items-center justify-center shrink-0 shadow-sm border border-brand-blue-100">
+                          <MessageSquare className="h-3.5 w-3.5 text-brand-blue-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs text-foreground leading-tight">
+                            <span className="font-black text-brand-blue-600">@{log.telegram_username}</span>
+                            <span className="text-muted-foreground ml-1">used</span>
+                            <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-[10px] ml-1 font-bold">{log.command}</code>
+                          </p>
+                          <p className="text-[10px] text-muted-foreground mt-1 font-medium">{formatTxnDate(log.created_at)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-5">
-            <div>
-              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Total Settled</p>
-              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">${fmtUsd(usdtStats.settlement)}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">USDT TRC-20</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Transactions</p>
-              <p className="text-2xl font-bold text-foreground">{usdtStats.txnCount}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">processed today</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">Avg per Txn</p>
-              <p className="text-2xl font-bold text-foreground">${fmtUsd(usdtStats.settlement / usdtStats.txnCount)}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">USDT average</p>
-            </div>
-            <div>
-              <p className="text-[11px] font-medium text-muted-foreground mb-1.5">24h Change</p>
-              <p className={`text-2xl font-bold ${usdtStats.change >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
-                {usdtStats.change >= 0 ? '+' : ''}{usdtStats.change.toFixed(1)}%
-              </p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">vs yesterday</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* ═══════════════════════════════════════════════
-          QUICK ACTIONS  +  RECENT TRANSACTIONS
-      ═══════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Quick Actions */}
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-3 pt-4 px-4">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-foreground text-sm font-semibold flex items-center gap-2">
-                <Zap className="h-4 w-4 text-primary" />
-                Quick Actions
-              </CardTitle>
-              {isSuperAdmin && (
-                <span className="text-[9px] font-bold bg-amber-100 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 px-2 py-0.5 rounded-full">
-                  SUPER
-                </span>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="px-3 pb-4">
-            <div className="grid grid-cols-2 gap-2">
-              {[
-                { to: '/payments',      icon: CreditCard,   label: 'Payments Hub',  bg: 'bg-blue-50 dark:bg-blue-500/10',     text: 'text-blue-600 dark:text-blue-400',     hover: 'hover:bg-blue-100 dark:hover:bg-blue-500/20' },
-                { to: '/disbursements', icon: Send,          label: 'Disbursements', bg: 'bg-emerald-50 dark:bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', hover: 'hover:bg-emerald-100 dark:hover:bg-emerald-500/20' },
-                { to: '/transactions',  icon: FileText,      label: 'Transactions',  bg: 'bg-cyan-50 dark:bg-cyan-500/10',     text: 'text-cyan-600 dark:text-cyan-400',     hover: 'hover:bg-cyan-100 dark:hover:bg-cyan-500/20' },
-                { to: '/reports',       icon: PieChart,      label: 'Analytics',     bg: 'bg-violet-50 dark:bg-violet-500/10', text: 'text-violet-600 dark:text-violet-400', hover: 'hover:bg-violet-100 dark:hover:bg-violet-500/20' },
-                { to: '/wallet',        icon: Wallet,        label: 'Wallet',        bg: 'bg-indigo-50 dark:bg-indigo-500/10', text: 'text-indigo-600 dark:text-indigo-400', hover: 'hover:bg-indigo-100 dark:hover:bg-indigo-500/20' },
-                { to: '/disbursements', icon: RotateCcw,     label: 'Refunds',       bg: 'bg-orange-50 dark:bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', hover: 'hover:bg-orange-100 dark:hover:bg-orange-500/20' },
-                { to: '/disbursements', icon: CalendarDays,  label: 'Schedules',     bg: 'bg-purple-50 dark:bg-purple-500/10', text: 'text-purple-600 dark:text-purple-400', hover: 'hover:bg-purple-100 dark:hover:bg-purple-500/20' },
-                { to: '/disbursements', icon: Users,         label: 'Customers',     bg: 'bg-teal-50 dark:bg-teal-500/10',     text: 'text-teal-600 dark:text-teal-400',     hover: 'hover:bg-teal-100 dark:hover:bg-teal-500/20' },
-                { to: '/bot-messages',  icon: MessageSquare, label: 'Bot Messages',  bg: 'bg-pink-50 dark:bg-pink-500/10',     text: 'text-pink-600 dark:text-pink-400',     hover: 'hover:bg-pink-100 dark:hover:bg-pink-500/20' },
-              ].map(({ to, icon: Icon, label, bg, text, hover }) => (
-                <Link key={`${to}-${label}`} to={to} className="block">
-                  <button className={`w-full flex items-center gap-2 px-3 py-2.5 rounded-xl transition-all duration-150 text-left ${bg} ${text} ${hover}`}>
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                    <span className="text-xs font-semibold truncate">{label}</span>
-                  </button>
+          {/* Recent Transactions List */}
+          <div className="lg:col-span-2">
+            <Card className="border-border/60 shadow-sm h-full flex flex-col">
+              <CardHeader className="flex flex-row items-center justify-between pb-4 pt-6 px-6">
+                <CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-brand-blue-500" />
+                  Recent Activity
+                </CardTitle>
+                <Link to="/transactions">
+                  <Button variant="ghost" size="sm" className="text-brand-blue-600 hover:text-brand-blue-700 hover:bg-brand-blue-50 h-8 px-3 text-[10px] font-black uppercase tracking-wider gap-1.5 rounded-full">
+                    View All
+                    <ArrowRight className="h-3 w-3" />
+                  </Button>
                 </Link>
-              ))}
-
-              {permissions?.can_manage_bot && (
-                <Link to="/bot-settings" className="block">
-                  <button className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-muted text-muted-foreground hover:bg-muted/80 transition-all duration-150 text-left">
-                    <Bot className="h-3.5 w-3.5 shrink-0" />
-                    <span className="text-xs font-semibold">Bot Settings</span>
-                  </button>
-                </Link>
-              )}
-
-              {isSuperAdmin && (
-                <Link to="/admin-management" className="block">
-                  <button className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-500/20 transition-all duration-150 text-left">
-                    <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                    <span className="text-xs font-semibold">Admin Mgmt</span>
-                  </button>
-                </Link>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Transactions */}
-        <Card className="bg-card border-border lg:col-span-2">
-          <CardHeader className="flex flex-row items-center justify-between pb-3 pt-4 px-4">
-            <CardTitle className="text-foreground text-sm font-semibold flex items-center gap-2">
-              <Activity className="h-4 w-4 text-muted-foreground" />
-              Recent Transactions
-            </CardTitle>
-            <Link to="/transactions">
-              <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80 h-7 px-2 text-xs gap-1">
-                View All
-                <ArrowRight className="h-3 w-3" />
-              </Button>
-            </Link>
-          </CardHeader>
-          <CardContent className="px-3 pb-4">
-            {loading ? (
-              <div className="space-y-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/40 animate-pulse">
-                    <div className="h-8 w-8 rounded-lg bg-muted/60 shrink-0" />
-                    <div className="flex-1 space-y-1.5">
-                      <div className="h-3 bg-muted/60 rounded w-2/3" />
-                      <div className="h-2.5 bg-muted/40 rounded w-1/3" />
+              </CardHeader>
+              <CardContent className="px-0 pb-6 flex-1 overflow-hidden">
+                {loading ? (
+                  <div className="px-6 space-y-4">
+                    {[1, 2, 3, 4, 5, 6].map((i) => (
+                      <div key={i} className="flex items-center gap-4 p-3 rounded-2xl bg-muted/40 animate-pulse">
+                        <div className="h-10 w-10 rounded-xl bg-muted/60 shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 bg-muted/60 rounded w-1/3" />
+                          <div className="h-3 bg-muted/40 rounded w-1/4" />
+                        </div>
+                        <div className="h-6 w-20 bg-muted/60 rounded-full" />
+                      </div>
+                    ))}
+                  </div>
+                ) : recentTxns.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-24 text-center px-6">
+                    <div className="h-20 w-20 rounded-3xl bg-brand-blue-50 flex items-center justify-center mb-6 border border-brand-blue-100">
+                      <CreditCard className="h-10 w-10 text-brand-blue-300" />
                     </div>
-                    <div className="h-4 w-16 bg-muted/60 rounded" />
+                    <p className="text-foreground font-black text-lg">No transactions yet</p>
+                    <p className="text-muted-foreground text-sm mt-1 mb-8 max-w-xs">Everything is ready! Create your first payment order to start receiving funds.</p>
+                    <Link to="/payments">
+                      <Button size="lg" className="bg-brand-blue-500 hover:bg-brand-blue-600 text-white font-black px-8 rounded-2xl shadow-lg shadow-brand-blue-500/20 active:scale-95 transition-all">
+                        Create First Payment
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-border/30 h-full overflow-y-auto px-2">
+                    {recentTxns.map((txn) => {
+                      const sc = statusConfig[txn.status] || statusConfig.pending;
+                      const tc = typeConfig[txn.transaction_type] || { icon: <FileText className="h-3.5 w-3.5" />, bg: 'bg-muted' };
+                      const isUpdated = updatedTxnIds.has(txn.id);
+                      return (
+                        <div
+                          key={txn.id}
+                          className={`flex items-center justify-between px-4 py-4 rounded-2xl transition-all duration-500 ${
+                            isUpdated
+                              ? 'bg-brand-blue-50 ring-1 ring-brand-blue-200 scale-[1.01] z-10'
+                              : 'hover:bg-muted/40'
+                          }`}
+                        >
+                          <div className="flex items-center gap-4 min-w-0">
+                            <div className={`h-10 w-10 rounded-2xl ${tc.bg} flex items-center justify-center shrink-0 shadow-sm border border-black/5`}>
+                              {tc.icon}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-black text-foreground truncate leading-tight uppercase tracking-tight">
+                                {txn.description || txn.transaction_type.replace(/_/g, ' ')}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground font-bold mt-1.5 flex items-center gap-2">
+                                <span className="text-brand-blue-500/80">{txn.external_id || `#${txn.id}`}</span>
+                                <span className="w-1 h-1 rounded-full bg-muted-foreground/30" />
+                                <span>{formatTxnDate(txn.created_at)}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            <span className="text-sm font-black text-foreground tabular-nums">
+                              ₱{fmt(txn.amount)}
+                            </span>
+                            <Badge
+                              className={`${sc.color} border-0 text-[9px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full`}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${sc.dot} mr-1.5`} />
+                              {txn.status}
+                            </Badge>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════
+            SYSTEM HEALTH + REVENUE BREAKDOWN
+        ═══════════════════════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <Card className="lg:col-span-3 border-border/60 shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-2xl bg-emerald-50 flex items-center justify-center border border-emerald-100">
+                    <DollarSign className="h-6 w-6 text-emerald-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-foreground font-black text-base uppercase tracking-tight">Revenue Insights</h2>
+                    <p className="text-muted-foreground text-[10px] font-bold uppercase tracking-wider">Volume Distribution · Paid vs Pending</p>
+                  </div>
+                </div>
+                <Link to="/reports" className="text-brand-blue-600 hover:text-brand-blue-700 text-xs font-black uppercase tracking-widest flex items-center gap-1.5">
+                  View Analytics <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+
+              <div className="flex rounded-full overflow-hidden h-3 mb-8 bg-muted/40">
+                <div className="bg-emerald-500 transition-all duration-1000 ease-out"
+                  style={{ width: `${(stats.paid_amount / (stats.total_amount || 1)) * 100}%` }} />
+                <div className="bg-amber-400 transition-all duration-1000 ease-out"
+                  style={{ width: `${(stats.pending_amount / (stats.total_amount || 1)) * 100}%` }} />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                {[
+                  { label: 'Paid Revenue', amount: stats.paid_amount, count: stats.paid_count, color: 'text-emerald-600', dot: 'bg-emerald-500' },
+                  { label: 'Pending Volume', amount: stats.pending_amount, count: stats.pending_count, color: 'text-amber-600', dot: 'bg-amber-400' },
+                  { label: 'Lost / Expired', amount: 0, count: stats.expired_count, color: 'text-muted-foreground', dot: 'bg-muted-foreground/30' },
+                ].map((r) => (
+                  <div key={r.label} className="flex items-start gap-3 p-4 rounded-2xl bg-muted/20 border border-border/40">
+                    <span className={`h-2.5 w-2.5 rounded-full ${r.dot} mt-1.5 shrink-0 shadow-sm`} />
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{r.label}</p>
+                      <p className={`text-lg font-black ${r.color} tracking-tight`}>
+                        {r.amount > 0 ? `₱${fmt(r.amount)}` : `${r.count} txns`}
+                      </p>
+                      {r.amount > 0 && <p className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5">{r.count} orders processed</p>}
+                    </div>
                   </div>
                 ))}
               </div>
-            ) : recentTxns.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <div className="h-12 w-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
-                  <DollarSign className="h-6 w-6 text-muted-foreground" />
-                </div>
-                <p className="text-foreground text-sm font-semibold">No transactions yet</p>
-                <p className="text-muted-foreground text-xs mt-1 mb-4">Create your first payment to get started</p>
-                <Link to="/payments">
-                  <Button size="sm" className="bg-primary hover:bg-primary/90 text-white text-xs h-8 rounded-xl">
-                    <CreditCard className="h-3.5 w-3.5 mr-1.5" />
-                    Create Payment
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {recentTxns.map((txn) => {
-                  const sc = statusConfig[txn.status] || statusConfig.pending;
-                  const tc = typeConfig[txn.transaction_type] || { icon: <FileText className="h-3.5 w-3.5 text-muted-foreground" />, bg: 'bg-muted' };
-                  const isUpdated = updatedTxnIds.has(txn.id);
-                  return (
-                    <div
-                      key={txn.id}
-                      className={`flex items-center justify-between p-2.5 rounded-xl transition-all duration-500 ${
-                        isUpdated
-                          ? 'bg-primary/5 ring-1 ring-primary/30 scale-[1.01]'
-                          : 'hover:bg-muted/60'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2.5 min-w-0">
-                        <div className={`h-8 w-8 rounded-xl ${tc.bg} flex items-center justify-center shrink-0`}>
-                          {tc.icon}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm font-semibold text-foreground truncate leading-tight">
-                            {txn.description || txn.transaction_type.replace(/_/g, ' ')}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate mt-0.5">
-                            {txn.external_id || `#${txn.id}`}
-                            {txn.created_at && (
-                              <span className="ml-1.5">· {formatTxnDate(txn.created_at)}</span>
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 ml-2 shrink-0">
-                        <span className="text-sm font-semibold text-foreground">
-                          ₱{fmt(txn.amount)}
-                        </span>
-                        <Badge
-                          className={`${sc.color} border text-[10px] transition-all duration-500 hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full ${
-                            isUpdated ? 'ring-2 ring-current' : ''
-                          }`}
-                        >
-                          <span className={`h-1.5 w-1.5 rounded-full ${sc.dot}`} />
-                          <span>{txn.status}</span>
-                        </Badge>
-                      </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60 shadow-sm flex flex-col bg-muted/20">
+            <CardContent className="p-6 flex flex-col h-full">
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mb-6">Network Nodes</h2>
+              <div className="space-y-5 flex-1">
+                {[
+                  { label: 'Maya Gateway', status: apiStatus === 'healthy' ? 'Active' : 'Degraded', color: apiStatus === 'healthy' ? 'bg-emerald-500' : 'bg-rose-500' },
+                  { label: 'Telegram Bot', status: 'Online', color: 'bg-emerald-500' },
+                  { label: 'Cloud DB', status: 'Primary', color: 'bg-emerald-500' },
+                ].map(node => (
+                  <div key={node.label} className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-foreground/80">{node.label}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/60">{node.status}</span>
+                      <div className={`h-2 w-2 rounded-full ${node.color} shadow-sm`} />
                     </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ═══════════════════════════════════════════════
-          REVENUE BREAKDOWN
-      ═══════════════════════════════════════════════ */}
-      {!loading && stats.total_amount > 0 && (
-        <Card className="mt-4 border-border">
-          <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-foreground font-semibold text-sm">Revenue Breakdown</h2>
-                <p className="text-muted-foreground text-xs mt-0.5">Paid vs Pending vs Expired</p>
-              </div>
-              <Link to="/reports" className="flex items-center gap-1 text-primary hover:text-primary/80 text-xs font-medium transition-colors">
-                Full report <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
-            <div className="flex rounded-full overflow-hidden h-2.5 mb-4 bg-muted">
-              <div className="bg-emerald-500 transition-all duration-700 rounded-l-full"
-                style={{ width: `${(stats.paid_amount / stats.total_amount) * 100}%` }} />
-              <div className="bg-amber-400 transition-all duration-700"
-                style={{ width: `${(stats.pending_amount / stats.total_amount) * 100}%` }} />
-              <div className="bg-muted flex-1 rounded-r-full" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              {[
-                { label: 'Paid',    amount: stats.paid_amount,    count: stats.paid_count,    color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
-                { label: 'Pending', amount: stats.pending_amount, count: stats.pending_count, color: 'text-amber-600 dark:text-amber-400',     dot: 'bg-amber-400' },
-                { label: 'Expired', amount: 0,                    count: stats.expired_count, color: 'text-muted-foreground',                   dot: 'bg-muted-foreground' },
-              ].map((r) => (
-                <div key={r.label} className="flex items-start gap-2">
-                  <span className={`h-2.5 w-2.5 rounded-full ${r.dot} mt-1 shrink-0`} />
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground">{r.label}</p>
-                    <p className={`text-sm font-bold ${r.color}`}>{r.count} txns</p>
-                    {r.amount > 0 && <p className="text-xs text-muted-foreground">₱{fmt(r.amount)}</p>}
                   </div>
+                ))}
+              </div>
+              <div className="mt-6 pt-6 border-t border-border/60 flex items-center gap-3">
+                <Clock className="h-4 w-4 text-brand-blue-500" />
+                <div>
+                  <p className="text-[10px] font-black text-foreground uppercase tracking-tighter">Sync Heartbeat</p>
+                  <p className="text-[9px] font-bold text-muted-foreground">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </Layout>
   );
 }

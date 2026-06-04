@@ -15,6 +15,7 @@ from core.database import get_db
 from dependencies.auth import get_current_user
 from models.admin_users import AdminUser
 from schemas.auth import UserResponse
+from utils.audit import log_action
 
 logger = logging.getLogger(__name__)
 
@@ -122,6 +123,15 @@ async def create_admin_user(
     db.add(admin)
     await db.commit()
     await db.refresh(admin)
+
+    await log_action(
+        db, current_user, "create_admin",
+        target_type="admin_user", target_id=data.telegram_id,
+        details=f"Created admin user {data.name or data.telegram_id}",
+        payload=data.model_dump()
+    )
+    await db.commit()
+
     logger.info("Admin %s added user %s", current_user.id, data.telegram_id)
     return admin
 
@@ -148,6 +158,13 @@ async def update_admin_user(
     for field, value in data.model_dump(exclude_none=True).items():
         setattr(admin, field, value)
 
+    await log_action(
+        db, current_user, "update_admin",
+        target_type="admin_user", target_id=admin.telegram_id,
+        details=f"Updated permissions/status for {admin.name or admin.telegram_id}",
+        payload=data.model_dump(exclude_none=True)
+    )
+
     await db.commit()
     await db.refresh(admin)
     return admin
@@ -169,6 +186,12 @@ async def delete_admin_user(
 
     if admin.telegram_id == current_user.id:
         raise HTTPException(status_code=400, detail="Cannot delete yourself.")
+
+    await log_action(
+        db, current_user, "delete_admin",
+        target_type="admin_user", target_id=admin.telegram_id,
+        details=f"Deleted admin user {admin.name or admin.telegram_id}"
+    )
 
     await db.delete(admin)
     await db.commit()

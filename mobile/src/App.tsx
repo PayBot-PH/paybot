@@ -12,6 +12,7 @@ import { CreateTransactionScreen } from './screens/CreateTransactionScreen';
 import { LoginScreen } from './screens/LoginScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { TransactionsScreen } from './screens/TransactionsScreen';
+import { WalletScreen } from './screens/WalletScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -84,6 +85,9 @@ const AppStack = () => {
             case 'Transactions':
               icon = 'receipt';
               break;
+            case 'Wallet':
+              icon = 'account-balance-wallet';
+              break;
             case 'Settings':
               icon = 'settings';
               break;
@@ -106,6 +110,13 @@ const AppStack = () => {
         component={TransactionsScreen}
         options={{
           title: 'Transactions',
+        }}
+      />
+      <Tab.Screen
+        name="Wallet"
+        component={WalletScreen}
+        options={{
+          title: 'Wallet',
         }}
       />
       <Tab.Screen

@@ -13,6 +13,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.config import settings
 from dependencies.database import get_db
 from services.pos_terminal import POSTerminalService
+from utils.audit import log_action
+from schemas.auth import UserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +76,16 @@ async def maya_payment_webhook(request: Request, db: AsyncSession = Depends(get_
         status = payload.get("status", "").upper()
         request_reference = payload.get("requestReferenceNumber") or payload.get("reference")
         
+        await log_action(
+            db,
+            UserResponse(id="system", email="maya@webhook", permissions=None),
+            "webhook_received",
+            target_type="maya",
+            target_id=request_reference or checkout_id,
+            details=f"Maya webhook: {status}",
+            payload=payload
+        )
+
         if not request_reference:
             logger.warning("No request reference in Maya webhook")
             raise HTTPException(status_code=400, detail="Missing reference ID")

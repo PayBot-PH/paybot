@@ -2,20 +2,20 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import jsQR from 'jsqr';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
   Camera, Upload, QrCode, Loader2, CheckCircle, AlertCircle,
-  ScanLine, X, RefreshCw, Send,
+  ScanLine, X, RefreshCw, Send, Zap, ShieldCheck, Smartphone,
+  Info, ArrowLeft
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
+import { fmtCurrencyPhp } from '@/lib/format';
 
-// ---------- EMVCo / QRPH TLV parser ----------
-// Follows EMVCo QR Code Specification for Payment Systems v1.0 and BSP QRPH implementation.
 interface QRPHData {
   merchantName: string;
   merchantCity: string;
@@ -23,7 +23,7 @@ interface QRPHData {
   currency: string;
   referenceNumber: string;
   raw: string;
-  isQRPH: boolean;  // true if the QR data could be parsed as a valid QRPH/EMVCo payload
+  isQRPH: boolean;
 }
 
 function parseTLV(data: string): Map<string, string> {
@@ -44,42 +44,21 @@ function parseTLV(data: string): Map<string, string> {
 function parseQRPH(raw: string): QRPHData | null {
   try {
     const tlv = parseTLV(raw);
-    // EMVCo tag reference (per QRPH / BSP spec):
-    // ID 53 = Transaction Currency (numeric ISO 4217; 608 = PHP)
-    // ID 54 = Transaction Amount (optional; merchant may omit for open amount)
-    // ID 58 = Country Code ("PH" for Philippines)
-    // ID 59 = Merchant Name
-    // ID 60 = Merchant City
-    // ID 62 = Additional Data Field; sub-tags:
-    //   05 = Reference Label (most common reference number field)
-    //   01 = Bill Number (alternative reference used by some issuers)
     const merchantName = tlv.get('59') || '';
     const merchantCity = tlv.get('60') || '';
     const amount = tlv.get('54') || '';
     const currency = tlv.get('53') === '608' ? 'PHP' : (tlv.get('53') || '');
-
-    // Parse reference number from Additional Data Field (tag 62).
-    // Sub-tag 05 (Reference Label) is checked first; sub-tag 01 (Bill Number) is a fallback
-    // used by some Philippine banks and e-wallets.
     let referenceNumber = '';
     const additionalData = tlv.get('62') || '';
     if (additionalData) {
       const subTlv = parseTLV(additionalData);
       referenceNumber = subTlv.get('05') || subTlv.get('01') || '';
     }
-
-    // Consider it a valid QRPH if it contains at least one definitive EMVCo indicator:
-    // country code 'PH' (tag 58) or currency code '608' (PHP, tag 53).
-    // Merchant name alone is not sufficient as non-QRPH QR codes may also contain text.
     const isQRPH = tlv.get('58') === 'PH' || tlv.get('53') === '608';
-
     return { merchantName, merchantCity, amount, currency, referenceNumber, raw, isQRPH };
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
-// ---------- Component ----------
 export default function ScanQRPH() {
   const { user } = useAuth();
   const [mode, setMode] = useState<'idle' | 'camera' | 'upload'>('idle');
@@ -105,7 +84,6 @@ export default function ScanQRPH() {
     setScanning(false);
   }, []);
 
-  // Clean up camera on unmount
   useEffect(() => () => stopCamera(), [stopCamera]);
 
   const handleQRFound = useCallback((raw: string) => {
@@ -114,16 +92,14 @@ export default function ScanQRPH() {
     if (parsed && parsed.isQRPH) {
       setQrData(parsed);
       if (parsed.amount) setAmount(parsed.amount);
-      toast.success('QRPH decoded successfully!');
+      toast.success('QRPH Kernel matched successfully!');
     } else {
-      // Not a QRPH / EMVCo QR — store raw data with isQRPH=false so the UI can warn the user
       setQrData({ merchantName: '', merchantCity: '', amount: '', currency: 'PHP', referenceNumber: '', raw, isQRPH: false });
-      toast.info('QR decoded. Please verify the data and enter the amount.');
+      toast.info('Decoding completed. External format detected.');
     }
     setMode('idle');
   }, [stopCamera]);
 
-  // Camera scanning loop
   const tick = useCallback(() => {
     if (!videoRef.current || !canvasRef.current) return;
     const video = videoRef.current;
@@ -139,11 +115,8 @@ export default function ScanQRPH() {
     ctx.drawImage(video, 0, 0);
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'dontInvert' });
-    if (code) {
-      handleQRFound(code.data);
-    } else {
-      rafRef.current = requestAnimationFrame(tick);
-    }
+    if (code) handleQRFound(code.data);
+    else rafRef.current = requestAnimationFrame(tick);
   }, [handleQRFound]);
 
   const startCamera = useCallback(async () => {
@@ -160,10 +133,7 @@ export default function ScanQRPH() {
         setScanning(true);
         rafRef.current = requestAnimationFrame(tick);
       }
-    } catch (err) {
-      toast.error('Camera access denied or not available.');
-      setMode('idle');
-    }
+    } catch { toast.error('Optical hardware restricted.'); setMode('idle'); }
   }, [tick]);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -175,30 +145,25 @@ export default function ScanQRPH() {
     const url = URL.createObjectURL(file);
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = img.width; canvas.height = img.height;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       ctx.drawImage(img, 0, 0);
       const imageData = ctx.getImageData(0, 0, img.width, img.height);
       const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: 'attemptBoth' });
       URL.revokeObjectURL(url);
-      if (code) {
-        handleQRFound(code.data);
-      } else {
-        toast.error('No QR code found in image. Please try a clearer photo.');
-      }
+      if (code) handleQRFound(code.data);
+      else toast.error('Signal too weak. Try a higher resolution capture.');
     };
-    img.onerror = () => { URL.revokeObjectURL(url); toast.error('Failed to load image.'); };
+    img.onerror = () => { URL.revokeObjectURL(url); toast.error('I/O Failure.'); };
     img.src = url;
-    // Reset input so same file can be re-selected
     e.target.value = '';
   }, [handleQRFound]);
 
   const handlePay = async () => {
     if (!qrData) return;
     const amt = parseFloat(amount);
-    if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return; }
+    if (!amt || amt <= 0) { toast.error('Invalid amount provided.'); return; }
     setLoading(true);
     try {
       const res = await client.apiCall.invoke({
@@ -212,222 +177,176 @@ export default function ScanQRPH() {
           reference_number: qrData.referenceNumber,
         },
       });
-      if (res.data?.success) {
-        setResult(res.data.data || res.data);
-        toast.success(res.data.message || 'Payment sent!');
-      } else {
-        toast.error(res.data?.message || 'Payment failed');
-      }
-    } catch (err: unknown) {
-      toast.error((err as { data?: { detail?: string } })?.data?.detail || 'Payment failed');
-    } finally {
-      setLoading(false);
-    }
+      if (res.data?.success) { setResult(res.data.data || res.data); toast.success('Capital transfer successful!'); }
+      else toast.error(res.data?.message || 'Transaction aborted.');
+    } catch { toast.error('Kernel communication failure.'); }
+    finally { setLoading(false); }
   };
 
   const reset = () => {
-    stopCamera();
-    setMode('idle');
-    setQrData(null);
-    setAmount('');
-    setDescription('');
-    setResult(null);
+    stopCamera(); setMode('idle'); setQrData(null); setAmount(''); setDescription(''); setResult(null);
   };
 
   return (
     <Layout>
-      <div className="max-w-3xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground mb-1 flex items-center gap-2">
-            <QrCode className="h-6 w-6 text-blue-400" />
-            Scan / Upload QRPH
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Scan a merchant's QRPH code with your camera or upload an image to send payment.
-          </p>
+      <div className="max-w-5xl mx-auto pb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-3">
+              <QrCode className="h-8 w-8 text-brand-blue-500" />
+              QRPH Scanner
+            </h1>
+            <p className="text-muted-foreground text-sm font-medium mt-1">Industrial-grade QRPH & InstaPay optical recognition</p>
+          </div>
+          <Badge className="bg-brand-blue-500/10 text-brand-blue-600 border-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
+            <Zap className="h-3 w-3 mr-1.5 inline" /> Operational
+          </Badge>
         </div>
 
-        {/* Step 1 — Capture */}
-        {!qrData && !result && (
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground text-base flex items-center gap-2">
-                <ScanLine className="h-4 w-4 text-blue-400" />
-                Step 1 — Capture QRPH
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {mode !== 'camera' && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
-                    className="h-20 flex-col gap-2 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-                    onClick={startCamera}
-                  >
-                    <Camera className="h-6 w-6 text-blue-400" />
-                    <span className="text-xs">Use Camera</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-20 flex-col gap-2 border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-                    onClick={() => { setMode('upload'); fileRef.current?.click(); }}
-                  >
-                    <Upload className="h-6 w-6 text-purple-400" />
-                    <span className="text-xs">Upload Image</span>
-                  </Button>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+           <div className="lg:col-span-7 space-y-6">
+              {!qrData && !result && (
+                <Card className="border-border/60 shadow-sm overflow-hidden">
+                   <div className="h-1 bg-brand-blue-500 w-full" />
+                   <CardHeader>
+                     <CardTitle className="text-lg font-black uppercase tracking-tight">Step 1 — Optical Capture</CardTitle>
+                     <CardDescription className="text-xs font-medium uppercase tracking-widest">Acquire QRPH payload from device or file</CardDescription>
+                   </CardHeader>
+                   <CardContent className="pt-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                         <Button
+                           onClick={startCamera}
+                           className="h-32 flex-col gap-3 rounded-2xl bg-brand-blue-50 border-2 border-brand-blue-500/30 text-brand-blue-600 hover:bg-brand-blue-100 hover:border-brand-blue-500 transition-all shadow-sm"
+                         >
+                            <Camera className="h-8 w-8" />
+                            <span className="font-black text-[10px] uppercase tracking-widest">Initialize Camera</span>
+                         </Button>
+                         <Button
+                           onClick={() => { setMode('upload'); fileRef.current?.click(); }}
+                           variant="outline"
+                           className="h-32 flex-col gap-3 rounded-2xl border-2 border-border/60 text-muted-foreground hover:bg-muted/40 hover:border-brand-blue-200 transition-all"
+                         >
+                            <Upload className="h-8 w-8" />
+                            <span className="font-black text-[10px] uppercase tracking-widest">Import Asset</span>
+                         </Button>
+                      </div>
+
+                      {mode === 'camera' && (
+                        <div className="mt-6 relative rounded-3xl overflow-hidden bg-black border-4 border-muted/50 shadow-2xl animate-in zoom-in-95 duration-500">
+                           <video ref={videoRef} className="w-full max-h-[400px] object-cover opacity-80" muted playsInline />
+                           <canvas ref={canvasRef} className="hidden" />
+                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <div className="border-4 border-brand-blue-500/50 rounded-[2rem] w-64 h-64 animate-pulse ring-[200px] ring-black/40" />
+                           </div>
+                           <Button size="icon" variant="destructive" className="absolute top-4 right-4 h-10 w-10 rounded-full" onClick={() => { stopCamera(); setMode('idle'); }}>
+                              <X className="h-5 w-5" />
+                           </Button>
+                           <div className="absolute bottom-6 left-0 right-0 text-center">
+                              <Badge className="bg-black/60 text-white border-0 px-4 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.2em] backdrop-blur-md">Scanning Environment...</Badge>
+                           </div>
+                        </div>
+                      )}
+                      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFileUpload} />
+                   </CardContent>
+                </Card>
               )}
 
-              {/* Camera view */}
-              {mode === 'camera' && (
-                <div className="relative rounded-lg overflow-hidden bg-black">
-                  <video ref={videoRef} className="w-full max-h-72 object-cover" muted playsInline />
-                  <canvas ref={canvasRef} className="hidden" />
-                  {scanning && (
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="border-2 border-blue-400 rounded-lg w-48 h-48 opacity-60 animate-pulse" />
-                    </div>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    className="absolute top-2 right-2"
-                    onClick={() => { stopCamera(); setMode('idle'); }}
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </Button>
-                  <p className="absolute bottom-2 left-0 right-0 text-center text-xs text-foreground/70">
-                    Point at a QRPH code to scan
-                  </p>
-                </div>
+              {qrData && !result && (
+                <Card className="border-border/60 shadow-sm overflow-hidden animate-in fade-in slide-in-from-top-4 duration-500">
+                   <div className="h-1 bg-emerald-500 w-full" />
+                   <CardHeader className="flex flex-row items-center justify-between pb-4">
+                     <div>
+                        <CardTitle className="text-lg font-black uppercase tracking-tight">Step 2 — Settlement Authorization</CardTitle>
+                        <CardDescription className="text-xs font-medium uppercase tracking-widest">Review parsed metadata and confirm transfer</CardDescription>
+                     </div>
+                     <Button variant="ghost" size="sm" onClick={reset} className="font-black text-[10px] uppercase tracking-widest text-muted-foreground hover:text-rose-500 gap-1.5"><ArrowLeft className="h-3 w-3" /> Rescan</Button>
+                   </CardHeader>
+                   <CardContent className="pt-2 space-y-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                         <div className="p-5 rounded-2xl bg-muted/20 border border-border/40 space-y-4">
+                            <div className="flex items-center gap-3">
+                               <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-border/60 text-brand-blue-500"><Store className="h-5 w-5" /></div>
+                               <div className="min-w-0">
+                                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Recipient Node</p>
+                                  <p className="text-sm font-black text-foreground uppercase truncate">{qrData.merchantName || 'External Merchant'}</p>
+                               </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                               <div className="h-10 w-10 rounded-xl bg-white flex items-center justify-center shadow-sm border border-border/60 text-amber-500"><Info className="h-5 w-5" /></div>
+                               <div className="min-w-0">
+                                  <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Location Node</p>
+                                  <p className="text-sm font-black text-foreground uppercase truncate">{qrData.merchantCity || 'Philippines'}</p>
+                               </div>
+                            </div>
+                         </div>
+
+                         <div className="space-y-4">
+                            <div className="space-y-2">
+                               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Transfer Amount (PHP)</Label>
+                               <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-muted-foreground">₱</span><Input type="number" value={amount} onChange={e => setAmount(e.target.value)} className="pl-8 h-12 bg-muted/20 border-border/60 text-lg font-black rounded-xl" /></div>
+                            </div>
+                            <div className="space-y-2">
+                               <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Reference Label</Label>
+                               <Input value={description} onChange={e => setDescription(e.target.value)} className="h-12 bg-muted/20 border-border/60 text-xs font-bold rounded-xl" placeholder="Purpose of payment" />
+                            </div>
+                         </div>
+                      </div>
+
+                      <Button onClick={handlePay} disabled={loading || !amount} className="w-full h-16 bg-brand-blue-500 hover:bg-brand-blue-600 text-white font-black rounded-2xl uppercase tracking-[0.2em] shadow-lg shadow-brand-blue-500/20 active:scale-95 transition-all">
+                         {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <><ShieldCheck className="h-6 w-6 mr-3" /> Execute Payment Kernel</>}
+                      </Button>
+                   </CardContent>
+                </Card>
               )}
 
-              {/* Hidden file input */}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 2 — Review & Pay */}
-        {qrData && !result && (
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground text-base flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-emerald-400" />
-                  Step 2 — Review &amp; Pay
-                </span>
-                <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={reset}>
-                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> Rescan
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Parsed QRPH info */}
-              <div className="rounded-lg bg-muted/60 p-4 space-y-2 text-sm">
-                {qrData.merchantName && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Merchant</span>
-                    <span className="text-foreground font-medium">{qrData.merchantName}</span>
-                  </div>
-                )}
-                {qrData.merchantCity && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">City</span>
-                    <span className="text-foreground">{qrData.merchantCity}</span>
-                  </div>
-                )}
-                {qrData.currency && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Currency</span>
-                    <Badge variant="outline" className="text-blue-400 border-blue-400/30">{qrData.currency}</Badge>
-                  </div>
-                )}
-                {qrData.referenceNumber && (
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Reference</span>
-                    <code className="text-xs text-muted-foreground bg-background px-1.5 py-0.5 rounded">{qrData.referenceNumber}</code>
-                  </div>
-                )}
-              </div>
-
-              {/* Alert if not a QRPH */}
-              {!qrData.isQRPH && (
-                <div className="flex items-start gap-2 text-amber-400 text-sm bg-amber-400/10 border border-amber-400/20 rounded-lg p-3">
-                  <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                  <span>This QR code may not be a standard QRPH. Verify the data before paying.</span>
-                </div>
+              {result && (
+                 <Card className="border-emerald-500/30 bg-emerald-500/5 shadow-2xl rounded-[2rem] overflow-hidden animate-in zoom-in-95 duration-500">
+                    <div className="h-2 bg-emerald-500 w-full" />
+                    <CardHeader className="text-center pt-10">
+                       <div className="h-20 w-20 rounded-[2rem] bg-white flex items-center justify-center mx-auto mb-6 shadow-sm border border-emerald-100 text-emerald-500"><CheckCircle className="h-10 w-10" /></div>
+                       <CardTitle className="text-2xl font-black text-foreground uppercase tracking-tight">Authorization Successful</CardTitle>
+                       <CardDescription className="text-xs font-bold text-emerald-600 uppercase tracking-widest mt-2">Funds have been routed to the destination node</CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-10 space-y-6">
+                       <div className="bg-white border border-border/40 rounded-[2rem] p-8 shadow-sm text-center">
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-2">Transaction Value</p>
+                          <h2 className="text-4xl font-black text-foreground">{fmtCurrencyPhp(parseFloat(amount))}</h2>
+                       </div>
+                       <Button onClick={reset} className="w-full h-14 bg-brand-blue-500 hover:bg-brand-blue-600 text-white font-black rounded-xl uppercase tracking-widest">Continue To Ledger</Button>
+                    </CardContent>
+                 </Card>
               )}
+           </div>
 
-              <div>
-                <Label className="text-muted-foreground">Amount (PHP)</Label>
-                <Input
-                  type="number" step="0.01" min="0.01"
-                  placeholder="0.00"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                />
+           <div className="lg:col-span-5 space-y-6">
+              <Card className="border-border/60 shadow-sm bg-muted/20">
+                 <CardHeader><CardTitle className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Protocol Specifications</CardTitle></CardHeader>
+                 <CardContent className="space-y-6">
+                    {[
+                      { icon: ShieldCheck, label: 'Compliance', val: 'EMVCo v1.0 Standard' },
+                      { icon: Smartphone, label: 'Regional Node', val: 'Philippines QRPH' },
+                      { icon: Info, label: 'Verification', val: 'InstaPay Secure' },
+                    ].map(row => (
+                      <div key={row.label} className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-card flex items-center justify-center border border-border/60 text-brand-blue-500 shadow-sm"><row.icon className="h-5 w-5" /></div>
+                        <div>
+                          <p className="text-[10px] font-black text-muted-foreground uppercase tracking-tighter">{row.label}</p>
+                          <p className="text-xs font-black text-foreground uppercase">{row.val}</p>
+                        </div>
+                      </div>
+                    ))}
+                 </CardContent>
+              </Card>
+
+              <div className="p-8 rounded-[2rem] border-2 border-dashed border-border/60 flex flex-col items-center text-center space-y-6">
+                 <div className="h-20 w-20 rounded-[2.5rem] bg-muted flex items-center justify-center text-muted-foreground/30"><ScanLine className="h-10 w-10" /></div>
+                 <div>
+                    <p className="text-sm font-black text-foreground uppercase tracking-tight">Merchant Auto-Detection</p>
+                    <p className="text-[11px] text-muted-foreground font-medium mt-2 leading-relaxed">The kernel automatically extracts merchant identification, location nodes, and reference numbers from any standard QRPH payload.</p>
+                 </div>
               </div>
-
-              <div>
-                <Label className="text-muted-foreground">Description (optional)</Label>
-                <Input
-                  placeholder="Payment note"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
-
-              <Button
-                onClick={handlePay}
-                disabled={loading || !amount}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                {loading
-                  ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</>
-                  : <><Send className="h-4 w-4 mr-2" />Send Payment</>}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Step 3 — Result */}
-        {result && (
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="text-foreground text-base flex items-center justify-between">
-                <span className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-emerald-400" />
-                  Payment Recorded
-                </span>
-                <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={reset}>
-                  <RefreshCw className="h-3.5 w-3.5 mr-1" /> New Scan
-                </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {Object.entries(result).map(([key, value]) => {
-                if (!value || key === 'success') return null;
-                return (
-                  <div key={key} className="space-y-0.5">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wider">{key.replace(/_/g, ' ')}</p>
-                    <code className="text-sm text-foreground font-mono bg-muted px-2 py-1 rounded block break-all">
-                      {String(value)}
-                    </code>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        )}
+           </div>
+        </div>
       </div>
     </Layout>
   );

@@ -12,11 +12,12 @@ from models.wallets import Wallets
 from schemas.auth import UserResponse
 from services.maya_service import MayaService
 from services.transactions import TransactionsService
+from services.event_bus import payment_event_bus
 
 logger = logging.getLogger(__name__)
 
 # We use the prefix /api/v1/xendit to satisfy the frontend's hardcoded paths
-router = APIRouter(prefix="/api/v1/xendit", tags=["Maya (Legacy Xendit Path)"])
+router = APIRouter(prefix="/api/v1/xendit", tags=["Payments (Maya)"])
 
 
 class CreateInvoiceRequest(BaseModel):
@@ -178,4 +179,62 @@ async def get_maya_internal_wallet(current_user: UserResponse = Depends(get_curr
         "success": True,
         "balance": balance,
         "currency": "PHP"
+    }
+
+
+@router.get("/transaction/{external_id}")
+async def get_transaction_status(
+    external_id: str,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch status of a specific transaction and sync with Maya if needed."""
+    txn_service = TransactionsService(db)
+    txn = await txn_service.get_by_field("external_id", external_id)
+
+    if not txn:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    if txn.user_id != str(current_user.id) and not (current_user.permissions and current_user.permissions.is_super_admin):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    # If pending, try to sync with Maya
+    if txn.status == "pending":
+        try:
+            service = MayaService()
+            maya_res = await service.get_checkout(txn.xendit_id) # Using xendit_id as checkout_id
+            if maya_res.get("success"):
+                status = maya_res.get("status", "").upper()
+                new_status = "paid" if status in ["COMPLETED", "SUCCESS", "AUTHORIZED"] else "expired" if status in ["EXPIRED", "CANCELLED"] else "pending"
+
+                if new_status != txn.status:
+                    old_status = txn.status
+                    txn.status = new_status
+                    txn.updated_at = datetime.now()
+                    await db.commit()
+
+                    # Notify event bus
+                    payment_event_bus.publish({
+                        "event_type": "status_change",
+                        "transaction_id": txn.id,
+                        "external_id": txn.external_id,
+                        "old_status": old_status,
+                        "new_status": new_status,
+                        "amount": txn.amount,
+                        "description": txn.description,
+                        "transaction_type": txn.transaction_type,
+                        "user_id": txn.user_id,
+                    })
+        except Exception as e:
+            logger.warning(f"Failed to sync Maya transaction {external_id}: {e}")
+
+    return {
+        "success": True,
+        "id": txn.id,
+        "external_id": txn.external_id,
+        "status": txn.status,
+        "amount": txn.amount,
+        "description": txn.description,
+        "payment_url": txn.payment_url,
+        "created_at": txn.created_at
     }

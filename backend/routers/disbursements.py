@@ -145,6 +145,123 @@ async def _deduct_php_balance(db: AsyncSession, wallet: Wallets, user_id: str, a
 
 
 
+    return wallet
+
+
+@router.post("/{id}/approve", response_model=DisbursementsResponse)
+async def approve_disbursements(
+    id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Approve a pending disbursement and trigger PayMongo payout."""
+    if not current_user.can_manage_disbursements:
+        raise HTTPException(status_code=403, detail="Not authorized to approve disbursements")
+
+    service = DisbursementsService(db)
+    disb = await service.get_by_id(id)
+    if not disb:
+        raise HTTPException(status_code=404, detail="Disbursement not found")
+
+    if disb.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Disbursement is already {disb.status}")
+
+    try:
+        from services.paymongo_service import PayMongoService
+        pm = PayMongoService()
+
+        # Trigger the actual payout
+        res = await pm.create_payout(
+            amount=disb.amount,
+            bank_code=disb.bank_code,
+            account_number=disb.account_number,
+            account_name=disb.account_name,
+            description=disb.description or f"Disbursement {disb.external_id}",
+            external_id=disb.external_id
+        )
+
+        if not res.get("success"):
+            error_msg = res.get("error", "Unknown PayMongo error")
+            logger.error(f"PayMongo payout failed: {error_msg}")
+            raise HTTPException(status_code=400, detail=f"Payout failed: {error_msg}")
+
+        # Update disbursement status
+        disb.status = "completed"
+        disb.xendit_id = res.get("payout_id") # Reusing xendit_id for payout_id
+        disb.updated_at = datetime.now()
+
+        # Update wallet transaction status
+        from sqlalchemy import update
+        await db.execute(
+            update(Wallet_transactions)
+            .where(Wallet_transactions.reference_id == disb.external_id)
+            .values(status="completed", updated_at=datetime.now())
+        )
+
+        await db.commit()
+        await db.refresh(disb)
+
+        # Notify User via Telegram if they have a chat_id (this would require mapping)
+        # For now, just return success
+        return disb
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error approving disbursement: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{id}/cancel", response_model=DisbursementsResponse)
+async def cancel_disbursements(
+    id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Cancel a pending disbursement and refund the wallet."""
+    service = DisbursementsService(db)
+    disb = await service.get_by_id(id)
+    if not disb:
+        raise HTTPException(status_code=404, detail="Disbursement not found")
+
+    # Only owner or admin can cancel
+    if disb.user_id != str(current_user.id) and not current_user.can_manage_disbursements:
+        raise HTTPException(status_code=403, detail="Not authorized to cancel this disbursement")
+
+    if disb.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Cannot cancel disbursement in {disb.status} status")
+
+    try:
+        # 1. Update status to cancelled
+        disb.status = "cancelled"
+        disb.updated_at = datetime.now()
+
+        # 2. Refund wallet
+        result = await db.execute(
+            select(Wallets).where(Wallets.user_id == disb.user_id, Wallets.currency == "PHP")
+        )
+        wallet = result.scalar_one_or_none()
+        if wallet:
+            balance_before = wallet.balance
+            wallet.balance = round(wallet.balance + disb.amount, 2)
+            wallet.updated_at = datetime.now()
+
+            # 3. Update wallet transaction
+            await db.execute(
+                update(Wallet_transactions)
+                .where(Wallet_transactions.reference_id == disb.external_id)
+                .values(status="cancelled", note=f"Refunded: {disb.description or ''}", updated_at=datetime.now())
+            )
+
+        await db.commit()
+        await db.refresh(disb)
+        return disb
+
+    except Exception as e:
+        logger.error(f"Error cancelling disbursement: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("", response_model=DisbursementsListResponse)
 async def query_disbursementss(
     query: str = Query(None, description="Query conditions (JSON string)"),

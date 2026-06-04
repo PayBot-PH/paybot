@@ -47,6 +47,7 @@ from models.wallets import Wallets
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
+from utils.audit import log_action
 
 logger = logging.getLogger(__name__)
 
@@ -333,6 +334,16 @@ async def paymongo_webhook(
         attrs = resource.get("attributes", {})
 
         # ── Route by event type ───────────────────────────────────────────
+
+        await log_action(
+            db,
+            UserResponse(id="system", email="paymongo@webhook", permissions=None), # System user for webhooks
+            "webhook_received",
+            target_type="paymongo",
+            target_id=event_id,
+            details=f"PayMongo webhook: {event_type}",
+            payload={"event_type": event_type, "event_id": event_id}
+        )
 
         if event_type == "source.chargeable":
             await _handle_source_chargeable(db, resource, attrs)

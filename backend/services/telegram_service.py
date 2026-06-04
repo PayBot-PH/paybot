@@ -259,6 +259,42 @@ class TelegramService:
             logger.error(f"Error sending chat action: {str(e)}")
             return {"success": False, "error": str(e)}
 
+    async def edit_message_text(
+        self,
+        chat_id: str,
+        message_id: int,
+        text: str,
+        parse_mode: str = "HTML",
+        reply_markup: Dict[str, Any] | None = None,
+    ) -> Dict[str, Any]:
+        """Edit an existing text message."""
+        try:
+            payload: Dict[str, Any] = {
+                "chat_id": chat_id,
+                "message_id": message_id,
+                "text": text,
+                "parse_mode": parse_mode,
+            }
+            if reply_markup:
+                payload["reply_markup"] = reply_markup
+
+            response = await self._post_with_retry(f"{self.api_url}/editMessageText", payload)
+            data = response.json()
+            return {"success": data.get("ok", False), "data": data.get("result")}
+        except Exception as e:
+            logger.error(f"Error editing message: {str(e)}")
+            return {"success": False, "error": str(e)}
+
+    async def delete_message(self, chat_id: str, message_id: int) -> bool:
+        """Delete a message."""
+        try:
+            payload = {"chat_id": chat_id, "message_id": message_id}
+            response = await self._post_with_retry(f"{self.api_url}/deleteMessage", payload)
+            return response.json().get("ok", False)
+        except Exception as e:
+            logger.error(f"Error deleting message: {str(e)}")
+            return False
+
     async def get_file(self, file_id: str) -> Dict[str, Any]:
         """Retrieve file metadata (file_path) for a Telegram file_id."""
         try:

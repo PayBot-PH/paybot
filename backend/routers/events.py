@@ -117,13 +117,24 @@ async def get_recent_events(
     since: float = Query(0, description="Timestamp to get events since"),
     current_user: UserResponse = Depends(get_current_user),
 ):
-    """Polling endpoint: get recent payment events since a timestamp"""
-    if since > 0:
-        events = payment_event_bus.get_events_since(since)
-    else:
-        events = payment_event_bus.get_recent_events(20)
+    """Polling endpoint: get recent payment events since a timestamp, user-scoped"""
+    # Filter events by user unless super admin
+    is_super = current_user.permissions and current_user.permissions.is_super_admin
+
+    all_events = payment_event_bus.get_events_since(since) if since > 0 else payment_event_bus.get_recent_events(20)
+
+    # User-scoping
+    user_id = str(current_user.id)
+    # We also check for "tg-" prefix since many events use it internally
+    tg_user_id = f"tg-{user_id}"
+
+    filtered_events = []
+    for event in all_events:
+        event_user_id = event.get("user_id")
+        if is_super or not event_user_id or event_user_id == user_id or event_user_id == tg_user_id:
+            filtered_events.append(event)
 
     return {
-        "events": events,
+        "events": filtered_events,
         "server_time": time.time(),
     }
