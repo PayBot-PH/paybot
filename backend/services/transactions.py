@@ -1,10 +1,14 @@
 import logging
+from datetime import datetime
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.transactions import Transactions
+from models.wallets import Wallets
+from models.wallet_transactions import Wallet_transactions
+from services.event_bus import payment_event_bus
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +19,196 @@ class TransactionsService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    async def create_transaction(
+        self,
+        user_id: str,
+        transaction_type: str,
+        amount: float,
+        external_id: str = "",
+        gateway_id: str = "",
+        description: str = "",
+        customer_name: str = "",
+        customer_email: str = "",
+        payment_url: str = "",
+        status: str = "pending",
+        currency: str = "PHP",
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Transactions:
+        """Create a new transaction record with consistent defaults."""
+        now = datetime.now()
+        txn = Transactions(
+            user_id=user_id,
+            transaction_type=transaction_type,
+            amount=amount,
+            currency=currency,
+            external_id=external_id,
+            xendit_id=gateway_id,  # Using xendit_id column for gateway reference
+            status=status,
+            description=description,
+            customer_name=customer_name,
+            customer_email=customer_email,
+            payment_url=payment_url,
+            created_at=now,
+            updated_at=now,
+        )
+        # Handle metadata if we ever add a metadata column to Transactions
+        self.db.add(txn)
+        await self.db.commit()
+        await self.db.refresh(txn)
+        return txn
+
+    async def get_or_create_wallet(self, user_id: str, currency: str = "PHP") -> Wallets:
+        """Helper to get or create a user wallet."""
+        result = await self.db.execute(
+            select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == currency)
+        )
+        wallet = result.scalar_one_or_none()
+        if wallet is None:
+            now = datetime.now()
+            wallet = Wallets(user_id=user_id, currency=currency, balance=0.0, created_at=now, updated_at=now)
+            self.db.add(wallet)
+            await self.db.flush()
+        return wallet
+
+    async def credit_wallet_from_transaction(self, txn: Transactions, gateway_label: str = "Gateway") -> Wallets:
+        """Credit the user's wallet based on a successful transaction."""
+        wallet = await self.get_or_create_wallet(txn.user_id, txn.currency or "PHP")
+        amount = float(txn.amount or 0.0)
+        balance_before = float(wallet.balance or 0.0)
+        wallet.balance = balance_before + amount
+        wallet.updated_at = datetime.now()
+
+        wtxn = Wallet_transactions(
+            user_id=txn.user_id,
+            wallet_id=wallet.id,
+            transaction_type="receive",
+            amount=amount,
+            balance_before=balance_before,
+            balance_after=wallet.balance,
+            note=f"{gateway_label} payment credited: {txn.description or txn.transaction_type}",
+            status="completed",
+            reference_id=txn.external_id or txn.xendit_id or f"txn-{txn.id}",
+            created_at=datetime.now(),
+        )
+        self.db.add(wtxn)
+        await self.db.flush()
+
+        # Publish wallet update event
+        try:
+            payment_event_bus.publish({
+                "event_type": "wallet_update",
+                "user_id": txn.user_id,
+                "wallet_id": wallet.id,
+                "balance": wallet.balance,
+                "currency": txn.currency or "PHP",
+                "transaction_type": "receive",
+                "amount": amount,
+                "transaction_id": wtxn.id,
+                "note": f"{gateway_label} payment received"
+            })
+        except Exception as e:
+            logger.warning(f"Failed to publish wallet update event: {e}")
+
+        return wallet
+
+    async def mark_as_paid(self, txn: Transactions, gateway_label: str = "Gateway") -> bool:
+        """Mark a transaction as paid and credit the wallet."""
+        if txn.status == "paid":
+            return True
+
+        old_status = txn.status
+        txn.status = "paid"
+        txn.updated_at = datetime.now()
+
+        await self.credit_wallet_from_transaction(txn, gateway_label)
+
+        # Publish status change event
+        try:
+            payment_event_bus.publish({
+                "event_type": "status_change",
+                "transaction_id": txn.id,
+                "external_id": txn.external_id,
+                "old_status": old_status,
+                "new_status": txn.status,
+                "amount": txn.amount,
+                "description": txn.description or "",
+                "transaction_type": txn.transaction_type,
+                "user_id": txn.user_id,
+            })
+        except Exception as e:
+            logger.warning(f"Failed to publish status change event: {e}")
+
+        await self.db.commit()
+        return True
+
+    async def mark_as_expired(self, txn: Transactions) -> bool:
+        """Mark a transaction as expired."""
+        if txn.status != "pending":
+            return False
+
+        old_status = txn.status
+        txn.status = "expired"
+        txn.updated_at = datetime.now()
+
+        # Publish status change event
+        try:
+            payment_event_bus.publish({
+                "event_type": "status_change",
+                "transaction_id": txn.id,
+                "external_id": txn.external_id,
+                "old_status": old_status,
+                "new_status": txn.status,
+                "amount": txn.amount,
+                "description": txn.description or "",
+                "transaction_type": txn.transaction_type,
+                "user_id": txn.user_id,
+            })
+        except Exception as e:
+            logger.warning(f"Failed to publish status change event: {e}")
+
+        await self.db.commit()
+        return True
+
+    async def find_by_external_or_gateway_id(self, identifier: str) -> Optional[Transactions]:
+        """Find a transaction by external_id or xendit_id."""
+        result = await self.db.execute(
+            select(Transactions).where(
+                or_(Transactions.xendit_id == identifier, Transactions.external_id == identifier)
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def get_user_stats(self, user_id: str) -> Dict[str, Any]:
+        """Fetch transaction statistics for a user."""
+        start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+        # Revenue this month
+        res = await self.db.execute(
+            select(func.sum(Transactions.amount)).where(
+                Transactions.user_id == user_id,
+                Transactions.status == "paid",
+                Transactions.created_at >= start_of_month
+            )
+        )
+        monthly_revenue = res.scalar() or 0
+
+        # Total paid transactions
+        res_count = await self.db.execute(
+            select(func.count(Transactions.id)).where(
+                Transactions.user_id == user_id,
+                Transactions.status == "paid"
+            )
+        )
+        total_paid = res_count.scalar() or 0
+
+        return {
+            "monthly_revenue": float(monthly_revenue),
+            "total_paid_transactions": total_paid,
+            "currency": "PHP"
+        }
+
+    # --- Standard CRUD Methods ---
 
     async def create(self, data: Dict[str, Any], user_id: Optional[str] = None) -> Optional[Transactions]:
         """Create a new transactions"""

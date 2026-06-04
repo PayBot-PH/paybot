@@ -1,18 +1,17 @@
 import logging
-from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from dependencies.auth import get_current_user
-from models.transactions import Transactions
 from models.wallets import Wallets
 from schemas.auth import UserResponse
 from services.maya_service import MayaService
+from services.transactions import TransactionsService
 
 logger = logging.getLogger(__name__)
 
@@ -50,22 +49,17 @@ async def create_maya_checkout(
             raise HTTPException(status_code=400, detail=result.get("error", "Maya checkout failed"))
 
         # Save to transactions table
-        txn = Transactions(
+        txn_service = TransactionsService(db)
+        await txn_service.create_transaction(
             user_id=str(current_user.id),
             transaction_type="invoice",
-            external_id=result.get("external_id", ""),
-            xendit_id=result.get("checkout_id", ""), # Store Maya ID in xendit_id col for now
             amount=data.amount,
-            currency="PHP",
-            status="pending",
+            external_id=result.get("external_id", ""),
+            gateway_id=result.get("checkout_id", ""),
             description=data.description,
             payment_url=result.get("checkout_url", ""),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
         )
-        db.add(txn)
-        await db.commit()
-        
+
         return {
             "success": True,
             "invoice_url": result.get("checkout_url"),
@@ -99,21 +93,18 @@ async def create_maya_qr(
              return await create_maya_checkout(data, current_user, db)
 
         # Save to transactions table
-        txn = Transactions(
+        txn_service = TransactionsService(db)
+        txn = await txn_service.create_transaction(
             user_id=str(current_user.id),
             transaction_type="qr_code",
-            external_id=result.get("external_id", ""),
-            xendit_id=result.get("qr_id", ""),
             amount=data.amount,
-            currency="PHP",
-            status="pending",
+            external_id=result.get("external_id", ""),
+            gateway_id=result.get("qr_id", ""),
             description=data.description,
             payment_url=result.get("redirect_url", ""),
-            qr_content=result.get("qr_content", ""),
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
         )
-        db.add(txn)
+        # Note: qr_content is currently mapped to qr_code_url in the model
+        txn.qr_code_url = result.get("qr_content", "")
         await db.commit()
         
         return {
@@ -133,42 +124,17 @@ async def get_maya_stats(
     db: AsyncSession = Depends(get_db),
 ):
     """Fetch transaction statistics from local DB (replaces Xendit stats)"""
-    user_id = str(current_user.id)
-    
-    # Revenue this month
-    start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    
-    res = await db.execute(
-        select(func.sum(Transactions.amount)).where(
-            Transactions.user_id == user_id,
-            Transactions.status == "paid",
-            Transactions.created_at >= start_of_month
-        )
-    )
-    monthly_revenue = res.scalar() or 0
-    
-    res_count = await db.execute(
-        select(func.count(Transactions.id)).where(
-            Transactions.user_id == user_id,
-            Transactions.status == "paid"
-        )
-    )
-    total_paid = res_count.scalar() or 0
-    
+    txn_service = TransactionsService(db)
+    stats = await txn_service.get_user_stats(str(current_user.id))
     return {
         "success": True,
-        "monthly_revenue": float(monthly_revenue),
-        "total_paid_transactions": total_paid,
-        "currency": "PHP"
+        **stats
     }
 
 
 @router.get("/balance")
 async def get_maya_balance(current_user: UserResponse = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    """Fetch user balance.
-    Super admins get the live PayMongo balance on /balance.
-    Others get their internal wallet balance.
-    """
+    """Fetch user balance."""
     perms = current_user.permissions
     if perms and perms.is_super_admin:
         try:
@@ -203,10 +169,7 @@ async def get_maya_balance(current_user: UserResponse = Depends(get_current_user
 
 @router.get("/wallet")
 async def get_maya_internal_wallet(current_user: UserResponse = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    """Fetch the internal wallet balance explicitly, even for superadmins.
-
-    As requested: /wallet fetches the internal wallet balance.
-    """
+    """Fetch the internal wallet balance explicitly."""
     res = await db.execute(
         select(Wallets.balance).where(Wallets.user_id == str(current_user.id), Wallets.currency == "PHP")
     )

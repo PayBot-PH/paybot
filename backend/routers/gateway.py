@@ -21,6 +21,7 @@ from services.maya_service import MayaService
 from services.paymongo_service import PayMongoService
 from services.otp_service import OTPService
 from services.event_bus import payment_event_bus
+from services.transactions import TransactionsService
 
 logger = logging.getLogger(__name__)
 
@@ -75,66 +76,9 @@ class CreateCardTerminalRequest(BaseModel):
     otp_code: str = ""
 
 
-async def _get_or_create_wallet(db: AsyncSession, user_id: str, currency: str = "PHP") -> Wallets:
-    result = await db.execute(
-        select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == currency)
-    )
-    wallet = result.scalar_one_or_none()
-    if wallet is None:
-        now = datetime.now()
-        wallet = Wallets(user_id=user_id, currency=currency, balance=0.0, created_at=now, updated_at=now)
-        db.add(wallet)
-        await db.flush()
-    return wallet
-
-
-async def _credit_php_wallet(db: AsyncSession, txn: Transactions, status_label: str) -> Wallets:
-    wallet = await _get_or_create_wallet(db, txn.user_id, "PHP")
-    amount = float(txn.amount or 0.0)
-    balance_before = float(wallet.balance or 0.0)
-    wallet.balance = balance_before + amount
-    wallet.updated_at = datetime.now()
-    wtxn = Wallet_transactions(
-        user_id=txn.user_id,
-        wallet_id=wallet.id,
-        transaction_type="receive", # Use 'receive' for payments
-        amount=amount,
-        balance_before=balance_before,
-        balance_after=wallet.balance,
-        note=f"{status_label} payment credited",
-        status="completed",
-        reference_id=txn.external_id or txn.xendit_id or f"maya-{txn.id}",
-        created_at=datetime.now(),
-    )
-    db.add(wtxn)
-    await db.flush()
-
-    # Publish wallet update event for notifications
-    try:
-        payment_event_bus.publish({
-            "event_type": "wallet_update",
-            "user_id": txn.user_id,
-            "wallet_id": wallet.id,
-            "balance": wallet.balance,
-            "currency": "PHP",
-            "transaction_type": "receive",
-            "amount": amount,
-            "transaction_id": wtxn.id,
-            "note": f"{status_label} payment received"
-        })
-    except Exception:
-        pass
-
-    return wallet
-
-
 async def _refresh_maya_transaction(db: AsyncSession, checkout_id: str) -> dict:
-    result = await db.execute(
-        select(Transactions).where(
-            or_(Transactions.xendit_id == checkout_id, Transactions.external_id == checkout_id)
-        )
-    )
-    txn = result.scalar_one_or_none()
+    txn_service = TransactionsService(db)
+    txn = await txn_service.find_by_external_or_gateway_id(checkout_id)
     if not txn:
         return {"success": False, "message": "Transaction not found"}
 
@@ -148,22 +92,7 @@ async def _refresh_maya_transaction(db: AsyncSession, checkout_id: str) -> dict:
 
     status = status_result.get("status", "").upper()
     if status in ("PAID", "COMPLETED", "SETTLED", "SUCCESS", "AUTHORIZED"):
-        old_status = txn.status
-        txn.status = "paid"
-        txn.updated_at = datetime.now()
-        await _credit_php_wallet(db, txn, "Maya")
-        payment_event_bus.publish({
-            "event_type": "status_change",
-            "transaction_id": txn.id,
-            "external_id": txn.external_id,
-            "old_status": old_status,
-            "new_status": txn.status,
-            "amount": txn.amount,
-            "description": txn.description or "",
-            "transaction_type": txn.transaction_type,
-            "user_id": txn.user_id,
-        })
-        await db.commit()
+        await txn_service.mark_as_paid(txn, "Maya")
         return {"success": True, "message": "Transaction marked paid and wallet credited", "status": txn.status, "transaction_id": txn.id}
 
     if status in ("FAILED", "CANCELLED", "DECLINED", "EXPIRED"):
@@ -228,28 +157,8 @@ async def create_virtual_account(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    try:
-        # Virtual Accounts are Xendit-specific and not supported by Maya Manager.
-        return GatewayResponse(success=False, message="Virtual accounts are not supported after removing Xendit. Use an alternative gateway.")
-        now = datetime.now()
-        txn = Transactions(
-            user_id=str(current_user.id), transaction_type="virtual_account",
-            external_id=result.get("external_id", ""), xendit_id=result.get("va_id", ""),
-            amount=data.amount, currency="PHP", status="pending",
-            description=f"VA: {data.bank_code} - {data.name}",
-            customer_name=data.name, created_at=now, updated_at=now,
-        )
-        db.add(txn)
-        await db.commit()
-        return GatewayResponse(success=True, message="Virtual account created", data={
-            "transaction_id": txn.id, "va_id": result.get("va_id", ""),
-            "account_number": result.get("account_number", ""),
-            "bank_code": data.bank_code, "external_id": result.get("external_id", ""),
-            "amount": data.amount,
-        })
-    except Exception as e:
-        logger.error(f"VA creation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """Virtual Accounts are Xendit-specific and not supported by Maya Manager."""
+    return GatewayResponse(success=False, message="Virtual accounts are not supported after removing Xendit. Use an alternative gateway.")
 
 
 # ==================== E-WALLET CHARGES ====================
@@ -266,16 +175,18 @@ async def create_ewallet_charge(
         )
         if not result.get("success"):
             return GatewayResponse(success=False, message=result.get("error", "Failed"))
-        now = datetime.now()
-        txn = Transactions(
-            user_id=str(current_user.id), transaction_type="ewallet",
-            external_id=result.get("external_id", ""), xendit_id=result.get("checkout_id", ""),
-            amount=data.amount, currency="PHP", status="pending",
+
+        txn_service = TransactionsService(db)
+        txn = await txn_service.create_transaction(
+            user_id=str(current_user.id),
+            transaction_type="ewallet",
+            amount=data.amount,
+            external_id=result.get("external_id", ""),
+            gateway_id=result.get("checkout_id", ""),
             description=f"E-Wallet: {data.channel_code}",
-            payment_url=result.get("checkout_url", ""), created_at=now, updated_at=now,
+            payment_url=result.get("checkout_url", ""),
         )
-        db.add(txn)
-        await db.commit()
+
         return GatewayResponse(success=True, message="E-wallet charge created", data={
             "transaction_id": txn.id, "checkout_id": result.get("checkout_id", ""),
             "checkout_url": result.get("checkout_url", ""),
@@ -341,18 +252,19 @@ async def create_virtual_terminal(
         if not result.get("success"):
             return GatewayResponse(success=False, message=result.get("error", "Failed"))
 
-        now = datetime.now()
-        txn = Transactions(
-            user_id=str(current_user.id), transaction_type="virtual_terminal",
-            external_id=result.get("external_id", ""), xendit_id=result.get("checkout_id", ""),
-            amount=payload["amount"], currency="PHP", status="pending",
+        txn_service = TransactionsService(db)
+        txn = await txn_service.create_transaction(
+            user_id=str(current_user.id),
+            transaction_type="virtual_terminal",
+            amount=payload["amount"],
+            external_id=result.get("external_id", ""),
+            gateway_id=result.get("checkout_id", ""),
             description=payload["description"],
             customer_name=payload["customer_name"],
             customer_email=payload["customer_email"],
-            payment_url=result.get("checkout_url", ""), created_at=now, updated_at=now,
+            payment_url=result.get("checkout_url", ""),
         )
-        db.add(txn)
-        await db.commit()
+
         return GatewayResponse(success=True, message="Virtual terminal created", data={
             "transaction_id": txn.id,
             "checkout_id": result.get("checkout_id", ""),
@@ -407,31 +319,31 @@ async def create_maya_terminal(
 
         payload = verify_result["payload"]
         service = MayaService()
-        result = await service.create_terminal(
+        result = await service.create_terminal_payment(
             amount=payload["amount"],
             description=payload["description"],
             customer_name=payload["customer_name"],
             customer_email=payload["customer_email"],
             mobile_number=payload["mobile_number"],
             terminal_id=payload["terminal_id"],
-            channel_code=payload["channel_code"],
         )
 
         if not result.get("success"):
             return GatewayResponse(success=False, message=result.get("error", "Failed"))
 
-        now = datetime.now()
-        txn = Transactions(
-            user_id=str(current_user.id), transaction_type="maya_terminal",
-            external_id=result.get("external_id", ""), xendit_id=result.get("checkout_id", ""),
-            amount=payload["amount"], currency="PHP", status="pending",
+        txn_service = TransactionsService(db)
+        txn = await txn_service.create_transaction(
+            user_id=str(current_user.id),
+            transaction_type="maya_terminal",
+            amount=payload["amount"],
+            external_id=result.get("external_id", ""),
+            gateway_id=result.get("checkout_id", ""),
             description=payload["description"],
             customer_name=payload["customer_name"],
             customer_email=payload["customer_email"],
-            payment_url=result.get("checkout_url", ""), created_at=now, updated_at=now,
+            payment_url=result.get("checkout_url", ""),
         )
-        db.add(txn)
-        await db.commit()
+
         return GatewayResponse(success=True, message="Maya terminal created", data={
             "transaction_id": txn.id,
             "checkout_id": result.get("checkout_id", ""),
@@ -498,18 +410,19 @@ async def create_card_terminal(
         if not result.get("success"):
             return GatewayResponse(success=False, message=result.get("error", "Failed"))
 
-        now = datetime.now()
-        txn = Transactions(
-            user_id=str(current_user.id), transaction_type="card_terminal",
-            external_id=result.get("reference_number", ""), xendit_id=result.get("checkout_session_id", ""),
-            amount=payload["amount"], currency="PHP", status="pending",
+        txn_service = TransactionsService(db)
+        txn = await txn_service.create_transaction(
+            user_id=str(current_user.id),
+            transaction_type="card_terminal",
+            amount=payload["amount"],
+            external_id=result.get("reference_number", ""),
+            gateway_id=result.get("checkout_session_id", ""),
             description=payload["description"],
             customer_name=payload["customer_name"],
             customer_email=payload["customer_email"],
-            payment_url=result.get("checkout_url", ""), created_at=now, updated_at=now,
+            payment_url=result.get("checkout_url", ""),
         )
-        db.add(txn)
-        await db.commit()
+
         return GatewayResponse(success=True, message="Card terminal created", data={
             "transaction_id": txn.id,
             "checkout_session_id": result.get("checkout_session_id", ""),
@@ -529,47 +442,8 @@ async def create_disbursement(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    try:
-        # Disbursements are not supported via Maya Manager checkout integration.
-        return GatewayResponse(success=False, message="Disbursements are not supported after removing Xendit. Use an alternative payout provider.")
-        now = datetime.now()
-        disb = Disbursements(
-            user_id=str(current_user.id), external_id=result.get("external_id", ""),
-            xendit_id=result.get("disbursement_id", ""), amount=data.amount,
-            currency="PHP", bank_code=data.bank_code, account_number=data.account_number,
-            account_name=data.account_name, description=data.description,
-            status="pending", disbursement_type="single", created_at=now, updated_at=now,
-        )
-        db.add(disb)
-        await db.commit()
-        # Deduct from wallet
-        wallet_result = await db.execute(select(Wallets).where(Wallets.user_id == str(current_user.id)))
-        wallet = wallet_result.scalar_one_or_none()
-        if wallet and wallet.balance >= data.amount:
-            balance_before = wallet.balance
-            wallet.balance -= data.amount
-            wallet.updated_at = now
-            wtxn = Wallet_transactions(
-                user_id=str(current_user.id), wallet_id=wallet.id,
-                transaction_type="withdraw", amount=data.amount,
-                balance_before=balance_before, balance_after=wallet.balance,
-                note=f"Disbursement to {data.account_name} ({data.bank_code})",
-                status="completed", reference_id=result.get("external_id", ""), created_at=now,
-            )
-            db.add(wtxn)
-            await db.commit()
-            payment_event_bus.publish({
-                "event_type": "wallet_update", "user_id": str(current_user.id),
-                "wallet_id": wallet.id, "balance": wallet.balance,
-                "transaction_type": "withdraw", "amount": data.amount, "transaction_id": wtxn.id,
-            })
-        return GatewayResponse(success=True, message="Disbursement created", data={
-            "disbursement_id": disb.id, "xendit_id": result.get("disbursement_id", ""),
-            "external_id": result.get("external_id", ""), "amount": data.amount, "status": "pending",
-        })
-    except Exception as e:
-        logger.error(f"Disbursement error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """Disbursements are not supported via Maya Manager checkout integration."""
+    return GatewayResponse(success=False, message="Disbursements are not supported after removing Xendit. Use an alternative payout provider.")
 
 @router.get("/disbursements")
 async def list_disbursements(
@@ -596,46 +470,8 @@ async def create_refund(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    try:
-        user_id = str(current_user.id)
-        txn_result = await db.execute(
-            select(Transactions).where(Transactions.id == data.transaction_id, Transactions.user_id == user_id)
-        )
-        txn = txn_result.scalar_one_or_none()
-        if not txn:
-            return GatewayResponse(success=False, message="Transaction not found")
-        if txn.status != "paid":
-            return GatewayResponse(success=False, message="Only paid transactions can be refunded")
-        if data.amount > txn.amount:
-            return GatewayResponse(success=False, message="Refund amount exceeds transaction amount")
-
-        # Refunds via Xendit were removed. Maya Manager checkout integration
-        # does not support refunds via this API. Return an informative error.
-        return GatewayResponse(success=False, message="Refunds are not supported after removing Xendit. Operation not available.")
-
-        now = datetime.now()
-        refund_type = "full" if data.amount >= txn.amount else "partial"
-        ref = Refunds(
-            user_id=user_id, transaction_id=data.transaction_id,
-            external_id=result.get("external_id", f"ref-{txn.id}"),
-            xendit_id=result.get("refund_id", ""),
-            amount=data.amount, reason=data.reason,
-            status="pending" if result.get("success") else "failed",
-            refund_type=refund_type, created_at=now, updated_at=now,
-        )
-        db.add(ref)
-        if result.get("success"):
-            txn.status = "refunded" if refund_type == "full" else "partially_refunded"
-            txn.updated_at = now
-        await db.commit()
-        return GatewayResponse(
-            success=result.get("success", False),
-            message="Refund processed" if result.get("success") else result.get("error", "Refund failed"),
-            data={"refund_id": ref.id, "amount": data.amount, "type": refund_type, "status": ref.status},
-        )
-    except Exception as e:
-        logger.error(f"Refund error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    """Refunds via Maya Manager checkout integration are not supported."""
+    return GatewayResponse(success=False, message="Refunds are not supported after removing Xendit. Operation not available.")
 
 @router.get("/refunds")
 async def list_refunds(
@@ -1018,24 +854,13 @@ async def expire_invoice(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Transactions).where(Transactions.id == txn_id, Transactions.user_id == str(current_user.id))
-    )
-    txn = result.scalar_one_or_none()
+    txn_service = TransactionsService(db)
+    txn = await txn_service.get_by_id(txn_id, user_id=str(current_user.id))
     if not txn:
         return GatewayResponse(success=False, message="Transaction not found")
-    if txn.status != "pending":
+
+    success = await txn_service.mark_as_expired(txn)
+    if not success:
         return GatewayResponse(success=False, message="Only pending transactions can be expired")
-    if txn.xendit_id:
-        # Previously would expire invoices via Xendit. Xendit removed — skipping external expire.
-        logger.debug("Skipping external invoice expire: Xendit integration removed (txn.xendit_id=%s)", txn.xendit_id)
-    txn.status = "expired"
-    txn.updated_at = datetime.now()
-    await db.commit()
-    payment_event_bus.publish({
-        "event_type": "status_change", "transaction_id": txn.id,
-        "external_id": txn.external_id, "old_status": "pending",
-        "new_status": "expired", "amount": txn.amount,
-        "transaction_type": txn.transaction_type, "user_id": txn.user_id,
-    })
+
     return GatewayResponse(success=True, message="Invoice expired", data={"transaction_id": txn.id})

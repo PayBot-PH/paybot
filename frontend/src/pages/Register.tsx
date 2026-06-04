@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShieldCheck, CheckCircle, AlertCircle, User, Phone, Mail, MapPin, Building2, Send } from 'lucide-react';
+import { CheckCircle, AlertCircle, User, Phone, Mail, Building2, Send } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import TelegramLoginWidget from '@/components/TelegramLoginWidget';
 import { APP_NAME, COMPANY_NAME } from '@/lib/brand';
@@ -29,16 +29,6 @@ const INITIAL_FORM: FormData = {
   telegram_username: '',
 };
 
-/* Branded SVG icons for social platforms */
-function TelegramIcon({ size = 20 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="12" cy="12" r="12" fill="#26A5E4" />
-      <path d="M5.5 11.8l2.9 1.1 1.1 3.5c.1.2.3.3.5.2l1.6-1.3 3 2.2c.2.2.5 0 .6-.2l2.3-9.3c.1-.4-.3-.7-.6-.5L5.3 11.1c-.3.1-.2.6.2.7z" fill="white" />
-    </svg>
-  );
-}
-
 function WhatsAppIcon({ size = 20 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -65,6 +55,7 @@ function MessengerIcon({ size = 20 }: { size?: number }) {
 
 export default function Register() {
   const navigate = useNavigate();
+  const { loginWithTelegram } = useAuth();
   const [form, setForm] = useState<FormData>(INITIAL_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
