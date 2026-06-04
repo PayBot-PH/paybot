@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ShieldCheck, CheckCircle, AlertCircle, User, Phone, Mail, MapPin, Building2, Send } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import TelegramLoginWidget from '@/components/TelegramLoginWidget';
 import { APP_NAME, COMPANY_NAME } from '@/lib/brand';
 
 interface FormData {
@@ -305,38 +307,45 @@ export default function Register() {
             </button>
           </form>
 
-          <p className="text-muted-foreground text-xs text-center mt-5">
-            Already have an account?{' '}
-            <Link to="/login" className="text-primary hover:text-primary/80 transition-colors">
-              Sign In
-            </Link>
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-}
+          {/* ── Telegram Auto-Signup ────────────────────────── */}
+          {socialConfig?.telegram_bot_username && (
+            <div className="mt-6 space-y-4">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t border-gray-100"></span>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-white px-2 text-gray-400 font-medium">Or instant signup with</span>
+                </div>
+              </div>
 
-          {/* ── Social sign-up options ────────────────────────── */}
-          {socialConfig && (socialConfig.telegram_bot_username || socialConfig.whatsapp_number || socialConfig.messenger_page_username) && (
+              <div className="flex justify-center">
+                <TelegramLoginWidget
+                  botName={socialConfig.telegram_bot_username}
+                  onAuth={(user) => {
+                    setSubmitting(true);
+                    loginWithTelegram(user).finally(() => {
+                      setSubmitting(false);
+                      navigate('/');
+                    });
+                  }}
+                />
+              </div>
+              <p className="text-[10px] text-center text-gray-400 px-4">
+                Fastest way to get started. No form filling required.
+              </p>
+            </div>
+          )}
+
+          {/* ── Social sign-up options (Existing) ────────────────────────── */}
+          {socialConfig && (socialConfig.whatsapp_number || socialConfig.messenger_page_username) && (
             <div className="mt-5">
               <div className="relative flex items-center gap-3 mb-4">
                 <div className="flex-1 h-px bg-border" />
-                <span className="text-muted-foreground text-xs shrink-0">or sign up via</span>
+                <span className="text-muted-foreground text-xs shrink-0">other options</span>
                 <div className="flex-1 h-px bg-border" />
               </div>
               <div className="flex flex-col gap-2.5">
-                {socialConfig.telegram_bot_username && (
-                  <a
-                    href={`https://t.me/${socialConfig.telegram_bot_username}?start=register`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 w-full border border-border bg-white hover:bg-sky-50 hover:border-sky-300 rounded-xl px-4 py-3 text-sm font-medium text-foreground transition-colors"
-                  >
-                    <TelegramIcon size={22} />
-                    <span>Sign up with Telegram</span>
-                  </a>
-                )}
                 {socialConfig.whatsapp_number && (
                   <a
                     href={`https://wa.me/${socialConfig.whatsapp_number.replace(/\D/g, '')}?text=Hi%2C+I+want+to+register`}

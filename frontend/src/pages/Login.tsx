@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import TelegramLoginWidget from '@/components/TelegramLoginWidget';
 import {
   ArrowRight, ChevronRight, CheckCircle2,
   UserPlus, Menu, X, Lock, Mail, Key, Eye, EyeOff, Loader2, XCircle
@@ -132,15 +133,23 @@ const MARQUEE_ROW_2 = [
 ];
 
 export default function Login() {
-  const { user, login, loading, error: authError } = useAuth();
+  const { user, login, loginWithTelegram, loading, error: authError } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [botUsername, setBotUsername] = useState<string | null>(null);
   const usdtStats = getDailyUsdtStats();
   const loginSectionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('/api/v1/auth/telegram-login-config')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => d?.bot_username && setBotUsername(d.bot_username))
+      .catch(() => {});
+  }, []);
 
   const scrollToLogin = () => {
     setMobileNavOpen(false);
@@ -306,6 +315,30 @@ export default function Login() {
                 )}
               </Button>
             </form>
+
+            {botUsername && (
+              <div className="mt-6 space-y-4">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-100"></span>
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-gray-400 font-medium">Or continue with</span>
+                  </div>
+                </div>
+
+                <TelegramLoginWidget
+                  botName={botUsername}
+                  onAuth={(user) => {
+                    setSubmitting(true);
+                    loginWithTelegram(user).finally(() => setSubmitting(false));
+                  }}
+                />
+                <p className="text-[10px] text-center text-gray-400 px-4">
+                  Logging in with Telegram automatically creates an accurate merchant record for your account.
+                </p>
+              </div>
+            )}
 
             <div className="mt-8 pt-6 border-t border-gray-100 text-center">
               <p className="text-gray-500 text-sm">

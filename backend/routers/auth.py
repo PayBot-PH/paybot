@@ -25,7 +25,7 @@ from core.config import settings
 from core.database import get_db
 from dependencies.auth import get_current_user
 from fastapi import APIRouter, Depends, HTTPException, Request, status, Response
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from models.auth import User
 from models.admin_users import AdminUser
 from models.bot_settings import Bot_settings
@@ -279,23 +279,42 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
     in_db = db_admin is not None and db_admin.is_active
 
     if not in_db and not in_env:
-        # Neither env nor DB — check if any DB admins exist at all
-        try:
-            count_res = await db.execute(select(AdminUser))
-            any_db_admins = count_res.first() is not None
-        except Exception:
-            any_db_admins = False
+        # Auto-signup: Create AdminUser if not found (accurate user records)
+        if not db_admin:
+            try:
+                display_name = " ".join(part for part in [payload.first_name, payload.last_name] if part).strip()
+                if not display_name:
+                    display_name = payload.username or telegram_user_id
 
-        if any_db_admins or (allowed_admin_ids or allowed_admin_usernames):
+                db_admin = AdminUser(
+                    telegram_id=telegram_user_id,
+                    telegram_username=payload.username,
+                    name=display_name,
+                    is_active=True,
+                    is_super_admin=False,
+                    can_manage_payments=True,
+                    can_manage_disbursements=True,
+                    can_view_reports=True,
+                    can_manage_wallet=True,
+                    can_manage_transactions=True,
+                    can_manage_bot=False,
+                    can_approve_topups=False,
+                    added_by="telegram_widget_auto_signup",
+                )
+                db.add(db_admin)
+                await db.commit()
+                await db.refresh(db_admin)
+                in_db = True
+                logger.info("[telegram-login-widget] Auto-signed up user: %s", telegram_user_id)
+            except Exception as e:
+                logger.error("[telegram-login-widget] Auto-signup failed: %s", e)
+                await db.rollback()
+
+        if not in_db:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not authorized to access the admin dashboard.",
             )
-        # No admins configured anywhere — block login
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="No admin users configured. Add TELEGRAM_ADMIN_IDS or use the admin panel.",
-        )
 
     valid, reason = _verify_telegram_widget_payload(payload, bot_token)
     if not valid:
@@ -466,6 +485,51 @@ async def telegram_login_config():
         )
 
     return {"bot_username": username}
+
+
+@router.get("/telegram-login-widget-page")
+async def telegram_login_widget_page(redirect_url: str = "/auth/callback"):
+    """
+    Serve a simple HTML page with the Telegram Login Widget.
+    Used for mobile apps (via WebView) to bridge the widget.
+    """
+    bot_config = await telegram_login_config()
+    bot_username = bot_config["bot_username"]
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Login with Telegram</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body {{ display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }}
+            .container {{ text-align: center; }}
+            h2 {{ color: #141414; margin-bottom: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Sign in with Telegram</h2>
+            <script async src="https://telegram.org/js/telegram-widget.js?22"
+                data-telegram-login="{bot_username}"
+                data-size="large"
+                data-radius="12"
+                data-onauth="onTelegramAuth(user)"
+                data-request-access="write"></script>
+        </div>
+        <script>
+            function onTelegramAuth(user) {{
+                // Signal back to native app via URL change or postMessage
+                const params = new URLSearchParams(user).toString();
+                // Redirect to the callback page which handles the logic
+                window.location.href = "{redirect_url}?" + params;
+            }}
+        </script>
+    </body>
+    </html>
+    """
+    return HTMLResponse(content=html)
 
 
 @router.get("/social-config")
