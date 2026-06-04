@@ -11,27 +11,15 @@ import {
   SafeAreaView,
   StatusBar,
   Dimensions,
+  Animated,
 } from 'react-native';
 import { useQuery } from 'react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
-import Toast from 'react-native-toast-message';
 import { API_URL } from '../config';
+import { useTheme } from '../theme';
 
 const { width } = Dimensions.get('window');
-
-const COLORS = {
-  primary: '#0EA5E9',
-  secondary: '#10B981',
-  danger: '#EF4444',
-  warning: '#F59E0B',
-  dark: '#0F172A',
-  light: '#F8FAFC',
-  text: '#0F172A',
-  textSecondary: '#64748B',
-  border: '#E2E8F0',
-  success: '#10B981',
-};
 
 const api = {
   getTerminals: async (token) => {
@@ -47,7 +35,7 @@ const api = {
 
   getTransactions: async (token, terminalId) => {
     const response = await fetch(
-      `${API_URL}/pos-terminals/${terminalId}/transactions?per_page=20`,
+      `${API_URL}/pos-terminals/${terminalId}/transactions?per_page=10`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -58,25 +46,8 @@ const api = {
     if (!response.ok) throw new Error('Failed to fetch transactions');
     return response.json();
   },
-
-  createTransaction: async (token, terminalId, data) => {
-    const response = await fetch(
-      `${API_URL}/pos-terminals/${terminalId}/transactions`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      }
-    );
-    if (!response.ok) throw new Error('Failed to create transaction');
-    return response.json();
-  },
 };
 
-// Status Badge Component
 const StatusBadge = ({ status }) => {
   const statusColors = {
     active: { bg: '#D1FAE5', text: '#065F46' },
@@ -97,110 +68,119 @@ const StatusBadge = ({ status }) => {
   );
 };
 
-// Terminal Card Component
 const TerminalCard = ({ terminal, onPress, isSelected }) => {
+  const { colors, common, shadows, roundness } = useTheme();
+
   return (
     <TouchableOpacity
       style={[
         styles.terminalCard,
-        isSelected && styles.terminalCardSelected,
+        {
+          backgroundColor: isSelected ? (useTheme().isDark ? '#1E293B' : '#F0F9FF') : colors.card,
+          borderColor: isSelected ? common.primary : colors.border,
+          borderRadius: roundness.lg,
+          ...shadows.sm
+        },
       ]}
       onPress={onPress}
       activeOpacity={0.7}
     >
       <View style={styles.terminalHeader}>
         <View style={styles.terminalInfo}>
-          <Text style={styles.terminalName}>{terminal.terminal_name}</Text>
-          <Text style={styles.terminalCode}>Code: {terminal.terminal_code}</Text>
+          <Text style={[styles.terminalName, { color: colors.text }]}>{terminal.terminal_name}</Text>
+          <Text style={[styles.terminalCode, { color: colors.textSecondary }]}>ID: {terminal.terminal_code}</Text>
           {terminal.is_t0_settlement && (
-            <View style={styles.t0Badge}>
-              <MaterialIcons name="bolt" size={14} color="#D97706" />
-              <Text style={styles.t0Text}>T0 Settlement</Text>
+            <View style={[styles.t0Badge, { backgroundColor: '#FEF3C7' }]}>
+              <MaterialIcons name="bolt" size={12} color="#D97706" />
+              <Text style={styles.t0Text}>ULTRA SETTLEMENT</Text>
             </View>
           )}
         </View>
         <StatusBadge status={terminal.is_active ? 'active' : 'inactive'} />
       </View>
 
-      {terminal.location && (
-        <Text style={styles.terminalLocation}>📍 {terminal.location}</Text>
-      )}
-
-      <View style={styles.methodsContainer}>
-        <Text style={styles.methodsLabel}>Payment Methods:</Text>
-        <View style={styles.methodsList}>
-          {terminal.enabled_payment_methods.map((method, idx) => (
-            <View key={idx} style={styles.methodBadge}>
-              <Text style={styles.methodText}>{method.toUpperCase()}</Text>
-            </View>
-          ))}
-        </View>
+      <View style={styles.methodsList}>
+        {terminal.enabled_payment_methods.slice(0, 3).map((method, idx) => (
+          <View key={idx} style={[styles.methodBadge, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.methodText, { color: common.primary }]}>{method.toUpperCase()}</Text>
+          </View>
+        ))}
+        {terminal.enabled_payment_methods.length > 3 && (
+          <Text style={[styles.moreText, { color: colors.textSecondary }]}>+{terminal.enabled_payment_methods.length - 3}</Text>
+        )}
       </View>
 
       {isSelected && (
         <View style={styles.selectionIndicator}>
-          <MaterialIcons name="check-circle" size={24} color={COLORS.primary} />
+          <MaterialIcons name="check-circle" size={24} color={common.primary} />
         </View>
       )}
     </TouchableOpacity>
   );
 };
 
-// Transaction List Item
 const TransactionItem = ({ transaction }) => {
+  const { colors, common, roundness } = useTheme();
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'completed':
-        return 'check-circle';
-      case 'pending':
-        return 'access-time';
-      case 'failed':
-        return 'cancel';
-      default:
-        return 'help-outline';
+      case 'completed': return 'check-circle';
+      case 'pending': return 'access-time';
+      case 'failed': return 'cancel';
+      default: return 'help-outline';
+    }
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return common.success;
+      case 'pending': return common.warning;
+      case 'failed': return common.danger;
+      default: return colors.textSecondary;
     }
   };
 
   return (
-    <View style={styles.transactionItem}>
-      <View style={styles.transactionLeft}>
+    <View style={[styles.transactionItem, { backgroundColor: colors.surface, borderRadius: roundness.md }]}>
+      <View style={[styles.transactionIconContainer, { backgroundColor: colors.background }]}>
         <MaterialIcons
           name={getStatusIcon(transaction.status)}
-          size={24}
-          color={
-            transaction.status === 'completed'
-              ? COLORS.success
-              : transaction.status === 'pending'
-              ? COLORS.warning
-              : COLORS.danger
-          }
+          size={22}
+          color={getStatusColor(transaction.status)}
         />
       </View>
 
       <View style={styles.transactionInfo}>
-        <Text style={styles.transactionDesc}>{transaction.description}</Text>
-        <Text style={styles.transactionDate}>
-          {new Date(transaction.created_at).toLocaleDateString()} •{' '}
-          {new Date(transaction.created_at).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
+        <Text style={[styles.transactionDesc, { color: colors.text }]} numberOfLines={1}>{transaction.description}</Text>
+        <Text style={[styles.transactionDate, { color: colors.textSecondary }]}>
+          {new Date(transaction.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </Text>
       </View>
 
       <View style={styles.transactionRight}>
-        <Text style={styles.transactionAmount}>₱{(transaction.amount / 100).toFixed(2)}</Text>
-        <StatusBadge status={transaction.status} />
+        <Text style={[styles.transactionAmount, { color: colors.text }]}>₱{(transaction.amount / 100).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
       </View>
     </View>
   );
 };
 
-// Home Screen
+const NavButton = ({ icon, label, onPress, color }) => {
+  const { colors, roundness } = useTheme();
+  return (
+    <TouchableOpacity style={styles.navBtnItem} onPress={onPress}>
+       <View style={[styles.navBtnIcon, { backgroundColor: color + '15', borderRadius: roundness.md }]}>
+          <MaterialIcons name={icon} size={26} color={color} />
+       </View>
+       <Text style={[styles.navBtnLabel, { color: colors.text }]}>{label}</Text>
+    </TouchableOpacity>
+  );
+};
+
 export const HomeScreen = ({ navigation }) => {
+  const { colors, common, isDark } = useTheme();
   const [token, setToken] = useState(null);
   const [selectedTerminal, setSelectedTerminal] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const scrollY = new Animated.Value(0);
 
   useEffect(() => {
     const loadToken = async () => {
@@ -215,7 +195,11 @@ export const HomeScreen = ({ navigation }) => {
     () => api.getTerminals(token),
     {
       enabled: !!token,
-      staleTime: 5 * 60 * 1000,
+      onSuccess: (data) => {
+        if (data?.data?.length > 0 && !selectedTerminal) {
+          setSelectedTerminal(data.data[0]);
+        }
+      }
     }
   );
 
@@ -224,7 +208,6 @@ export const HomeScreen = ({ navigation }) => {
     () => api.getTransactions(token, selectedTerminal.id),
     {
       enabled: !!token && !!selectedTerminal,
-      staleTime: 2 * 60 * 1000,
     }
   );
 
@@ -237,35 +220,56 @@ export const HomeScreen = ({ navigation }) => {
     setRefreshing(false);
   };
 
+  const headerHeight = scrollY.interpolate({
+    inputRange: [0, 100],
+    outputRange: [180, 120],
+    extrapolate: 'clamp',
+  });
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.dark} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <Animated.View style={[styles.header, { height: headerHeight, backgroundColor: isDark ? colors.surface : common.primary }]}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.headerTitle}>PayBot</Text>
+            <Text style={styles.headerSubtitle}>Pro Terminal</Text>
+          </View>
+          <TouchableOpacity style={styles.profileBtn}>
+             <MaterialIcons name="notifications-none" size={28} color="#fff" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.navButtonsRow}>
+           <NavButton icon="receipt-long" label="History" onPress={() => navigation.navigate('Transactions')} color="#F59E0B" />
+           <NavButton icon="account-balance-wallet" label="Wallet" onPress={() => navigation.navigate('Wallet')} color="#10B981" />
+           <NavButton icon="settings" label="Settings" onPress={() => navigation.navigate('Settings')} color="#6366F1" />
+           <NavButton icon="support-agent" label="Support" onPress={() => {}} color="#EC4899" />
+        </View>
+      </Animated.View>
 
       <ScrollView
         style={styles.content}
+        showsVerticalScrollIndicator={false}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: false })}
+        scrollEventThrottle={16}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={COLORS.primary}
+            tintColor={common.primary}
           />
         }
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>POS Terminal</Text>
-          <Text style={styles.headerSubtitle}>Accept payments on the go</Text>
-        </View>
-
-        {/* Terminals Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Your Terminals</Text>
-            {terminalsQuery.isLoading && <ActivityIndicator color={COLORS.primary} />}
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Active Terminals</Text>
+            <TouchableOpacity onPress={() => terminalsQuery.refetch()}>
+              <MaterialIcons name="refresh" size={20} color={common.primary} />
+            </TouchableOpacity>
           </View>
 
           {terminalsQuery.isLoading && !terminalsQuery.data ? (
-            <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
+            <ActivityIndicator size="large" color={common.primary} style={{ marginVertical: 20 }} />
           ) : terminalsQuery.data?.data?.length > 0 ? (
             <FlatList
               data={terminalsQuery.data.data}
@@ -277,57 +281,72 @@ export const HomeScreen = ({ navigation }) => {
                   isSelected={selectedTerminal?.id === item.id}
                 />
               )}
-              scrollEnabled={false}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.terminalsList}
             />
           ) : (
-            <View style={styles.emptyState}>
-              <MaterialIcons name="devices" size={48} color={COLORS.textSecondary} />
-              <Text style={styles.emptyStateText}>No terminals assigned yet</Text>
-              <Text style={styles.emptyStateSubtext}>Contact your admin to request a terminal</Text>
+            <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
+              <MaterialIcons name="devices" size={48} color={colors.textSecondary} />
+              <Text style={[styles.emptyStateText, { color: colors.text }]}>No terminals found</Text>
             </View>
           )}
         </View>
 
-        {/* Create Transaction */}
         {selectedTerminal && (
-          <TouchableOpacity
-            style={styles.createButton}
-            onPress={() =>
-              navigation.navigate('CreateTransaction', {
-                terminal: selectedTerminal,
-              })
-            }
-          >
-            <MaterialIcons name="add" size={24} color="#fff" />
-            <Text style={styles.createButtonText}>Create Payment Order</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Recent Transactions */}
-        {selectedTerminal && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Transactions</Text>
-              {transactionsQuery.isLoading && <ActivityIndicator color={COLORS.primary} />}
-            </View>
-
-            {transactionsQuery.isLoading && !transactionsQuery.data ? (
-              <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
-            ) : transactionsQuery.data?.data?.length > 0 ? (
-              <FlatList
-                data={transactionsQuery.data.data}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => <TransactionItem transaction={item} />}
-                scrollEnabled={false}
-              />
-            ) : (
-              <View style={styles.emptyState}>
-                <MaterialIcons name="receipt" size={48} color={COLORS.textSecondary} />
-                <Text style={styles.emptyStateText}>No transactions yet</Text>
+          <View style={styles.actionContainer}>
+            <TouchableOpacity
+              style={[styles.createButton, { backgroundColor: common.primary }]}
+              onPress={() =>
+                navigation.navigate('CreateTransaction', {
+                  terminal: selectedTerminal,
+                })
+              }
+              activeOpacity={0.8}
+            >
+              <View style={styles.createButtonIcon}>
+                 <MaterialIcons name="add-shopping-cart" size={26} color="#fff" />
               </View>
-            )}
+              <Text style={styles.createButtonText}>Create New Payment</Text>
+              <MaterialIcons name="chevron-right" size={24} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
           </View>
         )}
+
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Recent Orders</Text>
+            {selectedTerminal && (
+               <Text style={[styles.terminalIndicator, { color: colors.textSecondary }]}>
+                 {selectedTerminal.terminal_name}
+               </Text>
+            )}
+          </View>
+
+          {transactionsQuery.isLoading && !transactionsQuery.data ? (
+            <ActivityIndicator size="large" color={common.primary} style={{ marginVertical: 20 }} />
+          ) : transactionsQuery.data?.data?.length > 0 ? (
+            <View style={styles.transactionsList}>
+              {transactionsQuery.data.data.map((item) => (
+                <TransactionItem key={item.id} transaction={item} />
+              ))}
+              <TouchableOpacity
+                style={[styles.viewAllBtn, { backgroundColor: colors.surface, borderRadius: roundness.md }]}
+                onPress={() => navigation.navigate('Transactions')}
+                activeOpacity={0.6}
+              >
+                 <Text style={[styles.viewAllText, { color: common.primary }]}>View All Transactions</Text>
+                 <MaterialIcons name="arrow-forward" size={18} color={common.primary} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={[styles.emptyState, { backgroundColor: colors.surface }]}>
+              <MaterialIcons name="receipt" size={48} color={colors.textSecondary} />
+              <Text style={[styles.emptyStateText, { color: colors.text }]}>No transactions yet</Text>
+            </View>
+          )}
+        </View>
+        <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -336,142 +355,139 @@ export const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   content: {
     flex: 1,
-    paddingBottom: 20,
   },
   header: {
-    backgroundColor: COLORS.dark,
     padding: 24,
-    paddingTop: 10,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
+    paddingTop: 16,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+    marginBottom: 8,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '900',
     color: '#fff',
-    letterSpacing: -0.5,
+    letterSpacing: -1,
   },
   headerSubtitle: {
     fontSize: 14,
-    color: '#94A3B8',
-    marginTop: 4,
-    fontWeight: '500',
+    color: 'rgba(255, 255, 255, 0.8)',
+    fontWeight: '600',
+    marginTop: -2,
+  },
+  profileBtn: {
+     width: 44,
+     height: 44,
+     borderRadius: 22,
+     backgroundColor: 'rgba(255,255,255,0.2)',
+     alignItems: 'center',
+     justifyContent: 'center',
+  },
+  featuresScroll: {
+     marginTop: 10,
+  },
+  featureItem: {
+     alignItems: 'center',
+     marginRight: 24,
+  },
+  featureIcon: {
+     width: 50,
+     height: 50,
+     alignItems: 'center',
+     justifyContent: 'center',
+     marginBottom: 6,
+  },
+  featureTitle: {
+     fontSize: 11,
+     fontWeight: '800',
   },
   section: {
-    paddingHorizontal: 16,
-    marginTop: 20,
+    marginTop: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    paddingHorizontal: 24,
+    marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  terminalIndicator: {
+     fontSize: 12,
+     fontWeight: '600',
+  },
+  terminalsList: {
+    paddingLeft: 24,
+    paddingRight: 12,
   },
   terminalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    width: width * 0.7,
+    padding: 20,
+    marginRight: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-  },
-  terminalCardSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#F0F9FF',
-    borderWidth: 2,
+    height: 160,
+    justifyContent: 'space-between',
   },
   terminalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
   },
   terminalInfo: {
     flex: 1,
   },
   terminalName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '800',
   },
   terminalCode: {
     fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-    fontFamily: 'monospace',
+    marginTop: 2,
+    fontWeight: '500',
   },
   t0Badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
     paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+    marginTop: 10,
     alignSelf: 'flex-start',
   },
   t0Text: {
     fontSize: 10,
-    fontWeight: 'bold',
-    color: '#D97706',
-    marginLeft: 2,
-  },
-  terminalLocation: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginBottom: 12,
-  },
-  methodsContainer: {
-    marginTop: 8,
-  },
-  methodsLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: 8,
+    fontWeight: '900',
+    color: '#92400E',
+    marginLeft: 4,
   },
   methodsList: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: 8,
   },
   methodBadge: {
-    backgroundColor: COLORS.light,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   methodText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.primary,
+    fontSize: 10,
+    fontWeight: '800',
   },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 11,
+  moreText: {
+    fontSize: 12,
     fontWeight: '600',
   },
   selectionIndicator: {
@@ -479,70 +495,83 @@ const styles = StyleSheet.create({
     top: 12,
     right: 12,
   },
+  actionContainer: {
+     paddingHorizontal: 24,
+     marginTop: 24,
+  },
   createButton: {
     flexDirection: 'row',
-    backgroundColor: COLORS.primary,
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    paddingVertical: 18,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
   },
   createButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    fontSize: 17,
+    fontWeight: '800',
+    marginLeft: 12,
+  },
+  transactionsList: {
+    paddingHorizontal: 24,
+    gap: 12,
+    paddingBottom: 24,
   },
   transactionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.light,
-    marginBottom: 10,
-    borderRadius: 10,
+    padding: 12,
   },
-  transactionLeft: {
+  transactionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
   transactionInfo: {
     flex: 1,
   },
   transactionDesc: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
   },
   transactionDate: {
     fontSize: 12,
-    color: COLORS.textSecondary,
     marginTop: 2,
+    fontWeight: '500',
   },
   transactionRight: {
     alignItems: 'flex-end',
   },
   transactionAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginBottom: 4,
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '800',
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 32,
+    padding: 32,
+    marginHorizontal: 24,
+    borderRadius: 20,
   },
   emptyStateText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: COLORS.text,
     marginTop: 12,
-  },
-  emptyStateSubtext: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginTop: 4,
   },
 });

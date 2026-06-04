@@ -9,22 +9,14 @@ import {
   ScrollView,
   ActivityIndicator,
   RefreshControl,
+  ImageBackground,
 } from 'react-native';
 import { useQuery, useMutation } from 'react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { API_URL } from '../config';
-
-const COLORS = {
-  primary: '#0EA5E9',
-  secondary: '#10B981',
-  danger: '#EF4444',
-  text: '#0F172A',
-  textSecondary: '#64748B',
-  border: '#E2E8F0',
-  light: '#F8FAFC',
-};
+import { useTheme } from '../theme';
 
 const api = {
   getBalance: async (token) => {
@@ -52,6 +44,7 @@ const api = {
 };
 
 export const WalletScreen = () => {
+  const { colors, common, shadows, roundness } = useTheme();
   const [token, setToken] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [bankName, setBankName] = useState('');
@@ -110,82 +103,107 @@ export const WalletScreen = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={balanceQuery.isLoading}
             onRefresh={() => balanceQuery.refetch()}
-            tintColor={COLORS.primary}
+            tintColor={common.primary}
           />
         }
       >
         <View style={styles.header}>
-          <Text style={styles.title}>My Wallet</Text>
+          <Text style={[styles.title, { color: colors.text }]}>My Wallet</Text>
         </View>
 
-        <View style={styles.balanceCard}>
-          <Text style={styles.balanceLabel}>Available Balance</Text>
+        <View style={[styles.balanceCard, { ...shadows.md }]}>
+           <View style={styles.cardHeader}>
+              <Text style={styles.balanceLabel}>Total Balance</Text>
+              <MaterialIcons name="contactless" size={24} color="rgba(255,255,255,0.6)" />
+           </View>
           <Text style={styles.balanceAmount}>
             ₱{balanceQuery.data?.balance?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}
           </Text>
+          <View style={styles.cardFooter}>
+             <Text style={styles.cardNumber}>**** **** **** 8888</Text>
+             <Text style={styles.cardHolder}>PAYBOT PREMIUM</Text>
+          </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Withdraw Funds</Text>
+        <View style={styles.quickActions}>
+           <TouchableOpacity style={styles.actionBtn}>
+              <View style={[styles.actionIcon, { backgroundColor: '#E0F2FE' }]}>
+                 <MaterialIcons name="add" size={28} color={common.primary} />
+              </View>
+              <Text style={[styles.actionText, { color: colors.text }]}>Top Up</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.actionBtn} onPress={() => {}}>
+              <View style={[styles.actionIcon, { backgroundColor: '#DCFCE7' }]}>
+                 <MaterialIcons name="send" size={26} color={common.success} />
+              </View>
+              <Text style={[styles.actionText, { color: colors.text }]}>Transfer</Text>
+           </TouchableOpacity>
+           <TouchableOpacity style={styles.actionBtn}>
+              <View style={[styles.actionIcon, { backgroundColor: '#FEE2E2' }]}>
+                 <MaterialIcons name="qr-code-scanner" size={26} color={common.danger} />
+              </View>
+              <Text style={[styles.actionText, { color: colors.text }]}>Scan QR</Text>
+           </TouchableOpacity>
+        </View>
+
+        <View style={[styles.section, { backgroundColor: colors.card, borderTopLeftRadius: 30, borderTopRightRadius: 30, marginTop: 20, paddingTop: 30 }]}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Withdraw Funds</Text>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Amount (PHP)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="0.00"
-              keyboardType="numeric"
-              value={amount}
-              onChangeText={setAmount}
-            />
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Amount (PHP)</Text>
+            <View style={[styles.inputWrapper, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+               <Text style={[styles.currencyPrefix, { color: colors.textSecondary }]}>₱</Text>
+                <TextInput
+                  style={[styles.input, { color: colors.text }]}
+                  placeholder="0.00"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="numeric"
+                  value={amount}
+                  onChangeText={setAmount}
+                />
+            </View>
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Bank Name / E-Wallet</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Destination Bank / E-Wallet</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               placeholder="e.g. GCash, Maya, BDO"
+              placeholderTextColor={colors.textSecondary}
               value={bankName}
               onChangeText={setBankName}
             />
           </View>
 
           <View style={styles.inputContainer}>
-            <Text style={styles.label}>Account Number</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Account Number</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
               placeholder="Enter account number"
+              placeholderTextColor={colors.textSecondary}
               keyboardType="numeric"
               value={accountNumber}
               onChangeText={setAccountNumber}
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Note (Optional)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Add a note"
-              value={note}
-              onChangeText={setNote}
-            />
-          </View>
-
           <TouchableOpacity
-            style={styles.withdrawButton}
+            style={[styles.withdrawButton, { backgroundColor: common.primary }]}
             onPress={handleWithdraw}
             disabled={withdrawMutation.isLoading}
           >
             {withdrawMutation.isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.withdrawButtonText}>Request Withdrawal</Text>
+              <Text style={styles.withdrawButtonText}>Confirm Withdrawal</Text>
             )}
           </TouchableOpacity>
         </View>
@@ -197,7 +215,6 @@ export const WalletScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
   scrollContent: {
     paddingBottom: 40,
@@ -207,68 +224,122 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: COLORS.text,
+    fontWeight: '800',
   },
   balanceCard: {
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#0EA5E9',
     margin: 20,
     padding: 24,
-    borderRadius: 20,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    borderRadius: 24,
+    height: 200,
+    justifyContent: 'space-between',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   balanceLabel: {
     color: 'rgba(255, 255, 255, 0.8)',
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: '600',
   },
   balanceAmount: {
     color: '#fff',
-    fontSize: 36,
+    fontSize: 38,
     fontWeight: '800',
-    marginTop: 8,
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  cardNumber: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 14,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  cardHolder: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  quickActions: {
+     flexDirection: 'row',
+     justifyContent: 'space-around',
+     paddingHorizontal: 20,
+     marginTop: 10,
+  },
+  actionBtn: {
+     alignItems: 'center',
+  },
+  actionIcon: {
+     width: 56,
+     height: 56,
+     borderRadius: 16,
+     alignItems: 'center',
+     justifyContent: 'center',
+     marginBottom: 8,
+  },
+  actionText: {
+     fontSize: 12,
+     fontWeight: '600',
   },
   section: {
-    padding: 20,
+    padding: 24,
+    flex: 1,
   },
   sectionTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text,
-    marginBottom: 20,
+    fontWeight: '800',
+    marginBottom: 24,
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: 8,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inputWrapper: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     borderWidth: 1,
+     borderRadius: 16,
+     paddingHorizontal: 16,
+  },
+  currencyPrefix: {
+     fontSize: 18,
+     fontWeight: '700',
+     marginRight: 8,
   },
   input: {
-    backgroundColor: COLORS.light,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    padding: 12,
+    flex: 1,
+    height: 54,
     fontSize: 16,
-    color: COLORS.text,
+    fontWeight: '600',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
   },
   withdrawButton: {
-    backgroundColor: COLORS.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 18,
     alignItems: 'center',
-    marginTop: 12,
+    marginTop: 20,
+    shadowColor: '#0EA5E9',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
   },
   withdrawButtonText: {
     color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: 17,
+    fontWeight: '800',
   },
 });

@@ -13,6 +13,7 @@ import {
   TouchableWithoutFeedback,
   Modal,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useMutation } from 'react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,31 +22,22 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
 import { WebView } from 'react-native-webview';
 import QRCode from 'react-native-qrcode-svg';
+import { useTheme } from '../theme';
+import { API_URL } from '../config';
 
-const { width } = Dimensions.get('window');
-
-const COLORS = {
-  primary: '#0EA5E9',
-  secondary: '#10B981',
-  danger: '#EF4444',
-  dark: '#0F172A',
-  light: '#F8FAFC',
-  text: '#0F172A',
-  textSecondary: '#64748B',
-  border: '#E2E8F0',
-};
+const { width, height } = Dimensions.get('window');
 
 const PAYMENT_METHODS = [
-  { id: 'card', label: 'Tap to Phone', icon: 'contactless' },
-  { id: 'maya', label: 'Maya QR', icon: 'qr-code-2' },
-  { id: 'gcash', label: 'GCash', icon: 'account-balance-wallet' },
-  { id: 'grabpay', label: 'GrabPay', icon: 'shopping-bag' },
+  { id: 'card', label: 'Tap to Phone', icon: 'contactless', color: '#0EA5E9' },
+  { id: 'maya', label: 'Maya QR', icon: 'qr-code-2', color: '#10B981' },
+  { id: 'gcash', label: 'GCash', icon: 'account-balance-wallet', color: '#1E40AF' },
+  { id: 'grabpay', label: 'GrabPay', icon: 'shopping-bag', color: '#059669' },
 ];
 
 const api = {
   createTransaction: async (token, terminalId, data) => {
     const response = await fetch(
-      `https://mayaproduction.up.railway.app/api/v1/pos-terminals/${terminalId}/transactions`,
+      `${API_URL}/pos-terminals/${terminalId}/transactions`,
       {
         method: 'POST',
         headers: {
@@ -65,6 +57,7 @@ const api = {
 
 export const CreateTransactionScreen = ({ route, navigation }) => {
   const { terminal } = route.params;
+  const { colors, common, roundness, shadows, isDark } = useTheme();
   const [token, setToken] = useState(null);
   const [selectedMethod, setSelectedMethod] = useState('card');
   const [showWebView, setShowWebView] = useState(false);
@@ -79,9 +72,6 @@ export const CreateTransactionScreen = ({ route, navigation }) => {
       description: '',
       amount: '',
       payment_method: 'card',
-      customer_name: '',
-      customer_email: '',
-      customer_phone: '',
     },
   });
 
@@ -103,29 +93,17 @@ export const CreateTransactionScreen = ({ route, navigation }) => {
           setOrderId(data.order_id);
           if (selectedMethod === 'card') {
             setIsNfcActive(true);
-            // In a real implementation, you would start NFC reading here.
-            // For now, we simulate a successful tap after 3 seconds.
+            // Simulation
             setTimeout(() => {
-              // Simulate successful tap -> redirect to checkout if needed or poll status
-              // For Maya Business Card API, it usually returns a checkout URL if 3DS is required.
               if (data.checkout_url) {
                 setCheckoutUrl(data.checkout_url);
                 setShowWebView(true);
               } else {
-                Toast.show({
-                  type: 'success',
-                  text1: 'Card Tapped!',
-                  text2: 'Authorizing payment...',
-                });
+                Toast.show({ type: 'success', text1: 'Card Detected' });
               }
-            }, 3000);
+            }, 2500);
           } else if (data.qr_content) {
             setQrContent(data.qr_content);
-            Toast.show({
-              type: 'success',
-              text1: 'QR Code Generated',
-              text2: 'Customer can now scan to pay.',
-            });
           } else if (data.checkout_url) {
             setCheckoutUrl(data.checkout_url);
             setShowWebView(true);
@@ -136,234 +114,133 @@ export const CreateTransactionScreen = ({ route, navigation }) => {
         Toast.show({
           type: 'error',
           text1: 'Error',
-          text2: error.message || 'Failed to create transaction',
+          text2: error.message,
         });
       },
     }
   );
 
-  // Poll for payment status
-  useEffect(() => {
-    let interval;
-    if (orderId && paymentStatus === 'pending') {
-      interval = setInterval(async () => {
-        try {
-          const response = await fetch(
-            `https://mayaproduction.up.railway.app/api/v1/pos-terminals/transactions/${orderId}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json',
-              },
-            }
-          );
-          if (response.ok) {
-            const result = await response.json();
-            const status = result.data?.transaction?.status;
-            if (status === 'completed') {
-              setPaymentStatus('completed');
-              setIsNfcActive(false);
-              clearInterval(interval);
-              Toast.show({
-                type: 'success',
-                text1: 'Payment Received!',
-                text2: 'Transaction completed successfully.',
-              });
-            } else if (status === 'failed' || status === 'cancelled') {
-              setPaymentStatus(status);
-              setIsNfcActive(false);
-              clearInterval(interval);
-            }
-          }
-        } catch (e) {
-          console.error('Polling error', e);
-        }
-      }, 3000);
-    }
-    return () => clearInterval(interval);
-  }, [orderId, paymentStatus, token]);
-
   const onSubmit = (data) => {
     Keyboard.dismiss();
     if (!data.amount || parseFloat(data.amount) <= 0) {
-      Toast.show({
-        type: 'error',
-        text1: 'Invalid amount',
-        text2: 'Please enter an amount greater than 0',
-      });
+      Toast.show({ type: 'error', text1: 'Enter valid amount' });
       return;
     }
 
     createMutation.mutate({
-      description: data.description || 'POS Transaction',
-      amount: parseFloat(data.amount) * 100, // API expects cents
+      description: data.description || 'Order from ' + terminal.terminal_name,
+      amount: parseFloat(data.amount) * 100,
       payment_method: selectedMethod,
-      customer_name: data.customer_name || '',
-      customer_email: data.customer_email || '',
-      customer_phone: data.customer_phone || '',
     });
   };
 
   if (isNfcActive) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
         <View style={styles.nfcContainer}>
-          <MaterialIcons name="contactless" size={120} color={COLORS.primary} />
-          <Text style={styles.nfcTitle}>Ready to Tap</Text>
-          <Text style={styles.nfcSubtitle}>Hold card near the back of the phone</Text>
-          <Text style={styles.nfcAmount}>₱{parseFloat(amount || 0).toFixed(2)}</Text>
-
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setIsNfcActive(false)}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (showWebView && checkoutUrl) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.checkoutHeader}>
-          <TouchableOpacity
-            onPress={() => {
-              setShowWebView(false);
-              setCheckoutUrl(null);
-            }}
-          >
-            <MaterialIcons name="arrow-back" size={24} color={COLORS.text} />
-          </TouchableOpacity>
-          <Text style={styles.checkoutHeaderTitle}>Complete Payment</Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        <WebView
-          source={{ uri: checkoutUrl }}
-          style={{ flex: 1 }}
-          onNavigationStateChange={(navState) => {
-            if (navState.url.includes('/success') || navState.url.includes('/completed')) {
-              Toast.show({ type: 'success', text1: 'Payment successful!' });
-              setTimeout(() => navigation.goBack(), 2000);
-            }
-          }}
-        />
-      </SafeAreaView>
-    );
-  }
-
-  if (qrContent) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.checkoutHeader}>
-          <TouchableOpacity onPress={() => { setQrContent(null); setOrderId(null); setPaymentStatus('pending'); }}>
-            <MaterialIcons name="close" size={24} color={COLORS.text} />
-          </TouchableOpacity>
-          <Text style={styles.checkoutHeaderTitle}>QR Payment</Text>
-          <View style={{ width: 24 }} />
-        </View>
-
-        <View style={styles.qrContainer}>
-          <Text style={styles.qrTitle}>₱{parseFloat(amount || 0).toFixed(2)}</Text>
-          <Text style={styles.qrSubtitle}>{watch('description') || 'Payment Order'}</Text>
-
-          <View style={styles.qrCodeBox}>
-            {paymentStatus === 'completed' ? (
-              <View style={styles.successBox}>
-                <MaterialIcons name="check-circle" size={120} color={COLORS.secondary} />
-                <Text style={styles.successText}>SUCCESS</Text>
-              </View>
-            ) : (
-              <QRCode value={qrContent} size={width * 0.7} color="black" backgroundColor="white" />
-            )}
+          <View style={[styles.nfcRing, { borderColor: common.primary }]}>
+             <MaterialIcons name="contactless" size={100} color={common.primary} />
+          </View>
+          <Text style={[styles.nfcTitle, { color: colors.text }]}>Ready to Tap</Text>
+          <Text style={[styles.nfcSubtitle, { color: colors.textSecondary }]}>Hold customer card near the back</Text>
+          <View style={styles.nfcAmountBox}>
+             <Text style={[styles.nfcAmount, { color: common.primary }]}>₱{parseFloat(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
           </View>
 
-          {paymentStatus === 'pending' && (
-            <View style={styles.waitingBox}>
-              <ActivityIndicator color={COLORS.primary} style={{ marginRight: 10 }} />
-              <Text style={styles.waitingText}>Waiting for payment...</Text>
-            </View>
-          )}
-
-          {paymentStatus === 'completed' && (
-            <TouchableOpacity style={styles.doneButton} onPress={() => navigation.goBack()}>
-              <Text style={styles.doneButtonText}>Done</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={[styles.cancelButton, { backgroundColor: colors.surface }]}
+            onPress={() => setIsNfcActive(false)}
+          >
+            <Text style={[styles.cancelButtonText, { color: common.danger }]}>Cancel Transaction</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back" size={24} color={COLORS.text} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={[styles.header, { borderBottomColor: colors.border }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <MaterialIcons name="close" size={24} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Payment</Text>
-        <View style={{ width: 24 }} />
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Payment Terminal</Text>
+        <View style={{ width: 44 }} />
       </View>
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+          <View style={[styles.terminalLabel, { backgroundColor: colors.surface }]}>
+             <MaterialIcons name="point-of-sale" size={16} color={common.primary} />
+             <Text style={[styles.terminalLabelText, { color: colors.textSecondary }]}>{terminal.terminal_name}</Text>
+          </View>
+
           <View style={styles.section}>
-            <Text style={styles.label}>Amount (PHP) *</Text>
             <Controller
               control={control}
               name="amount"
               render={({ field: { onChange, value } }) => (
-                <View style={styles.amountInputContainer}>
-                  <Text style={styles.currencySymbol}>₱</Text>
-                  <TextInput
-                    style={styles.amountInput}
-                    placeholder="0.00"
-                    keyboardType="decimal-pad"
-                    value={value}
-                    onChangeText={onChange}
-                    placeholderTextColor="#94A3B8"
-                    autoFocus
-                  />
+                <View style={styles.amountContainer}>
+                  <Text style={[styles.amountLabel, { color: colors.textSecondary }]}>Amount to Charge</Text>
+                  <View style={styles.amountRow}>
+                    <Text style={[styles.amountCurrency, { color: common.primary }]}>₱</Text>
+                    <TextInput
+                      style={[styles.amountInput, { color: colors.text }]}
+                      placeholder="0.00"
+                      keyboardType="decimal-pad"
+                      value={value}
+                      onChangeText={onChange}
+                      placeholderTextColor={colors.textSecondary}
+                      autoFocus
+                    />
+                  </View>
                 </View>
               )}
             />
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Description</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Order Note</Text>
             <Controller
               control={control}
               name="description"
               render={({ field: { onChange, value } }) => (
                 <TextInput
-                  style={styles.input}
-                  placeholder="Order Description"
+                  style={[styles.input, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+                  placeholder="What is this for?"
                   value={value}
                   onChangeText={onChange}
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={colors.textSecondary}
                 />
               )}
             />
           </View>
 
           <View style={styles.section}>
-            <Text style={styles.label}>Select Payment Method</Text>
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Select Method</Text>
             <View style={styles.methodsGrid}>
               {PAYMENT_METHODS.filter(m => terminal.enabled_payment_methods.includes(m.id)).map((method) => (
                 <TouchableOpacity
                   key={method.id}
-                  style={[styles.methodButton, selectedMethod === method.id && styles.methodButtonActive]}
+                  style={[
+                    styles.methodButton,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: selectedMethod === method.id ? common.primary : colors.border,
+                      borderRadius: roundness.lg
+                    },
+                    selectedMethod === method.id && { backgroundColor: isDark ? '#1E293B' : '#F0F9FF', borderWidth: 2 }
+                  ]}
                   onPress={() => setSelectedMethod(method.id)}
                 >
-                  <MaterialIcons
-                    name={method.icon}
-                    size={32}
-                    color={selectedMethod === method.id ? COLORS.primary : '#94A3B8'}
-                  />
-                  <Text style={[styles.methodLabel, selectedMethod === method.id && styles.methodLabelActive]}>
+                  <View style={[styles.methodIconBox, { backgroundColor: method.color + '20' }]}>
+                    <MaterialIcons
+                      name={method.icon}
+                      size={28}
+                      color={selectedMethod === method.id ? common.primary : method.color}
+                    />
+                  </View>
+                  <Text style={[styles.methodLabel, { color: selectedMethod === method.id ? common.primary : colors.text }]}>
                     {method.label}
                   </Text>
                 </TouchableOpacity>
@@ -372,7 +249,7 @@ export const CreateTransactionScreen = ({ route, navigation }) => {
           </View>
 
           <TouchableOpacity
-            style={[styles.submitButton, createMutation.isLoading && styles.submitButtonDisabled]}
+            style={[styles.submitButton, { backgroundColor: common.primary }, createMutation.isLoading && { opacity: 0.7 }]}
             onPress={handleSubmit(onSubmit)}
             disabled={createMutation.isLoading}
           >
@@ -380,8 +257,8 @@ export const CreateTransactionScreen = ({ route, navigation }) => {
               <ActivityIndicator color="#fff" />
             ) : (
               <>
-                <MaterialIcons name="bolt" size={24} color="#fff" />
-                <Text style={styles.submitButtonText}>Process Payment</Text>
+                <Text style={styles.submitButtonText}>Charge ₱{parseFloat(amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                <MaterialIcons name="arrow-forward" size={20} color="#fff" />
               </>
             )}
           </TouchableOpacity>
@@ -390,6 +267,123 @@ export const CreateTransactionScreen = ({ route, navigation }) => {
     </SafeAreaView>
   );
 };
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  backBtn: {
+     padding: 10,
+  },
+  headerTitle: { fontSize: 18, fontWeight: '800' },
+  content: { flex: 1, padding: 24 },
+  terminalLabel: {
+     flexDirection: 'row',
+     alignItems: 'center',
+     alignSelf: 'center',
+     paddingHorizontal: 12,
+     paddingVertical: 6,
+     borderRadius: 12,
+     marginBottom: 32,
+  },
+  terminalLabelText: {
+     fontSize: 12,
+     fontWeight: '700',
+     marginLeft: 6,
+  },
+  section: { marginBottom: 32 },
+  amountContainer: {
+     alignItems: 'center',
+  },
+  amountLabel: {
+     fontSize: 13,
+     fontWeight: '700',
+     textTransform: 'uppercase',
+     marginBottom: 8,
+  },
+  amountRow: {
+     flexDirection: 'row',
+     alignItems: 'center',
+  },
+  amountCurrency: {
+     fontSize: 32,
+     fontWeight: '800',
+     marginRight: 8,
+  },
+  amountInput: {
+     fontSize: 56,
+     fontWeight: '900',
+     minWidth: 150,
+     textAlign: 'center',
+  },
+  label: { fontSize: 13, fontWeight: '800', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  input: {
+    borderRadius: 16,
+    padding: 18,
+    fontSize: 16,
+    fontWeight: '600',
+    borderWidth: 1,
+  },
+  methodsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  methodButton: {
+    flex: 1,
+    minWidth: '45%',
+    padding: 20,
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  methodIconBox: {
+     width: 50,
+     height: 50,
+     borderRadius: 15,
+     alignItems: 'center',
+     justifyContent: 'center',
+     marginBottom: 12,
+  },
+  methodLabel: { fontSize: 13, fontWeight: '800' },
+  submitButton: {
+    borderRadius: 24,
+    padding: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 10,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+  },
+  submitButtonText: { color: '#fff', fontSize: 18, fontWeight: '800', marginRight: 10 },
+  nfcContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 },
+  nfcRing: {
+     width: 200,
+     height: 200,
+     borderRadius: 100,
+     borderWidth: 4,
+     borderStyle: 'dashed',
+     alignItems: 'center',
+     justifyContent: 'center',
+     marginBottom: 40,
+  },
+  nfcTitle: { fontSize: 28, fontWeight: '900', marginTop: 0 },
+  nfcSubtitle: { fontSize: 16, fontWeight: '500', textAlign: 'center', marginTop: 12 },
+  nfcAmountBox: {
+     backgroundColor: 'rgba(14, 165, 233, 0.1)',
+     paddingHorizontal: 24,
+     paddingVertical: 12,
+     borderRadius: 20,
+     marginTop: 40,
+  },
+  nfcAmount: { fontSize: 32, fontWeight: '900' },
+  cancelButton: { marginTop: 60, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 16 },
+  cancelButtonText: { fontWeight: '800', fontSize: 15 },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#fff' },
