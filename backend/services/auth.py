@@ -131,8 +131,8 @@ async def initialize_admin_user():
         return
 
     async with db_manager.async_session_maker() as db:
-        # Check if admin user already exists
-        result = await db.execute(select(User).where(User.email == admin_user_email))
+        # Check if admin user already exists using the stable ID
+        result = await db.execute(select(User).where(User.id == admin_user_id))
         user = result.scalar_one_or_none()
 
         # Handle AdminUser (permissions) logic
@@ -189,8 +189,8 @@ async def initialize_admin_user():
 
         # --- AUTO-CREATE TEST TERMINAL FOR ADMIN ---
         from models.pos_terminal import POSTerminal, TerminalStatus
-        res_term = await db.execute(select(POSTerminal).where(POSTerminal.user_id == admin_user_id))
-        if not res_term.scalar_one_or_none():
+        res_term = await db.execute(select(POSTerminal).where(POSTerminal.user_id == admin_user_id).limit(1))
+        if not res_term.scalars().first():
             test_terminal = POSTerminal(
                 terminal_code="TERM-ADMIN-TEST",
                 terminal_name="Admin Test Terminal",
@@ -251,8 +251,8 @@ async def initialize_demo_users():
             uid = demo["id"]
             try:
                 # Upsert User record
-                result = await db.execute(select(User).where(User.id == uid))
-                user = result.scalar_one_or_none()
+                result = await db.execute(select(User).where(User.id == uid).limit(1))
+                user = result.scalars().first()
                 if not user:
                     db.add(User(id=uid, email=demo["email"], name=demo["name"], role="admin"))
                     await db.flush()
@@ -260,9 +260,9 @@ async def initialize_demo_users():
                 # Upsert AdminUser record
                 from models.admin_users import AdminUser
                 res = await db.execute(
-                    select(AdminUser).where(AdminUser.telegram_id == uid)
+                    select(AdminUser).where(AdminUser.telegram_id == uid).limit(1)
                 )
-                admin = res.scalar_one_or_none()
+                admin = res.scalars().first()
                 if not admin:
                     admin = AdminUser(
                         telegram_id=uid,

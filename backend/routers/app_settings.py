@@ -53,14 +53,14 @@ class UsdtTrc20AddressUpdateRequest(BaseModel):
 
 
 async def _get_setting(db: AsyncSession, key: str) -> str | None:
-    result = await db.execute(select(AppSettings).where(AppSettings.key == key))
-    row = result.scalar_one_or_none()
+    result = await db.execute(select(AppSettings).where(AppSettings.key == key).limit(1))
+    row = result.scalars().first()
     return row.value if row else None
 
 
 async def _set_setting(db: AsyncSession, key: str, value: str) -> None:
-    result = await db.execute(select(AppSettings).where(AppSettings.key == key))
-    row = result.scalar_one_or_none()
+    result = await db.execute(select(AppSettings).where(AppSettings.key == key).limit(1))
+    row = result.scalars().first()
     now = datetime.now()
     if row:
         row.value = value

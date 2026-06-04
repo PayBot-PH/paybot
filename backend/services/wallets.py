@@ -165,9 +165,9 @@ class WalletsService:
             if not hasattr(Wallets, field_name):
                 raise ValueError(f"Field {field_name} does not exist on Wallets")
             result = await self.db.execute(
-                select(Wallets).where(getattr(Wallets, field_name) == field_value)
+                select(Wallets).where(getattr(Wallets, field_name) == field_value).limit(1)
             )
-            return result.scalar_one_or_none()
+            return result.scalars().first()
         except Exception as e:
             logger.error(f"Error fetching wallets by {field_name}: {str(e)}")
             raise
@@ -176,9 +176,9 @@ class WalletsService:
         """Get user's wallet for a given currency, or create one with 0 balance."""
         try:
             result = await self.db.execute(
-                select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == currency)
+                select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == currency).limit(1)
             )
-            wallet = result.scalar_one_or_none()
+            wallet = result.scalars().first()
             if not wallet:
                 now = datetime.now()
                 wallet = Wallets(
