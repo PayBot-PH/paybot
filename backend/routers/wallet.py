@@ -1,28 +1,25 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Any
-from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import and_, select, func, case, update
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
-from models.admin_users import AdminUser
+from models.disbursements import Disbursements
+from models.crypto_topup import CryptoTopupRequest
 from schemas.auth import UserResponse
 from dependencies.auth import get_current_user
+from services.wallets import WalletsService
 from services.paymongo_service import PayMongoService
-from services.telegram_service import t
+from services.telegram_service import t, TelegramService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/wallet", tags=["wallet"])
-
-# Credit/debit type categories for USD balance computation
-_USD_CREDIT_TYPES = ("crypto_topup", "usd_receive", "admin_credit")
-_USD_DEBIT_TYPES = ("usdt_send", "usd_send", "admin_debit")
 
 
 # ---------- Schemas ----------
@@ -32,7 +29,7 @@ class WalletBalanceResponse(BaseModel):
     currency: str
 
 class WalletListResponse(BaseModel):
-    wallets: List["WalletBalanceResponse"]
+    wallets: List[Dict[str, Any]]
 
 class CreateWalletRequest(BaseModel):
     currency: str = "USD"
@@ -67,13 +64,6 @@ class UsdtSendRequestOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-class UsdtSendRequestListResponse(BaseModel):
-    items: List[UsdtSendRequestOut]
-    total: int
-
-class UsdtSendDenyRequest(BaseModel):
-    reason: str
-
 class WalletTxnResponse(BaseModel):
     id: int
     transaction_type: str
@@ -98,191 +88,37 @@ class WalletActionResponse(BaseModel):
     balance: float = 0
     transaction_id: int = 0
 
+class AdminPhpWalletEntry(BaseModel):
+    user_id: str
+    telegram_username: Optional[str] = None
+    balance: float
+    wallet_id: int
+    model_config = ConfigDict(from_attributes=True)
 
-class SendUsdToUserRequest(BaseModel):
-    recipient_username: str
-    amount: float
-    note: str = ""
-
+class AdminPhpWalletListResponse(BaseModel):
+    items: List[AdminPhpWalletEntry]
+    total: int
 
 class AdminUsdWalletEntry(BaseModel):
     user_id: str
     telegram_username: Optional[str] = None
     balance: float
     wallet_id: int
-
     model_config = ConfigDict(from_attributes=True)
-
 
 class AdminUsdWalletListResponse(BaseModel):
     items: List[AdminUsdWalletEntry]
     total: int
 
-
-class AdminPhpWalletEntry(BaseModel):
-    user_id: str
-    telegram_username: Optional[str] = None
-    balance: float
-    wallet_id: int
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class AdminPhpWalletListResponse(BaseModel):
-    items: List[AdminPhpWalletEntry]
-    total: int
-
-
 class AdminWalletAdjustRequest(BaseModel):
     amount: float
     note: str = ""
-
 
 class WalletTransferRequest(BaseModel):
     recipient_user_id: str
     amount: float
     currency: str = "PHP"
     note: str = ""
-
-
-# ---------- Helpers ----------
-def _tg_user_id(user_id: str) -> str:
-    """Return the Telegram-prefixed user_id used by the bot for wallet storage."""
-    return f"tg-{user_id}"
-
-
-async def _get_php_balance(db: AsyncSession, tg_user_id: str) -> float:
-    """Return the user's stored PHP wallet balance from the database."""
-    try:
-        row = await db.execute(
-            select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP")
-        )
-        wallet = row.scalar_one_or_none()
-        if wallet:
-            return float(wallet.balance)
-    except Exception as e:
-        logger.warning("PHP wallet balance lookup failed: %s", e)
-    return 0.0
-
-
-async def get_or_create_wallet(db: AsyncSession, user_id: str, currency: str = "PHP") -> Wallets:
-    """Get user's wallet for a given currency, or create one with 0 balance.
-
-    PHP wallets are normalized to plain Telegram user IDs so bot and web
-    workflows share the same wallet row. Legacy "tg-" prefixes are migrated
-    to the normalized ID when found.
-    """
-    currency_upper = currency.upper()
-    normalized_user_id = user_id.strip()
-    if currency_upper == "PHP" and normalized_user_id.startswith("tg-"):
-        normalized_user_id = normalized_user_id[3:]
-
-    result = await db.execute(
-        select(Wallets).where(Wallets.user_id == normalized_user_id, Wallets.currency == currency_upper)
-    )
-    wallet = result.scalar_one_or_none()
-
-    if not wallet and currency_upper == "PHP":
-        legacy_user_id = _tg_user_id(normalized_user_id)
-        result = await db.execute(
-            select(Wallets).where(Wallets.user_id == legacy_user_id, Wallets.currency == "PHP")
-        )
-        wallet = result.scalar_one_or_none()
-        if wallet:
-            wallet.user_id = normalized_user_id
-            wallet.updated_at = datetime.now()
-            await db.execute(
-                update(Wallet_transactions)
-                .where(
-                    Wallet_transactions.wallet_id == wallet.id,
-                    Wallet_transactions.user_id == legacy_user_id,
-                )
-                .values(user_id=normalized_user_id)
-            )
-            await db.commit()
-            await db.refresh(wallet)
-            return wallet
-
-    if not wallet:
-        now = datetime.now()
-        wallet = Wallets(
-            user_id=normalized_user_id,
-            balance=0.0,
-            currency=currency_upper,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(wallet)
-        await db.commit()
-        await db.refresh(wallet)
-    return wallet
-
-
-async def _compute_usd_balance(db: AsyncSession, user_id: str) -> float:
-    """Compute USD wallet balance from completed wallet_transactions (credits minus debits).
-
-    Filters by user_id (not wallet_id) so the balance survives wallet row
-    recreation after redeployment — even if the wallet.id changes, the
-    transaction history is still found via the stable user_id.
-
-    Uses a single query with conditional aggregation instead of two separate
-    queries to halve the number of database round-trips.
-    """
-    row = await db.execute(
-        select(
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Wallet_transactions.transaction_type.in_(_USD_CREDIT_TYPES),
-                         Wallet_transactions.amount),
-                        else_=0.0,
-                    )
-                ),
-                0.0,
-            ).label("credits"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (Wallet_transactions.transaction_type.in_(_USD_DEBIT_TYPES),
-                         Wallet_transactions.amount),
-                        else_=0.0,
-                    )
-                ),
-                0.0,
-            ).label("debits"),
-        ).where(
-            Wallet_transactions.user_id == user_id,
-            Wallet_transactions.status == "completed",
-        )
-    )
-    result = row.one()
-    credits = float(result.credits or 0.0)
-    debits = float(result.debits or 0.0)
-    return max(0.0, credits - debits)
-
-
-async def _get_admin_username(db: AsyncSession, wallet_user_id: str) -> Optional[str]:
-    tg_id = wallet_user_id[3:] if wallet_user_id.startswith("tg-") else wallet_user_id
-    result = await db.execute(select(AdminUser).where(AdminUser.telegram_id == tg_id))
-    admin = result.scalar_one_or_none()
-    return admin.telegram_username if admin else None
-
-
-def publish_wallet_event(user_id: str, wallet: Wallets, transaction_type: str, amount: float, txn_id: int, note: str = "", skip_bot_notify: bool = False):
-    """Publish a wallet event to the event bus for real-time updates"""
-    from services.event_bus import event_bus
-    event_bus.publish({
-        "event_type": "wallet_update",
-        "user_id": user_id,
-        "wallet_id": wallet.id,
-        "balance": wallet.balance,
-        "currency": wallet.currency or "PHP",
-        "transaction_type": transaction_type,
-        "amount": amount,
-        "transaction_id": txn_id,
-        "note": note,
-        "skip_bot_notify": skip_bot_notify,
-    })
 
 
 # ---------- Endpoints ----------
@@ -293,72 +129,35 @@ async def get_balance(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get live gateway balance for super admins, or internal wallet balance for others.
-
-    As requested:
-    - /balance fetches the PayMongo balance for superadmins.
-    - /wallet (and this endpoint for regular users) fetches the internal wallet balance.
-    """
+    """Get live gateway balance for super admins (PHP), or internal wallet balance for others."""
     user_id = str(current_user.id)
     currency_upper = currency.upper()
-    perms = current_user.permissions
-    is_super = bool(perms and perms.is_super_admin)
 
-    if currency_upper == "PHP" and is_super:
+    svc = WalletsService(db)
+
+    # Special case for Super Admins requesting PHP balance: show live PayMongo balance
+    perms = current_user.permissions
+    if currency_upper == "PHP" and perms and perms.is_super_admin:
         try:
-            # Live PayMongo balance for super admin on /balance
             pm_svc = PayMongoService()
             pm_bal = await pm_svc.get_balance()
             if pm_bal.get("success"):
                 available = pm_bal.get("available", [])
                 php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
                 if php_entry is not None:
-                    # We still need a wallet_id to satisfy the schema,
-                    # fetch the internal wallet for metadata but return live balance.
-                    wallet = await get_or_create_wallet(db, user_id, "PHP")
+                    # Satisfy schema with any wallet ID for this user
+                    wallet_info = await svc.get_balance(user_id, "PHP")
                     return WalletBalanceResponse(
-                        wallet_id=wallet.id,
+                        wallet_id=wallet_info["wallet_id"],
                         balance=float(php_entry["amount"]) / 100.0,
                         currency="PHP",
                     )
         except Exception as pe:
-            logger.warning(f"PayMongo balance fetch failed for /balance: {pe}")
+            logger.warning(f"PayMongo balance fetch failed: {pe}")
 
-    # Fallback/Default: Internal wallet balance
-    if currency_upper == "PHP":
-        wallet = await get_or_create_wallet(db, user_id, "PHP")
-        return WalletBalanceResponse(
-            wallet_id=wallet.id,
-            balance=wallet.balance,
-            currency="PHP",
-        )
-
-    if currency_upper == "USD":
-        # USD wallets are keyed with the "tg-" prefix (same as the Telegram bot)
-        # so the dashboard always reads the same wallet row as the bot.
-        tg_user_id = _tg_user_id(user_id)
-        wallet = await get_or_create_wallet(db, tg_user_id, "USD")
-        # Recompute from transaction history (keyed by user_id, not wallet_id)
-        # so the balance is never lost even if the wallet row is recreated.
-        computed = await _compute_usd_balance(db, tg_user_id)
-        if computed != wallet.balance:
-            wallet.balance = computed
-            wallet.updated_at = datetime.now()
-            await db.commit()
-            await db.refresh(wallet)
-        return WalletBalanceResponse(
-            wallet_id=wallet.id,
-            balance=wallet.balance,
-            currency=wallet.currency or "USD",
-        )
-
-    # Any other currency — return stored balance as-is
-    wallet = await get_or_create_wallet(db, user_id, currency_upper)
-    return WalletBalanceResponse(
-        wallet_id=wallet.id,
-        balance=wallet.balance,
-        currency=wallet.currency or currency_upper,
-    )
+    # Default: Return internal wallet balance via service
+    result = await svc.get_balance(user_id, currency_upper)
+    return WalletBalanceResponse(**result)
 
 
 @router.get("/wallet", response_model=WalletBalanceResponse)
@@ -367,52 +166,23 @@ async def get_wallet_internal_balance(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Explicitly fetch the internal wallet balance, even for superadmins.
+    """Explicitly fetch the internal wallet balance, bypassing live gateway checks."""
+    svc = WalletsService(db)
+    result = await svc.get_balance(str(current_user.id), currency)
+    return WalletBalanceResponse(**result)
 
-    As requested: /wallet fetches the internal wallet balance.
-    """
-    user_id = str(current_user.id)
-    currency_upper = currency.upper()
 
-    if currency_upper == "PHP":
-        wallet = await get_or_create_wallet(db, user_id, "PHP")
-        return WalletBalanceResponse(
-            wallet_id=wallet.id,
-            balance=wallet.balance,
-            currency="PHP",
-        )
-
-    # Re-use the computation logic for USD
-    if currency_upper == "USD":
-        tg_user_id = _tg_user_id(user_id)
-        computed = await _compute_usd_balance(db, tg_user_id)
-        wallet = await get_or_create_wallet(db, tg_user_id, "USD")
-        return WalletBalanceResponse(
-            wallet_id=wallet.id,
-            balance=computed,
-            currency="USD",
-        )
-
-    wallet = await get_or_create_wallet(db, user_id, currency_upper)
-    return WalletBalanceResponse(
-        wallet_id=wallet.id,
-        balance=wallet.balance,
-        currency=wallet.currency or currency_upper,
-    )
-
-@router.get("/list")
+@router.get("/list", response_model=WalletListResponse)
 async def list_wallets(
     currency: Optional[str] = None,
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List user's wallets."""
-    query = select(Wallets).where(Wallets.user_id == str(current_user.id))
-    if currency:
-        query = query.where(Wallets.currency == currency.upper())
-    result = await db.execute(query)
-    wallets = result.scalars().all()
-    return {"wallets": wallets}
+    """List all wallets belonging to the current user."""
+    svc = WalletsService(db)
+    result = await svc.get_list(user_id=str(current_user.id), currency=currency)
+    return {"wallets": result["items"]}
+
 
 @router.post("/send-money", response_model=WalletActionResponse)
 async def send_money(
@@ -420,98 +190,25 @@ async def send_money(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Internal wallet transfer (Dashboard version).
-    Mirrors Telegram /send logic by looking up the recipient.
-    """
-    if data.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
+    """Perform an internal transfer between users (PHP or USD)."""
+    svc = WalletsService(db)
+    try:
+        result = await svc.transfer(
+            sender_user_id=str(current_user.id),
+            recipient_identifier=data.recipient,
+            amount=data.amount,
+            note=data.note,
+            currency="PHP" # Default for this endpoint
+        )
+        return WalletActionResponse(
+            success=True,
+            message=f"Successfully sent ₱{data.amount:,.2f} to {result['recipient_name']}",
+            balance=result["balance"],
+            transaction_id=result["transaction_id"]
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    sender_id = str(current_user.id)
-    recipient_identifier = data.recipient.strip().lstrip("@")
-
-    # 1. Lookup recipient (mirrors _get_or_promote_recipient in telegram.py)
-    from models.admin_users import AdminUser
-
-    # Try username
-    res = await db.execute(select(AdminUser).where(func.lower(AdminUser.telegram_username) == recipient_identifier.lower()))
-    recipient_admin = res.scalar_one_or_none()
-
-    if not recipient_admin:
-        # Try ID match
-        res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == recipient_identifier))
-        recipient_admin = res.scalar_one_or_none()
-
-    if not recipient_admin:
-        raise HTTPException(status_code=404, detail=f"Recipient '{data.recipient}' not found in the system.")
-
-    recipient_id = str(recipient_admin.telegram_id)
-    if sender_id == recipient_id:
-        raise HTTPException(status_code=400, detail="Cannot send money to yourself")
-
-    # 2. Get wallets
-    sender_wallet = await get_or_create_wallet(db, sender_id, "PHP")
-    recipient_wallet = await get_or_create_wallet(db, recipient_id, "PHP")
-
-    if sender_wallet.balance < data.amount:
-        raise HTTPException(status_code=400, detail=f"Insufficient balance (₱{sender_wallet.balance:,.2f})")
-
-    # 3. Perform internal transfer
-    now = datetime.now()
-    import uuid
-    ref_id = f"trf-{uuid.uuid4().hex[:8]}"
-
-    # Debit sender
-    sender_bal_before = sender_wallet.balance
-    sender_wallet.balance = round(sender_wallet.balance - data.amount, 2)
-    sender_wallet.updated_at = now
-
-    sender_txn = Wallet_transactions(
-        user_id=sender_id,
-        wallet_id=sender_wallet.id,
-        transaction_type="send",
-        amount=data.amount,
-        balance_before=sender_bal_before,
-        balance_after=sender_wallet.balance,
-        recipient=f"@{recipient_admin.telegram_username}" if recipient_admin.telegram_username else recipient_id,
-        note=data.note or f"Transfer to {recipient_id}",
-        status="completed",
-        reference_id=ref_id,
-        created_at=now,
-    )
-
-    # Credit recipient
-    recipient_bal_before = recipient_wallet.balance
-    recipient_wallet.balance = round(recipient_wallet.balance + data.amount, 2)
-    recipient_wallet.updated_at = now
-
-    recipient_txn = Wallet_transactions(
-        user_id=recipient_id,
-        wallet_id=recipient_wallet.id,
-        transaction_type="receive",
-        amount=data.amount,
-        balance_before=recipient_bal_before,
-        balance_after=recipient_wallet.balance,
-        recipient=current_user.name or sender_id,
-        note=data.note or f"Transfer from {sender_id}",
-        status="completed",
-        reference_id=ref_id,
-        created_at=now,
-    )
-
-    db.add(sender_txn)
-    db.add(recipient_txn)
-    await db.commit()
-
-    # 4. Notify both parties
-    publish_wallet_event(sender_id, sender_wallet, "send", data.amount, sender_txn.id, data.note)
-    publish_wallet_event(recipient_id, recipient_wallet, "receive", data.amount, recipient_txn.id, data.note)
-
-    return WalletActionResponse(
-        success=True,
-        message=f"Successfully sent ₱{data.amount:,.2f} to {recipient_admin.name or data.recipient}",
-        balance=sender_wallet.balance,
-        transaction_id=sender_txn.id,
-    )
 
 @router.post("/withdraw", response_model=WalletActionResponse)
 async def withdraw_money(
@@ -519,91 +216,45 @@ async def withdraw_money(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Withdraw money from wallet (Dashboard version).
-    Creates a pending disbursement request that requires Super Admin approval.
-    """
-    if data.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
-
-    user_id = str(current_user.id)
-    wallet = await get_or_create_wallet(db, user_id, "PHP")
-
-    if wallet.balance < data.amount:
-        raise HTTPException(status_code=400, detail=f"Insufficient balance (₱{wallet.balance:,.2f})")
-
-    now = datetime.now()
-    balance_before = wallet.balance
-
-    # 1. Create a pending Disbursement record
-    from models.disbursements import Disbursements
-    import uuid
-
-    ext_id = f"wd-db-{uuid.uuid4().hex[:12]}"
-    disb = Disbursements(
-        user_id=user_id,
-        external_id=ext_id,
-        amount=data.amount,
-        currency="PHP",
-        bank_code=data.bank_name or "Manual",
-        account_number=data.account_number or "Manual",
-        account_name=current_user.name or user_id,
-        description=data.note or "Withdrawal request via Dashboard",
-        status="pending",
-        disbursement_type="single",
-        created_at=now,
-        updated_at=now,
-    )
-    db.add(disb)
-
-    # 2. Deduct from wallet immediately (place on hold)
-    wallet.balance = round(wallet.balance - data.amount, 2)
-    wallet.updated_at = now
-
-    # 3. Record the ledger entry
-    txn = Wallet_transactions(
-        user_id=user_id,
-        wallet_id=wallet.id,
-        transaction_type="withdraw",
-        amount=data.amount,
-        balance_before=balance_before,
-        balance_after=wallet.balance,
-        recipient=f"{data.bank_name} {data.account_number}".strip() or "Bank withdrawal",
-        note=data.note or "Bank withdrawal request",
-        status="pending", # Pending approval
-        reference_id=ext_id,
-        created_at=now,
-    )
-    db.add(txn)
-    await db.commit()
-    await db.refresh(txn)
-
-    # 4. Notify Super Admin (if bot is connected)
+    """Submit a withdrawal request for approval."""
+    svc = WalletsService(db)
     try:
-        from services.telegram_service import TelegramService
+        result = await svc.withdraw_request(
+            user_id=str(current_user.id),
+            amount=data.amount,
+            bank_name=data.bank_name,
+            account_number=data.account_number,
+            account_name=current_user.name or str(current_user.id),
+            note=data.note
+        )
+
+        # Optional: Notify super admin via Telegram
+        from core.config import settings
         owner_id = str(getattr(settings, "telegram_bot_owner_id", "") or "").strip()
         if owner_id:
-            tg = TelegramService()
-            await tg.send_message(
-                owner_id,
-                f"🔔 <b>New Dashboard Withdrawal Request</b>\n"
-                f"━━━━━━━━━━━━━━━━━━━━\n"
-                f"👤 From: {current_user.name} (ID: {user_id})\n"
-                f"💰 Amount: <b>₱{data.amount:,.2f}</b>\n"
-                f"🏦 Bank: {data.bank_name}\n"
-                f"🔢 Account: <code>{data.account_number}</code>\n"
-                f"🆔 Ref: <code>{ext_id}</code>"
-            )
-    except Exception as e:
-        logger.warning(f"Failed to notify super admin of dashboard withdrawal: {e}")
+            try:
+                tg = TelegramService()
+                await tg.send_message(
+                    owner_id,
+                    f"🔔 <b>New Dashboard Withdrawal Request</b>\n"
+                    f"━━━━━━━━━━━━━━━━━━━━\n"
+                    f"👤 From: {current_user.name} (ID: {current_user.id})\n"
+                    f"💰 Amount: <b>₱{data.amount:,.2f}</b>\n"
+                    f"🏦 Bank: {data.bank_name}\n"
+                    f"🔢 Account: <code>{data.account_number}</code>\n"
+                    f"🆔 Ref: <code>{result['reference_id']}</code>"
+                )
+            except Exception: pass
 
-    publish_wallet_event(user_id, wallet, "withdraw", data.amount, txn.id, data.note, skip_bot_notify=True)
+        return WalletActionResponse(
+            success=True,
+            message="Withdrawal request submitted. Please wait for manual processing.",
+            balance=result["balance"],
+            transaction_id=result["transaction_id"]
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    return WalletActionResponse(
-        success=True,
-        message="Withdrawal request submitted. The bank will now validating your withdraw, pleease wait for your balance credited to your bank patiently",
-        balance=wallet.balance,
-        transaction_id=txn.id,
-    )
 
 @router.post("/send-usdt", response_model=WalletActionResponse)
 async def send_usdt(
@@ -611,50 +262,52 @@ async def send_usdt(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Send USDT to a blockchain address"""
-    if data.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
-
+    """Request a USDT withdrawal to a blockchain address."""
+    svc = WalletsService(db)
     user_id = str(current_user.id)
-    tg_user_id = _tg_user_id(user_id)
-    wallet = await get_or_create_wallet(db, tg_user_id, "USD")
+    # USD operations use "tg-" prefix internally
+    tg_user_id = f"tg-{user_id}" if not user_id.startswith("tg-") else user_id
 
-    balance = await _compute_usd_balance(db, tg_user_id)
-    if balance < data.amount:
-        raise HTTPException(status_code=400, detail="Insufficient USD balance")
+    try:
+        # Re-using adjust_balance for a pending debit is one way,
+        # but here we implement the specific logic for USDT send.
+        balance = await svc.compute_usd_balance(tg_user_id)
+        if balance < data.amount:
+            raise HTTPException(status_code=400, detail="Insufficient USD balance")
 
-    now = datetime.now()
-    new_balance = balance - data.amount
+        wallet = await svc.get_or_create_wallet(tg_user_id, "USD")
+        now = datetime.now()
+        new_bal = balance - data.amount
 
-    txn = Wallet_transactions(
-        user_id=tg_user_id,
-        wallet_id=wallet.id,
-        transaction_type="usdt_send",
-        amount=data.amount,
-        balance_before=balance,
-        balance_after=new_balance,
-        recipient=data.to_address,
-        note=data.note or f"USDT send to {data.to_address}",
-        status="pending",
-        reference_id=f"usdt-send-{wallet.id}-{int(now.timestamp())}",
-        created_at=now,
-    )
-    db.add(txn)
-    await db.commit()
-    await db.refresh(txn)
+        txn = Wallet_transactions(
+            user_id=tg_user_id,
+            wallet_id=wallet.id,
+            transaction_type="usdt_send",
+            amount=data.amount,
+            balance_before=balance,
+            balance_after=new_bal,
+            recipient=data.to_address,
+            note=data.note or f"USDT send to {data.to_address}",
+            status="pending",
+            reference_id=f"usdt-send-{wallet.id}-{int(now.timestamp())}",
+            created_at=now,
+        )
+        db.add(txn)
+        wallet.balance = new_bal
+        await db.commit()
+        await db.refresh(txn)
 
-    wallet.balance = new_balance
-    wallet.updated_at = now
-    await db.commit()
+        await svc.publish_wallet_event(tg_user_id, wallet, "usdt_send", data.amount, txn.id, data.note)
 
-    publish_wallet_event(tg_user_id, wallet, "usdt_send", data.amount, txn.id, data.note)
+        return WalletActionResponse(
+            success=True,
+            message=f"Successfully submitted request for {data.amount} USDT",
+            balance=new_bal,
+            transaction_id=txn.id
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    return WalletActionResponse(
-        success=True,
-        message=f"Successfully sent {data.amount} USDT to {data.to_address}",
-        balance=new_balance,
-        transaction_id=txn.id,
-    )
 
 @router.get("/transactions")
 async def get_transactions(
@@ -664,53 +317,46 @@ async def get_transactions(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get wallet transactions for current user"""
+    """Retrieve transaction history for the user."""
     user_id = str(current_user.id)
-    query = select(Wallet_transactions).where(Wallet_transactions.user_id == user_id)
-
     if currency and currency.upper() == "USD":
-        user_id = _tg_user_id(user_id)
-        query = select(Wallet_transactions).where(Wallet_transactions.user_id == user_id)
+        user_id = f"tg-{user_id}" if not user_id.startswith("tg-") else user_id
 
-    count_result = await db.execute(select(func.count(Wallet_transactions.id)).where(Wallet_transactions.user_id == user_id))
-    total = count_result.scalar()
+    query = select(Wallet_transactions).where(Wallet_transactions.user_id == user_id)
+    count_query = select(func.count(Wallet_transactions.id)).where(Wallet_transactions.user_id == user_id)
 
+    total = (await db.execute(count_query)).scalar()
     result = await db.execute(query.order_by(Wallet_transactions.created_at.desc()).offset(skip).limit(limit))
     items = result.scalars().all()
 
     return {"items": items, "total": total, "skip": skip, "limit": limit}
 
-# ────────────────────────────────────────────────────────────────────────────────
-# Admin endpoints
-# ────────────────────────────────────────────────────────────────────────────────
+
+# ---------- Admin Endpoints ----------
 
 @router.get("/admin/php-wallets", response_model=AdminPhpWalletListResponse)
 async def admin_list_php_wallets(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all users' PHP wallets. Super admin only."""
-    perms = current_user.permissions
-    if not perms or not perms.is_super_admin:
+    """Admin: List all PHP wallets with associated Telegram usernames."""
+    if not (current_user.permissions and current_user.permissions.is_super_admin):
         raise HTTPException(status_code=403, detail="Super admin access required.")
 
-    # Get all PHP wallets
-    result = await db.execute(
-        select(Wallets).where(Wallets.currency == "PHP").order_by(Wallets.id)
-    )
-    wallets = result.scalars().all()
+    svc = WalletsService(db)
+    res = await db.execute(select(Wallets).where(Wallets.currency == "PHP").order_by(Wallets.id))
+    wallets = res.scalars().all()
 
-    items: List[AdminPhpWalletEntry] = []
+    items = []
     for w in wallets:
-        admin_username = await _get_admin_username(db, w.user_id)
         items.append(AdminPhpWalletEntry(
             user_id=w.user_id,
-            telegram_username=admin_username,
+            telegram_username=await svc.get_admin_username(w.user_id),
             balance=w.balance,
             wallet_id=w.id,
         ))
-
     return AdminPhpWalletListResponse(items=items, total=len(items))
+
 
 @router.post("/admin/php-wallets/{user_id}/adjust", response_model=WalletActionResponse)
 async def admin_adjust_php_wallet(
@@ -719,87 +365,53 @@ async def admin_adjust_php_wallet(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Credit (positive amount) or debit (negative amount) a user's PHP wallet. Super admin only."""
-    wallet_user_id = user_id  # Already URL-decoded by FastAPI
-    perms = current_user.permissions
-    if not perms or not perms.is_super_admin:
+    """Admin: Manually credit or debit a user's PHP wallet."""
+    if not (current_user.permissions and current_user.permissions.is_super_admin):
         raise HTTPException(status_code=403, detail="Super admin access required.")
 
-    if data.amount == 0:
-        raise HTTPException(status_code=400, detail="Amount must be non-zero")
+    svc = WalletsService(db)
+    try:
+        res = await svc.adjust_balance(
+            target_user_id=user_id,
+            amount=data.amount,
+            admin_id=str(current_user.id),
+            note=data.note,
+            currency="PHP"
+        )
+        return WalletActionResponse(
+            success=True,
+            message=f"Successfully {res['action']} ₱{abs(data.amount):,.2f} for {user_id}",
+            balance=res["balance"],
+            transaction_id=res["transaction_id"]
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    wallet = await get_or_create_wallet(db, wallet_user_id, "PHP")
-    now = datetime.now()
-    balance_before = wallet.balance
-    txn_type = "admin_credit" if data.amount > 0 else "admin_debit"
-    adj_amount = abs(data.amount)
-
-    if data.amount < 0 and wallet.balance < adj_amount:
-        raise HTTPException(status_code=400, detail=f"Insufficient balance (₱{wallet.balance:,.2f})")
-
-    wallet.balance = round(max(0.0, wallet.balance + data.amount), 2)
-    wallet.updated_at = now
-
-    txn = Wallet_transactions(
-        user_id=wallet_user_id,
-        wallet_id=wallet.id,
-        transaction_type=txn_type,
-        amount=adj_amount,
-        balance_before=balance_before,
-        balance_after=wallet.balance,
-        note=data.note or f"Admin {'credit' if data.amount > 0 else 'debit'} by {current_user.id}",
-        status="completed",
-        reference_id=f"admin-adj-{wallet.id}-{int(now.timestamp())}",
-        created_at=now,
-    )
-    db.add(txn)
-    await db.commit()
-    await db.refresh(txn)
-
-    publish_wallet_event(wallet_user_id, wallet, txn_type, adj_amount, txn.id, data.note)
-    logger.info(
-        "Admin PHP wallet adjust: admin=%s target=%s amount=%s new_balance=%s",
-        current_user.id, wallet_user_id, data.amount, wallet.balance,
-    )
-
-    action = "credited" if data.amount > 0 else "debited"
-    return WalletActionResponse(
-        success=True,
-        message=f"Successfully {action} ₱{adj_amount:,.2f} PHP for {wallet_user_id}",
-        balance=wallet.balance,
-        transaction_id=txn.id,
-    )
 
 @router.get("/admin/usd-wallets", response_model=AdminUsdWalletListResponse)
 async def admin_list_usd_wallets(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all users' USD wallets. Super admin only."""
-    perms = current_user.permissions
-    if not perms or not perms.is_super_admin:
+    """Admin: List all USD wallets with recomputed balances."""
+    if not (current_user.permissions and current_user.permissions.is_super_admin):
         raise HTTPException(status_code=403, detail="Super admin access required.")
 
-    # Get all USD wallets
-    result = await db.execute(
-        select(Wallets).where(Wallets.currency == "USD").order_by(Wallets.id)
-    )
-    wallets = result.scalars().all()
+    svc = WalletsService(db)
+    res = await db.execute(select(Wallets).where(Wallets.currency == "USD").order_by(Wallets.id))
+    wallets = res.scalars().all()
 
-    # Build response enriched with telegram_username from AdminUser table
-    items: List[AdminUsdWalletEntry] = []
+    items = []
     for w in wallets:
-        admin_username = await _get_admin_username(db, w.user_id)
-        # Recompute live balance
-        computed = await _compute_usd_balance(db, w.user_id)
+        computed = await svc.compute_usd_balance(w.user_id)
         items.append(AdminUsdWalletEntry(
             user_id=w.user_id,
-            telegram_username=admin_username,
+            telegram_username=await svc.get_admin_username(w.user_id),
             balance=computed,
             wallet_id=w.id,
         ))
-
     return AdminUsdWalletListResponse(items=items, total=len(items))
+
 
 @router.post("/admin/usd-wallets/{user_id}/adjust", response_model=WalletActionResponse)
 async def admin_adjust_usd_wallet(
@@ -808,342 +420,52 @@ async def admin_adjust_usd_wallet(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Credit (positive amount) or debit (negative amount) a user's USD wallet. Super admin only."""
-    wallet_user_id = user_id  # Already URL-decoded by FastAPI
-    perms = current_user.permissions
-    if not perms or not perms.is_super_admin:
+    """Admin: Manually credit or debit a user's USD wallet."""
+    if not (current_user.permissions and current_user.permissions.is_super_admin):
         raise HTTPException(status_code=403, detail="Super admin access required.")
 
-    if data.amount == 0:
-        raise HTTPException(status_code=400, detail="Amount must be non-zero")
+    svc = WalletsService(db)
+    try:
+        res = await svc.adjust_balance(
+            target_user_id=user_id,
+            amount=data.amount,
+            admin_id=str(current_user.id),
+            note=data.note,
+            currency="USD"
+        )
+        return WalletActionResponse(
+            success=True,
+            message=f"Successfully {res['action']} ${abs(data.amount):,.2f} for {user_id}",
+            balance=res["balance"],
+            transaction_id=res["transaction_id"]
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    wallet = await get_or_create_wallet(db, wallet_user_id, "USD")
-    now = datetime.now()
-    balance_before = await _compute_usd_balance(db, wallet_user_id)
-    txn_type = "admin_credit" if data.amount > 0 else "admin_debit"
-    adj_amount = abs(data.amount)
-
-    if data.amount < 0 and balance_before < adj_amount:
-        raise HTTPException(status_code=400, detail=f"Insufficient balance (${balance_before:,.2f})")
-
-    balance_after = round(max(0.0, balance_before + data.amount), 2)
-
-    txn = Wallet_transactions(
-        user_id=wallet_user_id,
-        wallet_id=wallet.id,
-        transaction_type=txn_type,
-        amount=adj_amount,
-        balance_before=balance_before,
-        balance_after=balance_after,
-        note=data.note or f"Admin {'credit' if data.amount > 0 else 'debit'} by {current_user.id}",
-        status="completed",
-        reference_id=f"admin-adj-{wallet.id}-{int(now.timestamp())}",
-        created_at=now,
-    )
-    db.add(txn)
-    wallet.balance = balance_after
-    wallet.updated_at = now
-    await db.commit()
-    await db.refresh(txn)
-
-    publish_wallet_event(wallet_user_id, wallet, txn_type, adj_amount, txn.id, data.note)
-    logger.info(
-        "Admin USD wallet adjust: admin=%s target=%s amount=%s new_balance=%s",
-        current_user.id, wallet_user_id, data.amount, balance_after,
-    )
-
-    action = "credited" if data.amount > 0 else "debited"
-    return WalletActionResponse(
-        success=True,
-        message=f"Successfully {action} ${adj_amount:,.2f} USD for {wallet_user_id}",
-        balance=balance_after,
-        transaction_id=txn.id,
-    )
-
-@router.post("/transfer", response_model=WalletActionResponse)
-async def transfer_between_wallets(
-    data: WalletTransferRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Transfer funds between users (admin only)"""
-    perms = current_user.permissions
-    if not perms or (not perms.is_super_admin and not perms.can_manage_wallet):
-        raise HTTPException(status_code=403, detail="Wallet management permission required")
-
-    if data.amount <= 0:
-        raise HTTPException(status_code=400, detail="Amount must be positive")
-
-    sender_id = str(current_user.id)
-    sender_wallet = await get_or_create_wallet(db, sender_id, data.currency)
-
-    if sender_wallet.balance < data.amount:
-        raise HTTPException(status_code=400, detail="Insufficient balance")
-
-    recipient_wallet = await get_or_create_wallet(db, data.recipient_user_id, data.currency)
-
-    now = datetime.now()
-
-    # Debit sender
-    sender_wallet.balance -= data.amount
-    sender_txn = Wallet_transactions(
-        user_id=sender_id,
-        wallet_id=sender_wallet.id,
-        transaction_type="transfer_out",
-        amount=data.amount,
-        balance_before=sender_wallet.balance + data.amount,
-        balance_after=sender_wallet.balance,
-        recipient=data.recipient_user_id,
-        note=data.note or f"Transfer to {data.recipient_user_id}",
-        status="completed",
-        reference_id=f"transfer-{int(now.timestamp())}",
-        created_at=now,
-    )
-
-    # Credit recipient
-    recipient_wallet.balance += data.amount
-    recipient_txn = Wallet_transactions(
-        user_id=data.recipient_user_id,
-        wallet_id=recipient_wallet.id,
-        transaction_type="transfer_in",
-        amount=data.amount,
-        balance_before=recipient_wallet.balance - data.amount,
-        balance_after=recipient_wallet.balance,
-        recipient=sender_id,
-        note=data.note or f"Transfer from {sender_id}",
-        status="completed",
-        reference_id=f"transfer-{int(now.timestamp())}",
-        created_at=now,
-    )
-
-    sender_wallet.updated_at = now
-    recipient_wallet.updated_at = now
-
-    db.add(sender_txn)
-    db.add(recipient_txn)
-    await db.commit()
-
-    # 5. Publish wallet events for real-time updates & bot notifications
-    # 5. Publish wallet events for real-time updates & bot notifications
-    publish_wallet_event(
-        sender_id, sender_wallet,
-        "send", data.amount, sender_txn.id,
-        data.note or f"Transfer to {data.recipient_user_id}"
-    )
-
-    publish_wallet_event(
-        data.recipient_user_id, recipient_wallet,
-        "receive", data.amount, recipient_txn.id,
-        data.note or f"Transfer from {sender_id}"
-    )
-
-    return WalletActionResponse(
-        success=True,
-        message=f"Successfully transferred {data.amount} {data.currency} to {data.recipient_user_id}",
-        balance=sender_wallet.balance,
-        transaction_id=sender_txn.id,
-    )
 
 @router.get("/usdt-stats")
-async def get_usdt_stats(
-    db: AsyncSession = Depends(get_db),
-):
-    """Return aggregated USDT settlement statistics for the dashboard.
-    Sums up all approved USDT top-ups (both PHP and USD destinations) and outgoing USDT.
-    """
+async def get_usdt_stats(db: AsyncSession = Depends(get_db)):
+    """Admin: Get aggregated USDT stats for the dashboard."""
+    svc = WalletsService(db)
     try:
-        from models.topup_requests import TopupRequest
-        from models.crypto_topup import CryptoTopupRequest
-
-        now = datetime.now()
-        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        start_of_yesterday = start_of_day - timedelta(days=1)
-
-        # 1. Incoming USDT today (TopupRequest + CryptoTopupRequest)
-        res_php = await db.execute(
-            select(func.coalesce(func.sum(TopupRequest.amount_usdt), 0.0), func.count(TopupRequest.id))
-            .where(TopupRequest.status == "approved", TopupRequest.created_at >= start_of_day)
-        )
-        row_php = res_php.one()
-
-        res_usd = await db.execute(
-            select(func.coalesce(func.sum(CryptoTopupRequest.amount_usdt), 0.0), func.count(CryptoTopupRequest.id))
-            .where(CryptoTopupRequest.status == "approved", CryptoTopupRequest.created_at >= start_of_day)
-        )
-        row_usd = res_usd.one()
-
-        settlement = float(row_php[0] or 0.0) + float(row_usd[0] or 0.0)
-        txnCount = int(row_php[1] or 0) + int(row_usd[1] or 0)
-
-        # 2. Incoming USDT yesterday
-        res_php_y = await db.execute(
-            select(func.coalesce(func.sum(TopupRequest.amount_usdt), 0.0))
-            .where(TopupRequest.status == "approved", TopupRequest.created_at >= start_of_yesterday, TopupRequest.created_at < start_of_day)
-        )
-        res_usd_y = await db.execute(
-            select(func.coalesce(func.sum(CryptoTopupRequest.amount_usdt), 0.0))
-            .where(CryptoTopupRequest.status == "approved", CryptoTopupRequest.created_at >= start_of_yesterday, CryptoTopupRequest.created_at < start_of_day)
-        )
-        yest_settlement = float(res_php_y.scalar() or 0.0) + float(res_usd_y.scalar() or 0.0)
-
-        # 3. Pending requests
-        res_p_php = await db.execute(
-            select(func.coalesce(func.sum(TopupRequest.amount_usdt), 0.0))
-            .where(TopupRequest.status == "pending")
-        )
-        res_p_usd = await db.execute(
-            select(func.coalesce(func.sum(CryptoTopupRequest.amount_usdt), 0.0))
-            .where(CryptoTopupRequest.status == "pending")
-        )
-        pending = float(res_p_php.scalar() or 0.0) + float(res_p_usd.scalar() or 0.0)
-
-        change = 0.0
-        if yest_settlement > 0:
-            change = ((settlement - yest_settlement) / yest_settlement) * 100
-
-        return {
-            "settlement": settlement,
-            "txnCount": txnCount,
-            "change": change,
-            "pending": pending
-        }
+        return await svc.get_usdt_stats()
     except Exception as e:
-        logger.error(f"Failed to fetch USDT stats: {e}")
+        logger.error(f"USDT stats failed: {e}")
         return {"settlement": 0.0, "txnCount": 0, "change": 0.0, "pending": 0.0}
+
 
 @router.get("/crypto-deposit-info")
 async def get_crypto_deposit_info():
-    """Get crypto deposit addresses and info for the user"""
+    """Information for users on where to send USDT."""
     return {
         "address": "TDqXEn3LXW7V7r8HXB4B7k1KQQaGYJ5cU9",
         "network": "TRC20",
         "currency": "USDT",
-        "notes": "Send only USDT on TRC20 network. Do not send other tokens.",
+        "notes": "TRC20 only. Other tokens will be lost.",
     }
 
-@router.get("/crypto-topup-requests")
-async def list_crypto_topup_requests(
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """List crypto top-up requests (admin only)"""
-    perms = current_user.permissions
-    if not perms or (not perms.is_super_admin and not perms.can_approve_topups):
-        raise HTTPException(status_code=403, detail="Permission required")
 
-    # TODO: Implement based on actual schema
-    return {"items": [], "total": 0}
-
-@router.post("/crypto-topup-requests/{request_id}/approve")
-async def approve_crypto_topup(
-    request_id: int,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Approve a crypto top-up request and credit the user's USD wallet."""
-    perms = current_user.permissions
-    if not perms or (not perms.is_super_admin and not perms.can_approve_topups):
-        raise HTTPException(status_code=403, detail="Permission required")
-
-    from models.crypto_topup import CryptoTopupRequest
-    res = await db.execute(select(CryptoTopupRequest).where(CryptoTopupRequest.id == request_id))
-    req = res.scalar_one_or_none()
-
-    if not req:
-        raise HTTPException(status_code=404, detail="Request not found")
-    if req.status != "pending":
-        raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
-
-    # Credit USD wallet
-    wallet = await get_or_create_wallet(db, req.user_id, "USD")
-    balance_before = await _compute_usd_balance(db, req.user_id)
-
-    now = datetime.now()
-    req.status = "approved"
-    req.reviewed_by = str(current_user.id)
-    req.reviewed_at = now
-    req.updated_at = now
-
-    txn = Wallet_transactions(
-        user_id=req.user_id,
-        wallet_id=wallet.id,
-        transaction_type="crypto_topup",
-        amount=req.amount_usdt,
-        balance_before=balance_before,
-        balance_after=balance_before + req.amount_usdt,
-        note=f"USDT Top-up approved (hash: {req.tx_hash[:10]}...)",
-        status="completed",
-        reference_id=f"cry-{req.id}",
-        created_at=now,
-    )
-    db.add(txn)
-
-    # Update wallet balance cache
-    wallet.balance = balance_before + req.amount_usdt
-    wallet.updated_at = now
-
-    await db.commit()
-
-    publish_wallet_event(req.user_id, wallet, "crypto_topup", req.amount_usdt, txn.id, req.notes or "")
-
-    return {"success": True, "message": "Crypto top-up approved"}
-
-@router.post("/crypto-topup-requests/{request_id}/reject")
-async def reject_crypto_topup(
-    request_id: int,
-    reason: str = Query("Rejected by admin"),
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Reject a crypto top-up request."""
-    perms = current_user.permissions
-    if not perms or (not perms.is_super_admin and not perms.can_approve_topups):
-        raise HTTPException(status_code=403, detail="Permission required")
-
-    from models.crypto_topup import CryptoTopupRequest
-    res = await db.execute(select(CryptoTopupRequest).where(CryptoTopupRequest.id == request_id))
-    req = res.scalar_one_or_none()
-
-    if not req:
-        raise HTTPException(status_code=404, detail="Request not found")
-    if req.status != "pending":
-        raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
-
-    req.status = "rejected"
-    req.notes = reason
-    req.reviewed_by = str(current_user.id)
-    req.reviewed_at = datetime.now()
-    req.updated_at = datetime.now()
-
-    await db.commit()
-    return {"success": True, "message": "Request rejected"}
-
-
-# ────────────────────────────────────────────────────────────────────────────────
-# Disbursement (Withdrawal) Management
-# ────────────────────────────────────────────────────────────────────────────────
-
-@router.get("/admin/withdrawals")
-async def admin_list_withdrawals(
-    status: Optional[str] = Query(None, description="Filter by status (pending, completed, failed)"),
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """List all withdrawal requests. Super admin only."""
-    perms = current_user.permissions
-    if not perms or not perms.is_super_admin:
-        raise HTTPException(status_code=403, detail="Super admin access required.")
-
-    from models.disbursements import Disbursements
-    query = select(Disbursements).order_by(Disbursements.created_at.desc())
-    if status:
-        query = query.where(Disbursements.status == status)
-
-    result = await db.execute(query)
-    items = result.scalars().all()
-
-    return {"items": items, "total": len(items)}
-
+# ---------- Withdrawal & Top-up Approval ----------
 
 @router.post("/admin/withdrawals/{disb_id}/approve")
 async def admin_approve_withdrawal(
@@ -1151,24 +473,16 @@ async def admin_approve_withdrawal(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Approve a withdrawal request. Initiates real-money transfer via PayMongo for Admins."""
-    perms = current_user.permissions
-    if not perms or not perms.is_super_admin:
+    """Admin: Approve withdrawal and trigger real-money transfer via PayMongo."""
+    if not (current_user.permissions and current_user.permissions.is_super_admin):
         raise HTTPException(status_code=403, detail="Super admin access required.")
-
-    from models.disbursements import Disbursements
-    from services.paymongo_service import PayMongoService
-    from services.telegram_service import TelegramService
 
     res = await db.execute(select(Disbursements).where(Disbursements.id == disb_id))
     disb = res.scalar_one_or_none()
+    if not disb or disb.status != "pending":
+        raise HTTPException(status_code=400, detail="Invalid or already processed request.")
 
-    if not disb:
-        raise HTTPException(status_code=404, detail="Withdrawal request not found")
-    if disb.status != "pending":
-        raise HTTPException(status_code=400, detail=f"Request is already {disb.status}")
-
-    # 1. Initiate Real-Money Transfer via PayMongo
+    # 1. Trigger PayMongo Payout
     pm_svc = PayMongoService()
     payout_res = await pm_svc.create_payout(
         amount=disb.amount,
@@ -1180,20 +494,13 @@ async def admin_approve_withdrawal(
     )
 
     if not payout_res.get("success"):
-        logger.error(f"PayMongo payout failed for withdrawal {disb_id}: {payout_res.get('error')}")
-        # Note: We don't fail the whole request here, but we mark the disbursement as failed
-        # depending on your business logic. For now, let's stop and notify.
-        raise HTTPException(
-            status_code=502,
-            detail=f"Real-money transfer failed via PayMongo: {payout_res.get('error')}"
-        )
+        raise HTTPException(status_code=502, detail=f"PayMongo failed: {payout_res.get('error')}")
 
-    # 2. Update Disbursement record
+    # 2. Update records
     disb.status = "completed"
     disb.updated_at = datetime.now()
-    disb.xendit_id = payout_res.get("payout_id") # Reuse xendit_id col for PayMongo Payout ID
+    disb.xendit_id = payout_res.get("payout_id")
 
-    # 3. Update the pending ledger entry
     ledger_res = await db.execute(
         select(Wallet_transactions).where(
             Wallet_transactions.reference_id == disb.external_id,
@@ -1201,34 +508,23 @@ async def admin_approve_withdrawal(
         )
     )
     ledger = ledger_res.scalar_one_or_none()
-    if ledger:
-        ledger.status = "completed"
+    if ledger: ledger.status = "completed"
 
     await db.commit()
 
-    # 4. Notify User via Telegram
-    if disb.user_id.startswith("tg-"):
-        chat_id = disb.user_id[3:]
-        tg = TelegramService()
-        await tg.send_chat_action(chat_id, "typing")
+    # 3. User Notification
+    if disb.user_id.startswith("tg-") or len(disb.user_id) > 5: # Likely a TG ID
+        chat_id = disb.user_id[3:] if disb.user_id.startswith("tg-") else disb.user_id
+        try:
+            tg = TelegramService()
+            msg = t(chat_id,
+                f"✅ <b>Withdrawal Approved!</b>\nAmount: <b>₱{disb.amount:,.2f}</b>",
+                f"✅ <b>提款已批准</b>\n金额: <b>₱{disb.amount:,.2f}</b>"
+            )
+            await tg.send_message(chat_id, msg)
+        except Exception: pass
 
-        msg = t(chat_id,
-            f"✅ <b>Withdrawal Approved!</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"💰 Amount: <b>₱{disb.amount:,.2f}</b>\n"
-            f"🏦 {disb.bank_code} ({disb.account_number})\n"
-            f"🆔 Ref: <code>{disb.external_id}</code>\n\n"
-            f"⏳ The bank will now validating your withdraw, pleease wait for your balance credited to your bank patiently",
-            f"✅ <b>提款已批准</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"💰 金额: <b>₱{disb.amount:,.2f}</b>\n"
-            f"🏦 {disb.bank_code} ({disb.account_number})\n"
-            f"🆔 参考: <code>{disb.external_id}</code>\n\n"
-            f"⏳ 银行正在验证您的提款，请耐心等待余额存入您的银行。"
-        )
-        await tg.send_message(chat_id, msg)
-
-    return {"success": True, "message": "Withdrawal approved and payout initiated", "payout_id": disb.xendit_id}
+    return {"success": True, "payout_id": disb.xendit_id}
 
 
 @router.post("/admin/withdrawals/{disb_id}/reject")
@@ -1238,74 +534,72 @@ async def admin_reject_withdrawal(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Reject a withdrawal request and refund internal wallet."""
-    perms = current_user.permissions
-    if not perms or not perms.is_super_admin:
+    """Admin: Reject withdrawal and refund the user's internal wallet."""
+    if not (current_user.permissions and current_user.permissions.is_super_admin):
         raise HTTPException(status_code=403, detail="Super admin access required.")
-
-    from models.disbursements import Disbursements
-    from services.telegram_service import TelegramService
 
     res = await db.execute(select(Disbursements).where(Disbursements.id == disb_id))
     disb = res.scalar_one_or_none()
+    if not disb or disb.status != "pending":
+        raise HTTPException(status_code=400, detail="Invalid request.")
 
-    if not disb:
-        raise HTTPException(status_code=404, detail="Withdrawal request not found")
-    if disb.status != "pending":
-        raise HTTPException(status_code=400, detail=f"Request is already {disb.status}")
-
-    # 1. Mark as failed/rejected
     disb.status = "failed"
     disb.description = f"Rejected: {reason}"
     disb.updated_at = datetime.now()
 
-    # 2. Update ledger and REFUND internal wallet
-    ledger_res = await db.execute(
-        select(Wallet_transactions).where(
-            Wallet_transactions.reference_id == disb.external_id,
-            Wallet_transactions.transaction_type == "withdraw"
-        )
-    )
+    # Refund internal wallet
+    ledger_res = await db.execute(select(Wallet_transactions).where(Wallet_transactions.reference_id == disb.external_id))
     ledger = ledger_res.scalar_one_or_none()
     if ledger:
         ledger.status = "failed"
-
-        # Refund
-        wallet_res = await db.execute(select(Wallets).where(Wallets.id == ledger.wallet_id))
-        wallet = wallet_res.scalar_one_or_none()
-        if wallet:
-            balance_before = wallet.balance
-            wallet.balance = round(wallet.balance + disb.amount, 2)
-            wallet.updated_at = datetime.now()
-
-            refund_txn = Wallet_transactions(
-                user_id=disb.user_id,
-                wallet_id=wallet.id,
-                transaction_type="receive",
-                amount=disb.amount,
-                balance_before=balance_before,
-                balance_after=wallet.balance,
-                note=f"Refund for rejected withdrawal #{disb.external_id}",
-                status="completed",
-                reference_id=f"ref-{disb.external_id}",
-                created_at=datetime.now(),
-            )
-            db.add(refund_txn)
+        svc = WalletsService(db)
+        await svc.adjust_balance(disb.user_id, disb.amount, str(current_user.id), f"Refund for #{disb.external_id}")
 
     await db.commit()
+    return {"success": True}
 
-    # 3. Notify User
-    if disb.user_id.startswith("tg-"):
-        chat_id = disb.user_id[3:]
-        tg = TelegramService()
-        await tg.send_message(
-            chat_id,
-            f"❌ <b>Withdrawal Rejected</b>\n"
-            f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"💰 Amount: <b>₱{disb.amount:,.2f}</b>\n"
-            f"📝 Reason: {reason}\n"
-            f"🆔 Ref: <code>{disb.external_id}</code>\n\n"
-            f"The amount has been refunded to your internal wallet."
-        )
 
-    return {"success": True, "message": "Withdrawal rejected and funds refunded"}
+@router.post("/crypto-topup-requests/{request_id}/approve")
+async def approve_crypto_topup(
+    request_id: int,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Admin: Approve a crypto top-up (USDT)."""
+    if not (current_user.permissions and (current_user.permissions.is_super_admin or current_user.permissions.can_approve_topups)):
+        raise HTTPException(status_code=403, detail="Permission required")
+
+    res = await db.execute(select(CryptoTopupRequest).where(CryptoTopupRequest.id == request_id))
+    req = res.scalar_one_or_none()
+    if not req or req.status != "pending":
+        raise HTTPException(status_code=400, detail="Invalid request")
+
+    svc = WalletsService(db)
+    # Credit USD wallet via admin adjustment logic (marked as crypto_topup)
+    now = datetime.now()
+    req.status = "approved"
+    req.reviewed_by = str(current_user.id)
+    req.reviewed_at = now
+
+    # We use adjust_balance but customize the type
+    wallet = await svc.get_or_create_wallet(req.user_id, "USD")
+    bal_before = await svc.compute_usd_balance(req.user_id)
+
+    txn = Wallet_transactions(
+        user_id=req.user_id,
+        wallet_id=wallet.id,
+        transaction_type="crypto_topup",
+        amount=req.amount_usdt,
+        balance_before=bal_before,
+        balance_after=bal_before + req.amount_usdt,
+        note=f"USDT Top-up (Hash: {req.tx_hash[:8]}...)",
+        status="completed",
+        reference_id=f"cry-{req.id}",
+        created_at=now,
+    )
+    db.add(txn)
+    wallet.balance = txn.balance_after
+    await db.commit()
+
+    await svc.publish_wallet_event(req.user_id, wallet, "crypto_topup", req.amount_usdt, txn.id)
+    return {"success": True}
