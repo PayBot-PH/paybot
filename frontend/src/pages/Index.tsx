@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import TelegramLoginWidget from '@/components/TelegramLoginWidget';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   ArrowRight, Bot, BarChart3, Wallet, CreditCard, ShieldCheck,
   Zap, Globe, TrendingUp, DollarSign, Building2, CheckCircle2,
@@ -11,7 +13,6 @@ import {
 } from 'lucide-react';
 import { APP_NAME, COMPANY_NAME, SUPPORT_URL, APP_DESCRIPTION } from '@/lib/brand';
 import AppFooter from '@/components/AppFooter';
-import { Button } from '@/components/ui/button';
 
 /* ─── Shared Components ───────────────────────────────────────── */
 
