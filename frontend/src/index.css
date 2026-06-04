@@ -36,7 +36,7 @@
     --input: 220 18% 89%;
     --ring: 211 100% 50%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 25% 12%;
@@ -49,63 +49,137 @@
 
     --brand-blue-50: 211 100% 97%;
     --brand-blue-100: 211 100% 93%;
+    --brand-blue-200: 211 100% 85%;
     --brand-blue-300: 211 90% 72%;
     --brand-blue-400: 211 90% 58%;
     --brand-blue-500: 211 100% 50%;
     --brand-blue-600: 211 100% 42%;
     --brand-blue-700: 211 100% 34%;
+    --brand-blue-800: 211 100% 26%;
+    --brand-blue-900: 211 100% 18%;
     --brand-ink-900: 220 30% 10%;
   }
 
   .dark {
-    --background: 222 47% 8%;
-    --foreground: 220 20% 96%;
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
 
-    --card: 222 38% 12%;
-    --card-foreground: 220 20% 96%;
+    --card: 224 71% 4%;
+    --card-foreground: 213 31% 91%;
 
-    --popover: 222 38% 12%;
-    --popover-foreground: 220 20% 96%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 213 31% 91%;
 
     --primary: 211 100% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 222 30% 18%;
-    --secondary-foreground: 220 20% 88%;
+    --secondary: 222 47% 11%;
+    --secondary-foreground: 213 31% 91%;
 
-    --muted: 222 28% 16%;
-    --muted-foreground: 220 16% 60%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215.4 16.3% 56.9%;
 
-    --accent: 213 40% 18%;
-    --accent-foreground: 211 100% 75%;
+    --accent: 216 34% 17%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 78% 55%;
-    --destructive-foreground: 0 0% 100%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
 
-    --border: 222 28% 22%;
-    --input: 222 28% 22%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
     --ring: 211 100% 55%;
 
-    --sidebar-background: 222 42% 10%;
-    --sidebar-foreground: 220 20% 92%;
+    --sidebar-background: 222 47% 6%;
+    --sidebar-foreground: 213 31% 91%;
     --sidebar-primary: 211 100% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 30% 18%;
-    --sidebar-accent-foreground: 220 20% 90%;
-    --sidebar-border: 222 28% 20%;
+    --sidebar-accent: 223 47% 11%;
+    --sidebar-accent-foreground: 213 31% 91%;
+    --sidebar-border: 216 34% 17%;
     --sidebar-ring: 211 100% 55%;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border selection:bg-primary/20 selection:text-primary;
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
+
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40 transition-colors;
+  }
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  @apply bg-white/70 backdrop-blur-xl border border-white/20 shadow-xl;
+}
+.dark .glass {
+  @apply bg-black/40 backdrop-blur-xl border border-white/10 shadow-2xl;
+}
+
+.glass-card {
+  @apply bg-card/60 backdrop-blur-lg border border-border/50 shadow-sm hover:shadow-md transition-all duration-300;
+}
+
+.neo-card {
+  @apply bg-card border-border shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300;
+}
+
+/* Modern Table Styles */
+.modern-table {
+  @apply w-full text-left border-separate border-spacing-0;
+}
+.modern-table th {
+  @apply px-4 py-3 bg-muted/30 text-[10px] font-black uppercase tracking-widest text-muted-foreground border-b border-border/50 first:rounded-tl-xl last:rounded-tr-xl;
+}
+.modern-table td {
+  @apply px-4 py-4 border-b border-border/30 text-sm align-middle;
+}
+.modern-table tr:last-child td {
+  @apply border-b-0;
+}
+.modern-table tr {
+  @apply transition-colors hover:bg-muted/10;
+}
+
+/* Animated Gradient Text */
+.text-gradient {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-brand-blue-500 to-brand-blue-300 animate-gradient;
+}
+
+@keyframes gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Wizard Progress Line */
+.wizard-step {
+  @apply relative flex flex-col items-center flex-1;
+}
+.wizard-step::after {
+  content: '';
+  @apply absolute top-5 left-1/2 w-full h-0.5 bg-muted -z-10;
+}
+.wizard-step:last-child::after {
+  @apply hidden;
+}
+.wizard-step.active::after {
+  @apply bg-primary;
 }
 
 /* ── App loading screen ── */

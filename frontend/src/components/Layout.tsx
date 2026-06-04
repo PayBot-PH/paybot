@@ -295,36 +295,36 @@ export default function Layout({ children, connected }: LayoutProps) {
     <div className="h-screen overflow-hidden bg-background text-foreground flex">
 
       {/* ─── Desktop Sidebar ─── */}
-      <aside className="hidden md:flex flex-col w-56 fixed inset-y-0 left-0 z-40 bg-card border-r border-border shadow-sm">
+      <aside className="hidden md:flex flex-col w-64 fixed inset-y-0 left-0 z-40 bg-card/60 backdrop-blur-xl border-r border-border/50 shadow-2xl">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-3 px-4 h-14 border-b border-border shrink-0 group">
-          <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center shrink-0 shadow-sm group-hover:shadow-md transition-shadow">
-            <img src="/logo.svg" alt={APP_NAME} className="h-5 w-5 shrink-0" />
+        <Link to="/" className="flex items-center gap-4 px-6 h-20 border-b border-border/40 shrink-0 group">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-brand-blue-500 to-brand-blue-600 flex items-center justify-center shrink-0 shadow-lg shadow-brand-blue-500/30 group-hover:scale-105 transition-all duration-300">
+            <img src="/logo.svg" alt={APP_NAME} className="h-6 w-6 shrink-0" />
           </div>
           <div>
-            <p className="text-sm font-bold leading-tight text-foreground">{APP_NAME}</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">{APP_SUBTITLE}</p>
+            <p className="text-base font-black tracking-tight text-foreground">{APP_NAME}</p>
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">{APP_SUBTITLE}</p>
           </div>
         </Link>
 
         <NavLinks />
 
         {/* User */}
-        <div className="shrink-0 border-t border-border p-3">
-          <div className="flex items-center gap-2 px-2 py-2 rounded-xl bg-accent/50 border border-accent">
-            <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
-              {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-500" /> : <User className="h-3.5 w-3.5 text-primary" />}
+        <div className="shrink-0 border-t border-border/40 p-4">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-accent/30 border border-accent/20 backdrop-blur-sm shadow-inner">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/10 to-primary/20 border border-primary/20 flex items-center justify-center shrink-0 shadow-sm">
+              {isSuperAdmin ? <Crown className="h-5 w-5 text-amber-500" /> : <User className="h-5 w-5 text-primary" />}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold truncate">{userName}</p>
-              <p className="text-[10px] text-muted-foreground">{isSuperAdmin ? t('super_admin') : t('admin')}</p>
+              <p className="text-sm font-black truncate tracking-tight">{userName}</p>
+              <p className="text-[10px] font-black uppercase text-muted-foreground/80 tracking-widest leading-none mt-0.5">{isSuperAdmin ? t('super_admin') : t('admin')}</p>
             </div>
             <button
               onClick={() => logout()}
-              className="p-1 rounded-lg text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+              className="p-2 rounded-xl text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-all active:scale-90"
               title="Sign out"
             >
-              <LogOut className="h-3.5 w-3.5" />
+              <LogOut className="h-4 w-4" />
             </button>
           </div>
         </div>
@@ -333,24 +333,24 @@ export default function Layout({ children, connected }: LayoutProps) {
       {/* ─── Mobile Drawer ─── */}
       {sidebarOpen && (
         <div className="md:hidden fixed inset-0 z-50 flex">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative z-10 w-64 h-full bg-card border-r border-border flex flex-col shadow-xl">
-            <div className="flex items-center justify-between px-4 h-14 border-b border-border shrink-0">
-              <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 group">
-                <div className="h-8 w-8 rounded-xl bg-primary flex items-center justify-center shrink-0">
-                  <img src="/logo.svg" alt={APP_NAME} className="h-5 w-5" />
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-300" onClick={() => setSidebarOpen(false)} />
+          <aside className="relative z-10 w-72 h-full bg-card/95 backdrop-blur-2xl border-r border-border/50 flex flex-col shadow-2xl animate-in slide-in-from-left duration-400">
+            <div className="flex items-center justify-between px-6 h-20 border-b border-border/40 shrink-0">
+              <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-4 group">
+                <div className="h-10 w-10 rounded-2xl bg-primary flex items-center justify-center shrink-0 shadow-lg shadow-primary/20">
+                  <img src="/logo.svg" alt={APP_NAME} className="h-6 w-6" />
                 </div>
-                <p className="text-sm font-bold text-foreground">{APP_NAME}</p>
+                <p className="text-base font-black tracking-tight text-foreground">{APP_NAME}</p>
               </Link>
-              <button onClick={() => setSidebarOpen(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-                <X className="h-4 w-4" />
+              <button onClick={() => setSidebarOpen(false)} className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-90">
+                <X className="h-5 w-5" />
               </button>
             </div>
             <NavLinks onNav={() => setSidebarOpen(false)} />
-            <div className="shrink-0 border-t border-border p-3">
+            <div className="shrink-0 border-t border-border/40 p-4">
               <button
                 onClick={() => logout()}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                className="w-full h-12 flex items-center justify-center gap-3 rounded-2xl text-sm font-black uppercase tracking-widest text-red-500 bg-red-500/5 hover:bg-red-500/10 transition-all active:scale-95"
               >
                 <LogOut className="h-4 w-4" />
                 {t('sign_out')}
@@ -361,58 +361,60 @@ export default function Layout({ children, connected }: LayoutProps) {
       )}
 
       {/* ─── Main Content ─── */}
-      <div className="flex-1 flex flex-col min-h-0 md:ml-56">
+      <div className="flex-1 flex flex-col min-h-0 md:ml-64 transition-all duration-300">
 
         {/* Top Bar */}
-        <header className="sticky top-0 z-30 h-14 flex items-center px-4 gap-3 bg-card/95 backdrop-blur-md border-b border-border shrink-0">
+        <header className="sticky top-0 z-30 h-16 flex items-center px-6 gap-4 bg-background/60 backdrop-blur-xl border-b border-border/40 shrink-0">
           <button
-            className="md:hidden p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            className="md:hidden p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all active:scale-90"
             onClick={() => setSidebarOpen(true)}
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="h-6 w-6" />
           </button>
 
           {/* Mobile brand */}
-          <div className="md:hidden flex items-center gap-2">
-            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
-              <img src="/logo.svg" alt={APP_NAME} className="h-4 w-4" />
+          <div className="md:hidden flex items-center gap-3">
+            <div className="h-9 w-9 rounded-2xl bg-gradient-to-br from-primary to-primary-600 flex items-center justify-center shadow-lg shadow-primary/20">
+              <img src="/logo.svg" alt={APP_NAME} className="h-5 w-5" />
             </div>
-            <span className="text-sm font-bold text-foreground">{APP_NAME}</span>
+            <span className="text-sm font-black tracking-tight text-foreground">{APP_NAME}</span>
           </div>
 
           <div className="flex-1" />
 
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-            title={theme === 'dark' ? t('switch_light') : t('switch_dark')}
-          >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-          </button>
+          <div className="flex items-center gap-1 bg-muted/30 p-1 rounded-2xl border border-border/50">
+            {/* Theme toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card hover:shadow-sm transition-all active:scale-90"
+              title={theme === 'dark' ? t('switch_light') : t('switch_dark')}
+            >
+              {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
 
-          {/* Language toggle */}
-          <button
-            onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
-            className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors text-xs font-semibold w-8 h-8 flex items-center justify-center"
-            title={language === 'en' ? t('switch_chinese') : t('switch_english')}
-          >
-            {language === 'en' ? '中' : 'EN'}
-          </button>
+            {/* Language toggle */}
+            <button
+              onClick={() => setLanguage(language === 'en' ? 'zh' : 'en')}
+              className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-card hover:shadow-sm transition-all text-[10px] font-black w-8 h-8 flex items-center justify-center uppercase tracking-tighter"
+              title={language === 'en' ? t('switch_chinese') : t('switch_english')}
+            >
+              {language === 'en' ? '中' : 'EN'}
+            </button>
+          </div>
 
           {/* Live indicator */}
           {connected !== undefined && (
             connected ? (
-              <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-500/10 px-2.5 py-1 rounded-full">
-                <span className="relative flex h-1.5 w-1.5">
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 px-4 py-1.5 rounded-full border border-emerald-500/20 shadow-sm shadow-emerald-500/5 animate-in fade-in zoom-in duration-500">
+                <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
                 <span className="hidden sm:inline">{t('live')}</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-muted-foreground text-[11px]">
-                <WifiOff className="h-3.5 w-3.5" />
+              <div className="flex items-center gap-2 text-muted-foreground text-[10px] font-black uppercase tracking-widest bg-muted/50 px-4 py-1.5 rounded-full border border-border/50">
+                <WifiOff className="h-4 w-4" />
                 <span className="hidden sm:inline">{t('offline')}</span>
               </div>
             )
@@ -423,27 +425,32 @@ export default function Layout({ children, connected }: LayoutProps) {
             <div className="relative" ref={userMenuRef}>
               <button
                 onClick={() => setUserMenuOpen((v) => !v)}
-                className="hidden md:flex items-center gap-2 pl-3 border-l border-border text-muted-foreground hover:text-foreground transition-colors"
+                className="hidden md:flex items-center gap-3 pl-4 border-l border-border/40 text-muted-foreground hover:text-foreground transition-all group"
               >
-                <div className="h-8 w-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                  {isSuperAdmin ? <Crown className="h-3.5 w-3.5 text-amber-500" /> : <User className="h-3.5 w-3.5 text-primary" />}
+                <div className="h-9 w-9 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                  {isSuperAdmin ? <Crown className="h-4 w-4 text-amber-500" /> : <User className="h-4 w-4 text-primary" />}
                 </div>
-                <span className="text-xs font-semibold max-w-[100px] truncate">{userName}</span>
-                <ChevronDown className="h-3.5 w-3.5" />
+                <div className="text-left">
+                  <p className="text-[11px] font-black text-foreground truncate max-w-[100px] leading-none tracking-tight">{userName}</p>
+                  <p className="text-[9px] font-bold text-muted-foreground/70 uppercase tracking-tighter mt-1">{isSuperAdmin ? 'Root' : 'Admin'}</p>
+                </div>
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} />
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-2xl shadow-xl py-1.5 z-50">
-                  <div className="px-4 py-2.5 border-b border-border">
-                    <p className="text-sm font-semibold truncate">{userName}</p>
-                    <p className="text-[11px] text-muted-foreground">{isSuperAdmin ? t('super_administrator') : t('administrator')}</p>
+                <div className="absolute right-0 mt-3 w-56 glass border border-border/50 rounded-2xl shadow-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-200 origin-top-right">
+                  <div className="px-5 py-3 border-b border-border/40">
+                    <p className="text-sm font-black truncate text-foreground">{userName}</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-0.5">{isSuperAdmin ? t('super_administrator') : t('administrator')}</p>
                   </div>
-                  <button
-                    onClick={() => { setUserMenuOpen(false); logout(); }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    {t('sign_out')}
-                  </button>
+                  <div className="p-1">
+                    <button
+                      onClick={() => { setUserMenuOpen(false); logout(); }}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red-500 hover:bg-red-500/5 dark:hover:bg-red-500/10 rounded-xl transition-all active:scale-95"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {t('sign_out')}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -451,8 +458,11 @@ export default function Layout({ children, connected }: LayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 overflow-y-auto overflow-x-hidden min-h-0">
-          <div className="max-w-7xl w-full mx-auto">
+        <main className="flex-1 p-6 sm:p-10 overflow-y-auto overflow-x-hidden min-h-0 bg-background/50 relative">
+          {/* Subtle background glow */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-96 bg-primary/5 blur-[120px] pointer-events-none -z-10" />
+
+          <div className="max-w-7xl w-full mx-auto animate-in fade-in slide-in-from-bottom-2 duration-500">
             {children}
           </div>
           <AppFooter variant="admin" />
@@ -460,4 +470,5 @@ export default function Layout({ children, connected }: LayoutProps) {
       </div>
     </div>
   );
+}
 }

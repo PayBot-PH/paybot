@@ -227,145 +227,164 @@ export default function Wallet() {
   if (!user) return <Layout><div className="py-20 text-center"><Button onClick={() => login()}>Sign In to View Wallet</Button></div></Layout>;
 
   return (
-    <Layout>
-      <div className="max-w-6xl mx-auto pb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1 className="text-3xl font-black text-foreground tracking-tight">Financial Center</h1>
-            <p className="text-muted-foreground text-sm font-medium mt-1">Manage your multi-currency balances and settlements</p>
+    <Layout connected={connected}>
+      <div className="max-w-7xl mx-auto pb-10 space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-black tracking-tighter uppercase">Vault & Settlement</h1>
+            <p className="text-muted-foreground font-medium flex items-center gap-2">
+               <div className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+               Multi-currency liquidity and global payout control
+            </p>
           </div>
-          <Badge className="bg-brand-blue-500/10 text-brand-blue-600 border-0 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest">
-            <ShieldAlert className="h-3 w-3 mr-1.5 inline" /> Secure Node
-          </Badge>
+          <div className="flex items-center gap-3">
+             <Badge className="bg-brand-blue-500/10 text-brand-blue-600 border-0 px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-[0.2em]">
+               <ShieldAlert className="h-3.5 w-3.5 mr-2 inline" /> Verified Node
+             </Badge>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
           {/* Left Column: Balances & Actions */}
-          <div className="lg:col-span-4 space-y-6">
-            <Card className="bg-brand-blue-600 border-0 shadow-xl shadow-brand-blue-500/20 overflow-hidden relative rounded-[2rem]">
-               <div className="absolute top-0 right-0 p-8 opacity-10"><PhilippinePeso className="h-32 w-32" /></div>
-               <CardContent className="p-8 relative z-10">
-                  <p className="text-[10px] font-black text-brand-blue-100 uppercase tracking-[0.2em] mb-2">Available Balance</p>
-                  <h2 className="text-4xl font-black text-white tracking-tight mb-8">
+          <div className="lg:col-span-4 space-y-8">
+            <Card className="bg-brand-blue-600 border-0 shadow-2xl shadow-brand-blue-500/30 overflow-hidden relative rounded-[2.5rem] group">
+               <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:scale-110 transition-transform duration-700 pointer-events-none"><PhilippinePeso className="h-40 w-40" /></div>
+               <CardContent className="p-10 relative z-10">
+                  <p className="text-[10px] font-black text-brand-blue-100 uppercase tracking-[0.3em] mb-3">Available Liquidity</p>
+                  <h2 className="text-5xl font-black text-white tracking-tighter mb-10 tabular-nums">
                     {loading ? '₱ --.--' : `₱${fmt(phpBalance?.balance)}`}
                   </h2>
-                  <div className="flex gap-2">
-                    <Button onClick={() => setTopupDialogOpen(true)} className="flex-1 bg-white text-brand-blue-600 hover:bg-brand-blue-50 font-black rounded-xl h-12 uppercase text-[10px] tracking-widest">
+                  <div className="flex gap-3">
+                    <Button onClick={() => setTopupDialogOpen(true)} className="flex-1 bg-white text-brand-blue-600 hover:bg-brand-blue-50 font-black rounded-2xl h-14 uppercase text-[10px] tracking-widest shadow-xl shadow-black/10">
                       <PlusCircle className="h-4 w-4 mr-2" /> Top Up
                     </Button>
-                    <Button onClick={() => setActiveTab('withdraw')} variant="outline" className="flex-1 border-white/30 text-white hover:bg-white/10 font-black rounded-xl h-12 uppercase text-[10px] tracking-widest">
-                      <ArrowUpFromLine className="h-4 w-4 mr-2" /> Cash Out
+                    <Button onClick={() => setActiveTab('withdraw')} variant="outline" className="flex-1 border-white/30 text-white hover:bg-white/10 font-black rounded-2xl h-14 uppercase text-[10px] tracking-widest">
+                      <ArrowUpFromLine className="h-4 w-4 mr-2" /> Payout
                     </Button>
                   </div>
                </CardContent>
             </Card>
 
-            <Card className="bg-emerald-600 border-0 shadow-xl shadow-emerald-500/20 overflow-hidden relative rounded-[2rem]">
-               <div className="absolute top-0 right-0 p-8 opacity-10"><Bitcoin className="h-32 w-32" /></div>
-               <CardContent className="p-8 relative z-10">
-                  <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.2em] mb-2">USDT Assets (TRC-20)</p>
-                  <h2 className="text-4xl font-black text-white tracking-tight mb-8">
+            <Card className="bg-gradient-to-br from-emerald-600 to-emerald-700 border-0 shadow-2xl shadow-emerald-600/30 overflow-hidden relative rounded-[2.5rem] group">
+               <div className="absolute top-0 right-0 p-10 opacity-10 group-hover:rotate-12 transition-transform duration-700 pointer-events-none"><Bitcoin className="h-40 w-40" /></div>
+               <CardContent className="p-10 relative z-10">
+                  <p className="text-[10px] font-black text-emerald-100 uppercase tracking-[0.3em] mb-3">USDT Stablecoin (TRC-20)</p>
+                  <h2 className="text-5xl font-black text-white tracking-tighter mb-10 tabular-nums">
                     {loading ? '$ --.--' : `$${fmtUsd(usdBalance?.balance)}`}
                   </h2>
-                  <div className="flex gap-2">
-                    <Button onClick={() => setActiveTab('crypto')} className="flex-1 bg-white text-emerald-600 hover:bg-emerald-50 font-black rounded-xl h-12 uppercase text-[10px] tracking-widest">
-                      <ArrowDownLeft className="h-4 w-4 mr-2" /> Receive
+                  <div className="flex gap-3">
+                    <Button onClick={() => setActiveTab('crypto')} className="flex-1 bg-white text-emerald-600 hover:bg-emerald-50 font-black rounded-2xl h-14 uppercase text-[10px] tracking-widest shadow-xl shadow-black/10">
+                      <ArrowDownLeft className="h-4 w-4 mr-2" /> Deposit
                     </Button>
-                    <Button onClick={() => setActiveTab('send-usd')} variant="outline" className="flex-1 border-white/30 text-white hover:bg-white/10 font-black rounded-xl h-12 uppercase text-[10px] tracking-widest">
-                      <Send className="h-4 w-4 mr-2" /> Transfer
+                    <Button onClick={() => setActiveTab('send-usd')} variant="outline" className="flex-1 border-white/30 text-white hover:bg-white/10 font-black rounded-2xl h-14 uppercase text-[10px] tracking-widest">
+                      <Send className="h-4 w-4 mr-2" /> Send
                     </Button>
                   </div>
                </CardContent>
             </Card>
 
-            <Card className="border-border/60 shadow-sm bg-muted/20">
-               <CardHeader className="pb-2">
-                 <CardTitle className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Settlement Info</CardTitle>
+            <Card className="glass-card bg-muted/20">
+               <CardHeader className="pb-4 pt-6">
+                 <CardTitle className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em]">Network Protocols</CardTitle>
                </CardHeader>
-               <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-muted-foreground uppercase">Bank Payouts</span>
-                    <span className="text-foreground">T+1 Business Day</span>
+               <CardContent className="space-y-5 pb-8">
+                  <div className="flex items-center justify-between text-xs font-black">
+                    <span className="text-muted-foreground uppercase tracking-wider">Local Clear</span>
+                    <span className="text-foreground">T+1 SETTLEMENT</span>
                   </div>
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-muted-foreground uppercase">USDT Clearing</span>
-                    <span className="text-foreground">Instant (T+0)</span>
+                  <div className="flex items-center justify-between text-xs font-black">
+                    <span className="text-muted-foreground uppercase tracking-wider">Asset Bridge</span>
+                    <span className="text-emerald-500">REALTIME (T+0)</span>
                   </div>
-                  <div className="pt-2 border-t border-border/40">
-                    <p className="text-[10px] text-muted-foreground leading-relaxed italic">Verified transactions are automatically settled to your designated PHP wallet.</p>
+                  <div className="pt-4 border-t border-border/40">
+                    <p className="text-[10px] text-muted-foreground/60 leading-relaxed font-bold uppercase italic tracking-tighter">Encrypted node validation active. Funds are secured by cross-chain ledger protocols.</p>
                   </div>
                </CardContent>
             </Card>
           </div>
 
           {/* Right Column: Dynamic Action Panel & History */}
-          <div className="lg:col-span-8 space-y-6">
-             <Card className="border-border/60 shadow-sm overflow-hidden">
+          <div className="lg:col-span-8 space-y-8">
+             <Card className="glass-card overflow-hidden h-fit">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="w-full bg-muted/40 border-b border-border/40 h-14 p-0 rounded-none justify-start px-4 gap-6">
-                    <TabsTrigger value="withdraw" className="h-full bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-brand-blue-500 rounded-none font-black text-[10px] uppercase tracking-widest">Withdraw</TabsTrigger>
-                    <TabsTrigger value="send-usd" className="h-full bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-emerald-500 rounded-none font-black text-[10px] uppercase tracking-widest">Send USD</TabsTrigger>
-                    <TabsTrigger value="crypto" className="h-full bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-2 data-[state=active]:border-teal-500 rounded-none font-black text-[10px] uppercase tracking-widest">USDT Deposit</TabsTrigger>
-                  </TabsList>
+                  <div className="flex overflow-x-auto custom-scrollbar bg-muted/30">
+                    <TabsList className="bg-transparent border-b border-border/30 h-16 p-0 rounded-none justify-start px-8 gap-10 min-w-max">
+                      <TabsTrigger value="withdraw" className="h-full bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-4 data-[state=active]:border-brand-blue-500 rounded-none font-black text-[10px] uppercase tracking-[0.3em] px-0 transition-all">Withdrawal</TabsTrigger>
+                      <TabsTrigger value="send-usd" className="h-full bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-4 data-[state=active]:border-emerald-500 rounded-none font-black text-[10px] uppercase tracking-[0.3em] px-0 transition-all">Inter-Vault</TabsTrigger>
+                      <TabsTrigger value="crypto" className="h-full bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none data-[state=active]:border-b-4 data-[state=active]:border-teal-500 rounded-none font-black text-[10px] uppercase tracking-[0.3em] px-0 transition-all">Stablecoin In</TabsTrigger>
+                    </TabsList>
+                  </div>
 
-                  <CardContent className="p-8">
-                    <TabsContent value="withdraw" className="mt-0 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Amount to Cash Out (PHP)</Label>
-                          <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-muted-foreground">₱</span><Input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} className="pl-8 h-12 bg-muted/20 border-border/60 text-lg font-black rounded-xl" placeholder="0.00" /></div>
+                  <CardContent className="p-10">
+                    <TabsContent value="withdraw" className="mt-0 space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                        <div className="space-y-3">
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Transfer Amount (PHP)</Label>
+                          <div className="relative group">
+                            <span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-brand-blue-500 text-xl">₱</span>
+                            <Input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} className="pl-10 h-16 bg-muted/20 border-border/50 text-2xl font-black rounded-2xl tabular-nums focus:ring-primary/20 transition-all" placeholder="0.00" />
+                          </div>
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Recipient Bank</Label>
+                        <div className="space-y-3">
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Receiving Bank</Label>
                           <Select value={withdrawBank} onValueChange={setWithdrawBank}>
-                            <SelectTrigger className="h-12 bg-muted/20 border-border/60 rounded-xl font-bold uppercase text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent className="bg-card">{bankOptions.map(b => <SelectItem key={b.code} value={b.code}>{b.name}</SelectItem>)}</SelectContent>
+                            <SelectTrigger className="h-16 bg-muted/20 border-border/50 rounded-2xl font-black uppercase text-[10px] tracking-widest px-6"><SelectValue /></SelectTrigger>
+                            <SelectContent className="rounded-2xl border-border/40 shadow-2xl">{bankOptions.map(b => <SelectItem key={b.code} value={b.code} className="py-3 font-bold">{b.name}</SelectItem>)}</SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Account Number</Label>
-                          <Input value={withdrawAccount} onChange={e => setWithdrawAccount(e.target.value)} className="h-12 bg-muted/20 border-border/60 font-mono text-sm rounded-xl" placeholder="09XXXXXXXXX" />
+                        <div className="space-y-3">
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Beneficiary Account</Label>
+                          <Input value={withdrawAccount} onChange={e => setWithdrawAccount(e.target.value)} className="h-16 bg-muted/20 border-border/50 font-black text-sm rounded-2xl px-6 tracking-widest tabular-nums uppercase" placeholder="09XXXXXXXXX" />
                         </div>
-                        <div className="space-y-2">
-                          <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Internal Reference</Label>
-                          <Input value={withdrawNote} onChange={e => setWithdrawNote(e.target.value)} className="h-12 bg-muted/20 border-border/60 text-sm font-medium rounded-xl" placeholder="Optional note" />
+                        <div className="space-y-3">
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Transaction Ref</Label>
+                          <Input value={withdrawNote} onChange={e => setWithdrawNote(e.target.value)} className="h-16 bg-muted/20 border-border/50 text-sm font-black rounded-2xl px-6 uppercase tracking-tight" placeholder="Private internal note" />
                         </div>
                       </div>
-                      <Button onClick={handleWithdraw} disabled={withdrawLoading} className="w-full h-14 bg-brand-blue-500 hover:bg-brand-blue-600 text-white font-black rounded-2xl shadow-lg shadow-brand-blue-500/20 uppercase tracking-widest transition-all">
-                        {withdrawLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <ArrowUpFromLine className="h-5 w-5 mr-2" />} Initialize Payout
+                      <Button onClick={handleWithdraw} disabled={withdrawLoading} className="w-full h-16 bg-brand-blue-500 hover:bg-brand-blue-600 text-white font-black rounded-[1.5rem] shadow-2xl shadow-brand-blue-500/30 uppercase tracking-widest transition-all active:scale-95 text-xs">
+                        {withdrawLoading ? <Loader2 className="h-6 w-6 animate-spin mr-3" /> : <ArrowUpFromLine className="h-6 w-6 mr-3" />} Authorize Payout
                       </Button>
                     </TabsContent>
 
-                    <TabsContent value="send-usd" className="mt-0 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Recipient @Username</Label>
-                        <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-muted-foreground">@</span><Input value={sendUsdUsername} onChange={e => setSendUsdUsername(e.target.value)} className="pl-8 h-12 bg-muted/20 border-border/60 text-sm font-black rounded-xl" placeholder="telegram_user" /></div>
+                    <TabsContent value="send-usd" className="mt-0 space-y-8 animate-in fade-in slide-in-from-top-4 duration-500">
+                      <div className="space-y-3 text-center mb-10">
+                         <h3 className="text-xl font-black uppercase tracking-tight">Node-to-Node Transfer</h3>
+                         <p className="text-xs text-muted-foreground font-medium uppercase tracking-widest">Zero-fee internal asset routing between PayBot accounts</p>
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">USD Amount</Label>
-                        <div className="relative"><span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-muted-foreground">$</span><Input type="number" value={sendUsdAmount} onChange={e => setSendUsdAmount(e.target.value)} className="pl-8 h-12 bg-muted/20 border-border/60 text-lg font-black rounded-xl" placeholder="0.00" /></div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                        <div className="space-y-3">
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Target Account @ID</Label>
+                          <div className="relative"><span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-emerald-500 text-lg">@</span><Input value={sendUsdUsername} onChange={e => setSendUsdUsername(e.target.value)} className="pl-10 h-16 bg-muted/20 border-border/50 text-sm font-black rounded-2xl px-6 uppercase" placeholder="ADMIN_USERNAME" /></div>
+                        </div>
+                        <div className="space-y-3">
+                          <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground ml-1">Asset Value (USDT)</Label>
+                          <div className="relative"><span className="absolute left-5 top-1/2 -translate-y-1/2 font-black text-emerald-500 text-lg">$</span><Input type="number" value={sendUsdAmount} onChange={e => setSendUsdAmount(e.target.value)} className="pl-10 h-16 bg-muted/20 border-border/50 text-2xl font-black rounded-2xl tabular-nums" placeholder="0.00" /></div>
+                        </div>
                       </div>
-                      <Button onClick={handleSendUsd} disabled={sendUsdLoading} className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl shadow-lg shadow-emerald-500/20 uppercase tracking-widest transition-all">
-                         {sendUsdLoading ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Send className="h-5 w-5 mr-2" />} Transfer USD Assets
+                      <Button onClick={handleSendUsd} disabled={sendUsdLoading} className="w-full h-16 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-[1.5rem] shadow-2xl shadow-emerald-500/30 uppercase tracking-widest transition-all active:scale-95 text-xs">
+                         {sendUsdLoading ? <Loader2 className="h-6 w-6 animate-spin mr-3" /> : <Send className="h-6 w-6 mr-3" />} Execute Transfer
                       </Button>
                     </TabsContent>
 
-                    <TabsContent value="crypto" className="mt-0 space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
-                       <div className="flex flex-col md:flex-row gap-8 items-center bg-muted/20 rounded-[2rem] p-8 border border-border/40">
-                          <div className="shrink-0 bg-white p-3 rounded-2xl shadow-sm border border-border/60">
-                             <img src={`https://api.qrserver.com/v1/create-qr-code/?size=160x130&data=${cryptoDepositInfo?.address || 'loading'}`} alt="QR" className="w-40 h-40" />
+                    <TabsContent value="crypto" className="mt-0 space-y-10 animate-in fade-in slide-in-from-top-4 duration-500">
+                       <div className="flex flex-col md:flex-row gap-12 items-center bg-muted/20 rounded-[2.5rem] p-10 border border-border/40 shadow-inner">
+                          <div className="shrink-0 bg-white p-5 rounded-[2rem] shadow-2xl border border-border/60 group cursor-pointer relative overflow-hidden">
+                             <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${cryptoDepositInfo?.address || 'loading'}`} alt="QR" className="w-44 h-44 relative z-10" />
+                             <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-[2px]">
+                                <QrCode className="h-10 w-10 text-primary" />
+                             </div>
                           </div>
-                          <div className="flex-1 space-y-4">
+                          <div className="flex-1 space-y-6">
                              <div>
-                               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-1">TRC-20 Destination</p>
-                               <div className="flex items-center gap-2 bg-card border border-border/60 px-4 py-2.5 rounded-xl">
-                                 <code className="text-xs font-black text-teal-600 truncate flex-1">{cryptoDepositInfo?.address || '---'}</code>
-                                 <button onClick={copyAddr} className="text-muted-foreground hover:text-brand-blue-500"><Copy className="h-4 w-4" /></button>
+                               <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] mb-3 ml-1">Destination TRC-20 Hub</p>
+                               <div className="flex items-center gap-4 bg-card border border-border/60 p-4 rounded-2xl shadow-sm">
+                                 <code className="text-sm font-black text-teal-600 truncate flex-1 tracking-widest">{cryptoDepositInfo?.address || 'INITIALIZING NODE...'}</code>
+                                 <button onClick={copyAddr} className="h-10 w-10 rounded-xl flex items-center justify-center text-muted-foreground hover:text-brand-blue-500 hover:bg-muted transition-all active:scale-90"><Copy className="h-5 w-5" /></button>
                                </div>
                              </div>
-                             <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl flex gap-3">
-                                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
-                                <p className="text-[10px] font-bold text-amber-700 leading-relaxed uppercase">Important: Transfer only USDT on the TRON network. Cross-chain deposits cannot be recovered.</p>
+                             <div className="bg-amber-500/5 border border-amber-500/15 p-6 rounded-2xl flex gap-4">
+                                <ShieldAlert className="h-6 w-6 text-amber-600 shrink-0" />
+                                <p className="text-[10px] font-black text-amber-700 leading-relaxed uppercase tracking-tighter">Critical: Transfer strictly USDT via TRON (TRC-20). Incompatible assets or network mismatch results in permanent fund loss.</p>
                              </div>
                           </div>
                        </div>
@@ -374,43 +393,52 @@ export default function Wallet() {
                 </Tabs>
              </Card>
 
-             <Card className="border-border/60 shadow-sm overflow-hidden">
-                <CardHeader className="bg-muted/10 border-b border-border/40 flex flex-row items-center justify-between py-4">
-                  <div className="flex items-center gap-2">
+             <Card className="glass-card overflow-hidden">
+                <CardHeader className="bg-muted/10 border-b border-border/40 flex flex-row items-center justify-between py-6 px-8">
+                  <div className="flex items-center gap-3">
                     <History className="h-4 w-4 text-brand-blue-500" />
-                    <CardTitle className="text-xs font-black uppercase tracking-widest">Recent Activity</CardTitle>
+                    <CardTitle className="text-[10px] font-black uppercase tracking-[0.3em]">Ledger Stream</CardTitle>
                   </div>
-                  <Badge className="bg-muted text-muted-foreground font-black text-[9px] uppercase tracking-tighter border-0">{transactions.length} total</Badge>
+                  <Badge className="bg-muted/50 text-muted-foreground font-black text-[9px] uppercase tracking-widest border-0 px-3 py-1 rounded-full">{transactions.length} records</Badge>
                 </CardHeader>
-                <CardContent className="p-0 max-h-[500px] overflow-y-auto">
+                <CardContent className="p-0 max-h-[600px] overflow-y-auto custom-scrollbar">
                    {loading ? (
-                     <div className="py-20 text-center"><Loader2 className="h-8 w-8 animate-spin mx-auto text-brand-blue-500 opacity-40" /></div>
+                     <div className="py-32 text-center flex flex-col items-center gap-4">
+                       <Loader2 className="h-10 w-10 animate-spin text-brand-blue-500 opacity-20" />
+                       <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest animate-pulse">Parsing ledger history...</p>
+                     </div>
                    ) : transactions.length === 0 ? (
-                     <div className="py-20 text-center px-6">
-                       <WalletIcon className="h-12 w-12 text-muted-foreground/20 mx-auto mb-4" />
-                       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">No transaction data available</p>
+                     <div className="py-32 text-center px-10">
+                       <div className="h-20 w-20 rounded-[1.5rem] bg-muted/20 flex items-center justify-center mx-auto mb-6 shadow-inner">
+                         <WalletIcon className="h-10 w-10 text-muted-foreground/20" />
+                       </div>
+                       <p className="text-xs font-black text-muted-foreground uppercase tracking-widest">No operations recorded on this node</p>
                      </div>
                    ) : (
-                     <div className="divide-y divide-border/30">
+                     <div className="divide-y divide-border/20 px-4">
                        {transactions.map(txn => {
                          const cfg = txnTypeConfig[txn.transaction_type] || { label: txn.transaction_type, color: 'text-foreground', icon: <History className="h-4 w-4" />, sign: '', bg: 'bg-muted' };
                          const isCrypto = txn.transaction_type.includes('usd');
                          return (
-                           <div key={txn.id} className="p-5 flex items-center justify-between hover:bg-muted/30 transition-colors">
-                              <div className="flex items-center gap-4 min-w-0">
-                                <div className={`h-10 w-10 rounded-2xl ${cfg.bg} flex items-center justify-center shrink-0 border border-black/5`}>
+                           <div key={txn.id} className="p-6 flex items-center justify-between hover:bg-muted/20 transition-all rounded-3xl my-2 border border-transparent hover:border-border/40 group">
+                              <div className="flex items-center gap-5 min-w-0">
+                                <div className={`h-12 w-12 rounded-[1rem] ${cfg.bg} flex items-center justify-center shrink-0 border border-black/5 shadow-sm group-hover:scale-105 transition-transform`}>
                                   {cfg.icon}
                                 </div>
                                 <div className="min-w-0">
-                                  <p className="text-xs font-black text-foreground uppercase tracking-tight truncate">{cfg.label}</p>
-                                  <p className="text-[10px] font-bold text-muted-foreground mt-1 truncate italic">"{txn.note || txn.reference_id || 'Automatic entry'}"</p>
+                                  <p className="text-[11px] font-black text-foreground uppercase tracking-tight truncate">{cfg.label}</p>
+                                  <p className="text-[10px] font-bold text-muted-foreground mt-1.5 truncate italic uppercase tracking-tighter">
+                                     {new Date(txn.created_at!).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })} • {txn.note || txn.reference_id || 'SYSTEM_ENTRY'}
+                                  </p>
                                 </div>
                               </div>
                               <div className="text-right ml-4 shrink-0">
-                                <p className={`text-sm font-black ${txn.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'} tabular-nums uppercase`}>
+                                <p className={`text-base font-black ${txn.amount >= 0 ? 'text-emerald-600' : 'text-rose-600'} tabular-nums tracking-tighter`}>
                                   {cfg.sign}{isCrypto ? '$' : '₱'}{fmt(Math.abs(txn.amount))}
                                 </p>
-                                <p className="text-[9px] font-bold text-muted-foreground mt-0.5 uppercase tracking-tighter">{txn.status}</p>
+                                <div className="mt-2 flex justify-end">
+                                   <Badge className="bg-muted/50 text-[8px] font-black uppercase tracking-widest text-muted-foreground border-0 px-2.5 py-0.5">{txn.status}</Badge>
+                                </div>
                               </div>
                            </div>
                          );
