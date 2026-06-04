@@ -12,7 +12,7 @@ from core.config import settings
 logger = logging.getLogger(__name__)
 
 MAYA_SANDBOX_BASE_URL = "https://pg-sandbox.paymaya.com/checkout/v1"
-MAYA_LIVE_BASE_URL = "https://pg.maya.ph/checkout/v1"
+MAYA_LIVE_BASE_URL = "https://api.paymaya.com/checkout/v1"
 
 # Maya Business API endpoints (Payments/QR/Vault)
 MAYA_BUSINESS_SANDBOX_URL = "https://pg-sandbox.paymaya.com"
@@ -343,10 +343,12 @@ class MayaService:
         success_redirect_url: str = "",
         failure_redirect_url: str = "",
         cancel_redirect_url: str = "",
+        is_nfc: bool = True,
     ) -> Dict[str, Any]:
         """Create a card payment checkout using Maya Business API.
         
-        This method creates a secure checkout session for accepting credit/debit card payments.
+        This method creates a secure checkout session optimized for
+        accepting credit/debit card payments via NFC (Tap to Phone) or manual entry.
         """
         api_key = (
             os.environ.get("MAYA_BUSINESS_API_KEY", "")
@@ -357,41 +359,45 @@ class MayaService:
             or settings.maya_business_secret_key
         )
         if not api_key or not secret_key:
+            logger.error("Maya Business API credentials missing for real money transaction")
             return {
                 "success": False,
-                "error": "Maya Business API key and secret are required",
+                "error": "Maya Business API key and secret are required for real money transactions",
             }
 
         if not external_id:
             external_id = f"card-{uuid.uuid4().hex[:12]}"
 
-        amount_cents = int(round(amount * 100))
+        # Maya Business API amount is in major units (decimal) for checkouts,
+        # but some versions use cents. We'll use the decimal value as per the docs
+        # for checkout/v1/checkouts.
+        amount_val = self._amount_value(amount)
         redirect_base = settings.backend_url.rstrip("/")
 
         # Build checkout payload for Maya Business API
         payload = {
             "totalAmount": {
-                "value": amount_cents,
+                "value": amount_val,
                 "currency": "PHP"
             },
             "buyer": {},
             "redirectUrl": {
-                "success": success_redirect_url or f"{redirect_base}/payment/success",
-                "failure": failure_redirect_url or f"{redirect_base}/payment/failed",
-                "cancel": cancel_redirect_url or f"{redirect_base}/payment/cancelled",
+                "success": success_redirect_url or f"{redirect_base}/api/v1/gateway/maya/redirect/success",
+                "failure": failure_redirect_url or f"{redirect_base}/api/v1/gateway/maya/redirect/failed",
+                "cancel": cancel_redirect_url or f"{redirect_base}/api/v1/gateway/maya/redirect/cancelled",
             },
             "requestReferenceNumber": external_id,
             "items": [
                 {
-                    "name": description or "Tap to Phone Payment",
-                    "code": "CARD_NFC",
+                    "name": description or ("Tap to Phone Payment" if is_nfc else "Card Payment"),
+                    "code": "CARD_NFC" if is_nfc else "CARD_SALE",
                     "quantity": 1,
                     "unitPrice": {
-                        "value": amount_cents,
+                        "value": amount_val,
                         "currency": "PHP"
                     },
                     "totalAmount": {
-                        "value": amount_cents,
+                        "value": amount_val,
                         "currency": "PHP"
                     }
                 }
@@ -401,8 +407,9 @@ class MayaService:
                 "customer_name": customer_name,
                 "customer_email": customer_email,
                 "customer_phone": customer_phone,
-                "payment_type": "TAP_TO_PHONE",
-                "settlement_type": "T0"
+                "payment_type": "TAP_TO_PHONE" if is_nfc else "CARD",
+                "settlement_type": "T0", # Standard for Terminal integrations
+                "terminal_id": "SOFT_POS_APP"
             }
         }
 
@@ -425,15 +432,22 @@ class MayaService:
                     headers=headers,
                     timeout=30.0,
                 )
-                response.raise_for_status()
+
+                if response.status_code >= 400:
+                    error_data = response.json()
+                    logger.error(f"Maya Business API Error ({response.status_code}): {error_data}")
+                    return {"success": False, "error": error_data.get("message", response.text)}
+
                 data = response.json()
 
                 checkout_url = ""
-                if isinstance(data.get("redirectUrl"), dict):
-                    checkout_url = data["redirectUrl"].get("success", "")
-                elif isinstance(data.get("checkoutUrl"), str):
+                # Handle various Maya response formats for checkout URL
+                if data.get("redirectUrl"):
+                    url_obj = data["redirectUrl"]
+                    checkout_url = url_obj if isinstance(url_obj, str) else url_obj.get("web") or url_obj.get("success")
+                elif data.get("checkoutUrl"):
                     checkout_url = data["checkoutUrl"]
-                elif isinstance(data.get("redirect_url"), str):
+                elif data.get("redirect_url"):
                     checkout_url = data["redirect_url"]
 
                 return {
@@ -445,9 +459,6 @@ class MayaService:
                     "status": data.get("status", "CREATED"),
                     "response": data,
                 }
-        except httpx.HTTPStatusError as exc:
-            logger.error("Maya Business API checkout creation failed: %s", exc.response.text)
-            return {"success": False, "error": f"Payment gateway error: {exc.response.text}"}
         except Exception as exc:
             logger.error("Maya Business API checkout creation error: %s", exc)
             return {"success": False, "error": str(exc)}

@@ -116,9 +116,11 @@ async def approve_topup_request(
     if req.status != "pending":
         raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
 
+    # Ensure consistent tg- prefix for Telegram users
     user_wallet_id = str(req.chat_id)
-    if user_wallet_id.startswith("tg-"):
-        user_wallet_id = user_wallet_id[3:]
+    if not user_wallet_id.startswith("tg-"):
+        user_wallet_id = f"tg-{user_wallet_id}"
+
     amount_usdt = req.amount_usdt
 
     # Fetch the current USDT→PHP exchange rate

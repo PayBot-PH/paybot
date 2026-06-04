@@ -102,10 +102,17 @@ class EventBus:
             from services.telegram_service import TelegramService
             tg = TelegramService()
             
-            user_id = data.get("user_id")
+            user_id = data.get("user_id") or ""
+            # Normalize chat id: allow both "tg-123" and "123"
+            chat_id = user_id[3:] if isinstance(user_id, str) and user_id.startswith("tg-") else user_id
+
+            if not chat_id:
+                logger.warning("Cannot sync payment to Telegram: No chat_id found")
+                return
+
             amount = data.get("amount", 0) / 100
             order_id = data.get("order_id")
-            terminal_id = data.get("terminal_id")
+            terminal_id = data.get("terminal_code") or data.get("terminal_id")
             
             # Format message
             message = (
@@ -117,8 +124,8 @@ class EventBus:
                 f"Your dashboard and terminal have been updated."
             )
             
-            await tg.send_message(chat_id=user_id, text=message)
-            logger.info(f"Synced payment {order_id} to Telegram user {user_id}")
+            await tg.send_message(chat_id=chat_id, text=message)
+            logger.info(f"Synced payment {order_id} to Telegram user {chat_id}")
             
         except Exception as e:
             logger.error(f"Failed to sync payment to Telegram: {e}")
@@ -157,6 +164,9 @@ class EventBus:
                 "top_up": f"✅ <b>Wallet Topped Up</b>\n\n{amt_str}\n{note}\n{bal_str}",
                 "crypto_topup": f"✅ <b>USDT Top-up Received</b>\n\n{amt_str}\n{note}\n{bal_str}",
                 "admin_credit": f"💎 <b>Wallet Credited by Admin</b>\n\n{amt_str}\n{note}\n{bal_str}",
+                "credit": f"✅ <b>Wallet Credited</b>\n\n{amt_str}\n{note}\n{bal_str}",
+                "terminal_sale": f"📟 <b>Terminal Sale Recorded</b>\n\n{amt_str}\n{note}\n{bal_str}",
+                "qrph_payment": f"📷 <b>QRPH Payment Received</b>\n\n{amt_str}\n{note}\n{bal_str}",
 
                 # Debits
                 "send": f"💸 <b>Transfer Successful</b>\n\nSent: {amt_str}\n{note}\n{bal_str}",

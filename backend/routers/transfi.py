@@ -67,7 +67,7 @@ async def _credit_wallet(
     ledger = Wallet_transactions(
         user_id=user_id,
         wallet_id=wallet.id,
-        transaction_type="credit",
+        transaction_type="receive", # Standardize on 'receive'
         amount=amount,
         balance_before=balance_before,
         balance_after=wallet.balance,
@@ -82,13 +82,16 @@ async def _credit_wallet(
 
     try:
         payment_event_bus.publish({
-            "event": "payment_received",
-            "provider": "transfi",
-            "pay_method": pay_method,
-            "amount": amount,
-            "currency": "PHP",
+            "event_type": "wallet_update",
             "user_id": user_id,
-            "reference_id": reference_id,
+            "wallet_id": wallet.id,
+            "balance": wallet.balance,
+            "currency": "PHP",
+            "transaction_type": "receive",
+            "amount": amount,
+            "transaction_id": ledger.id,
+            "note": f"TransFi {pay_method} payment",
+            "skip_bot_notify": True # We have custom notification in webhook
         })
     except Exception:
         pass

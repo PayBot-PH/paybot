@@ -63,8 +63,25 @@ class WalletIntegrationService:
                 created_at=datetime.now(timezone.utc)
             )
             self.db.add(txn)
-            
             await self.db.commit()
+
+            # Publish wallet update event for real-time notifications
+            try:
+                event_bus.publish({
+                    "event_type": "wallet_update",
+                    "user_id": user_id,
+                    "wallet_id": wallet.id,
+                    "balance": wallet.balance,
+                    "currency": "PHP",
+                    "transaction_type": "terminal_sale",
+                    "amount": amount,
+                    "transaction_id": txn.id,
+                    "note": f"Terminal sale {order_id}",
+                    "skip_bot_notify": True # Skip generic notify because 'payment_completed' already sends a nice one
+                })
+            except Exception:
+                pass
+
             logger.info(f"Credited wallet of {user_id} with ₱{amount} from sale {order_id}")
             
         except Exception as e:

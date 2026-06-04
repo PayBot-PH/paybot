@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.config import settings
@@ -343,6 +343,10 @@ _CMD_STEPS: Dict[str, List[Dict]] = {
     "/remind": [
         {"key": "id", "type": "str", "prompt": "🆔 Enter the <b>transaction ID</b> to send a reminder:\n<i>e.g. INV-xxx</i>"},
     ],
+    "/withdraw": [
+        {"key": "amount",  "type": "float", "prompt": "💰 Enter the <b>amount</b> to withdraw in PHP:\n<i>e.g. 1000</i>"},
+        {"key": "details", "type": "str",   "prompt": "🔢 Enter your <b>withdrawal details</b>:\n<i>e.g. GCash 09123456789</i>"},
+    ],
     "/deposit": [
         {"key": "channel", "type": "str",   "prompt": "💳 Enter the <b>payment channel</b> used to send the money:\n<i>GCASH · MAYA · BDO · BPI · METROBANK · UNIONBANK · LANDBANK</i>"},
         {"key": "account", "type": "str",   "prompt": "🔢 Enter the <b>account / mobile number</b> used to make the transfer:\n<i>e.g. 09XXXXXXXXX or your bank account number</i>"},
@@ -598,52 +602,6 @@ async def _is_authorized_admin(db: AsyncSession, chat_id: str) -> bool:
         return False
 
 
-async def _get_or_promote_recipient(db: AsyncSession, username_or_id: str) -> Optional[AdminUser]:
-    """Find a recipient by username or numeric ID.
-    Looks in AdminUser first, then KybRegistration.
-    If found in KybRegistration, auto-promotes to AdminUser.
-    """
-    cleaned = username_or_id.strip().lstrip("@")
-    if not cleaned:
-        return None
-
-    # 1. Try AdminUser
-    try:
-        res = await db.execute(select(AdminUser).where(
-            or_(AdminUser.telegram_username == cleaned, AdminUser.telegram_id == cleaned)
-        ))
-        admin = res.scalar_one_or_none()
-        if admin:
-            return admin
-    except Exception as e:
-        logger.error(f"Error looking up AdminUser: {e}")
-
-    # 2. Try KybRegistration
-    try:
-        res = await db.execute(select(KybRegistration).where(
-            or_(KybRegistration.telegram_username == cleaned, KybRegistration.chat_id == cleaned)
-        ))
-        kyb = res.scalar_one_or_none()
-        if kyb:
-            # Found in registration but not in admins -> Auto-promote
-            new_admin = AdminUser(
-                telegram_id=kyb.chat_id,
-                telegram_username=kyb.telegram_username,
-                name=kyb.full_name or kyb.telegram_username or "Unknown",
-                is_active=True,
-                is_super_admin=False,
-                added_by="auto_promote",
-            )
-            db.add(new_admin)
-            await db.flush() # Get ID for transaction records
-            logger.info(f"Auto-promoted user {kyb.chat_id} (@{kyb.telegram_username}) to Admin via transfer")
-            return new_admin
-    except Exception as e:
-        logger.error(f"Error looking up/promoting KybRegistration: {e}")
-
-    return None
-
-
 async def _get_admin_user_record(db: AsyncSession, chat_id: str) -> Optional[AdminUser]:
     try:
         res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id, AdminUser.is_active.is_(True)))
@@ -684,6 +642,54 @@ def _short_address(address: str) -> str:
     if len(address) <= 14:
         return address
     return f"{address[:8]}...{address[-4:]}"
+
+
+async def _get_or_promote_recipient(db: AsyncSession, identifier: str) -> Optional[AdminUser]:
+    """Find a recipient AdminUser by username or Telegram ID."""
+    identifier = identifier.strip().lstrip("@")
+    if not identifier:
+        return None
+
+    # 1. Try username match
+    res = await db.execute(select(AdminUser).where(func.lower(AdminUser.telegram_username) == identifier.lower()))
+    admin = res.scalar_one_or_none()
+    if admin:
+        return admin
+
+    # 2. Try ID match (numeric chat ID)
+    res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == identifier))
+    admin = res.scalar_one_or_none()
+    if admin:
+        return admin
+
+    # 3. Try KYB promotion (if approved but no AdminUser row yet)
+    res = await db.execute(
+        select(KybRegistration).where(
+            (func.lower(KybRegistration.telegram_username) == identifier.lower()) |
+            (KybRegistration.chat_id == identifier)
+        )
+    )
+    kyb = res.scalar_one_or_none()
+    if kyb and kyb.status == "approved":
+        # Create missing AdminUser so they can receive funds
+        new_admin = AdminUser(
+            telegram_id=kyb.chat_id,
+            telegram_username=kyb.telegram_username,
+            name=kyb.full_name or kyb.telegram_username or kyb.chat_id,
+            is_active=True,
+            can_manage_payments=True,
+            can_manage_disbursements=True,
+            can_view_reports=True,
+            can_manage_wallet=True,
+            can_manage_transactions=True,
+            added_by="system_auto_promote",
+        )
+        db.add(new_admin)
+        await db.commit()
+        await db.refresh(new_admin)
+        return new_admin
+
+    return None
 
 
 async def _get_or_create_kyb(db: AsyncSession, chat_id: str, username: str) -> "KybRegistration":
@@ -2462,7 +2468,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             show_gateway = (not is_wallet_cmd) and is_super
 
             try:
-                php_user_id = str(chat_id)
+                # Use consistent tg- prefix for all wallets
+                php_user_id = f"tg-{chat_id}"
                 # PHP wallet — get or create
                 res = await db.execute(select(Wallets).where(Wallets.user_id == php_user_id, Wallets.currency == "PHP"))
                 wallet = res.scalar_one_or_none()
@@ -2876,8 +2883,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         )
                         return {"status": "ok"}
 
-                    recipient_tg_user_id = str(recipient_admin.telegram_id)
-                    sender_tg_user_id = str(chat_id)
+                    recipient_tg_user_id = f"tg-{recipient_admin.telegram_id}"
+                    sender_tg_user_id = f"tg-{chat_id}"
 
                     # 2. Prevent self-transfers
                     if sender_tg_user_id == recipient_tg_user_id:
@@ -2987,71 +2994,73 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 
-        # ==================== /withdraw ====================
+        # ==================== /withdraw (Admin/Super Admin only) ====================
         elif text.startswith("/withdraw"):
-            parts = text.split(maxsplit=1)
-            if len(parts) < 2:
-                await tg.send_message(chat_id, _wizard_start(chat_id, "/withdraw"))
-            else:
-                try:
-                    amount = float(parts[1])
-                    if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be positive.")
-                    else:
-                        php_user_id = str(chat_id)
-                        try:
-                            res = await db.execute(select(Wallets).where(Wallets.user_id == php_user_id, Wallets.currency == "PHP"))
-                            wallet = res.scalar_one_or_none()
-                            if not wallet:
-                                now_w = datetime.now()
-                                wallet = Wallets(user_id=php_user_id, balance=0.0, currency="PHP", created_at=now_w, updated_at=now_w)
-                                db.add(wallet)
-                                await db.commit()
-                                await db.refresh(wallet)
-                        except Exception as e:
-                            logger.error(f"DB failed for /withdraw wallet lookup: {e}", exc_info=True)
-                            await tg.send_message(chat_id, "⚠️ Database temporarily unavailable. Please try again later.")
-                            await _safe_log(db, chat_id, username, text)
-                            return {"status": "ok"}
+            is_super = await _is_super_admin_chat(db, chat_id)
+            is_admin = False
+            try:
+                admin_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == str(chat_id)))
+                if admin_res.scalar_one_or_none():
+                    is_admin = True
+            except Exception:
+                pass
 
-                        if wallet.balance < amount:
-                            await tg.send_message(chat_id, f"❌ Insufficient balance: ₱{wallet.balance:,.2f}")
-                        else:
-                            now = datetime.now()
-                            bb = wallet.balance
-                            new_balance = bb - amount
-                            # Send reply FIRST
-                            reply = f"✅ <b>Withdrawn!</b>\n\n💸 ₱{amount:,.2f}\n💰 Balance: <b>₱{new_balance:,.2f}</b>"
-                            await tg.send_message(chat_id, reply)
-                            # Then DB
-                            try:
-                                wallet.balance = new_balance
-                                wallet.updated_at = now
-                                wtxn = Wallet_transactions(
-                                    user_id=php_user_id, wallet_id=wallet.id,
-                                    transaction_type="withdraw", amount=amount, balance_before=bb,
-                                    balance_after=new_balance, note="Withdrawal via Telegram",
-                                    status="completed",
-                                    reference_id=f"tg-withdraw-{wallet.id}-{int(now.timestamp())}",
-                                    created_at=now,
-                                )
-                                db.add(wtxn)
-                                await db.commit()
-                                payment_event_bus.publish({
-                                    "event_type": "wallet_update", "user_id": tg_user_id,
-                                    "wallet_id": wallet.id, "balance": new_balance,
-                                    "currency": "PHP",
-                                    "transaction_type": "withdraw", "amount": amount,
-                                    "transaction_id": wtxn.id,
-                                })
-                            except Exception as e:
-                                logger.error(f"DB save failed for /withdraw: {e}", exc_info=True)
-                                try:
-                                    await db.rollback()
-                                except Exception:
-                                    pass
-                except ValueError:
-                    await tg.send_message(chat_id, "❌ Invalid amount.")
+            if not is_super and not is_admin:
+                await tg.send_message(chat_id, "❌ <b>Access Denied</b>\n\nThis command is restricted to bot administrators.")
+            else:
+                parts = text.split(maxsplit=2)
+                if len(parts) < 2:
+                    await tg.send_message(chat_id, "🏦 <b>Withdrawal Request</b>\n\nUsage: <code>/withdraw [amount] [account_details]</code>\n<i>Example: /withdraw 1000 GCash 09123456789</i>")
+                else:
+                    try:
+                        amount = float(parts[1])
+                        details = parts[2] if len(parts) > 2 else "Manual Withdrawal"
+
+                        # Find user's PHP wallet (with consistent tg- prefix)
+                        res = await db.execute(select(Wallets).where(Wallets.user_id == f"tg-{chat_id}", Wallets.currency == "PHP"))
+                        wallet = res.scalar_one_or_none()
+                        if not wallet:
+                            now_w = datetime.now()
+                            wallet = Wallets(user_id=f"tg-{chat_id}", balance=0.0, currency="PHP", created_at=now_w, updated_at=now_w)
+                            db.add(wallet)
+                            await db.commit()
+                            await db.refresh(wallet)
+
+                        # Record a failed transaction as requested
+                        now = datetime.now()
+                        txn = Wallet_transactions(
+                            user_id=f"tg-{chat_id}",
+                            wallet_id=wallet.id,
+                            transaction_type="withdraw",
+                            amount=amount,
+                            balance_before=wallet.balance,
+                            balance_after=wallet.balance,
+                            status="failed",
+                            recipient=details,
+                            note="Manual withdrawal attempt (Admin-initiated)",
+                            reference_id=f"fail-wd-{int(now.timestamp())}",
+                            created_at=now,
+                        )
+                        db.add(txn)
+                        await db.commit()
+
+                        # Publish event for tracking (skipped bot notify since we send manual error)
+                        payment_event_bus.publish({
+                            "event_type": "wallet_update", "user_id": f"tg-{chat_id}",
+                            "wallet_id": wallet.id, "balance": wallet.balance,
+                            "currency": "PHP",
+                            "transaction_type": "withdraw", "amount": amount,
+                            "transaction_id": txn.id,
+                            "skip_bot_notify": True,
+                        })
+
+                        await tg.send_message(chat_id, "🏦 <b>Withdrawal</b>\n\n❌ Service unavailable at the moment. Please try again later.")
+                    except ValueError:
+                        await tg.send_message(chat_id, "❌ <b>Invalid amount.</b>")
+                    except Exception as e:
+                        logger.error(f"Withdraw command failed: {e}", exc_info=True)
+                        await tg.send_message(chat_id, "❌ An error occurred processing your request.")
+            return {"status": "ok"}
 
         # ==================== /report ====================
         elif text.startswith("/report"):
@@ -3467,35 +3476,17 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /deposit ====================
         elif text.startswith("/deposit"):
-            def _fmt_accounts(number_label: str, name_label: str) -> str:
-                return "\n".join(
-                    f"  • <b>{bank}</b>\n"
-                    f"    {number_label}: <code>{info['number']}</code>\n"
-                    f"    {name_label}: <b>{info['name']}</b>"
-                    for bank, info in _PAYBOT_ACCOUNTS.items()
-                )
-            await tg.send_message(
-                chat_id,
-                _t(chat_id,
-                   f"🏦 <b>Bank / E-Wallet Deposit</b>\n"
-                   f"━━━━━━━━━━━━━━━━━━━━\n"
-                   f"Please transfer your deposit to one of the following accounts:\n\n"
-                   f"{_fmt_accounts('Account No', 'Account Name')}\n\n"
-                   f"Supported send channels:\n"
-                   f"  • <b>GCash</b> · <b>Maya</b>\n"
-                   f"  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
-                   f"After sending, tap <b>Continue</b> or type anything to submit your receipt.",
-                   f"🏦 <b>银行 / 电子钱包存款</b>\n"
-                   f"━━━━━━━━━━━━━━━━━━━━\n"
-                   f"请将存款转至以下账户之一：\n\n"
-                   f"{_fmt_accounts('账号', '户名')}\n\n"
-                   f"支持的转账渠道：\n"
-                   f"  • <b>GCash</b> · <b>Maya</b>\n"
-                   f"  • <b>BDO</b> · <b>BPI</b> · <b>Metrobank</b> · <b>UnionBank</b> · <b>Land Bank</b>\n\n"
-                   f"转账后，请继续填写收据信息。"),
+            reply = (
+                "🏦 <b>Manual Deposit</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "To deposit funds into your PHP wallet, please follow the instructions in your dashboard.\n\n"
+                "1. Log in to the <a href='https://paybot.ph/dashboard'>PayBot Dashboard</a>\n"
+                "2. Go to <b>Wallet</b> > <b>Deposit</b>\n"
+                "3. Follow the prompts for manual bank transfer or GCash deposit.\n\n"
+                "<i>Your balance will be updated once the transaction is verified by an admin.</i>"
             )
-            prompt = _wizard_start(chat_id, "/deposit")
-            await tg.send_message(chat_id, prompt)
+            await tg.send_message(chat_id, reply)
+            return {"status": "ok"}
 
         else:
             await tg.send_message(

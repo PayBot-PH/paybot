@@ -567,32 +567,8 @@ class POSTerminalService:
             if status == "completed":
                 transaction.completed_at = datetime.utcnow()
                 
-                # Credit merchant wallet
-                try:
-                    wallet_service = WalletsService(self.db)
-                    wallet = await wallet_service.get_or_create_wallet(transaction.user_id, "PHP")
-                    
-                    amount_decimal = float(transaction.amount) / 100.0
-                    balance_before = float(wallet.balance or 0.0)
-                    wallet.balance = balance_before + amount_decimal
-                    wallet.updated_at = datetime.utcnow()
-                    
-                    wtxn = Wallet_transactions(
-                        user_id=transaction.user_id,
-                        wallet_id=wallet.id,
-                        transaction_type="terminal_sale",
-                        amount=amount_decimal,
-                        balance_before=balance_before,
-                        balance_after=wallet.balance,
-                        note=f"Terminal Sale: {transaction.order_id}",
-                        status="completed",
-                        reference_id=transaction.order_id,
-                        created_at=datetime.utcnow(),
-                    )
-                    self.db.add(wtxn)
-                    logger.info(f"Credited wallet for user {transaction.user_id}: {amount_decimal} PHP")
-                except Exception as werr:
-                    logger.error(f"Failed to credit wallet for transaction {order_id}: {werr}")
+                # Note: Merchant wallet credit is handled by wallet_integration.py
+                # subscribing to the 'payment_completed' event emitted below.
 
                 # Trigger sync event
                 await event_bus.emit("payment_completed", {
@@ -600,6 +576,7 @@ class POSTerminalService:
                     "amount": transaction.amount,
                     "order_id": transaction.order_id,
                     "terminal_id": transaction.terminal_id,
+                    "terminal_code": terminal.terminal_code if terminal else "N/A",
                     "completed_at": transaction.completed_at.isoformat()
                 })
             elif status == "failed" and failure_reason:

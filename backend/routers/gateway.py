@@ -97,7 +97,7 @@ async def _credit_php_wallet(db: AsyncSession, txn: Transactions, status_label: 
     wtxn = Wallet_transactions(
         user_id=txn.user_id,
         wallet_id=wallet.id,
-        transaction_type="top_up",
+        transaction_type="receive", # Use 'receive' for payments
         amount=amount,
         balance_before=balance_before,
         balance_after=wallet.balance,
@@ -107,6 +107,24 @@ async def _credit_php_wallet(db: AsyncSession, txn: Transactions, status_label: 
         created_at=datetime.now(),
     )
     db.add(wtxn)
+    await db.flush()
+
+    # Publish wallet update event for notifications
+    try:
+        payment_event_bus.publish({
+            "event_type": "wallet_update",
+            "user_id": txn.user_id,
+            "wallet_id": wallet.id,
+            "balance": wallet.balance,
+            "currency": "PHP",
+            "transaction_type": "receive",
+            "amount": amount,
+            "transaction_id": wtxn.id,
+            "note": f"{status_label} payment received"
+        })
+    except Exception:
+        pass
+
     return wallet
 
 
