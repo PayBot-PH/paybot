@@ -2406,8 +2406,8 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 else:
                     await tg.send_message(chat_id, f"❌ Not found: <code>{ext_id}</code>")
 
-        # ==================== /balance ====================
-        elif text.startswith("/balance"):
+        # ==================== /balance & /wallet ====================
+        elif text.startswith("/balance") or text.startswith("/wallet"):
             try:
                 php_user_id = str(chat_id)
                 # PHP wallet — get or create, then sync balance from PayMongo live balance
@@ -3327,11 +3327,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 await tg.send_message(chat_id, "❌ Error fetching terminals.")
             return {"status": "ok"}
 
-        # ==================== /wallet ====================
-        elif text.startswith("/wallet"):
-            # Redirect to balance
-            text = "/balance"
-            # Fall through to /balance logic below
 
         # ==================== /help ====================
         elif text.startswith("/help"):
