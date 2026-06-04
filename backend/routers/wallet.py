@@ -944,6 +944,73 @@ async def transfer_between_wallets(
         transaction_id=sender_txn.id,
     )
 
+@router.get("/usdt-stats")
+async def get_usdt_stats(
+    db: AsyncSession = Depends(get_db),
+):
+    """Return aggregated USDT settlement statistics for the dashboard.
+    Sums up all approved USDT top-ups (both PHP and USD destinations) and outgoing USDT.
+    """
+    try:
+        from models.topup_requests import TopupRequest
+        from models.crypto_topup import CryptoTopupRequest
+
+        now = datetime.now()
+        start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_of_yesterday = start_of_day - timedelta(days=1)
+
+        # 1. Incoming USDT today (TopupRequest + CryptoTopupRequest)
+        res_php = await db.execute(
+            select(func.coalesce(func.sum(TopupRequest.amount_usdt), 0.0), func.count(TopupRequest.id))
+            .where(TopupRequest.status == "approved", TopupRequest.created_at >= start_of_day)
+        )
+        row_php = res_php.one()
+
+        res_usd = await db.execute(
+            select(func.coalesce(func.sum(CryptoTopupRequest.amount_usdt), 0.0), func.count(CryptoTopupRequest.id))
+            .where(CryptoTopupRequest.status == "approved", CryptoTopupRequest.created_at >= start_of_day)
+        )
+        row_usd = res_usd.one()
+
+        settlement = float(row_php[0] or 0.0) + float(row_usd[0] or 0.0)
+        txnCount = int(row_php[1] or 0) + int(row_usd[1] or 0)
+
+        # 2. Incoming USDT yesterday
+        res_php_y = await db.execute(
+            select(func.coalesce(func.sum(TopupRequest.amount_usdt), 0.0))
+            .where(TopupRequest.status == "approved", TopupRequest.created_at >= start_of_yesterday, TopupRequest.created_at < start_of_day)
+        )
+        res_usd_y = await db.execute(
+            select(func.coalesce(func.sum(CryptoTopupRequest.amount_usdt), 0.0))
+            .where(CryptoTopupRequest.status == "approved", CryptoTopupRequest.created_at >= start_of_yesterday, CryptoTopupRequest.created_at < start_of_day)
+        )
+        yest_settlement = float(res_php_y.scalar() or 0.0) + float(res_usd_y.scalar() or 0.0)
+
+        # 3. Pending requests
+        res_p_php = await db.execute(
+            select(func.coalesce(func.sum(TopupRequest.amount_usdt), 0.0))
+            .where(TopupRequest.status == "pending")
+        )
+        res_p_usd = await db.execute(
+            select(func.coalesce(func.sum(CryptoTopupRequest.amount_usdt), 0.0))
+            .where(CryptoTopupRequest.status == "pending")
+        )
+        pending = float(res_p_php.scalar() or 0.0) + float(res_p_usd.scalar() or 0.0)
+
+        change = 0.0
+        if yest_settlement > 0:
+            change = ((settlement - yest_settlement) / yest_settlement) * 100
+
+        return {
+            "settlement": settlement,
+            "txnCount": txnCount,
+            "change": change,
+            "pending": pending
+        }
+    except Exception as e:
+        logger.error(f"Failed to fetch USDT stats: {e}")
+        return {"settlement": 0.0, "txnCount": 0, "change": 0.0, "pending": 0.0}
+
 @router.get("/crypto-deposit-info")
 async def get_crypto_deposit_info():
     """Get crypto deposit addresses and info for the user"""
@@ -973,26 +1040,82 @@ async def approve_crypto_topup(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Approve a crypto top-up request"""
+    """Approve a crypto top-up request and credit the user's USD wallet."""
     perms = current_user.permissions
     if not perms or (not perms.is_super_admin and not perms.can_approve_topups):
         raise HTTPException(status_code=403, detail="Permission required")
 
-    # TODO: Implement
-    return {"success": True, "message": "Request approved"}
+    from models.crypto_topup import CryptoTopupRequest
+    res = await db.execute(select(CryptoTopupRequest).where(CryptoTopupRequest.id == request_id))
+    req = res.scalar_one_or_none()
+
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
+
+    # Credit USD wallet
+    wallet = await get_or_create_wallet(db, req.user_id, "USD")
+    balance_before = await _compute_usd_balance(db, req.user_id)
+
+    now = datetime.now()
+    req.status = "approved"
+    req.reviewed_by = str(current_user.id)
+    req.reviewed_at = now
+    req.updated_at = now
+
+    txn = Wallet_transactions(
+        user_id=req.user_id,
+        wallet_id=wallet.id,
+        transaction_type="crypto_topup",
+        amount=req.amount_usdt,
+        balance_before=balance_before,
+        balance_after=balance_before + req.amount_usdt,
+        note=f"USDT Top-up approved (hash: {req.tx_hash[:10]}...)",
+        status="completed",
+        reference_id=f"cry-{req.id}",
+        created_at=now,
+    )
+    db.add(txn)
+
+    # Update wallet balance cache
+    wallet.balance = balance_before + req.amount_usdt
+    wallet.updated_at = now
+
+    await db.commit()
+
+    publish_wallet_event(req.user_id, wallet, "crypto_topup", req.amount_usdt, txn.id, req.notes or "")
+
+    return {"success": True, "message": "Crypto top-up approved"}
 
 @router.post("/crypto-topup-requests/{request_id}/reject")
 async def reject_crypto_topup(
     request_id: int,
+    reason: str = Query("Rejected by admin"),
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Reject a crypto top-up request"""
+    """Reject a crypto top-up request."""
     perms = current_user.permissions
     if not perms or (not perms.is_super_admin and not perms.can_approve_topups):
         raise HTTPException(status_code=403, detail="Permission required")
 
-    # TODO: Implement
+    from models.crypto_topup import CryptoTopupRequest
+    res = await db.execute(select(CryptoTopupRequest).where(CryptoTopupRequest.id == request_id))
+    req = res.scalar_one_or_none()
+
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.status != "pending":
+        raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
+
+    req.status = "rejected"
+    req.notes = reason
+    req.reviewed_by = str(current_user.id)
+    req.reviewed_at = datetime.now()
+    req.updated_at = datetime.now()
+
+    await db.commit()
     return {"success": True, "message": "Request rejected"}
 
 

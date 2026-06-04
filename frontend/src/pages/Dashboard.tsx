@@ -50,6 +50,13 @@ interface Stats {
   pending_amount: number;
 }
 
+interface UsdtStats {
+  settlement: number;
+  txnCount: number;
+  change: number;
+  pending: number;
+}
+
 interface Transaction {
   id: number;
   transaction_type: string;
@@ -68,6 +75,13 @@ const defaultStats: Stats = {
   total_amount: 0, paid_amount: 0, pending_amount: 0,
 };
 
+const defaultUsdtStats: UsdtStats = {
+  settlement: 0,
+  txnCount: 0,
+  change: 0,
+  pending: 0,
+};
+
 const statusConfig: Record<string, { color: string; dot: string }> = {
   paid:    { color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-400 dark:border-emerald-500/30', dot: 'bg-emerald-500 dark:bg-emerald-400' },
   pending: { color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/20 dark:text-amber-400 dark:border-amber-500/30',           dot: 'bg-amber-500 dark:bg-amber-400' },
@@ -83,18 +97,6 @@ const typeConfig: Record<string, { icon: React.ReactNode; bg: string }> = {
 };
 
 // number formatting helpers imported from lib/format
-
-// Seeded random — deterministic per calendar day, changes at midnight
-function _sr(seed: number) { const x = Math.sin(seed + 93012) * 49297; return x - Math.floor(x); }
-function getDailyUsdtStats() {
-  const d = new Date();
-  const s = d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
-  const settlement = 5000 + _sr(s)     * 95000;  // $5,000 – $100,000
-  const txnCount   = Math.floor(18 + _sr(s + 1) * 282);
-  const change     = -6   + _sr(s + 2) * 24;     // -6% to +18%
-  const pending    = settlement * (0.05 + _sr(s + 3) * 0.10);
-  return { settlement, txnCount, change, pending };
-}
 
 function getGreeting() {
   const hour = new Date().getHours();
@@ -178,6 +180,7 @@ function StatCard({
 export default function Dashboard() {
   const { user, loading: authLoading, isSuperAdmin, permissions } = useAuth();
   const [stats, setStats] = useState<Stats>(defaultStats);
+  const [usdtStats, setUsdtStats] = useState<UsdtStats>(defaultUsdtStats);
   const [recentTxns, setRecentTxns] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatedTxnIds, setUpdatedTxnIds] = useState<Set<number>>(new Set());
@@ -192,6 +195,7 @@ export default function Dashboard() {
         client.entities.transactions.query({ query: {}, sort: '-created_at', limit: 8 }),
         client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=PHP', method: 'GET', data: {} }),
         client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=USD', method: 'GET', data: {} }),
+        client.apiCall.invoke({ url: '/api/v1/wallet/usdt-stats', method: 'GET', data: {} }),
       ]);
 
       if (results[0].status === 'fulfilled') {
@@ -220,6 +224,13 @@ export default function Dashboard() {
         if (usdData?.balance != null) setUsdWalletBalance(usdData.balance);
       } else {
         console.warn('Failed to fetch USD wallet balance:', results[3].reason);
+      }
+
+      if (results[4].status === 'fulfilled') {
+        const usdtData = results[4].value?.data;
+        if (usdtData) setUsdtStats(usdtData);
+      } else {
+        console.warn('Failed to fetch USDT stats:', results[4].reason);
       }
     } catch (err) {
       console.error('Unexpected error in fetchData:', err);
@@ -261,7 +272,6 @@ export default function Dashboard() {
     ? Math.round((stats.paid_count / stats.total_count) * 100)
     : 0;
 
-  const usdtStats = getDailyUsdtStats();
   const greeting = getGreeting();
   const userName = (user as { name?: string; telegram_username?: string } | null)?.name ||
     (user as { telegram_username?: string } | null)?.telegram_username || '';

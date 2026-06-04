@@ -644,6 +644,117 @@ async def _get_or_promote_recipient(db: AsyncSession, identifier: str) -> Option
 
 
 # ---------- DB helper: safe log ----------
+async def _process_withdrawal_request(
+    tg: TelegramService,
+    db: AsyncSession,
+    chat_id: str,
+    username: str,
+    bank: str,
+    account: str,
+    name: str,
+    amount: float,
+    cmd_label: str = "Withdrawal"
+) -> None:
+    """Process a withdrawal / disbursement request with balance check and ledger entry."""
+    if amount <= 0:
+        await tg.send_message(chat_id, "❌ Amount must be positive.")
+        return
+
+    user_wallet_id = f"tg-{chat_id}"
+    res = await db.execute(select(Wallets).where(Wallets.user_id == user_wallet_id, Wallets.currency == "PHP"))
+    wallet = res.scalar_one_or_none()
+
+    if not wallet or wallet.balance < amount:
+        bal = wallet.balance if wallet else 0.0
+        await tg.send_message(chat_id, f"❌ Insufficient balance: ₱{bal:,.2f}")
+        return
+
+    now = datetime.now()
+    ext_id = f"wd-{uuid.uuid4().hex[:12]}"
+    disb = Disbursements(
+        user_id=user_wallet_id,
+        external_id=ext_id,
+        amount=amount,
+        currency="PHP",
+        bank_code=bank.upper(),
+        account_number=account,
+        account_name=name,
+        description=f"{cmd_label} request via Telegram",
+        status="pending",
+        disbursement_type="single",
+        created_at=now,
+        updated_at=now,
+    )
+    db.add(disb)
+
+    balance_before = wallet.balance
+    wallet.balance = round(wallet.balance - amount, 2)
+    wallet.updated_at = now
+
+    wtxn = Wallet_transactions(
+        user_id=user_wallet_id,
+        wallet_id=wallet.id,
+        transaction_type="withdraw",
+        amount=-amount,
+        balance_before=balance_before,
+        balance_after=wallet.balance,
+        note=f"{cmd_label} request: {bank} {account} (#{ext_id})",
+        status="pending",
+        reference_id=ext_id,
+        created_at=now,
+    )
+    db.add(wtxn)
+    await db.commit()
+
+    await tg.send_chat_action(chat_id, "typing")
+    msg = _t(chat_id,
+        f"✅ <b>{cmd_label} Request Received</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+        f"🏦 Channel: {bank.upper()}\n"
+        f"🔢 Account: <code>{account}</code>\n"
+        f"👤 Name: {name}\n"
+        f"🆔 Ref: <code>{ext_id}</code>\n\n"
+        f"⏳ The bank will now validating your {cmd_label.lower()}, please wait for your balance credited to your bank patiently",
+        f"✅ <b>{cmd_label} 申请已接收</b>\n"
+        f"━━━━━━━━━━━━━━━━━━━━\n"
+        f"💰 金额: <b>₱{amount:,.2f}</b>\n"
+        f"🏦 渠道: {bank.upper()}\n"
+        f"🔢 账号: <code>{account}</code>\n"
+        f"👤 姓名: {name}\n"
+        f"🆔 参考: <code>{ext_id}</code>\n\n"
+        f"⏳ 银行正在验证您的提款，请耐心等待余额存入您的银行。"
+    )
+    await tg.send_message(chat_id, msg)
+
+    owner_id = _get_bot_owner_id()
+    if owner_id:
+        await tg.send_message(
+            owner_id,
+            f"🔔 <b>New {cmd_label} Request</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 From: @{username} (ID: {chat_id})\n"
+            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
+            f"🏦 Channel: {bank.upper()}\n"
+            f"🔢 Account: <code>{account}</code>\n"
+            f"👤 Name: {name}\n"
+            f"🆔 Ref: <code>{ext_id}</code>\n\n"
+            f"Approve via Dashboard or reply to this message."
+        )
+
+    payment_event_bus.publish({
+        "event_type": "wallet_update",
+        "user_id": user_wallet_id,
+        "wallet_id": wallet.id,
+        "balance": wallet.balance,
+        "currency": "PHP",
+        "transaction_type": "withdraw",
+        "amount": amount,
+        "transaction_id": wtxn.id,
+        "note": f"{cmd_label} requested to {bank}",
+        "skip_bot_notify": True
+    })
+
 async def _safe_log(db: AsyncSession, chat_id: str, username: str, text: str):
     """Log bot interaction to DB. Failures are silently caught."""
     try:
@@ -1360,112 +1471,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     account = str(collected.get("account", ""))
                     name = str(collected.get("name", ""))
                     amount = float(collected.get("amount", 0))
-
-                    if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be positive.")
-                        return {"status": "ok"}
-
-                    # 1. Check internal balance
-                    user_wallet_id = f"tg-{chat_id}"
-                    res = await db.execute(select(Wallets).where(Wallets.user_id == user_wallet_id, Wallets.currency == "PHP"))
-                    wallet = res.scalar_one_or_none()
-
-                    if not wallet or wallet.balance < amount:
-                        bal = wallet.balance if wallet else 0.0
-                        await tg.send_message(chat_id, f"❌ Insufficient balance: ₱{bal:,.2f}")
-                        return {"status": "ok"}
-
-                    # 2. Record pending withdrawal (Disbursement)
-                    now = datetime.now()
-                    ext_id = f"wd-{uuid.uuid4().hex[:12]}"
-                    disb = Disbursements(
-                        user_id=user_wallet_id,
-                        external_id=ext_id,
-                        amount=amount,
-                        currency="PHP",
-                        bank_code=bank,
-                        account_number=account,
-                        account_name=name,
-                        description=f"Withdrawal request via Telegram",
-                        status="pending",
-                        disbursement_type="single",
-                        created_at=now,
-                        updated_at=now,
-                    )
-                    db.add(disb)
-
-                    # 3. Deduct from internal wallet immediately (place on hold)
-                    balance_before = wallet.balance
-                    wallet.balance = round(wallet.balance - amount, 2)
-                    wallet.updated_at = now
-
-                    wtxn = Wallet_transactions(
-                        user_id=user_wallet_id,
-                        wallet_id=wallet.id,
-                        transaction_type="withdraw",
-                        amount=-amount,
-                        balance_before=balance_before,
-                        balance_after=wallet.balance,
-                        note=f"Withdrawal request: {bank} {account} (#{ext_id})",
-                        status="pending", # Mark as pending in ledger
-                        reference_id=ext_id,
-                        created_at=now,
-                    )
-                    db.add(wtxn)
-                    await db.commit()
-
-                    # 4. Notify user
-                    await tg.send_chat_action(chat_id, "typing")
-                    msg = _t(chat_id,
-                        f"✅ <b>Withdrawal Request Received</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
-                        f"🏦 Channel: {bank}\n"
-                        f"🔢 Account: <code>{account}</code>\n"
-                        f"👤 Name: {name}\n"
-                        f"🆔 Ref: <code>{ext_id}</code>\n\n"
-                        f"⏳ The bank will now validating your withdraw, pleease wait for your balance credited to your bank patiently",
-                        f"✅ <b>提款申请已接收</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💰 金额: <b>₱{amount:,.2f}</b>\n"
-                        f"🏦 渠道: {bank}\n"
-                        f"🔢 账号: <code>{account}</code>\n"
-                        f"👤 姓名: {name}\n"
-                        f"🆔 参考: <code>{ext_id}</code>\n\n"
-                        f"⏳ 银行正在验证您的提款，请耐心等待余额存入您的银行。"
-                    )
-                    await tg.send_message(chat_id, msg)
-
-                    # 5. Notify Super Admins
-                    owner_id = _get_bot_owner_id()
-                    if owner_id:
-                        await tg.send_message(
-                            owner_id,
-                            f"🔔 <b>New Withdrawal Request</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"👤 From: @{username} (ID: {chat_id})\n"
-                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
-                            f"🏦 Channel: {bank}\n"
-                            f"🔢 Account: <code>{account}</code>\n"
-                            f"👤 Name: {name}\n"
-                            f"🆔 Ref: <code>{ext_id}</code>\n\n"
-                            f"Approve via Dashboard or reply to this message."
-                        )
-
-                    # Publish wallet event
-                    payment_event_bus.publish({
-                        "event_type": "wallet_update",
-                        "user_id": user_wallet_id,
-                        "wallet_id": wallet.id,
-                        "balance": wallet.balance,
-                        "currency": "PHP",
-                        "transaction_type": "withdraw",
-                        "amount": amount,
-                        "transaction_id": wtxn.id,
-                        "note": f"Withdrawal requested to {bank}",
-                        "skip_bot_notify": True
-                    })
-
+                    await _process_withdrawal_request(tg, db, chat_id, username, bank, account, name, amount, "Withdrawal")
                 except Exception as exc:
                     logger.error(f"/withdraw wizard completion error: {exc}", exc_info=True)
                     await tg.send_message(chat_id, "❌ An error occurred processing your withdrawal request.")
@@ -1477,115 +1483,10 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     account = str(collected.get("account", ""))
                     name = str(collected.get("name", ""))
                     amount = float(collected.get("amount", 0))
-
-                    if amount <= 0:
-                        await tg.send_message(chat_id, "❌ Amount must be positive.")
-                        return {"status": "ok"}
-
-                    # 1. Check internal balance
-                    user_wallet_id = f"tg-{chat_id}"
-                    res = await db.execute(select(Wallets).where(Wallets.user_id == user_wallet_id, Wallets.currency == "PHP"))
-                    wallet = res.scalar_one_or_none()
-
-                    if not wallet or wallet.balance < amount:
-                        bal = wallet.balance if wallet else 0.0
-                        await tg.send_message(chat_id, f"❌ Insufficient balance: ₱{bal:,.2f}")
-                        return {"status": "ok"}
-
-                    # 2. Record pending withdrawal (Disbursement)
-                    now = datetime.now()
-                    ext_id = f"wd-{uuid.uuid4().hex[:12]}"
-                    disb = Disbursements(
-                        user_id=user_wallet_id,
-                        external_id=ext_id,
-                        amount=amount,
-                        currency="PHP",
-                        bank_code=bank,
-                        account_number=account,
-                        account_name=name,
-                        description=f"Withdrawal request via Telegram",
-                        status="pending",
-                        disbursement_type="single",
-                        created_at=now,
-                        updated_at=now,
-                    )
-                    db.add(disb)
-
-                    # 3. Deduct from internal wallet immediately (place on hold)
-                    balance_before = wallet.balance
-                    wallet.balance = round(wallet.balance - amount, 2)
-                    wallet.updated_at = now
-
-                    wtxn = Wallet_transactions(
-                        user_id=user_wallet_id,
-                        wallet_id=wallet.id,
-                        transaction_type="withdraw",
-                        amount=-amount,
-                        balance_before=balance_before,
-                        balance_after=wallet.balance,
-                        note=f"Withdrawal request: {bank} {account} (#{ext_id})",
-                        status="pending", # Mark as pending in ledger
-                        reference_id=ext_id,
-                        created_at=now,
-                    )
-                    db.add(wtxn)
-                    await db.commit()
-
-                    # 4. Notify user
-                    await tg.send_chat_action(chat_id, "typing")
-                    msg = _t(chat_id,
-                        f"✅ <b>Withdrawal Request Received</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
-                        f"🏦 Channel: {bank}\n"
-                        f"🔢 Account: <code>{account}</code>\n"
-                        f"👤 Name: {name}\n"
-                        f"🆔 Ref: <code>{ext_id}</code>\n\n"
-                        f"⏳ The bank will now validating your withdraw, pleease wait for your balance credited to your bank patiently",
-                        f"✅ <b>提款申请已接收</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"💰 金额: <b>₱{amount:,.2f}</b>\n"
-                        f"🏦 渠道: {bank}\n"
-                        f"🔢 账号: <code>{account}</code>\n"
-                        f"👤 姓名: {name}\n"
-                        f"🆔 参考: <code>{ext_id}</code>\n\n"
-                        f"⏳ 银行正在验证您的提款，请耐心等待余额存入您的银行。"
-                    )
-                    await tg.send_message(chat_id, msg)
-
-                    # 5. Notify Super Admins
-                    owner_id = _get_bot_owner_id()
-                    if owner_id:
-                        await tg.send_message(
-                            owner_id,
-                            f"🔔 <b>New Withdrawal Request</b>\n"
-                            f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"👤 From: @{username} (ID: {chat_id})\n"
-                            f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
-                            f"🏦 Channel: {bank}\n"
-                            f"🔢 Account: <code>{account}</code>\n"
-                            f"👤 Name: {name}\n"
-                            f"🆔 Ref: <code>{ext_id}</code>\n\n"
-                            f"Approve via Dashboard or reply to this message."
-                        )
-
-                    # Publish wallet event
-                    payment_event_bus.publish({
-                        "event_type": "wallet_update",
-                        "user_id": user_wallet_id,
-                        "wallet_id": wallet.id,
-                        "balance": wallet.balance,
-                        "currency": "PHP",
-                        "transaction_type": "withdraw",
-                        "amount": amount,
-                        "transaction_id": wtxn.id,
-                        "note": f"Withdrawal requested to {bank}",
-                        "skip_bot_notify": True
-                    })
-
+                    await _process_withdrawal_request(tg, db, chat_id, username, bank, account, name, amount, "Disbursement")
                 except Exception as exc:
                     logger.error(f"/disburse wizard completion error: {exc}", exc_info=True)
-                    await tg.send_message(chat_id, "❌ An error occurred processing your withdrawal request.")
+                    await tg.send_message(chat_id, "❌ An error occurred processing your disbursement request.")
                 return {"status": "ok"}
 
             if cmd == "/pos":
@@ -2138,32 +2039,14 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             if len(parts) < 5:
                 await tg.send_message(chat_id, _wizard_start(chat_id, "/disburse"))
             else:
-                # If command is run manually with all args, handle it same as wizard
                 try:
                     bank = parts[1].upper()
                     account = parts[2]
                     name = parts[3]
                     amount = float(parts[4])
-
-                    now = datetime.now()
-                    disb = Disbursements(
-                        user_id=f"tg-{chat_id}",
-                        external_id=f"fail-{uuid.uuid4().hex[:12]}",
-                        xendit_id="",
-                        amount=amount,
-                        currency="PHP",
-                        bank_code=bank,
-                        account_number=account,
-                        account_name=name,
-                        description="TG disbursement (Failed - Feature Disabled)",
-                        status="failed",
-                        disbursement_type="single",
-                        created_at=now,
-                        updated_at=now,
-                    )
-                    db.add(disb)
-                    await db.commit()
-                    await tg.send_message(chat_id, "Interbank transfer is not available at the moment, Please try again later")
+                    await _process_withdrawal_request(tg, db, chat_id, username, bank, account, name, amount, "Disbursement")
+                except ValueError:
+                    await tg.send_message(chat_id, "❌ Invalid amount. Usage: /disburse [bank] [account] [name] [amount]")
                 except Exception as exc:
                     logger.error(f"/disburse command error: {exc}", exc_info=True)
                     await tg.send_message(chat_id, "❌ An error occurred. Please try again later.")
@@ -2845,53 +2728,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             if not is_super and not is_admin:
                 await tg.send_message(chat_id, "❌ <b>Access Denied</b>\n\nThis command is restricted to bot administrators.")
             else:
-                parts = text.split(maxsplit=2)
+                parts = text.split(maxsplit=4)
                 if len(parts) < 2:
-                    await tg.send_message(chat_id, "🏦 <b>Withdrawal Request</b>\n\nUsage: <code>/withdraw [amount] [account_details]</code>\n<i>Example: /withdraw 1000 GCash 09123456789</i>")
+                    await tg.send_message(chat_id, "🏦 <b>Withdrawal Request</b>\n\nUsage: <code>/withdraw [amount] [bank] [account] [name]</code>\n<i>Example: /withdraw 1000 GCash 09123456789 \"Juan Dela Cruz\"</i>\n\nOr just type <code>/withdraw</code> to start the wizard.")
+                elif len(parts) < 5:
+                     # Start wizard if not all args provided
+                     await tg.send_message(chat_id, _wizard_start(chat_id, "/withdraw"))
                 else:
                     try:
                         amount = float(parts[1])
-                        details = parts[2] if len(parts) > 2 else "Manual Withdrawal"
-
-                        # Find user's PHP wallet (with consistent tg- prefix)
-                        res = await db.execute(select(Wallets).where(Wallets.user_id == f"tg-{chat_id}", Wallets.currency == "PHP"))
-                        wallet = res.scalar_one_or_none()
-                        if not wallet:
-                            now_w = datetime.now()
-                            wallet = Wallets(user_id=f"tg-{chat_id}", balance=0.0, currency="PHP", created_at=now_w, updated_at=now_w)
-                            db.add(wallet)
-                            await db.commit()
-                            await db.refresh(wallet)
-
-                        # Record a failed transaction as requested
-                        now = datetime.now()
-                        txn = Wallet_transactions(
-                            user_id=f"tg-{chat_id}",
-                            wallet_id=wallet.id,
-                            transaction_type="withdraw",
-                            amount=amount,
-                            balance_before=wallet.balance,
-                            balance_after=wallet.balance,
-                            status="failed",
-                            recipient=details,
-                            note="Manual withdrawal attempt (Admin-initiated)",
-                            reference_id=f"fail-wd-{int(now.timestamp())}",
-                            created_at=now,
-                        )
-                        db.add(txn)
-                        await db.commit()
-
-                        # Publish event for tracking (skipped bot notify since we send manual error)
-                        payment_event_bus.publish({
-                            "event_type": "wallet_update", "user_id": f"tg-{chat_id}",
-                            "wallet_id": wallet.id, "balance": wallet.balance,
-                            "currency": "PHP",
-                            "transaction_type": "withdraw", "amount": amount,
-                            "transaction_id": txn.id,
-                            "skip_bot_notify": True,
-                        })
-
-                        await tg.send_message(chat_id, "🏦 <b>Withdrawal</b>\n\n❌ Service unavailable at the moment. Please try again later.")
+                        bank = parts[2]
+                        account = parts[3]
+                        name = parts[4]
+                        await _process_withdrawal_request(tg, db, chat_id, username, bank, account, name, amount, "Withdrawal")
                     except ValueError:
                         await tg.send_message(chat_id, "❌ <b>Invalid amount.</b>")
                     except Exception as e:
@@ -3313,16 +3162,26 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /deposit ====================
         elif text.startswith("/deposit"):
-            reply = (
-                "🏦 <b>Manual Deposit</b>\n"
-                "━━━━━━━━━━━━━━━━━━━━\n"
-                "To deposit funds into your PHP wallet, please follow the instructions in your dashboard.\n\n"
-                "1. Log in to the <a href='https://paybot.ph/dashboard'>PayBot Dashboard</a>\n"
-                "2. Go to <b>Wallet</b> > <b>Deposit</b>\n"
-                "3. Follow the prompts for manual bank transfer or GCash deposit.\n\n"
-                "<i>Your balance will be updated once the transaction is verified by an admin.</i>"
-            )
-            await tg.send_message(chat_id, reply)
+            parts = text.split(maxsplit=1)
+            if len(parts) > 1:
+                # User provided something after /deposit, likely trying to use it as a command
+                await tg.send_message(chat_id, _wizard_start(chat_id, "/deposit"))
+            else:
+                # Show instructions and offer the wizard
+                reply = (
+                    "🏦 <b>Deposit PHP</b>\n"
+                    "━━━━━━━━━━━━━━━━━━━━\n"
+                    "You can deposit funds into your PHP wallet by transferring to any of our accounts:\n\n"
+                )
+                for acc in _PAYBOT_ACCOUNTS:
+                    reply += f"🔹 <b>{acc['bank']}</b>\n   Name: <code>{acc['name']}</code>\n   Account: <code>{acc['number']}</code>\n\n"
+
+                reply += (
+                    "✅ <b>After transferring:</b>\n"
+                    "Type /deposit again and follow the wizard to submit your receipt for verification.\n\n"
+                    "<i>Or log in to the <a href='https://paybot.ph/dashboard'>Dashboard</a> for more options.</i>"
+                )
+                await tg.send_message(chat_id, reply)
             return {"status": "ok"}
 
         else:
