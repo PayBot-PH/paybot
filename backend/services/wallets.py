@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List, Tuple
 
 from sqlalchemy import select, func, case, update, and_
@@ -60,7 +60,7 @@ class WalletsService:
             if wallet:
                 # Migrate the wallet row to normalized ID
                 wallet.user_id = normalized_user_id
-                wallet.updated_at = datetime.now()
+                wallet.updated_at = datetime.now(timezone.utc)
                 # Also update all transaction history for this wallet
                 await self.db.execute(
                     update(Wallet_transactions)
@@ -76,7 +76,7 @@ class WalletsService:
                 return wallet
 
         if not wallet:
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             wallet = Wallets(
                 user_id=normalized_user_id,
                 balance=0.0,
@@ -140,7 +140,7 @@ class WalletsService:
             
             if abs(computed - wallet.balance) > 0.001:
                 wallet.balance = computed
-                wallet.updated_at = datetime.now()
+                wallet.updated_at = datetime.now(timezone.utc)
                 await self.db.commit()
                 await self.db.refresh(wallet)
             
@@ -187,7 +187,7 @@ class WalletsService:
             raise ValueError(f"Insufficient balance ({currency} {sender_wallet.balance:,.2f})")
 
         # 3. Perform internal transfer
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         ref_id = f"trf-{uuid.uuid4().hex[:8]}"
 
         # Debit sender
@@ -253,7 +253,7 @@ class WalletsService:
         if wallet.balance < amount:
             raise ValueError(f"Insufficient balance (₱{wallet.balance:,.2f})")
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         balance_before = wallet.balance
         ext_id = f"wd-db-{uuid.uuid4().hex[:12]}"
 
@@ -325,7 +325,7 @@ class WalletsService:
         if amount < 0 and balance_before < adj_amount:
             raise ValueError(f"Insufficient balance ({currency_upper} {balance_before:,.2f})")
 
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         balance_after = round(max(0.0, balance_before + amount), 2)
 
         txn = Wallet_transactions(

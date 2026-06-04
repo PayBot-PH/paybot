@@ -1,7 +1,7 @@
 import logging
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
@@ -16,6 +16,7 @@ from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
+from services.wallets import WalletsService
 
 logger = logging.getLogger(__name__)
 
@@ -61,20 +62,6 @@ class ApproveBankDepositRequest(BaseModel):
 
 class RejectBankDepositRequest(BaseModel):
     note: str = "Request rejected by admin."
-
-
-# ---------- Helpers ----------
-async def _get_or_create_php_wallet(db: AsyncSession, user_id: str) -> Wallets:
-    result = await db.execute(
-        select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == "PHP")
-    )
-    wallet = result.scalar_one_or_none()
-    if not wallet:
-        now = datetime.now()
-        wallet = Wallets(user_id=user_id, balance=0.0, currency="PHP", created_at=now, updated_at=now)
-        db.add(wallet)
-        await db.flush()
-    return wallet
 
 
 # ---------- Endpoints ----------
@@ -183,19 +170,18 @@ async def approve_bank_deposit_request(
     if req.status != "pending":
         raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
 
-    user_wallet_id = str(req.chat_id)
-    if user_wallet_id.startswith("tg-"):
-        user_wallet_id = user_wallet_id[3:]
+    user_id = str(req.chat_id)
     amount_php = req.amount_php
-    now = datetime.now()
 
-    wallet = await _get_or_create_php_wallet(db, user_wallet_id)
+    wallet_service = WalletsService(db)
+    wallet = await wallet_service.get_or_create_wallet(user_id, "PHP")
+
     balance_before = wallet.balance
     wallet.balance = round(wallet.balance + amount_php, 2)
-    wallet.updated_at = now
+    wallet.updated_at = datetime.now(timezone.utc)
 
     txn = Wallet_transactions(
-        user_id=user_wallet_id,
+        user_id=wallet.user_id, # Use normalized ID from service
         wallet_id=wallet.id,
         transaction_type="top_up",
         amount=amount_php,
@@ -208,29 +194,19 @@ async def approve_bank_deposit_request(
         ),
         status="completed",
         reference_id=str(deposit_id),
-        created_at=now,
+        created_at=datetime.now(timezone.utc),
     )
     db.add(txn)
 
     req.status = "approved"
     req.note = body.note or f"Approved: ₱{amount_php:,.2f} PHP credited"
     req.approved_by = getattr(current_user, "telegram_id", str(current_user.id))
-    req.updated_at = now
+    req.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
     await db.refresh(req)
 
-    try:
-        payment_event_bus.publish({
-            "event_type": "wallet_update",
-            "user_id": user_wallet_id,
-            "wallet_id": wallet.id,
-            "balance": wallet.balance,
-            "transaction_type": "top_up",
-            "amount": amount_php,
-        })
-    except Exception:
-        pass
+    await wallet_service.publish_wallet_event(wallet.user_id, wallet, "top_up", amount_php, txn.id, req.note)
 
     logger.info(
         "Bank deposit #%s approved — ₱%.2f PHP credited to %s",
@@ -257,7 +233,7 @@ async def reject_bank_deposit_request(
     req.status = "rejected"
     req.note = body.note
     req.approved_by = getattr(current_user, "telegram_id", str(current_user.id))
-    req.updated_at = datetime.now()
+    req.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
     await db.refresh(req)

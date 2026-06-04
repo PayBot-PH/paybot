@@ -35,6 +35,7 @@ from models.bank_deposit_requests import BankDepositRequest
 from models.usdt_send_requests import UsdtSendRequest
 from models.admin_users import AdminUser
 from models.custom_roles import CustomRole
+from services.wallets import WalletsService
 from routers.app_settings import get_usdt_php_rate, get_usdt_trc20_address
 from routers.bank_deposit import _PAYBOT_ACCOUNTS
 
@@ -155,7 +156,6 @@ async def _process_scanqr(
     await tg.send_message(chat_id, "\n".join(reply_lines))
 
     try:
-        now = datetime.now()
         txn = Transactions(
             user_id=f"tg-{chat_id}", transaction_type="qrph_payment",
             external_id=external_id, xendit_id="",
@@ -165,7 +165,7 @@ async def _process_scanqr(
             # Reuse qr_code_url to store the raw QRPH/EMVCo string (existing schema
             # field; capped at 500 chars to fit the column).
             qr_code_url=qr_data[:500], telegram_chat_id=chat_id,
-            created_at=now, updated_at=now,
+            created_at=datetime.now(timezone.utc), updated_at=datetime.now(timezone.utc),
         )
         db.add(txn)
         await db.commit()
@@ -590,7 +590,7 @@ async def _get_or_create_wallet(db: AsyncSession, user_id: str, currency: str) -
     wallet = res.scalar_one_or_none()
     if wallet:
         return wallet
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     wallet = Wallets(user_id=user_id, balance=0.0, currency=currency, created_at=now, updated_at=now)
     db.add(wallet)
     await db.flush()
@@ -675,7 +675,7 @@ async def _process_withdrawal_request(
         await tg.send_message(chat_id, f"❌ Insufficient balance: ₱{bal:,.2f}")
         return
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     ext_id = f"wd-{uuid.uuid4().hex[:12]}"
     disb = Disbursements(
         user_id=user_wallet_id,
@@ -768,7 +768,7 @@ async def _safe_log(db: AsyncSession, chat_id: str, username: str, text: str):
             user_id=f"tg-{chat_id}", log_type="command", message=text,
             telegram_chat_id=chat_id, telegram_username=username,
             command=text.split()[0] if text else "",
-            created_at=datetime.now(),
+            created_at=datetime.now(timezone.utc),
         )
         db.add(log)
         await db.commit()
@@ -1158,7 +1158,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     best_photo = max(photos, key=lambda p: p.get("file_size", 0))
                     pending_topup.receipt_file_id = best_photo["file_id"]
                     amount = pending_topup.amount_usdt
-                    now = datetime.now()
+                    now = datetime.now(timezone.utc)
 
                     # Fetch the current exchange rate to show expected PHP amount
                     rate = await get_usdt_php_rate(db)
@@ -1188,7 +1188,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 if pending_deposit:
                     best_photo = max(photos, key=lambda p: p.get("file_size", 0))
                     pending_deposit.receipt_file_id = best_photo["file_id"]
-                    pending_deposit.updated_at = datetime.now()
+                    pending_deposit.updated_at = datetime.now(timezone.utc)
                     await db.commit()
                     await tg.send_message(
                         chat_id,
@@ -1251,7 +1251,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 try:
                     _adm.pin_failed_attempts = 0
                     _adm.pin_locked_until = None
-                    _adm.updated_at = datetime.now()
+                    _adm.updated_at = datetime.now(timezone.utc)
                     await db.commit()
                 except Exception:
                     await db.rollback()
@@ -1270,11 +1270,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 failed = (_adm.pin_failed_attempts or 0) + 1
                 locked_until = None
                 if failed >= _PIN_MAX_ATTEMPTS:
-                    locked_until = datetime.now() + timedelta(minutes=_PIN_LOCK_MINUTES)
+                    locked_until = datetime.now(timezone.utc) + timedelta(minutes=_PIN_LOCK_MINUTES)
                 try:
                     _adm.pin_failed_attempts = failed
                     _adm.pin_locked_until = locked_until
-                    _adm.updated_at = datetime.now()
+                    _adm.updated_at = datetime.now(timezone.utc)
                     await db.commit()
                 except Exception:
                     await db.rollback()
@@ -1455,7 +1455,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     if not channel or not account or amount_php <= 0:
                         await tg.send_message(chat_id, "❌ Invalid deposit details. Please try /deposit again.")
                         return {"status": "ok"}
-                    now = datetime.now()
+                    now = datetime.now(timezone.utc)
                     deposit_req = BankDepositRequest(
                         chat_id=chat_id,
                         telegram_username=username,
@@ -1646,7 +1646,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
                         # Then try DB save
                         try:
-                            now = datetime.now()
+                            now = datetime.now(timezone.utc)
                             txn = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="invoice",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("invoice_id", ""),
@@ -1694,7 +1694,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         )
                         await tg.send_message(chat_id, reply)
                         try:
-                            now = datetime.now()
+                            now = datetime.now(timezone.utc)
                             txn = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="qr_code",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("qr_id", ""),
@@ -1766,7 +1766,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             keyboard = {"inline_keyboard": [[{"text": "🔴 Pay via Alipay", "url": checkout_url}]]} if checkout_url else None
                             await tg.send_message(chat_id, caption, reply_markup=keyboard)
                             try:
-                                now = datetime.now()
+                                now = datetime.now(timezone.utc)
                                 txn = Transactions(
                                     user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
                                     external_id=ref_num, xendit_id=result.get("pay_id", ""),
@@ -1811,7 +1811,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             )
                             await tg.send_message(chat_id, caption)
                             try:
-                                now = datetime.now()
+                                now = datetime.now(timezone.utc)
                                 txn = Transactions(
                                     user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
                                     external_id=ref_num, xendit_id=result.get("id", ""),
@@ -1883,7 +1883,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         keyboard = {"inline_keyboard": [[{"text": "💚 Pay via WeChat", "url": checkout_url}]]} if checkout_url else None
                         await tg.send_message(chat_id, caption, reply_markup=keyboard)
                         try:
-                            now = datetime.now()
+                            now = datetime.now(timezone.utc)
                             txn = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="wechat_qr",
                                 external_id=ref_num, xendit_id=result.get("pay_id", ""),
@@ -1942,7 +1942,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         } if link_url else None
                         await tg.send_message(chat_id, reply, reply_markup=keyboard)
                         try:
-                            now = datetime.now()
+                            now = datetime.now(timezone.utc)
                             txn = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="payment_link",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("payment_link_id", ""),
@@ -1986,7 +1986,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         )
                         await tg.send_message(chat_id, reply)
                         try:
-                            now = datetime.now()
+                            now = datetime.now(timezone.utc)
                             txn = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="virtual_account",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("va_id", ""),
@@ -2038,7 +2038,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         ewallet_keyboard = {"inline_keyboard": [[{"text": "📱 Pay Now", "url": checkout}]]} if checkout else None
                         await tg.send_message(chat_id, reply, reply_markup=ewallet_keyboard)
                         try:
-                            now = datetime.now()
+                            now = datetime.now(timezone.utc)
                             txn = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="ewallet",
                                 external_id=result.get("external_id", ""), xendit_id=result.get("checkout_id", ""),
@@ -2126,7 +2126,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, reply)
                         # Then try DB save
                         try:
-                            now = datetime.now()
+                            now = datetime.now(timezone.utc)
                             ref = Refunds(
                                 user_id=f"tg-{chat_id}", transaction_id=txn.id,
                                 external_id=f"ref-{txn.id}", amount=refund_amount, reason="Telegram refund",
@@ -2212,17 +2212,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             show_gateway = (not is_wallet_cmd) and is_super
 
             try:
-                # Use consistent tg- prefix for all wallets
-                php_user_id = f"tg-{chat_id}"
-                # PHP wallet — get or create
-                res = await db.execute(select(Wallets).where(Wallets.user_id == php_user_id, Wallets.currency == "PHP"))
-                wallet = res.scalar_one_or_none()
-                if not wallet:
-                    now_w = datetime.now()
-                    wallet = Wallets(user_id=php_user_id, balance=0.0, currency="PHP", created_at=now_w, updated_at=now_w)
-                    db.add(wallet)
-                    await db.commit()
-                    await db.refresh(wallet)
+                wallet_service = WalletsService(db)
+                # Use service for consistent ID normalization
+                wallet = await wallet_service.get_or_create_wallet(chat_id, "PHP")
 
                 php_balance = wallet.balance
                 gateway_label = ""
@@ -2302,7 +2294,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 usd_balance = await _compute_usd_balance_for_wallet(db, tg_user_id)
                 if usd_wallet and usd_balance != usd_wallet.balance:
                     usd_wallet.balance = usd_balance
-                    usd_wallet.updated_at = datetime.now()
+                    usd_wallet.updated_at = datetime.now(timezone.utc)
                     await db.commit()
                 # Fetch last 5 USD wallet transactions for this user
                 usd_txn_res = await db.execute(
@@ -2399,7 +2391,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         return {"status": "ok"}
 
                     # Create pending send request; balance is deducted only when approved
-                    now = datetime.now()
+                    now = datetime.now(timezone.utc)
                     send_req = UsdtSendRequest(
                         user_id=tg_user_id,
                         wallet_id=usd_wallet.id,
@@ -2497,7 +2489,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         )
                         sender_wallet = sender_res.scalar_one_or_none()
                         if not sender_wallet:
-                            now_w = datetime.now()
+                            now_w = datetime.now(timezone.utc)
                             sender_wallet = Wallets(user_id=tg_user_id, balance=0.0, currency="USD", created_at=now_w, updated_at=now_w)
                             db.add(sender_wallet)
                             await db.commit()
@@ -2508,13 +2500,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         )
                         recipient_wallet = rec_wallet_res.scalar_one_or_none()
                         if not recipient_wallet:
-                            now_w = datetime.now()
+                            now_w = datetime.now(timezone.utc)
                             recipient_wallet = Wallets(user_id=recipient_tg_user_id, balance=0.0, currency="USD", created_at=now_w, updated_at=now_w)
                             db.add(recipient_wallet)
                             await db.commit()
                             await db.refresh(recipient_wallet)
 
-                        now = datetime.now()
+                        now = datetime.now(timezone.utc)
                         sender_bal_before = sender_wallet.balance
                         sender_wallet.balance = max(0.0, sender_wallet.balance - amount)
                         sender_wallet.updated_at = now
@@ -2650,7 +2642,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
                     # 3. & 4. Deduct from sender and credit recipient
                     try:
-                        now = datetime.now()
+                        now = datetime.now(timezone.utc)
                         sender_bal_before = sender_wallet.balance
                         sender_wallet.balance = round(sender_wallet.balance - amount, 2)
                         sender_wallet.updated_at = now
@@ -2780,7 +2772,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 period = "monthly"
 
             try:
-                now = datetime.now()
+                now = datetime.now(timezone.utc)
                 start = now - timedelta(days={"daily": 1, "weekly": 7, "monthly": 30}[period])
 
                 # Filter by user unless super admin
@@ -2868,7 +2860,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 try:
                     amount = float(parts[1])
                     plan_name = parts[2]
-                    now = datetime.now()
+                    now = datetime.now(timezone.utc)
                     next_billing = (now + timedelta(days=30)).strftime('%Y-%m-%d')
                     # Send reply FIRST
                     reply = (
@@ -3177,7 +3169,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
                     else:
                         amount_php = round(amount * rate, 2)
-                        now = datetime.now()
+                        now = datetime.now(timezone.utc)
                         req = TopupRequest(
                             chat_id=chat_id,
                             telegram_username=username,

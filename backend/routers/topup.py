@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,6 +14,7 @@ from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from schemas.auth import UserResponse
 from services.event_bus import payment_event_bus
+from services.wallets import WalletsService
 from routers.app_settings import get_usdt_php_rate
 
 logger = logging.getLogger(__name__)
@@ -48,20 +49,6 @@ class ApproveTopupRequest(BaseModel):
 
 class RejectTopupRequest(BaseModel):
     note: str = "Request rejected by admin."
-
-
-# ---------- Helpers ----------
-async def _get_or_create_php_wallet(db: AsyncSession, user_id: str) -> Wallets:
-    result = await db.execute(
-        select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == "PHP")
-    )
-    wallet = result.scalar_one_or_none()
-    if not wallet:
-        now = datetime.now()
-        wallet = Wallets(user_id=user_id, balance=0.0, currency="PHP", created_at=now, updated_at=now)
-        db.add(wallet)
-        await db.flush()
-    return wallet
 
 
 # ---------- Endpoints ----------
@@ -116,25 +103,23 @@ async def approve_topup_request(
     if req.status != "pending":
         raise HTTPException(status_code=400, detail=f"Request is already {req.status}")
 
-    # Ensure consistent tg- prefix for Telegram users
-    user_wallet_id = str(req.chat_id)
-    if not user_wallet_id.startswith("tg-"):
-        user_wallet_id = f"tg-{user_wallet_id}"
-
+    # Ensure consistent ID normalization via service
+    user_id = str(req.chat_id)
     amount_usdt = req.amount_usdt
 
     # Fetch the current USDT→PHP exchange rate
     rate = await get_usdt_php_rate(db)
     amount_php = round(amount_usdt * rate, 2)
 
-    now = datetime.now()
+    wallet_service = WalletsService(db)
+    wallet = await wallet_service.get_or_create_wallet(user_id, "PHP")
 
-    wallet = await _get_or_create_php_wallet(db, user_wallet_id)
     balance_before = wallet.balance
     wallet.balance = round(wallet.balance + amount_php, 2)
-    wallet.updated_at = now
+    wallet.updated_at = datetime.now(timezone.utc)
+
     txn = Wallet_transactions(
-        user_id=user_wallet_id,
+        user_id=wallet.user_id,
         wallet_id=wallet.id,
         transaction_type="top_up",
         amount=amount_php,
@@ -147,7 +132,7 @@ async def approve_topup_request(
         ),
         status="completed",
         reference_id=str(topup_id),
-        created_at=now,
+        created_at=datetime.now(timezone.utc),
     )
 
     db.add(txn)
@@ -156,23 +141,12 @@ async def approve_topup_request(
     req.status = "approved"
     req.note = body.note or f"Approved: ${amount_usdt:.2f} USDT → ₱{amount_php:,.2f} PHP (rate: {rate:.2f})"
     req.approved_by = getattr(current_user, "telegram_id", str(current_user.id))
-    req.updated_at = now
+    req.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
     await db.refresh(req)
 
-    # Fire wallet update event
-    try:
-        payment_event_bus.publish({
-            "event_type": "wallet_update",
-            "user_id": user_wallet_id,
-            "wallet_id": wallet.id,
-            "balance": wallet.balance,
-            "transaction_type": "top_up",
-            "amount": amount_php,
-        })
-    except Exception:
-        pass
+    await wallet_service.publish_wallet_event(wallet.user_id, wallet, "top_up", amount_php, txn.id, req.note)
 
     logger.info(
         "Topup #%s approved — $%.2f USDT → ₱%.2f PHP (rate %.2f) credited to %s",
@@ -199,7 +173,7 @@ async def reject_topup_request(
     req.status = "rejected"
     req.note = body.note
     req.approved_by = getattr(current_user, "telegram_id", str(current_user.id))
-    req.updated_at = datetime.now()
+    req.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
     await db.refresh(req)

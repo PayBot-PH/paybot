@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
 from sqlalchemy import select, func, or_
@@ -36,7 +36,7 @@ class TransactionsService:
         metadata: Optional[Dict[str, Any]] = None
     ) -> Transactions:
         """Create a new transaction record with consistent defaults."""
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         txn = Transactions(
             user_id=user_id,
             transaction_type=transaction_type,
@@ -65,7 +65,7 @@ class TransactionsService:
         )
         wallet = result.scalar_one_or_none()
         if wallet is None:
-            now = datetime.now()
+            now = datetime.now(timezone.utc)
             wallet = Wallets(user_id=user_id, currency=currency, balance=0.0, created_at=now, updated_at=now)
             self.db.add(wallet)
             await self.db.flush()
@@ -77,7 +77,7 @@ class TransactionsService:
         amount = float(txn.amount or 0.0)
         balance_before = float(wallet.balance or 0.0)
         wallet.balance = balance_before + amount
-        wallet.updated_at = datetime.now()
+        wallet.updated_at = datetime.now(timezone.utc)
 
         wtxn = Wallet_transactions(
             user_id=txn.user_id,
@@ -89,7 +89,7 @@ class TransactionsService:
             note=f"{gateway_label} payment credited: {txn.description or txn.transaction_type}",
             status="completed",
             reference_id=txn.external_id or txn.xendit_id or f"txn-{txn.id}",
-            created_at=datetime.now(),
+            created_at=datetime.now(timezone.utc),
         )
         self.db.add(wtxn)
         await self.db.flush()
@@ -119,7 +119,7 @@ class TransactionsService:
 
         old_status = txn.status
         txn.status = "paid"
-        txn.updated_at = datetime.now()
+        txn.updated_at = datetime.now(timezone.utc)
 
         await self.credit_wallet_from_transaction(txn, gateway_label)
 
@@ -149,7 +149,7 @@ class TransactionsService:
 
         old_status = txn.status
         txn.status = "expired"
-        txn.updated_at = datetime.now()
+        txn.updated_at = datetime.now(timezone.utc)
 
         # Publish status change event
         try:
@@ -215,6 +215,10 @@ class TransactionsService:
         try:
             if user_id:
                 data['user_id'] = user_id
+            if 'created_at' not in data or data['created_at'] is None:
+                data['created_at'] = datetime.now(timezone.utc)
+            if 'updated_at' not in data or data['updated_at'] is None:
+                data['updated_at'] = datetime.now(timezone.utc)
             obj = Transactions(**data)
             self.db.add(obj)
             await self.db.commit()

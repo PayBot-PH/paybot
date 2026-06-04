@@ -2,12 +2,12 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import { useAuth } from '../contexts/AuthContext';
 
 export const SettingsScreen = ({ navigation }) => {
+  const { logout } = useAuth();
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('auth_token');
-    // In a real app, this would trigger a state change in App.js to show AuthStack
-    console.log('Logged out');
+    await logout();
   };
 
   return (

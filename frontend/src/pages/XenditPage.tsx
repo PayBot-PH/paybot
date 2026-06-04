@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Card, CardContent, CardHeader, CardTitle,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   CreditCard, Wallet, Calculator, ArrowUpRight, DollarSign,
   ShieldCheck, Zap, Info, Clock, RefreshCw, BarChart3, Building2,
-  Smartphone, FileText, QrCode
+  Smartphone, FileText, QrCode, Send
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { fmtCurrencyPhp } from '@/lib/format';
@@ -28,7 +30,7 @@ export default function XenditPage() {
         setBalance(data.balance);
       }
     } catch { /* ignore */ }
-    finally { setLoading(true); }
+    finally { setLoading(false); }
   }, [user]);
 
   useEffect(() => { fetchBalance(); }, [fetchBalance]);

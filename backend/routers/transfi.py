@@ -20,7 +20,7 @@ Configure the webhook in the TransFi merchant dashboard:
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -62,7 +62,7 @@ async def _credit_wallet(
 
     balance_before = float(wallet.balance or 0)
     wallet.balance = balance_before + amount
-    wallet.updated_at = datetime.now()
+    wallet.updated_at = datetime.now(timezone.utc)
 
     ledger = Wallet_transactions(
         user_id=user_id,
@@ -74,7 +74,7 @@ async def _credit_wallet(
         status="completed",
         reference_id=reference_id,
         note=f"TransFi {pay_method} payment",
-        created_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
     )
     db.add(ledger)
     await db.commit()
@@ -212,7 +212,7 @@ async def transfi_webhook(
         # Update transaction record
         txn.status = "paid"
         txn.xendit_id = invoice_id or txn.xendit_id
-        txn.updated_at = datetime.now()
+        txn.updated_at = datetime.now(timezone.utc)
         await db.flush()
 
         # Credit the wallet
@@ -243,7 +243,7 @@ async def transfi_webhook(
 
     elif is_failed:
         txn.status = "failed"
-        txn.updated_at = datetime.now()
+        txn.updated_at = datetime.now(timezone.utc)
         await db.commit()
         logger.info("TransFi webhook: payment failed for reqId=%s", req_id)
 

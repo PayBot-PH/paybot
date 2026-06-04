@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import logging
 from typing import Optional, Dict, Any, List
 
@@ -21,6 +22,10 @@ class DisbursementsService:
         try:
             if user_id:
                 data['user_id'] = user_id
+            if 'created_at' not in data or data['created_at'] is None:
+                data['created_at'] = datetime.now(timezone.utc)
+            if 'updated_at' not in data or data['updated_at'] is None:
+                data['updated_at'] = datetime.now(timezone.utc)
             obj = Disbursements(**data)
             self.db.add(obj)
             await self.db.commit()

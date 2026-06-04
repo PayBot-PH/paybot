@@ -16,6 +16,7 @@ import { useQuery } from 'react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
+import { API_URL } from '../config';
 
 const { width } = Dimensions.get('window');
 
@@ -34,7 +35,7 @@ const COLORS = {
 
 const api = {
   getTerminals: async (token) => {
-    const response = await fetch('https://mayaproduction.up.railway.app/api/v1/pos-terminals/', {
+    const response = await fetch(`${API_URL}/pos-terminals/`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
@@ -46,7 +47,7 @@ const api = {
 
   getTransactions: async (token, terminalId) => {
     const response = await fetch(
-      `https://paybot-production-7350.up.railway.app/api/v1/pos-terminals/${terminalId}/transactions?per_page=20`,
+      `${API_URL}/pos-terminals/${terminalId}/transactions?per_page=20`,
       {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -60,7 +61,7 @@ const api = {
 
   createTransaction: async (token, terminalId, data) => {
     const response = await fetch(
-      `https://mayaproduction.up.railway.app/api/v1/pos-terminals/${terminalId}/transactions`,
+      `${API_URL}/pos-terminals/${terminalId}/transactions`,
       {
         method: 'POST',
         headers: {

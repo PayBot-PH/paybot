@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -124,30 +124,6 @@ async def _require_php_balance(db: AsyncSession, user_id: str, amount: float) ->
     return wallet
 
 
-async def _deduct_php_balance(db: AsyncSession, wallet: Wallets, user_id: str, amount: float, note: str):
-    """Deduct amount from PHP wallet and record a wallet transaction."""
-    balance_before = wallet.balance
-    wallet.balance = round(wallet.balance - amount, 2)
-    wallet.updated_at = datetime.now()
-    wtxn = Wallet_transactions(
-        user_id=user_id,
-        wallet_id=wallet.id,
-        transaction_type="disbursement",
-        amount=-amount,
-        balance_before=balance_before,
-        balance_after=wallet.balance,
-        note=note,
-        status="completed",
-        created_at=datetime.now(),
-    )
-    db.add(wtxn)
-    await db.commit()
-
-
-
-    return wallet
-
-
 @router.post("/{id}/approve", response_model=DisbursementsResponse)
 async def approve_disbursements(
     id: int,
@@ -188,14 +164,14 @@ async def approve_disbursements(
         # Update disbursement status
         disb.status = "completed"
         disb.xendit_id = res.get("payout_id") # Reusing xendit_id for payout_id
-        disb.updated_at = datetime.now()
+        disb.updated_at = datetime.now(timezone.utc)
 
         # Update wallet transaction status
         from sqlalchemy import update
         await db.execute(
             update(Wallet_transactions)
             .where(Wallet_transactions.reference_id == disb.external_id)
-            .values(status="completed", updated_at=datetime.now())
+            .values(status="completed", updated_at=datetime.now(timezone.utc))
         )
 
         await db.commit()
@@ -234,7 +210,7 @@ async def cancel_disbursements(
     try:
         # 1. Update status to cancelled
         disb.status = "cancelled"
-        disb.updated_at = datetime.now()
+        disb.updated_at = datetime.now(timezone.utc)
 
         # 2. Refund wallet
         result = await db.execute(
@@ -244,13 +220,13 @@ async def cancel_disbursements(
         if wallet:
             balance_before = wallet.balance
             wallet.balance = round(wallet.balance + disb.amount, 2)
-            wallet.updated_at = datetime.now()
+            wallet.updated_at = datetime.now(timezone.utc)
 
             # 3. Update wallet transaction
             await db.execute(
                 update(Wallet_transactions)
                 .where(Wallet_transactions.reference_id == disb.external_id)
-                .values(status="cancelled", note=f"Refunded: {disb.description or ''}", updated_at=datetime.now())
+                .values(status="cancelled", note=f"Refunded: {disb.description or ''}", updated_at=datetime.now(timezone.utc))
             )
 
         await db.commit()
@@ -383,7 +359,7 @@ async def create_disbursements(
     try:
         # 1. Create a pending Disbursement record
         import uuid
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         ext_id = f"wd-ent-{uuid.uuid4().hex[:12]}"
 
         create_data = data.model_dump()

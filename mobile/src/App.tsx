@@ -14,6 +14,8 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { TransactionsScreen } from './screens/TransactionsScreen';
 import { WalletScreen } from './screens/WalletScreen';
 
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 const queryClient = new QueryClient();
@@ -131,7 +133,8 @@ const AppStack = () => {
 };
 
 // Root Navigator
-const RootNavigator = ({ isLoggedIn }) => {
+const RootNavigator = () => {
+  const { isLoggedIn } = useAuth();
   return (
     <NavigationContainer>
       {isLoggedIn ? <AppStack /> : <AuthStack />}
@@ -141,32 +144,12 @@ const RootNavigator = ({ isLoggedIn }) => {
 
 // Main App Component
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(true);
-
-  React.useEffect(() => {
-    const bootstrapAsync = async () => {
-      try {
-        const token = await AsyncStorage.getItem('auth_token');
-        setIsLoggedIn(!!token);
-      } catch (e) {
-        console.log('Failed to restore token', e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    bootstrapAsync();
-  }, []);
-
-  if (isLoading) {
-    return null;
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
-      <RootNavigator isLoggedIn={isLoggedIn} />
-      <Toast />
+      <AuthProvider>
+        <RootNavigator />
+        <Toast />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

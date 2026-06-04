@@ -3,7 +3,7 @@ Super Admin: Bot Messages Router
 Allows super admins to view all bot conversations and reply to users.
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -148,7 +148,7 @@ async def reply_to_user(
             message=f"[ADMIN→{body.chat_id}] {body.message}",
             telegram_chat_id=body.chat_id,
             telegram_username="admin",
-            created_at=datetime.now(),
+            created_at=datetime.now(timezone.utc),
         )
         db.add(log)
         await db.commit()

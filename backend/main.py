@@ -6,7 +6,7 @@ import pkgutil
 import sys
 import traceback
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from core.config import settings
@@ -84,7 +84,7 @@ def setup_logging():
         log_dir = "logs"
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         log_file = f"{log_dir}/app_{timestamp}.log"
         handlers.append(logging.FileHandler(log_file, encoding="utf-8"))
 

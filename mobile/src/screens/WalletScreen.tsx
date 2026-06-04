@@ -14,6 +14,7 @@ import { useQuery, useMutation } from 'react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import Toast from 'react-native-toast-message';
+import { API_URL } from '../config';
 
 const COLORS = {
   primary: '#0EA5E9',
@@ -27,14 +28,14 @@ const COLORS = {
 
 const api = {
   getBalance: async (token) => {
-    const response = await fetch('https://paybot-production-7350.up.railway.app/api/v1/wallet/balance', {
+    const response = await fetch(`${API_URL}/wallet/balance`, {
       headers: { 'Authorization': `Bearer ${token}` },
     });
     if (!response.ok) throw new Error('Failed to fetch balance');
     return response.json();
   },
   withdraw: async (token, data) => {
-    const response = await fetch('https://paybot-production-7350.up.railway.app/api/v1/wallet/withdraw', {
+    const response = await fetch(`${API_URL}/wallet/withdraw`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,

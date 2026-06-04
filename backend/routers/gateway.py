@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -97,7 +97,7 @@ async def _refresh_maya_transaction(db: AsyncSession, checkout_id: str) -> dict:
 
     if status in ("FAILED", "CANCELLED", "DECLINED", "EXPIRED"):
         txn.status = "failed" if status in ("FAILED", "DECLINED") else status.lower()
-        txn.updated_at = datetime.now()
+        txn.updated_at = datetime.now(timezone.utc)
         await db.commit()
         return {"success": False, "message": f"Transaction status is {status}"}
 
@@ -497,7 +497,7 @@ async def create_subscription(
     db: AsyncSession = Depends(get_db),
 ):
     try:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         interval_days = {"daily": 1, "weekly": 7, "monthly": 30, "yearly": 365}
         next_billing = now + timedelta(days=interval_days.get(data.interval, 30))
         sub = Subscriptions(
@@ -533,7 +533,7 @@ async def update_subscription(
     if not sub:
         return GatewayResponse(success=False, message="Subscription not found")
     sub.status = data.status
-    sub.updated_at = datetime.now()
+    sub.updated_at = datetime.now(timezone.utc)
     await db.commit()
     return GatewayResponse(success=True, message=f"Subscription {data.status}", data={"subscription_id": sub.id, "status": data.status})
 
@@ -563,7 +563,7 @@ async def create_customer(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     cust = Customers(
         user_id=str(current_user.id), name=data.name, email=data.email,
         phone=data.phone, notes=data.notes, total_payments=0, total_amount=0,
@@ -596,7 +596,7 @@ async def update_customer(
         cust.phone = data.phone
     if data.notes:
         cust.notes = data.notes
-    cust.updated_at = datetime.now()
+    cust.updated_at = datetime.now(timezone.utc)
     await db.commit()
     return GatewayResponse(success=True, message="Customer updated", data={"customer_id": cust.id})
 
@@ -688,7 +688,7 @@ async def get_reports(
     db: AsyncSession = Depends(get_db),
 ):
     user_id = str(current_user.id)
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     if period == "daily":
         start = now.replace(hour=0, minute=0, second=0, microsecond=0)
     elif period == "weekly":

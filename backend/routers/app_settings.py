@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.config import settings
 from core.database import get_db
@@ -61,7 +61,7 @@ async def _get_setting(db: AsyncSession, key: str) -> str | None:
 async def _set_setting(db: AsyncSession, key: str, value: str) -> None:
     result = await db.execute(select(AppSettings).where(AppSettings.key == key).limit(1))
     row = result.scalars().first()
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     if row:
         row.value = value
         row.updated_at = now

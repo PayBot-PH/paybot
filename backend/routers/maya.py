@@ -202,7 +202,7 @@ async def get_transaction_status(
     if txn.status == "pending":
         try:
             service = MayaService()
-            maya_res = await service.get_checkout(txn.xendit_id) # Using xendit_id as checkout_id
+            maya_res = await service.get_checkout_status(txn.xendit_id) # Using xendit_id as checkout_id
             if maya_res.get("success"):
                 status = maya_res.get("status", "").upper()
                 new_status = "paid" if status in ["COMPLETED", "SUCCESS", "AUTHORIZED"] else "expired" if status in ["EXPIRED", "CANCELLED"] else "pending"

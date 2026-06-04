@@ -271,8 +271,18 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
     try:
         res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == telegram_user_id))
         db_admin = res.scalar_one_or_none()
-    except Exception:
-        pass
+
+        # If not found by ID, try finding by username (e.g. from web registration)
+        if not db_admin and payload_username:
+            res = await db.execute(select(AdminUser).where(func.lower(AdminUser.telegram_username) == payload_username))
+            db_admin = res.scalar_one_or_none()
+            if db_admin and db_admin.telegram_id.startswith("web-"):
+                # Link the numeric Telegram ID to this existing record
+                db_admin.telegram_id = telegram_user_id
+                await db.commit()
+                logger.info("[telegram-login-widget] Linked web registration to Telegram ID: %s", telegram_user_id)
+    except Exception as e:
+        logger.error("[telegram-login-widget] DB lookup failed: %s", e)
 
     # Allow login if: found in DB (active) OR in env var whitelist
     in_env = telegram_user_id in allowed_admin_ids or payload_username in allowed_admin_usernames

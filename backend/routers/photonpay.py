@@ -22,7 +22,7 @@ Configure the webhook in the PhotonPay merchant portal
 """
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -85,7 +85,7 @@ async def _credit_wallet(
 
     balance_before = float(wallet.balance or 0)
     wallet.balance = balance_before + amount
-    wallet.updated_at = datetime.now()
+    wallet.updated_at = datetime.now(timezone.utc)
 
     ledger = Wallet_transactions(
         user_id=user_id,
@@ -97,7 +97,7 @@ async def _credit_wallet(
         status="completed",
         reference_id=reference_id,
         note=f"PhotonPay {pay_method} payment",
-        created_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
     )
     db.add(ledger)
     await db.commit()
@@ -158,7 +158,7 @@ async def create_alipay_session(
         raise HTTPException(status_code=502, detail=result.get("error", "PhotonPay error"))
 
     # Persist pending transaction
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     txn = Transactions(
         user_id=str(current_user.id),
         transaction_type="alipay_qr",
@@ -221,7 +221,7 @@ async def create_wechat_session(
     if not result.get("success"):
         raise HTTPException(status_code=502, detail=result.get("error", "PhotonPay error"))
 
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     txn = Transactions(
         user_id=str(current_user.id),
         transaction_type="wechat_qr",
@@ -351,7 +351,7 @@ async def photonpay_webhook(
         # Update transaction record
         txn.status = "paid"
         txn.xendit_id = transaction_id or txn.xendit_id
-        txn.updated_at = datetime.now()
+        txn.updated_at = datetime.now(timezone.utc)
         await db.flush()
 
         # Credit the wallet
@@ -382,7 +382,7 @@ async def photonpay_webhook(
 
     elif is_failed:
         txn.status = "failed"
-        txn.updated_at = datetime.now()
+        txn.updated_at = datetime.now(timezone.utc)
         await db.commit()
         logger.info("PhotonPay webhook: payment failed for reqId=%s", req_id)
 

@@ -29,7 +29,7 @@ Configure the webhook in the PayMongo dashboard:
            checkout_session.payment.failed, payment.paid, payment.failed
 """
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -89,7 +89,7 @@ async def _save_transaction(
     description: str,
 ) -> Optional[Transactions]:
     try:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         txn = Transactions(
             user_id=user_id,
             transaction_type=transaction_type,
@@ -139,7 +139,7 @@ async def _credit_wallet(
 
     balance_before = wallet.balance
     wallet.balance += amount
-    wallet.updated_at = datetime.now()
+    wallet.updated_at = datetime.now(timezone.utc)
 
     wtxn = Wallet_transactions(
         user_id=user_id,
@@ -151,7 +151,7 @@ async def _credit_wallet(
         note=note,
         status="completed",
         reference_id=reference_id,
-        created_at=datetime.now(),
+        created_at=datetime.now(timezone.utc),
     )
     db.add(wtxn)
     await db.commit()
@@ -322,7 +322,7 @@ async def paymongo_webhook(
                 db.add(PaymongoWebhookEvent(
                     event_id=event_id,
                     event_type=event_type,
-                    processed_at=datetime.now(),
+                    processed_at=datetime.now(timezone.utc),
                 ))
                 await db.flush()
             except IntegrityError:
@@ -391,7 +391,7 @@ async def _handle_source_chargeable(
     if txn:
         old_status = txn.status
         txn.status = "paid"
-        txn.updated_at = datetime.now()
+        txn.updated_at = datetime.now(timezone.utc)
         await db.flush()
 
         payment_event_bus.publish({
@@ -444,7 +444,7 @@ async def _handle_payment_paid(
     txn = res.scalar_one_or_none()
     if txn and txn.status != "paid" and txn.user_id:
         txn.status = "paid"
-        txn.updated_at = datetime.now()
+        txn.updated_at = datetime.now(timezone.utc)
         await db.flush()
         await _credit_wallet(
             db, txn.user_id, txn.amount if txn.amount is not None else amount,

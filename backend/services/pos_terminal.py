@@ -567,8 +567,8 @@ class POSTerminalService:
             if status == "completed":
                 transaction.completed_at = datetime.utcnow()
                 
-                # Note: Merchant wallet credit is handled by wallet_integration.py
-                # subscribing to the 'payment_completed' event emitted below.
+                # Load terminal to get its code
+                terminal = await self.get_terminal_by_id(transaction.terminal_id)
 
                 # Trigger sync event
                 await event_bus.emit("payment_completed", {

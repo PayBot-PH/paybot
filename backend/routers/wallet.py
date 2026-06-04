@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -276,7 +276,7 @@ async def send_usdt(
             raise HTTPException(status_code=400, detail="Insufficient USD balance")
 
         wallet = await svc.get_or_create_wallet(tg_user_id, "USD")
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         new_bal = balance - data.amount
 
         txn = Wallet_transactions(
@@ -498,7 +498,7 @@ async def admin_approve_withdrawal(
 
     # 2. Update records
     disb.status = "completed"
-    disb.updated_at = datetime.now()
+    disb.updated_at = datetime.now(timezone.utc)
     disb.xendit_id = payout_res.get("payout_id")
 
     ledger_res = await db.execute(
@@ -545,7 +545,7 @@ async def admin_reject_withdrawal(
 
     disb.status = "failed"
     disb.description = f"Rejected: {reason}"
-    disb.updated_at = datetime.now()
+    disb.updated_at = datetime.now(timezone.utc)
 
     # Refund internal wallet
     ledger_res = await db.execute(select(Wallet_transactions).where(Wallet_transactions.reference_id == disb.external_id))
@@ -576,7 +576,7 @@ async def approve_crypto_topup(
 
     svc = WalletsService(db)
     # Credit USD wallet via admin adjustment logic (marked as crypto_topup)
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     req.status = "approved"
     req.reviewed_by = str(current_user.id)
     req.reviewed_at = now
