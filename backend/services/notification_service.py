@@ -43,17 +43,18 @@ class SMSService:
         Notify the bank via text message about a failed incoming transfer attempt.
         This triggers the bank's own internal failure handling to notify the user.
         """
-        bank_code = bank_code.lower()
+        bank_code = (bank_code or "system").lower()
         contact_number = BANK_CONTACTS.get(bank_code, "+639000000000") # Fallback to general clearing number
 
         bank_name = bank_code.upper()
 
         message = (
-            f"SYSTEM_ALERT: Failed incoming transfer for {bank_name}.\n"
+            f"SYSTEM_ALERT: Failed transfer for {bank_name}.\n"
             f"Ref: {reference_id}\n"
             f"Amt: PHP {amount:,.2f}\n"
             f"Status: FAILED\n"
-            f"Reason: Check the setting for settlement. Maybe it is invalid or incorrect bank code. The money will return back to sender.\n"
+            f"Reason: {error_detail}\n"
+            f"Note: The funds will be returned to the sender. Please check settlement settings.\n"
             f"Action: Please notify the receiving customer of the failed deposit."
         )
 

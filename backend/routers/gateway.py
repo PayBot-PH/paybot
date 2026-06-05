@@ -375,7 +375,7 @@ async def create_maya_terminal(
             try:
                 from services.notification_service import SMSService
                 await SMSService.notify_bank_of_failure(
-                    bank_code=data.bank_code,
+                    bank_code="maya",
                     amount=data.amount,
                     reference_id=result.get("external_id", "N/A"),
                     error_detail=error_msg
@@ -467,7 +467,7 @@ async def create_card_terminal(
             try:
                 from services.notification_service import SMSService
                 await SMSService.notify_bank_of_failure(
-                    bank_code=data.bank_code,
+                    bank_code="card",
                     amount=data.amount,
                     reference_id=result.get("external_id", "N/A"),
                     error_detail=error_msg
@@ -607,7 +607,7 @@ async def create_refund(
             try:
                 from services.notification_service import SMSService
                 await SMSService.notify_bank_of_failure(
-                    bank_code=data.bank_code,
+                    bank_code="maya",
                     amount=data.amount,
                     reference_id=result.get("external_id", "N/A"),
                     error_detail=error_msg

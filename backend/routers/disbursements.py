@@ -169,8 +169,15 @@ async def approve_disbursements(
                     reference_id=disb.external_id,
                     error_detail=error_msg
                 )
+                # Direct notification to recipient if it's an e-wallet (where account number is a phone number)
+                if disb.bank_code and disb.bank_code.lower() in ["gcash", "maya"]:
+                    await SMSService.send_sms(
+                        disb.account_number,
+                        f"PayBot Alert: The transfer of ₱{disb.amount:,.2f} to your account failed. "
+                        f"Reason: {error_msg}. The funds have been returned to the sender. Ref: {disb.external_id}"
+                    )
             except Exception as notify_err:
-                logger.error(f"Failed to send SMS notification to bank: {notify_err}")
+                logger.error(f"Failed to send SMS notification: {notify_err}")
 
             raise HTTPException(status_code=400, detail=f"Payout failed: {error_msg}")
 
