@@ -159,17 +159,55 @@ export default function Login() {
                     </div>
 
                     <div className="hidden md:flex items-center gap-12">
-                        <Link to="/features" className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-brandblue-400 transition-colors">CAPABILITIES</Link>
-                        <Link to="/pricing" className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-brandblue-400 transition-colors">PRICING</Link>
-                        <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-brandblue-400 transition-colors">KERNEL_SUPPORT</a>
+                        <Link to="/features" className="nav-link text-[11px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-brandblue-400 transition-colors">Features</Link>
+                        <Link to="/pricing" className="nav-link text-[11px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-brandblue-400 transition-colors">Plans</Link>
+                        <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="nav-link text-[11px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-brandblue-400 transition-colors">Support</a>
                         <div className="h-4 w-px bg-white/10 mx-4" />
-                        <button onClick={scrollToLogin} className="bg-white text-[#0A0F1E] font-black text-[11px] uppercase tracking-[0.3em] px-10 h-14 rounded-2xl shadow-2xl active:scale-95 transition-all hover:bg-brandblue-50">SIGN_IN</button>
+                        <button onClick={scrollToLogin} className="bg-white text-[#0A0F1E] font-black text-[11px] uppercase tracking-[0.3em] px-10 h-14 rounded-2xl shadow-2xl active:scale-95 transition-all hover:bg-brandblue-50 hover-lift">Login</button>
                     </div>
 
-                    <button className="md:hidden h-12 w-12 flex items-center justify-center rounded-2xl bg-white/5 text-white" onClick={() => setMobileNavOpen(!mobileNavOpen)}>
+                    <button className="md:hidden h-12 w-12 flex items-center justify-center rounded-2xl bg-white/5 text-white hover:bg-white/10 transition-colors" onClick={() => setMobileNavOpen(!mobileNavOpen)}>
                         {mobileNavOpen ? <X size={24} /> : <Menu size={24} />}
                     </button>
                 </div>
+
+                {mobileNavOpen && (
+                    <div className="md:hidden mobile-menu-enter border-t border-white/5 bg-[#0A0F1E]/80 backdrop-blur-xl">
+                        <div className="px-10 py-8 space-y-6">
+                            <Link 
+                                to="/features" 
+                                onClick={() => setMobileNavOpen(false)}
+                                className="mobile-menu-item block text-[11px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-brandblue-400 transition-colors py-3 border-b border-white/5 pb-4"
+                            >
+                                Features
+                            </Link>
+                            <Link 
+                                to="/pricing" 
+                                onClick={() => setMobileNavOpen(false)}
+                                className="mobile-menu-item block text-[11px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-brandblue-400 transition-colors py-3 border-b border-white/5 pb-4"
+                            >
+                                Plans
+                            </Link>
+                            <a 
+                                href={SUPPORT_URL} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="mobile-menu-item block text-[11px] font-black text-white/40 uppercase tracking-[0.3em] hover:text-brandblue-400 transition-colors py-3 border-b border-white/5 pb-4"
+                            >
+                                Support
+                            </a>
+                            <button 
+                                onClick={() => {
+                                    scrollToLogin();
+                                    setMobileNavOpen(false);
+                                }}
+                                className="mobile-menu-item w-full bg-white text-[#0A0F1E] font-black text-[11px] uppercase tracking-[0.3em] px-10 h-14 rounded-2xl shadow-2xl active:scale-95 transition-all hover:bg-brandblue-50 hover-lift mt-4"
+                            >
+                                Login
+                            </button>
+                        </div>
+                    </div>
+                )}
             </header>
 
             <section className="relative pt-40 lg:pt-60 pb-32 lg:pb-60 bg-[#0A0F1E] overflow-hidden">
@@ -188,18 +226,18 @@ export default function Login() {
                                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brandblue-400 opacity-75"></span>
                                     <span className="relative inline-flex rounded-full h-3 w-3 bg-brandblue-500"></span>
                                 </span>
-                                <span className="text-white text-[10px] font-black uppercase tracking-[0.4em]">Grid_Node_Access: <span className="text-brandblue-400">OPTIMAL</span></span>
+                                <span className="text-white text-[10px] font-black uppercase tracking-[0.4em]">System Status: <span className="text-brandblue-400">OPTIMAL</span></span>
                             </div>
                             <h1 className="text-7xl lg:text-9xl font-black text-white leading-[0.85] tracking-tighter mb-10 animate-in slide-in-from-left-12 duration-1000">
-                                INITIATE <br />
-                                <span className="text-gradient">SESSION.</span>
+                                START YOUR <br />
+                                <span className="text-gradient">SESSION</span>
                             </h1>
                             <p className="text-white/40 text-xl lg:text-2xl font-medium max-w-lg mb-16 leading-relaxed mx-auto lg:mx-0 uppercase tracking-tight">
-                                Authorize your merchant identity to access the global PayBot network and real-time settlement vault.
+                                Authorize your merchant identity to access the PayBot network and real-time payment processing.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-8 justify-center lg:justify-start mb-12">
-                                <button onClick={scrollToLogin} className="flex items-center justify-center gap-4 bg-white text-[#0A0F1E] font-black px-12 py-6 rounded-[2.5rem] text-xs w-full sm:w-auto shadow-2xl hover:shadow-brandblue-500/20 transition-all active:scale-95 group uppercase tracking-[0.3em]">
-                                    Authenticate Hub <ArrowRight className="h-5 w-5 group-hover:translate-x-2 transition-transform" />
+                                <button onClick={scrollToLogin} className="flex items-center justify-center gap-4 bg-white text-[#0A0F1E] font-black px-12 py-6 rounded-[2.5rem] text-xs w-full sm:w-auto shadow-2xl hover:shadow-brandblue-500/20 transition-all active:scale-95 group uppercase tracking-[0.3em] hover-lift">
+                                    Sign In Now <ArrowRight className="h-5 w-5 group-hover:translate-x-2 transition-transform" />
                                 </button>
                                 <div className="flex items-center gap-4 px-6 opacity-40">
                                     <div className="h-1 w-12 bg-white/20 rounded-full overflow-hidden">
@@ -238,13 +276,13 @@ export default function Login() {
                             <div className="w-24 h-24 bg-white/5 rounded-[2.5rem] flex items-center justify-center mx-auto mb-10 shadow-2xl border border-white/10 transition-transform hover:rotate-3 duration-500 group">
                                 <Lock className="h-10 w-10 text-brandblue-400 group-hover:scale-110 transition-transform" />
                             </div>
-                            <h2 className="text-4xl font-black text-white uppercase tracking-tighter">OPERATOR_LOGIN</h2>
-                            <p className="text-white/40 font-black text-[10px] mt-4 uppercase tracking-[0.4em]">Institutional Dashboard Access</p>
+                            <h2 className="text-4xl font-black text-white uppercase tracking-tighter">PayBot Admin</h2>
+                            <p className="text-white/40 font-black text-[10px] mt-4 uppercase tracking-[0.4em]">Merchant Dashboard Portal</p>
                         </div>
 
                         <form onSubmit={handleLogin} className="space-y-8">
-                            <div className="space-y-4">
-                                <Label className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em] ml-1">Terminal Endpoint (Email)</Label>
+                            <div className="space-y-4 card-entrance">
+                                <Label className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em] ml-1 input-label-floating">Email Address</Label>
                                 <div className="relative group">
                                     <div className="absolute inset-0 bg-brandblue-500/10 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity blur-xl" />
                                     <Mail className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-white/20 group-focus-within:text-brandblue-400 group-focus-within:scale-110 transition-all duration-300" />
@@ -252,17 +290,17 @@ export default function Login() {
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="OPERATOR@DOMAIN.COM"
-                                        className="w-full h-18 bg-white/5 border-white/10 rounded-2xl py-4 pl-14 pr-6 focus:ring-brandblue-500/20 focus:border-brandblue-500/50 border-2 outline-none transition-all text-sm font-black uppercase tracking-widest shadow-sm relative z-10 text-white placeholder:text-white/10"
+                                        placeholder="merchant@paybot.ph"
+                                        className="w-full h-18 bg-white/5 border-white/10 rounded-2xl py-4 pl-14 pr-6 focus:ring-brandblue-500/20 focus:border-brandblue-500/50 border-2 outline-none transition-all text-sm font-black uppercase tracking-widest shadow-sm relative z-10 text-white placeholder:text-white/10 hover:bg-white/8 focus:bg-white/10"
                                         required
                                     />
                                 </div>
                             </div>
 
-                            <div className="space-y-4">
+                            <div className="space-y-4 card-entrance" style={{ animationDelay: '0.1s' }}>
                                 <div className="flex justify-between items-center ml-1">
-                                    <Label className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em]">Access Sequence (Password)</Label>
-                                    <Link to="/forgot-password" university-data-toggle="tooltip" title="Recover your access key" className="text-[9px] font-black text-brandblue-500 uppercase tracking-widest hover:text-brandblue-400 transition-colors">RECOVER_KEY</Link>
+                                    <Label className="text-[11px] font-black text-white/40 uppercase tracking-[0.3em] input-label-floating">Password</Label>
+                                    <Link to="/forgot-password" university-data-toggle="tooltip" title="Recover your password" className="text-[9px] font-black text-brandblue-500 uppercase tracking-widest hover:text-brandblue-400 transition-colors nav-link">Forgot Password?</Link>
                                 </div>
                                 <div className="relative group">
                                     <div className="absolute inset-0 bg-brandblue-500/10 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity blur-xl" />
@@ -272,13 +310,13 @@ export default function Login() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className="w-full h-18 bg-white/5 border-white/10 rounded-2xl py-4 pl-14 pr-14 focus:ring-brandblue-500/20 focus:border-brandblue-500/50 border-2 outline-none transition-all text-sm font-black tracking-widest shadow-sm relative z-10 text-white placeholder:text-white/10"
+                                        className="w-full h-18 bg-white/5 border-white/10 rounded-2xl py-4 pl-14 pr-14 focus:ring-brandblue-500/20 focus:border-brandblue-500/50 border-2 outline-none transition-all text-sm font-black tracking-widest shadow-sm relative z-10 text-white placeholder:text-white/10 hover:bg-white/8 focus:bg-white/10"
                                         required
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-6 top-1/2 -translate-y-1/2 text-white/20 hover:text-brandblue-400 transition-colors z-20"
+                                        className="absolute right-6 top-1/2 -translate-y-1/2 text-white/20 hover:text-brandblue-400 transition-colors z-20 hover:scale-110"
                                     >
                                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                                     </button>
@@ -286,7 +324,7 @@ export default function Login() {
                             </div>
 
                             {(localError || authError) && (
-                                <div className="bg-rose-500/10 border-2 border-rose-500/20 text-rose-400 text-[10px] px-6 py-4 rounded-2xl flex items-center gap-3 font-black uppercase tracking-widest animate-shake">
+                                <div className="form-error bg-rose-500/10 border-2 border-rose-500/20 text-rose-400 text-[10px] px-6 py-4 rounded-2xl flex items-center gap-3 font-black uppercase tracking-widest">
                                     <XCircle className="h-5 w-5 shrink-0" />
                                     <span>{localError || authError}</span>
                                 </div>
@@ -295,16 +333,17 @@ export default function Login() {
                             <Button
                                 type="submit"
                                 disabled={submitting}
-                                className="w-full h-20 bg-white text-[#0A0F1E] hover:bg-white/90 rounded-[2rem] font-black text-sm shadow-[0_20px_40px_rgba(255,255,255,0.1)] active:scale-95 transition-all uppercase tracking-[0.4em] group mt-10"
+                                className="w-full h-20 bg-white text-[#0A0F1E] hover:bg-white/90 rounded-[2rem] font-black text-sm shadow-[0_20px_40px_rgba(255,255,255,0.1)] active:scale-95 transition-all uppercase tracking-[0.4em] group mt-10 hover-lift card-entrance button-ripple"
+                                style={{ animationDelay: '0.2s' }}
                             >
                                 {submitting ? (
                                     <div className="flex items-center gap-4">
                                         <Loader2 className="h-6 w-6 animate-spin opacity-50" />
-                                        <span>AUTHORIZING...</span>
+                                        <span>Signing In...</span>
                                     </div>
                                 ) : (
                                     <div className="flex items-center gap-4">
-                                        <span>INIT_SESSION</span>
+                                        <span>Start Session</span>
                                         <ArrowRight className="h-6 w-6 group-hover:translate-x-2 transition-transform" />
                                     </div>
                                 )}
@@ -318,7 +357,7 @@ export default function Login() {
                                         <span className="w-full border-t border-white/10"></span>
                                     </div>
                                     <div className="relative flex justify-center text-[10px] font-black uppercase tracking-[0.3em]">
-                                        <span className="bg-[#111827] px-4 text-white/30">NEURAL_ID_LOGIN</span>
+                                        <span className="bg-[#111827] px-4 text-white/30">Quick Login via Telegram</span>
                                     </div>
                                 </div>
 
@@ -332,32 +371,32 @@ export default function Login() {
                                     />
                                 </div>
                                 <p className="text-[9px] text-center text-white/20 font-black uppercase tracking-[0.2em] px-8 leading-relaxed">
-                                    Fast-track authentication via Telegram creates a verified node identity automatically.
+                                    Sign in securely with Telegram to create a verified merchant account instantly.
                                 </p>
                             </div>
                         )}
 
                         <div className="mt-16 pt-10 border-t border-white/5 text-center space-y-6">
                             <p className="text-white/40 text-[11px] font-black uppercase tracking-[0.3em]">
-                                NEW_TERMINAL_OPERATOR?{' '}
-                                <Link to="/register" className="text-brandblue-400 hover:text-brandblue-300 transition-colors ml-2">REGISTER_NODE</Link>
+                                New to PayBot?{' '}
+                                <Link to="/register" className="text-brandblue-400 hover:text-brandblue-300 transition-colors ml-2">Create Account</Link>
                             </p>
                             <div className="flex items-center justify-center gap-6 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
                                 <div className="flex items-center gap-2">
                                     <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-white">PCI-DSS_COMPLIANT</span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-white">PCI-DSS Certified</span>
                                 </div>
                                 <div className="h-3 w-px bg-white/10" />
                                 <div className="flex items-center gap-2">
                                     <Lock className="h-3 w-3 text-brandblue-500" />
-                                    <span className="text-[8px] font-black uppercase tracking-widest text-white">AES-256_ENCRYPTED</span>
+                                    <span className="text-[8px] font-black uppercase tracking-widest text-white">AES-256 Encrypted</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div className="mt-12 text-center space-y-8 opacity-40 hover:opacity-100 transition-opacity duration-700">
-                        <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.4em]">Network_Support_Channels</p>
+                        <p className="text-white/40 text-[10px] font-black uppercase tracking-[0.4em]">Support Channels</p>
                         <div className="flex justify-center gap-8">
                             {SUPPORT_LINKS.map(link => (
                                 <a key={link.handle} href={link.href} className="text-xs font-black text-white hover:text-brandblue-400 transition-colors uppercase tracking-widest border-b-2 border-transparent hover:border-brandblue-500/20 pb-1">
