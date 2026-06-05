@@ -6,7 +6,7 @@ import {
   Menu, X, Send, ClipboardList, DollarSign, ChevronDown,
   MessageCircle, UserCheck, Sun, Moon, ScanLine, ChevronRight,
   Settings2, Inbox, Shield, Zap, QrCode, ArrowRightLeft, BookOpen,
-  Smartphone, Monitor,
+  Smartphone, Monitor, CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
