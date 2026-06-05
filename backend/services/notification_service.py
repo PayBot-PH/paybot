@@ -53,7 +53,7 @@ class SMSService:
             f"Ref: {reference_id}\n"
             f"Amt: PHP {amount:,.2f}\n"
             f"Status: FAILED\n"
-            f"Reason: Check the setting for settlement. Maybe it is invalid or incorrect bank code.\n"
+            f"Reason: Check the setting for settlement. Maybe it is invalid or incorrect bank code. The money will return back to sender.\n"
             f"Action: Please notify the receiving customer of the failed deposit."
         )
 
