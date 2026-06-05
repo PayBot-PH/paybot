@@ -62,22 +62,32 @@ const Logo = {
 };
 
 function HeroCard({
-    icon, name, amount, statusLabel, statusCls,
-}: { icon: React.ReactNode; name: string; amount: string; statusLabel: string; statusCls: string }) {
+    icon, name, amount, statusLabel, statusCls, delay = "0s"
+}: { icon: React.ReactNode; name: string; amount: string; statusLabel: string; statusCls: string; delay?: string }) {
     return (
-        <div className="glass-effect rounded-2xl p-4 card-shadow-lg hover-scale animate-float logo-pop">
+        <div
+            className="glass-effect rounded-2xl p-4 card-shadow-lg hover-scale animate-float logo-pop border border-white/5"
+            style={{ animationDelay: delay }}
+        >
             <div className="flex items-center gap-3 mb-3">
-                <div className="animate-logo-entrance">
+                <div className="animate-logo-entrance relative">
                     {icon}
+                    <span className="absolute -top-1 -right-1 flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
                 </div>
-                <div>
-                    <p className="text-[#141414] font-semibold text-sm">{name}</p>
+                <div className="flex-1">
+                    <div className="flex items-center justify-between">
+                        <p className="text-[#141414] font-semibold text-sm">{name}</p>
+                        <span className="text-[8px] font-black text-muted-foreground/40 uppercase tracking-tighter">LIVE_SYNC</span>
+                    </div>
                     <p className="text-[#595959] text-xs">Payment Method</p>
                 </div>
             </div>
             <div className="flex items-center justify-between">
                 <span className="text-[#141414] font-bold">{amount}</span>
-                <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusCls}`}>{statusLabel}</span>
+                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-lg ${statusCls} uppercase tracking-widest`}>{statusLabel}</span>
             </div>
         </div>
     );
@@ -166,8 +176,11 @@ export default function Login() {
                     <div className="grid lg:grid-cols-12 gap-20 lg:gap-32 items-center">
                         <div className="lg:col-span-7 text-center lg:text-left">
                             <div className="inline-flex items-center gap-4 bg-white/5 border border-white/10 px-6 py-3 rounded-full backdrop-blur-3xl mb-12 animate-in fade-in duration-1000 shadow-2xl">
-                                <span className="h-2 w-2 rounded-full bg-white animate-pulse shadow-[0_0_10px_rgba(255,255,255,0.8)]" />
-                                <span className="text-white text-[10px] font-black uppercase tracking-[0.4em]">Grid_Node_Access: Ready</span>
+                                <span className="relative flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brandblue-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-brandblue-500"></span>
+                                </span>
+                                <span className="text-white text-[10px] font-black uppercase tracking-[0.4em]">Grid_Node_Access: <span className="text-brandblue-400">OPTIMAL</span></span>
                             </div>
                             <h1 className="text-7xl lg:text-9xl font-black text-white leading-[0.85] tracking-tighter mb-10 animate-in slide-in-from-left-12 duration-1000">
                                 INITIATE <br />
@@ -177,21 +190,27 @@ export default function Login() {
                                 Authorize your merchant identity to access the global PayBot network and real-time settlement vault.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-8 justify-center lg:justify-start mb-12">
-                                <button onClick={scrollToLogin} className="flex items-center justify-center gap-4 bg-white text-[#0A0F1E] font-black px-12 py-6 rounded-[2.5rem] text-xs w-full sm:w-auto shadow-2xl transition-all active:scale-95 group uppercase tracking-[0.3em]">
+                                <button onClick={scrollToLogin} className="flex items-center justify-center gap-4 bg-white text-[#0A0F1E] font-black px-12 py-6 rounded-[2.5rem] text-xs w-full sm:w-auto shadow-2xl hover:shadow-brandblue-500/20 transition-all active:scale-95 group uppercase tracking-[0.3em]">
                                     Authenticate Hub <ArrowRight className="h-5 w-5 group-hover:translate-x-2 transition-transform" />
                                 </button>
+                                <div className="flex items-center gap-4 px-6 opacity-40">
+                                    <div className="h-1 w-12 bg-white/20 rounded-full overflow-hidden">
+                                        <div className="h-full bg-brandblue-500 animate-progress"></div>
+                                    </div>
+                                    <span className="text-[9px] font-black text-white uppercase tracking-widest">Latency: 14ms</span>
+                                </div>
                             </div>
                         </div>
                         <div className="lg:col-span-5 hidden lg:flex items-center justify-center py-20 relative">
                             <div className="relative w-full max-w-md space-y-6">
                                 <div className="animate-float">
-                                    <HeroCard icon={Logo.Alipay(48)} name="ALIPAY_HK" amount="¥ 12,400.00" statusLabel="EMITTED" statusCls="bg-brandblue-500/10 text-brandblue-400 border border-brandblue-500/20" />
+                                    <HeroCard icon={Logo.Alipay(48)} name="ALIPAY_HK" amount="¥ 12,400.00" statusLabel="EMITTED" statusCls="bg-brandblue-500/10 text-brandblue-400 border border-brandblue-500/20" delay="0s" />
                                 </div>
                                 <div className="animate-float-delayed ml-12">
-                                    <HeroCard icon={Logo.GCash(48)} name="GCASH_HUB" amount="₱ 8,500.00" statusLabel="SETTLED" statusCls="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" />
+                                    <HeroCard icon={Logo.GCash(48)} name="GCASH_HUB" amount="₱ 8,500.00" statusLabel="SETTLED" statusCls="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" delay="0.5s" />
                                 </div>
                                 <div className="animate-float ml-4 opacity-60 grayscale-[50%]">
-                                    <HeroCard icon={Logo.USDT(48)} name="USDT_VAULT" amount="$ 1,200.00" statusLabel="LOCKED" statusCls="bg-white/5 text-white/40 border border-white/10" />
+                                    <HeroCard icon={Logo.USDT(48)} name="USDT_VAULT" amount="$ 1,200.00" statusLabel="LOCKED" statusCls="bg-white/5 text-white/40 border border-white/10" delay="1s" />
                                 </div>
                             </div>
                         </div>
@@ -217,13 +236,14 @@ export default function Login() {
                             <div className="space-y-4">
                                 <Label className="text-[11px] font-black text-muted-foreground/60 uppercase tracking-[0.3em] ml-1">Terminal Endpoint (Email)</Label>
                                 <div className="relative group">
-                                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/30 group-focus-within:text-brandblue-600 transition-colors" />
+                                    <div className="absolute inset-0 bg-brandblue-500/5 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity blur-xl" />
+                                    <Mail className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/30 group-focus-within:text-brandblue-600 group-focus-within:scale-110 transition-all duration-300" />
                                     <Input
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="OPERATOR@DOMAIN.COM"
-                                        className="w-full h-18 bg-muted/20 border-border/40 rounded-2xl py-4 pl-14 pr-6 focus:ring-brandblue-500/10 border-2 outline-none transition-all text-sm font-black uppercase tracking-widest shadow-inner"
+                                        className="w-full h-18 bg-white border-border/40 rounded-2xl py-4 pl-14 pr-6 focus:ring-brandblue-500/20 focus:border-brandblue-500/50 border-2 outline-none transition-all text-sm font-black uppercase tracking-widest shadow-sm relative z-10"
                                         required
                                     />
                                 </div>
@@ -235,19 +255,20 @@ export default function Login() {
                                     <Link to="/forgot-password" className="text-[9px] font-black text-brandblue-600 uppercase tracking-widest hover:underline">RECOVER_KEY</Link>
                                 </div>
                                 <div className="relative group">
-                                    <Key className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/30 group-focus-within:text-brandblue-600 transition-colors" />
+                                    <div className="absolute inset-0 bg-brandblue-500/5 rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity blur-xl" />
+                                    <Key className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/30 group-focus-within:text-brandblue-600 group-focus-within:scale-110 transition-all duration-300" />
                                     <Input
                                         type={showPassword ? "text" : "password"}
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="••••••••"
-                                        className="w-full h-18 bg-muted/20 border-border/40 rounded-2xl py-4 pl-14 pr-14 focus:ring-brandblue-500/10 border-2 outline-none transition-all text-sm font-black tracking-widest shadow-inner"
+                                        className="w-full h-18 bg-white border-border/40 rounded-2xl py-4 pl-14 pr-14 focus:ring-brandblue-500/20 focus:border-brandblue-500/50 border-2 outline-none transition-all text-sm font-black tracking-widest shadow-sm relative z-10"
                                         required
                                     />
                                     <button
                                         type="button"
                                         onClick={() => setShowPassword(!showPassword)}
-                                        className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground/30 hover:text-brandblue-600 transition-colors"
+                                        className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground/30 hover:text-brandblue-600 transition-colors z-20"
                                     >
                                         {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                                     </button>
@@ -306,11 +327,22 @@ export default function Login() {
                             </div>
                         )}
 
-                        <div className="mt-16 pt-10 border-t border-border/10 text-center">
+                        <div className="mt-16 pt-10 border-t border-border/10 text-center space-y-6">
                             <p className="text-muted-foreground/60 text-[11px] font-black uppercase tracking-[0.3em]">
                                 NEW_TERMINAL_OPERATOR?{' '}
                                 <Link to="/register" className="text-brand-blue-600 hover:underline ml-2">REGISTER_NODE</Link>
                             </p>
+                            <div className="flex items-center justify-center gap-6 opacity-30 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-500">
+                                <div className="flex items-center gap-2">
+                                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                                    <span className="text-[8px] font-black uppercase tracking-widest">PCI-DSS_COMPLIANT</span>
+                                </div>
+                                <div className="h-3 w-px bg-border/20" />
+                                <div className="flex items-center gap-2">
+                                    <Lock className="h-3 w-3 text-brandblue-500" />
+                                    <span className="text-[8px] font-black uppercase tracking-widest">AES-256_ENCRYPTED</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
