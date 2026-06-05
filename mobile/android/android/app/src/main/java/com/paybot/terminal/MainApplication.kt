@@ -1,4 +1,4 @@
-package com.tempandroid
+package com.paybot.terminal
 
 import android.app.Application
 import com.facebook.react.PackageList

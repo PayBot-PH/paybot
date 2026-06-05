@@ -38,13 +38,13 @@ class POSTerminalTelegramHandler:
                 
                 if len(parts) < 2:
                     return (
-                        "❌ Invalid format.\n\n"
-                        "Usage: /request_terminal\n"
-                        "Then provide:\n"
-                        "• Business Name\n"
-                        "• Business Type (Retail, Online, Service, etc.)\n"
-                        "• Location\n"
-                        "• Monthly transaction volume estimate"
+                        "❌ *Invalid Request Format*\n\n"
+                        "Please use this exact format:\n"
+                        "`/request_terminal Business Name`\n"
+                        "`Business Type` (e.g., Retail)\n"
+                        "`Location` (e.g., Manila)\n"
+                        "`Estimate Volume` (e.g., 50000)\n\n"
+                        "💡 _Type each detail on a new line after the command._"
                     )
                 
                 business_name = parts[0].replace("/request_terminal", "").strip()
@@ -196,10 +196,25 @@ class POSTerminalTelegramHandler:
                 
                 if result.get("success"):
                     terminal_code = result.get("terminal_code")
+                    user_id = result.get("user_id")
+
+                    # Notify the user
+                    if user_id:
+                        await self.telegram.send_message(
+                            chat_id=user_id,
+                            text=(
+                                f"🎊 *Your POS Terminal has been Approved!*\n\n"
+                                f"Terminal Code: `{terminal_code}`\n\n"
+                                f"You can now start using this terminal in the PayBot mobile app. "
+                                f"Simply login and select this terminal to create payments."
+                            ),
+                            parse_mode="Markdown"
+                        )
+
                     return (
                         f"✅ Terminal request approved!\n\n"
                         f"Terminal Code: `{terminal_code}`\n"
-                        f"The user has been notified."
+                        f"User {user_id} has been notified."
                     )
                 else:
                     return f"❌ {result.get('error', 'Failed to approve request')}"
@@ -207,7 +222,31 @@ class POSTerminalTelegramHandler:
         except Exception as exc:
             logger.error(f"Error approving request: {exc}")
             return "❌ Error approving request."
-    
+
+    async def handle_cancel_request(self, user_id: str, request_id: int) -> str:
+        """Handle /cancel_request command - user cancels their own pending request"""
+        try:
+            async with async_session() as db:
+                # Basic implementation: check if request belongs to user and is pending
+                from models.pos_terminal import POSTerminalRequest
+                res = await db.execute(
+                    select(POSTerminalRequest).where(
+                        POSTerminalRequest.id == request_id,
+                        POSTerminalRequest.user_id == user_id,
+                        POSTerminalRequest.status == "pending"
+                    )
+                )
+                req = res.scalar_one_or_none()
+                if not req:
+                    return "❌ Pending request not found or you don't have permission to cancel it."
+
+                req.status = "cancelled"
+                await db.commit()
+                return f"✅ Terminal request #{request_id} has been cancelled."
+        except Exception as exc:
+            logger.error(f"Error cancelling request: {exc}")
+            return "❌ Error cancelling request."
+
     async def handle_terminal_transactions(self, user_id: str, terminal_code: str) -> str:
         """Handle /transactions command - show terminal transactions"""
         try:
@@ -251,6 +290,7 @@ TERMINAL_COMMANDS = {
     "my_terminals": "View your POS terminals",
     "terminal_status": "Get terminal status",
     "transactions": "View recent transactions",
+    "cancel_request": "Cancel a pending terminal request",
     "pending_requests": "View pending terminal requests (admin)",
     "approve_terminal": "Approve a terminal request (admin)",
 }
@@ -258,11 +298,18 @@ TERMINAL_COMMANDS = {
 
 def register_terminal_commands(handler: POSTerminalTelegramHandler) -> Dict[str, Any]:
     """Register terminal commands with the bot."""
+    def _parse_int(msg: str, default: int = 0) -> int:
+        try:
+            return int(str(msg).strip())
+        except (ValueError, TypeError):
+            return default
+
     return {
         "request_terminal": lambda user_id, user_name, msg: handler.handle_terminal_request(user_id, user_name, msg),
         "my_terminals": lambda user_id, user_name, msg: handler.handle_my_terminals(user_id),
         "terminal_status": lambda user_id, user_name, msg: handler.handle_terminal_status(user_id, msg),
         "transactions": lambda user_id, user_name, msg: handler.handle_terminal_transactions(user_id, msg),
+        "cancel_request": lambda user_id, user_name, msg: handler.handle_cancel_request(user_id, _parse_int(msg)),
         "pending_requests": lambda user_id, user_name, msg: handler.handle_pending_requests(user_id),
-        "approve_terminal": lambda user_id, user_name, msg: handler.handle_approve_request(user_id, int(msg)),
+        "approve_terminal": lambda user_id, user_name, msg: handler.handle_approve_request(user_id, _parse_int(msg)),
     }

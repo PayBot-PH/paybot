@@ -55,6 +55,7 @@ class TokenExchangeResponse(BaseModel):
     """Response body for issued application token."""
 
     token: str
+    user: Optional[UserResponse] = None
 
 
 class LoginRequest(BaseModel):

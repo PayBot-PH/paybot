@@ -1,9 +1,23 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+interface User {
+  id: string;
+  username: string;
+  email: string;
+  permissions?: {
+    is_super_admin: boolean;
+    can_manage_payments: boolean;
+    can_manage_disbursements: boolean;
+    can_view_reports: boolean;
+    can_approve_topups: boolean;
+  };
+}
+
 interface AuthContextType {
   isLoggedIn: boolean;
-  login: (token: string) => Promise<void>;
+  user: User | null;
+  login: (token: string, userData: User) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -11,36 +25,45 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadToken = async () => {
+    const loadData = async () => {
       try {
         const token = await AsyncStorage.getItem('auth_token');
-        setIsLoggedIn(!!token);
+        const storedUser = await AsyncStorage.getItem('user_data');
+        if (token && storedUser) {
+          setIsLoggedIn(true);
+          setUser(JSON.parse(storedUser));
+        }
       } catch (e) {
-        console.error('Failed to load token', e);
+        console.error('Failed to load auth data', e);
       } finally {
         setIsLoading(false);
       }
     };
-    loadToken();
+    loadData();
   }, []);
 
-  const login = async (token: string) => {
+  const login = async (token: string, userData: User) => {
     await AsyncStorage.setItem('auth_token', token);
+    await AsyncStorage.setItem('user_data', JSON.stringify(userData));
+    setUser(userData);
     setIsLoggedIn(true);
   };
 
   const logout = async () => {
     await AsyncStorage.removeItem('auth_token');
+    await AsyncStorage.removeItem('user_data');
+    setUser(null);
     setIsLoggedIn(false);
   };
 
   if (isLoading) return null;
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, login, logout }}>
+    <AuthContext.Provider value={{ isLoggedIn, user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

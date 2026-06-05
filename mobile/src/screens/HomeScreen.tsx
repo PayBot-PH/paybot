@@ -12,6 +12,7 @@ import {
   StatusBar,
   Dimensions,
   Animated,
+  Alert,
 } from 'react-native';
 import { useQuery } from 'react-query';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -222,7 +223,7 @@ export const HomeScreen = ({ navigation }) => {
 
   const headerHeight = scrollY.interpolate({
     inputRange: [0, 100],
-    outputRange: [180, 120],
+    outputRange: [220, 140],
     extrapolate: 'clamp',
   });
 
@@ -232,7 +233,10 @@ export const HomeScreen = ({ navigation }) => {
         <View style={styles.headerTop}>
           <View>
             <Text style={styles.headerTitle}>PayBot</Text>
-            <Text style={styles.headerSubtitle}>Pro Terminal</Text>
+            <View style={styles.statusRow}>
+               <View style={styles.statusDot} />
+               <Text style={styles.headerSubtitle}>LIVE PRODUCTION</Text>
+            </View>
           </View>
           <TouchableOpacity style={styles.profileBtn}>
              <MaterialIcons name="notifications-none" size={28} color="#fff" />
@@ -243,7 +247,7 @@ export const HomeScreen = ({ navigation }) => {
            <NavButton icon="receipt-long" label="History" onPress={() => navigation.navigate('Transactions')} color="#F59E0B" />
            <NavButton icon="account-balance-wallet" label="Wallet" onPress={() => navigation.navigate('Wallet')} color="#10B981" />
            <NavButton icon="settings" label="Settings" onPress={() => navigation.navigate('Settings')} color="#6366F1" />
-           <NavButton icon="support-agent" label="Support" onPress={() => {}} color="#EC4899" />
+           <NavButton icon="support-agent" label="Support" onPress={() => Alert.alert('Support', 'Connecting to PayBot Support Agent...')} color="#EC4899" />
         </View>
       </Animated.View>
 
@@ -379,10 +383,24 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontWeight: '600',
-    marginTop: -2,
+    fontSize: 12,
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    marginRight: 6,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.4)',
   },
   profileBtn: {
      width: 44,
@@ -391,24 +409,6 @@ const styles = StyleSheet.create({
      backgroundColor: 'rgba(255,255,255,0.2)',
      alignItems: 'center',
      justifyContent: 'center',
-  },
-  featuresScroll: {
-     marginTop: 10,
-  },
-  featureItem: {
-     alignItems: 'center',
-     marginRight: 24,
-  },
-  featureIcon: {
-     width: 50,
-     height: 50,
-     alignItems: 'center',
-     justifyContent: 'center',
-     marginBottom: 6,
-  },
-  featureTitle: {
-     fontSize: 11,
-     fontWeight: '800',
   },
   section: {
     marginTop: 24,
@@ -574,4 +574,38 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 12,
   },
+  viewAllBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    marginTop: 8,
+  },
+  viewAllText: {
+    fontSize: 13,
+    fontWeight: '800',
+    marginRight: 8,
+  },
+  navButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    marginTop: 10,
+  },
+  navBtnItem: {
+    alignItems: 'center',
+    width: (width - 48) / 4,
+  },
+  navBtnIcon: {
+    width: 50,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+  navBtnLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  }
 });

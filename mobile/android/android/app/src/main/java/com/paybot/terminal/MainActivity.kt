@@ -1,4 +1,4 @@
-package com.tempandroid
+package com.paybot.terminal
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

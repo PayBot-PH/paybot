@@ -437,7 +437,7 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
         response.set_cookie(key="turnstile_verified", value="1", httponly=True, secure=secure, max_age=86400, path="/")
     except Exception:
         pass
-    return TokenExchangeResponse(token=app_token)
+    return TokenExchangeResponse(token=app_token, user=user_resp)
 
 
 class TurnstileVerifyRequest(BaseModel):

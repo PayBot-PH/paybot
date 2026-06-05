@@ -44,6 +44,11 @@ class TopupListResponse(BaseModel):
     items: List[TopupRequestResponse]
     total: int
 
+class TopupRequestCreate(BaseModel):
+    amount: float
+    currency: str = "PHP"
+    note: Optional[str] = None
+
 class ApproveTopupRequest(BaseModel):
     note: str = ""
 
@@ -86,6 +91,39 @@ async def get_topup_request(
     if not req:
         raise HTTPException(status_code=404, detail="Topup request not found")
     return req
+
+
+@router.post("/request", response_model=TopupRequestResponse)
+async def create_topup_request(
+    data: TopupRequestCreate,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Allow a mobile user to submit a top-up request."""
+    # Convert PHP to USDT roughly if needed, or just store amount.
+    # The model says amount_usdt. For now we'll assume the mobile user inputs the target currency.
+    # In topup.py approve handler, it treats amount_usdt * rate = amount_php.
+
+    # Let's get the rate to convert the requested PHP to USDT for storage if that's what's expected
+    rate = await get_usdt_php_rate(db)
+    amount_usdt = round(data.amount / rate, 2) if data.currency == "PHP" else data.amount
+
+    new_request = TopupRequest(
+        chat_id=str(current_user.id),
+        telegram_username=getattr(current_user, "username", current_user.name),
+        amount_usdt=amount_usdt,
+        currency=data.currency,
+        status="pending",
+        note=data.note or "Requested via Mobile App",
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    db.add(new_request)
+    await db.commit()
+    await db.refresh(new_request)
+
+    logger.info(f"Top-up request {new_request.id} created by user {current_user.id}")
+    return new_request
 
 
 @router.post("/{topup_id}/approve", response_model=TopupRequestResponse)

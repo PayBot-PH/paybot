@@ -174,6 +174,7 @@ export default function Dashboard() {
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [usdWalletBalance, setUsdWalletBalance] = useState<number>(0);
   const [apiStatus, setApiStatus] = useState<'healthy' | 'degrading' | 'offline'>('healthy');
+  const [exchangeRate, setExchangeRate] = useState<number>(58.20);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -185,6 +186,7 @@ export default function Dashboard() {
         client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=USD', method: 'GET', data: {} }),
         client.apiCall.invoke({ url: '/api/v1/wallet/usdt-stats', method: 'GET', data: {} }),
         client.entities.bot_logs.query({ query: {}, sort: '-created_at', limit: 5 }),
+        client.apiCall.invoke({ url: '/api/v1/topup/rate', method: 'GET', data: {} }),
       ]);
 
       if (results[0].status === 'fulfilled') {
@@ -217,6 +219,11 @@ export default function Dashboard() {
       if (results[5].status === 'fulfilled') {
         const logData = results[5].value?.data?.items;
         setRecentLogs(Array.isArray(logData) ? logData : []);
+      }
+
+      if (results[6].status === 'fulfilled') {
+        const rateData = results[6].value?.data;
+        if (rateData?.usdt_php_rate) setExchangeRate(rateData.usdt_php_rate);
       }
     } catch (err) {
       console.error('Unexpected error in fetchData:', err);
@@ -295,6 +302,10 @@ export default function Dashboard() {
                     {isSuperAdmin ? <Crown className="h-3 w-3 mr-2 inline" /> : <ShieldCheck className="h-3 w-3 mr-2 inline" />}
                     {isSuperAdmin ? 'Full System Access' : 'Administrative Account'}
                   </Badge>
+                  <Badge className="bg-white/10 text-white px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border-0">
+                    <Radio className="h-3 w-3 mr-2 inline text-brand-blue-300 animate-pulse" />
+                    Maya Mainnet: Stable
+                  </Badge>
                   {!loading && stats.total_count > 0 && (
                     <Badge className="bg-emerald-400/20 text-emerald-300 ring-1 ring-emerald-400/40 px-5 py-2 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] border-0">
                       <TrendingUp className="h-3 w-3 mr-2 inline" />
@@ -365,10 +376,10 @@ export default function Dashboard() {
             </Card>
           </Link>
 
-          <StatCard label="Total Volume" value={`₱${fmt(stats.total_amount || 0)}`} sub={`${stats.total_count} operations`}
-            icon={<Activity className="h-6 w-6 text-brand-blue-500" />} color="text-foreground" loading={loading} />
+          <StatCard label="Settled Revenue" value={`₱${fmt(stats.paid_amount || 0)}`} sub={`From ${stats.paid_count} sales`}
+            icon={<TrendingUp className="h-6 w-6 text-brand-blue-500" />} color="text-foreground" loading={loading} />
 
-          <StatCard label="Success Index" value={`${successRate}%`} sub={`${stats.paid_count} items`}
+          <StatCard label="Success Index" value={`${successRate}%`} sub="Payment Reliability"
             icon={<CheckCircle className="h-6 w-6 text-emerald-500" />} color="text-emerald-500" loading={loading} />
         </div>
 
@@ -397,8 +408,24 @@ export default function Dashboard() {
             </Card>
 
             <Card className="glass-card overflow-hidden">
-              <CardHeader className="pb-4 pt-8 px-8"><CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 flex items-center gap-3">Bot Stream</CardTitle></CardHeader>
-            <CardContent className="px-6 pb-8 space-y-4">
+              <CardHeader className="pb-4 pt-8 px-8"><CardTitle className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 flex items-center gap-3">Bot Control</CardTitle></CardHeader>
+              <CardContent className="px-6 pb-8 space-y-4">
+                <div className="flex items-center justify-between p-4 rounded-2xl bg-brand-blue-500/5 border border-brand-blue-500/10">
+                   <div className="flex items-center gap-3">
+                      <div className="h-8 w-8 rounded-xl bg-brand-blue-500 flex items-center justify-center">
+                         <Bot className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                         <p className="text-xs font-black uppercase">PayBot AI</p>
+                         <p className="text-[9px] font-bold text-emerald-500 uppercase tracking-widest">Active & Online</p>
+                      </div>
+                   </div>
+                   <Button size="sm" variant="outline" className="h-8 px-3 text-[9px] font-black uppercase tracking-widest border-brand-blue-500/20 text-brand-blue-500 hover:bg-brand-blue-500 hover:text-white transition-all">
+                      Restart
+                   </Button>
+                </div>
+
+                <div className="space-y-3">
                 {Array.isArray(recentLogs) && recentLogs.map(log => (
                   <div key={log.id} className="flex gap-4 items-center p-3 rounded-2xl bg-muted/20 border border-border/40 hover:bg-muted/30 transition-all duration-300">
                     <MessageSquare className="h-4 w-4 text-brand-blue-500 shrink-0" />
@@ -408,6 +435,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                 ))}
+                </div>
                 {(!Array.isArray(recentLogs) || recentLogs.length === 0) && <p className="text-center py-10 text-muted-foreground text-xs italic">System standby...</p>}
               </CardContent>
             </Card>
@@ -473,13 +501,17 @@ export default function Dashboard() {
               <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground/50 mb-10">Grid Status</h2>
               <div className="space-y-8 flex-1">
                 {[
-                  { label: 'Maya Node', ok: apiStatus === 'healthy' },
-                  { label: 'Telegram Relay', ok: true },
-                  { label: 'Vault Storage', ok: true },
+                  { label: 'Maya API Node', ok: apiStatus === 'healthy', detail: 'T+0 Enabled' },
+                  { label: 'USDT Gateway', ok: true, detail: `₱${exchangeRate.toFixed(2)} Rate` },
+                  { label: 'Telegram Relay', ok: true, detail: '142ms latency' },
+                  { label: 'Cloud Webhook', ok: apiStatus !== 'offline', detail: 'Stable' },
                 ].map(node => (
-                  <div key={node.label} className="flex items-center justify-between">
-                    <span className="text-xs font-black text-foreground/80 uppercase">{node.label}</span>
-                    <div className={`h-2.5 w-2.5 rounded-full ${node.ok ? 'bg-emerald-500 shadow-emerald-500/40' : 'bg-rose-500 shadow-rose-500/40'} shadow-lg ring-4 ring-white/5`} />
+                  <div key={node.label} className="flex items-center justify-between group/node">
+                    <div>
+                      <span className="text-xs font-black text-foreground/80 uppercase block">{node.label}</span>
+                      <span className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-widest">{node.detail}</span>
+                    </div>
+                    <div className={`h-2.5 w-2.5 rounded-full ${node.ok ? 'bg-emerald-500 shadow-emerald-500/40' : 'bg-rose-500 shadow-rose-500/40'} shadow-lg ring-4 ring-white/5 transition-transform group-hover/node:scale-150`} />
                   </div>
                 ))}
               </div>

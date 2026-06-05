@@ -48,7 +48,7 @@ export const LoginScreen = () => {
         throw new Error(data.detail || 'Login failed');
       }
 
-      await login(data.access_token);
+      await login(data.access_token, data.user);
       Toast.show({ type: 'success', text1: 'Login successful' });
     } catch (error) {
       Toast.show({ type: 'error', text1: 'Login failed', text2: error.message });
@@ -77,7 +77,7 @@ export const LoginScreen = () => {
           throw new Error(data.detail || 'Telegram login failed');
         }
 
-        await login(data.token);
+        await login(data.token, data.user);
         Toast.show({ type: 'success', text1: 'Welcome!', text2: 'Logged in via Telegram' });
       } catch (error) {
         Toast.show({ type: 'error', text1: 'Telegram login failed', text2: error.message });

@@ -181,30 +181,39 @@ class TransactionsService:
 
     async def get_user_stats(self, user_id: str) -> Dict[str, Any]:
         """Fetch transaction statistics for a user."""
-        start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        # Total counts by status
+        async def get_count(status: Optional[str] = None):
+            stmt = select(func.count(Transactions.id)).where(Transactions.user_id == user_id)
+            if status:
+                stmt = stmt.where(Transactions.status == status)
+            res = await self.db.execute(stmt)
+            return res.scalar() or 0
 
-        # Revenue this month
-        res = await self.db.execute(
-            select(func.sum(Transactions.amount)).where(
-                Transactions.user_id == user_id,
-                Transactions.status == "paid",
-                Transactions.created_at >= start_of_month
-            )
-        )
-        monthly_revenue = res.scalar() or 0
+        # Total amounts by status
+        async def get_sum(status: Optional[str] = None):
+            stmt = select(func.sum(Transactions.amount)).where(Transactions.user_id == user_id)
+            if status:
+                stmt = stmt.where(Transactions.status == status)
+            res = await self.db.execute(stmt)
+            return res.scalar() or 0.0
 
-        # Total paid transactions
-        res_count = await self.db.execute(
-            select(func.count(Transactions.id)).where(
-                Transactions.user_id == user_id,
-                Transactions.status == "paid"
-            )
-        )
-        total_paid = res_count.scalar() or 0
+        total_count = await get_count()
+        paid_count = await get_count("paid")
+        pending_count = await get_count("pending")
+        expired_count = await get_count("expired")
+
+        total_amount = await get_sum()
+        paid_amount = await get_sum("paid")
+        pending_amount = await get_sum("pending")
 
         return {
-            "monthly_revenue": float(monthly_revenue),
-            "total_paid_transactions": total_paid,
+            "total_count": total_count,
+            "paid_count": paid_count,
+            "pending_count": pending_count,
+            "expired_count": expired_count,
+            "total_amount": float(total_amount),
+            "paid_amount": float(paid_amount),
+            "pending_amount": float(pending_amount),
             "currency": "PHP"
         }
 

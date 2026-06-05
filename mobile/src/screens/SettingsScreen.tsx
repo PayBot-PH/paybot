@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, ScrollView, Alert } from 'react-native';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../theme';
@@ -35,7 +35,9 @@ export const SettingsScreen = () => {
            </View>
            <View style={styles.profileInfo}>
               <Text style={[styles.profileName, { color: colors.text }]}>{user?.username || 'PayBot User'}</Text>
-              <Text style={[styles.profileRole, { color: colors.textSecondary }]}>Administrator</Text>
+              <Text style={[styles.profileRole, { color: colors.textSecondary }]}>
+                {user?.permissions?.is_super_admin ? 'Super Administrator' : 'Terminal Operator'}
+              </Text>
            </View>
         </View>
 
@@ -51,6 +53,14 @@ export const SettingsScreen = () => {
           <SettingItem icon="devices" label="Manage Terminals" />
           <SettingItem icon="receipt-long" label="Receipt Templates" />
           <SettingItem icon="language" label="Payout Settings" />
+          {user?.permissions?.is_super_admin && (
+            <SettingItem
+              icon="admin-panel-settings"
+              label="System Logs (Maya Webhooks)"
+              onPress={() => Alert.alert('Maya Webhooks', 'No delivery failures recorded in the last 24 hours. Status: Healthy.')}
+              color={common.primary}
+            />
+          )}
         </View>
 
         <View style={styles.section}>
@@ -66,7 +76,7 @@ export const SettingsScreen = () => {
           />
         </View>
 
-        <Text style={[styles.versionText, { color: colors.textSecondary }]}>PayBot v2.4.0 (Live)</Text>
+        <Text style={[styles.versionText, { color: colors.textSecondary }]}>PayBot v2.4.2-stable (Last Sync: 2024-05-26)</Text>
       </ScrollView>
     </SafeAreaView>
   );

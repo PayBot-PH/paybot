@@ -50,14 +50,17 @@ export const TransactionsScreen = () => {
   });
 
   const filteredData = data?.items?.filter(item => {
+    const isIncome = ['terminal_sale', 'top_up', 'credit'].includes(item.transaction_type) || (item.amount > 0 && item.transaction_type === 'adjustment');
+    const isExpense = ['withdraw', 'disbursement', 'debit'].includes(item.transaction_type) || (item.amount < 0 && item.transaction_type === 'adjustment');
+
     if (filter === 'all') return true;
-    if (filter === 'income') return item.amount > 0 && !['withdraw', 'disbursement'].includes(item.transaction_type);
-    if (filter === 'expense') return item.amount < 0 || ['withdraw', 'disbursement'].includes(item.transaction_type);
+    if (filter === 'income') return isIncome;
+    if (filter === 'expense') return isExpense;
     return true;
   }) || [];
 
   const renderItem = ({ item, index }: { item: any, index: number }) => {
-    const isNegative = item.amount < 0 || item.transaction_type === 'withdraw' || item.transaction_type === 'disbursement';
+    const isNegative = ['withdraw', 'disbursement', 'debit'].includes(item.transaction_type) || (item.amount < 0 && item.transaction_type === 'adjustment');
 
     return (
       <TouchableOpacity
@@ -80,12 +83,19 @@ export const TransactionsScreen = () => {
           />
         </View>
         <View style={styles.left}>
-          <Text style={[styles.desc, { color: colors.text }]}>
+          <Text style={[styles.desc, { color: colors.text }]} numberOfLines={1}>
             {item.note || item.transaction_type.replace('_', ' ').toUpperCase()}
           </Text>
-          <Text style={[styles.date, { color: colors.textSecondary }]}>
-            {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} • {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-          </Text>
+          <View style={styles.subLeft}>
+            <Text style={[styles.date, { color: colors.textSecondary }]}>
+              {new Date(item.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} • {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+            {item.reference_id && (
+              <Text style={[styles.refText, { color: colors.textSecondary }]}>
+                #{item.reference_id.substring(0, 8)}
+              </Text>
+            )}
+          </View>
         </View>
         <View style={styles.right}>
           <Text style={[styles.amount, { color: isNegative ? common.danger : common.success }]}>
@@ -228,6 +238,19 @@ const styles = StyleSheet.create({
   date: {
     fontSize: 12,
     marginTop: 4,
+  },
+  subLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  refText: {
+    fontSize: 10,
+    marginTop: 4,
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 4,
+    borderRadius: 4,
+    fontWeight: '700',
   },
   right: {
     alignItems: 'flex-end',

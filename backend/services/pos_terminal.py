@@ -333,6 +333,7 @@ class POSTerminalService:
                 "success": True,
                 "message": "Terminal request approved",
                 "terminal_code": terminal_result.get("terminal_code"),
+                "user_id": terminal_request.user_id,
             }
         except Exception as exc:
             logger.error(f"Error approving terminal request: {exc}")
