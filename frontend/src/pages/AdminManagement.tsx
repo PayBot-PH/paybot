@@ -324,6 +324,46 @@ export default function AdminManagement() {
                 </CardContent>
               </Card>
            </TabsContent>
+
+           <TabsContent value="keys" className="mt-0 animate-in fade-in slide-in-from-top-4 duration-500">
+              <Card className="fintech-card border-0 shadow-2xl overflow-hidden bg-card/60">
+                <CardHeader className="p-10 border-b border-border/10 bg-[#0A0F1E]">
+                  <CardTitle className="text-xl font-black uppercase tracking-tight text-white/80">API Vault & Access Keys</CardTitle>
+                  <CardDescription className="text-[10px] font-black uppercase tracking-widest text-white/20 mt-1">Encrypted credential storage for external gateway nodes</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0 bg-card">
+                   <div className="flex flex-col items-center justify-center py-48 text-center space-y-8 px-10">
+                      <div className="h-24 w-24 rounded-[2.5rem] bg-muted/20 flex items-center justify-center shadow-inner border border-border/10 opacity-20">
+                         <Key className="h-12 w-12" />
+                      </div>
+                      <div className="space-y-2">
+                         <h3 className="text-2xl font-black text-foreground/40 uppercase tracking-tighter">Vault Locked</h3>
+                         <p className="text-[10px] font-black text-muted-foreground/30 uppercase tracking-[0.4em]">No external API credentials configured in the secure storage</p>
+                      </div>
+                   </div>
+                </CardContent>
+              </Card>
+           </TabsContent>
+
+           <TabsContent value="wallets" className="mt-0 animate-in fade-in slide-in-from-top-4 duration-500">
+              <Card className="fintech-card border-0 shadow-2xl overflow-hidden bg-card/60">
+                <CardHeader className="p-10 border-b border-border/10 bg-[#0A0F1E]">
+                  <CardTitle className="text-xl font-black uppercase tracking-tight text-white/80">System-Wide Ledger Audit</CardTitle>
+                  <CardDescription className="text-[10px] font-black uppercase tracking-widest text-white/20 mt-1">Global liquidity overview across all merchant nodes</CardDescription>
+                </CardHeader>
+                <CardContent className="p-0 bg-card">
+                   <div className="flex flex-col items-center justify-center py-48 text-center space-y-8 px-10">
+                      <div className="h-24 w-24 rounded-[2.5rem] bg-muted/20 flex items-center justify-center shadow-inner border border-border/10 opacity-20">
+                         <Database className="h-12 w-12" />
+                      </div>
+                      <div className="space-y-2">
+                         <h3 className="text-2xl font-black text-foreground/40 uppercase tracking-tighter">Zero Balance Detected</h3>
+                         <p className="text-[10px] font-black text-muted-foreground/30 uppercase tracking-[0.4em]">No active ledger entries found in the audit trail</p>
+                      </div>
+                   </div>
+                </CardContent>
+              </Card>
+           </TabsContent>
         </Tabs>
       </div>
     </Layout>

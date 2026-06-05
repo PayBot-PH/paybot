@@ -255,9 +255,9 @@ class DatabaseManager:
                 logger.error("Database engine not initialized")
                 raise RuntimeError("Database engine not initialized")
 
-            # logger.info("🔧 Starting table structure repair...")
-            # await self.check_and_repair_existing_tables()
-            # logger.info("🔧 Table structure repair completed")
+            logger.info("🔧 Starting table structure repair...")
+            await self.check_and_repair_existing_tables()
+            logger.info("🔧 Table structure repair completed")
 
             try:
                 logger.info("🔧 Starting table creation...")
@@ -485,16 +485,31 @@ class DatabaseManager:
         """Map SQLAlchemy type to database-specific type"""
         type_name = str(sqlalchemy_type).lower()
 
-        if "integer" in type_name:
-            return "INTEGER"
+        if "integer" in type_name or "bigint" in type_name:
+            return "BIGINT" if "bigint" in type_name else "INTEGER"
         elif "string" in type_name or "varchar" in type_name:
+            # Extract length if present, e.g., "VARCHAR(64)"
+            import re
+            match = re.search(r"\((\d+)\)", type_name)
+            if match:
+                return f"VARCHAR({match.group(1)})"
             return "VARCHAR"
         elif "text" in type_name:
             return "TEXT"
-        elif "datetime" in type_name:
+        elif "datetime" in type_name or "timestamp" in type_name:
+            if "timezone=true" in type_name or "with timezone" in type_name:
+                return "TIMESTAMP WITH TIME ZONE"
             return "TIMESTAMP"
         elif "boolean" in type_name:
             return "BOOLEAN"
+        elif "float" in type_name or "double" in type_name or "numeric" in type_name:
+            if self.engine and self.engine.dialect.name == "postgresql":
+                return "DOUBLE PRECISION"
+            return "FLOAT"
+        elif "json" in type_name:
+            if self.engine and self.engine.dialect.name == "postgresql":
+                return "JSONB"
+            return "JSON"
         else:
             return str(sqlalchemy_type)
 
