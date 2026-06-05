@@ -4,7 +4,7 @@ import hashlib
 import os
 import re
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -1019,7 +1019,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                     logger.error(f"Failed to persist language for {cq_chat_id}: {e}")
                     await db.rollback()
 
-                if is_registered:
+                if admin:
                     welcome = _welcome_en(cq_first_name) if lang == "en" else _welcome_zh(cq_first_name)
                     await tg.send_message(cq_chat_id, welcome)
                 else:

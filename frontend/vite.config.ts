@@ -4,6 +4,21 @@ import path from 'path';
 import { viteSourceLocator } from '@metagptx/vite-plugin-source-locator';
 import { atoms } from '@metagptx/web-sdk/plugins';
 
+/**
+ * Validates and parses a port number from multiple environment variables with a fallback.
+ */
+function parsePort(envs: (string | undefined)[], fallback: number): number {
+  for (const val of envs) {
+    if (val) {
+      const parsed = parseInt(val, 10);
+      if (!isNaN(parsed) && parsed > 0 && parsed < 65536) {
+        return parsed;
+      }
+    }
+  }
+  return fallback;
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [
@@ -20,7 +35,7 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     host: '0.0.0.0', // 监听所有网络接口
-    port: parseInt(process.env.FRONTEND_PORT || process.env.VITE_PORT || '3000'),
+    port: parsePort([process.env.FRONTEND_PORT, process.env.VITE_PORT], 3000),
     proxy: {
       '/api': {
         target: `http://localhost:${process.env.BACKEND_PORT || 8000}`,
@@ -81,7 +96,7 @@ export default defineConfig(({ mode }) => ({
   },
   preview: {
     host: '0.0.0.0',
-    port: parseInt(process.env.FRONTEND_PORT || process.env.VITE_PORT || '3000'),
+    port: parsePort([process.env.FRONTEND_PORT, process.env.VITE_PORT], 3000),
     proxy: {
       '/api': {
         // BACKEND_URL must be set to the backend service URL when frontend and backend

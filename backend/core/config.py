@@ -77,7 +77,7 @@ class Settings(BaseSettings):
 
     # API Keys - MUST BE SET IN ENVIRONMENT VARIABLES, NOT IN CODE
     telegram_bot_token: str = ""
-    telegram_bot_username: str = "QRPHBOT"
+    telegram_bot_username: str = ""
     xendit_secret_key: str = ""
 
     # Maya Manager Checkout API
@@ -146,13 +146,13 @@ class Settings(BaseSettings):
     cloudflare_turnstile_secret_key: str = ""
 
     # USDT TRC20 wallet address for receiving top-up payments
-    usdt_trc20_address: str = "TGGtSorAyDSUxVXxk5jmK4jM2xFUv9Bbfx"
+    usdt_trc20_address: str = ""
 
     # Simple admin authentication
-    admin_user_id: str = "admin"
-    admin_user_email: str = "admin@paybot.local"
-    admin_user_password: str = "#Sirden1216"
-    telegram_admin_ids: str = "7851923260,8310196322"
+    admin_user_id: str = ""
+    admin_user_email: str = ""
+    admin_user_password: str = ""
+    telegram_admin_ids: str = ""
     # Bot owner: the single Telegram user ID that is the super admin of the bot.
     # Only this user can approve/reject KYB registrations and manage bot admins.
     telegram_bot_owner_id: str = ""
