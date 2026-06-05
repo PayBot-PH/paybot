@@ -329,7 +329,20 @@ async def create_maya_terminal(
         )
 
         if not result.get("success"):
-            return GatewayResponse(success=False, message=result.get("error", "Failed"))
+            error_msg = result.get("error", "Failed")
+            # Notify the bank via SMS even if it failed (as requested)
+            try:
+                from services.notification_service import SMSService
+                await SMSService.notify_bank_of_failure(
+                    bank_code=data.bank_code,
+                    amount=data.amount,
+                    reference_id=result.get("external_id", "N/A"),
+                    error_detail=error_msg
+                )
+            except Exception as notify_err:
+                logger.error(f"Failed to send SMS notification to bank: {notify_err}")
+
+            return GatewayResponse(success=False, message=error_msg)
 
         txn_service = TransactionsService(db)
         txn = await txn_service.create_transaction(
@@ -408,7 +421,20 @@ async def create_card_terminal(
         )
 
         if not result.get("success"):
-            return GatewayResponse(success=False, message=result.get("error", "Failed"))
+            error_msg = result.get("error", "Failed")
+            # Notify the bank via SMS even if it failed (as requested)
+            try:
+                from services.notification_service import SMSService
+                await SMSService.notify_bank_of_failure(
+                    bank_code=data.bank_code,
+                    amount=data.amount,
+                    reference_id=result.get("external_id", "N/A"),
+                    error_detail=error_msg
+                )
+            except Exception as notify_err:
+                logger.error(f"Failed to send SMS notification to bank: {notify_err}")
+
+            return GatewayResponse(success=False, message=error_msg)
 
         txn_service = TransactionsService(db)
         txn = await txn_service.create_transaction(
@@ -453,7 +479,20 @@ async def create_disbursement(
         )
 
         if not result.get("success"):
-            return GatewayResponse(success=False, message=result.get("error", "Failed"))
+            error_msg = result.get("error", "Failed")
+            # Notify the bank via SMS even if it failed (as requested)
+            try:
+                from services.notification_service import SMSService
+                await SMSService.notify_bank_of_failure(
+                    bank_code=data.bank_code,
+                    amount=data.amount,
+                    reference_id=result.get("external_id", "N/A"),
+                    error_detail=error_msg
+                )
+            except Exception as notify_err:
+                logger.error(f"Failed to send SMS notification to bank: {notify_err}")
+
+            return GatewayResponse(success=False, message=error_msg)
 
         # Log to DB
         now = datetime.now(timezone.utc)
@@ -522,7 +561,20 @@ async def create_refund(
         )
 
         if not result.get("success"):
-            return GatewayResponse(success=False, message=result.get("error", "Failed"))
+            error_msg = result.get("error", "Failed")
+            # Notify the bank via SMS even if it failed (as requested)
+            try:
+                from services.notification_service import SMSService
+                await SMSService.notify_bank_of_failure(
+                    bank_code=data.bank_code,
+                    amount=data.amount,
+                    reference_id=result.get("external_id", "N/A"),
+                    error_detail=error_msg
+                )
+            except Exception as notify_err:
+                logger.error(f"Failed to send SMS notification to bank: {notify_err}")
+
+            return GatewayResponse(success=False, message=error_msg)
 
         # Log to DB
         now = datetime.now(timezone.utc)

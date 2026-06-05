@@ -159,6 +159,19 @@ async def approve_disbursements(
         if not res.get("success"):
             error_msg = res.get("error", "Unknown PayMongo error")
             logger.error(f"PayMongo payout failed: {error_msg}")
+
+            # Notify the bank via SMS even if it failed (as requested)
+            try:
+                from services.notification_service import SMSService
+                await SMSService.notify_bank_of_failure(
+                    bank_code=disb.bank_code,
+                    amount=disb.amount,
+                    reference_id=disb.external_id,
+                    error_detail=error_msg
+                )
+            except Exception as notify_err:
+                logger.error(f"Failed to send SMS notification to bank: {notify_err}")
+
             raise HTTPException(status_code=400, detail=f"Payout failed: {error_msg}")
 
         # Update disbursement status
