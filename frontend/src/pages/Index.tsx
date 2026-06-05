@@ -1,39 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import TelegramLoginWidget from '@/components/TelegramLoginWidget';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  ArrowRight, Bot, BarChart3, Wallet, CreditCard, ShieldCheck,
-  Zap, Globe, TrendingUp, DollarSign, Building2, CheckCircle2,
-  MessageCircle, Bell, Users, ChevronRight, Star, Lock, Smartphone,
-  PieChart, Send, RefreshCw, Receipt, Menu, X, ArrowUpRight,
-  Sparkles, CheckCircle
+  ArrowRight, CheckCircle2, Menu, X, Smartphone, Shield,
+  Zap, BarChart3, Building2, MessageCircle, Wallet, CreditCard,
+  TrendingUp, DollarSign, Clock
 } from 'lucide-react';
-import { APP_NAME, COMPANY_NAME, SUPPORT_URL, APP_DESCRIPTION } from '@/lib/brand';
+import { APP_NAME, SUPPORT_URL, APP_DESCRIPTION } from '@/lib/brand';
 import AppFooter from '@/components/AppFooter';
 
-/* ─── Shared Components ───────────────────────────────────────── */
-
-function LogoBox({ children, className = "" }: { children: React.ReactNode, className?: string }) {
-  return (
-    <div className={`h-12 w-12 rounded-2xl bg-white shadow-lg flex items-center justify-center border border-black/5 hover:scale-110 transition-transform cursor-default ${className}`}>
-      {children}
-    </div>
-  );
-}
-
-function StatItem({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="text-center md:text-left group">
-      <p className="text-4xl font-black text-white tracking-tighter tabular-nums group-hover:scale-105 transition-transform duration-300">{value}</p>
-      <p className="text-brand-blue-100 text-[10px] font-black uppercase tracking-[0.25em] opacity-60 mt-1">{label}</p>
-    </div>
-  );
-}
-
-/* ─── Main Page ────────────────────────────────────────────────── */
 export default function LandingPage() {
   const { user } = useAuth();
   const [mobileMenuOpen, setMobileNavOpen] = useState(false);
@@ -41,207 +17,204 @@ export default function LandingPage() {
   if (user) return <Navigate to="/" replace />;
 
   return (
-    <div className="min-h-screen bg-white text-[#141414] overflow-x-hidden font-sans selection:bg-brandblue-500 selection:text-white">
+    <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden">
       {/* ── Navigation ── */}
-      <nav className="fixed top-0 left-0 right-0 z-[100] bg-white/70 backdrop-blur-xl border-b border-black/[0.03]">
-        <div className="max-w-7xl mx-auto px-10 h-24 flex items-center justify-between">
-          <div className="flex items-center gap-5 group cursor-pointer">
-             <div className="h-12 w-12 rounded-2xl bg-[#0A0F1E] flex items-center justify-center shadow-2xl shadow-brand-blue-500/20 group-hover:rotate-3 group-hover:scale-110 transition-all duration-500 border border-white/5">
-                <img src="/logo.svg" alt="Logo" className="h-7 w-7 animate-logo-bounce" />
-             </div>
-             <div className="hidden sm:block">
-               <h2 className="text-2xl font-black text-foreground tracking-tighter uppercase leading-none">{APP_NAME}</h2>
-               <p className="text-[10px] font-black text-brandblue-500 uppercase tracking-[0.4em] mt-1.5 leading-none">Philippines</p>
-             </div>
+      <nav className="fixed top-0 left-0 right-0 z-[100] bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-blue-600 flex items-center justify-center shadow-sm">
+              <img src="/logo.svg" alt="Logo" className="h-6 w-6" />
+            </div>
+            <div className="hidden sm:block">
+              <h2 className="text-lg font-bold text-gray-900">{APP_NAME}</h2>
+            </div>
           </div>
 
-          <div className="hidden md:flex items-center gap-12">
-            <Link to="/features" className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.3em] hover:text-brand-blue-600 transition-colors">CAPABILITIES</Link>
-            <Link to="/pricing" className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.3em] hover:text-brand-blue-600 transition-colors">PRICING</Link>
-            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-[11px] font-black text-muted-foreground uppercase tracking-[0.3em] hover:text-brand-blue-600 transition-colors">KERNEL_SUPPORT</a>
-            <div className="h-4 w-px bg-black/[0.08] mx-4" />
+          <div className="hidden md:flex items-center gap-8">
+            <Link to="/features" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">Features</Link>
+            <Link to="/pricing" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">Pricing</Link>
+            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-sm text-gray-600 hover:text-blue-600 transition-colors">Support</a>
             <Link to="/login">
-               <Button variant="ghost" className="text-[11px] font-black uppercase tracking-[0.3em] px-8 hover:bg-muted/50 rounded-xl h-12">SIGN_IN</Button>
+              <Button variant="ghost" className="text-sm px-4 h-10">Sign In</Button>
             </Link>
             <Link to="/register">
-               <Button className="bg-[#0A0F1E] hover:bg-black text-white font-black text-[11px] uppercase tracking-[0.3em] px-10 h-14 rounded-2xl shadow-2xl active:scale-95 transition-all">INITIALIZE_NODE</Button>
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-6 h-10">Get Started</Button>
             </Link>
           </div>
 
-          <button className="md:hidden h-12 w-12 flex items-center justify-center rounded-2xl bg-muted/50 text-foreground" onClick={() => setMobileNavOpen(!mobileMenuOpen)}>
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+          <button className="md:hidden h-10 w-10 flex items-center justify-center rounded-lg bg-gray-100 text-gray-900" onClick={() => setMobileNavOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
 
-        {/* Mobile Dropdown */}
+        {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white/95 backdrop-blur-2xl border-b border-black/5 p-10 animate-in slide-in-from-top-6 duration-500 shadow-2xl">
-             <div className="flex flex-col gap-8">
-                <Link to="/features" className="text-sm font-black uppercase tracking-[0.4em]">CAPABILITIES</Link>
-                <Link to="/pricing" className="text-sm font-black uppercase tracking-[0.4em]">PRICING</Link>
-                <Link to="/login" className="text-sm font-black uppercase tracking-[0.4em] text-brand-blue-600">MERCHANT_ACCESS</Link>
-                <Link to="/register">
-                   <Button className="w-full bg-[#0A0F1E] text-white font-black rounded-3xl h-18 text-xs uppercase tracking-[0.4em] shadow-2xl">ACTIVATE_MERCHANT_NODE</Button>
-                </Link>
-             </div>
+          <div className="md:hidden bg-white border-b border-gray-200 p-4 space-y-4">
+            <Link to="/features" className="block text-sm text-gray-600 hover:text-blue-600">Features</Link>
+            <Link to="/pricing" className="block text-sm text-gray-600 hover:text-blue-600">Pricing</Link>
+            <Link to="/login" className="block text-sm text-gray-600 hover:text-blue-600">Sign In</Link>
+            <Link to="/register">
+              <Button className="w-full bg-blue-600 text-white h-10">Get Started</Button>
+            </Link>
           </div>
         )}
       </nav>
 
       {/* ── Hero Section ── */}
-      <section className="relative pt-40 lg:pt-60 pb-32 lg:pb-60 bg-[#0A0F1E] overflow-hidden">
-        {/* Advanced Background Gradients */}
-        <div className="absolute top-0 right-0 p-20 opacity-30 pointer-events-none">
-           <div className="h-[800px] w-[800px] rounded-full bg-brand-blue-600 blur-[180px] animate-float" />
-        </div>
-        <div className="absolute bottom-0 left-0 p-20 opacity-10 pointer-events-none">
-           <div className="h-[500px] w-[500px] rounded-full bg-emerald-500 blur-[150px] animate-float-delayed" />
-        </div>
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none" />
-
-        <div className="max-w-7xl mx-auto px-10 relative z-10">
-           <div className="grid lg:grid-cols-12 gap-20 lg:gap-32 items-center">
-              <div className="lg:col-span-7 text-center lg:text-left">
-                 <div className="inline-flex items-center gap-4 bg-white/5 border border-white/10 px-6 py-3 rounded-full backdrop-blur-3xl mb-12 animate-in fade-in duration-1000 shadow-2xl">
-                   <Globe className="h-4 w-4 text-brand-blue-400 animate-pulse" />
-                   <span className="text-white/60 text-[10px] font-black uppercase tracking-[0.4em]">GRID_STATUS: OPERATIONAL — PH-SE-ASIA</span>
-                 </div>
-
-                 <h1 className="text-7xl lg:text-[10rem] font-black text-white leading-[0.85] tracking-tighter mb-12 animate-in slide-in-from-left-12 duration-1000">
-                    PH_CORE <br />
-                    LEDGER <br />
-                    <span className="text-gradient">EVOLVED.</span>
-                 </h1>
-
-                 <p className="text-white/40 text-xl lg:text-2xl font-medium max-w-2xl mb-16 leading-relaxed mx-auto lg:mx-0 uppercase tracking-tight">
-                    {APP_DESCRIPTION} Deploy nodes, scale liquidity, and settle in <span className="text-white font-black underline decoration-brand-blue-500 decoration-4 underline-offset-8">USDT_REALTIME</span> via our Telegram-native protocol.
-                 </p>
-
-                 <div className="flex flex-col sm:flex-row items-center gap-8 justify-center lg:justify-start">
-                    <Link to="/register" className="w-full sm:w-auto">
-                       <Button size="lg" className="w-full h-20 px-16 bg-white text-[#0A0F1E] hover:bg-slate-100 font-black rounded-[2.5rem] uppercase tracking-[0.4em] shadow-[0_20px_50px_rgba(255,255,255,0.1)] transition-all active:scale-95 group text-xs">
-                         INITIATE_ONBOARDING <ArrowRight className="ml-4 h-6 w-6 group-hover:translate-x-2 transition-transform" />
-                       </Button>
-                    </Link>
-                    <Link to="/features" className="w-full sm:w-auto">
-                       <Button variant="ghost" size="lg" className="w-full h-20 px-16 border-2 border-white/5 text-white hover:bg-white/5 font-black rounded-[2.5rem] uppercase tracking-[0.4em] transition-all text-xs">
-                         KERNEL_SPECS
-                       </Button>
-                    </Link>
-                 </div>
-
-                 <div className="mt-24 grid grid-cols-2 md:grid-cols-4 gap-12 pt-16 border-t border-white/5">
-                    <StatItem label="NETWORK_NODES" value="500+" />
-                    <StatItem label="VOLUME_CAPACITY" value="₱2B+" />
-                    <StatItem label="CLEARING_CYCLE" value="T+0" />
-                    <StatItem label="GRID_UPTIME" value="99.9%" />
-                 </div>
+      <section className="pt-32 pb-20 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <div className="inline-block bg-blue-50 border border-blue-200 px-4 py-2 rounded-full mb-6">
+                <span className="text-sm text-blue-600 font-semibold">🇵🇭 Live in Philippines</span>
               </div>
 
-              <div className="lg:col-span-5 hidden lg:block">
-                 <div className="relative animate-in zoom-in-95 duration-1000">
-                    {/* High-Fidelity UI Terminal Mockup */}
-                    <div className="fintech-card bg-black/40 border border-white/10 rounded-[4rem] p-1 shadow-[0_50px_100px_rgba(0,0,0,0.6)] backdrop-blur-3xl relative group">
-                       <div className="absolute inset-0 bg-gradient-to-br from-brandblue-500/10 to-transparent rounded-[4rem] pointer-events-none" />
+              <h1 className="text-5xl lg:text-6xl font-bold text-gray-900 leading-tight mb-6">
+                Accept payments.
+                <br />
+                <span className="text-blue-600">Get paid today.</span>
+              </h1>
 
-                       <div className="p-12 space-y-12">
-                          <div className="flex items-center justify-between border-b border-white/10 pb-10">
-                             <div className="space-y-3">
-                               <div className="flex items-center gap-3">
-                                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
-                                  <p className="text-[10px] font-black text-white/30 uppercase tracking-[0.4em]">VAULT_INBOUND_SIGNAL</p>
-                               </div>
-                               <h3 className="text-5xl font-black text-white tracking-tighter tabular-nums">₱ 24,500.50</h3>
-                             </div>
-                             <div className="h-20 w-20 rounded-[2rem] bg-emerald-500/10 flex items-center justify-center text-emerald-400 border border-emerald-500/20 shadow-2xl animate-logo-bounce">
-                                <CheckCircle className="h-10 w-10" />
-                             </div>
-                          </div>
-                          <div className="space-y-6">
-                             {[
-                               { label: 'Source Node', val: 'DRL_SOLUTIONS_PH', color: 'text-white/60' },
-                               { label: 'Clearing Engine', val: 'KERNEL_V4.2.0', color: 'text-brandblue-400' },
-                               { label: 'Settlement Pair', val: 'PHP / USDT_TRC20', color: 'text-emerald-400' },
-                             ].map(row => (
-                               <div key={row.label} className="flex justify-between items-center text-xs font-black group/row">
-                                 <span className="text-white/20 uppercase tracking-[0.3em] group-hover/row:text-white/40 transition-colors">{row.label}</span>
-                                 <span className={`${row.color} uppercase tracking-tight group-hover/row:scale-105 transition-transform`}>{row.val}</span>
-                               </div>
-                             ))}
-                          </div>
-                          <div className="pt-10">
-                             <div className="w-full h-18 bg-white/5 border border-white/10 rounded-[1.5rem] flex items-center justify-center font-black text-white/60 text-[10px] uppercase tracking-[0.5em] shadow-inner group-hover:bg-white/10 transition-all cursor-default">
-                                <ShieldCheck className="h-4 w-4 mr-4 text-emerald-400" />
-                                VERIFICATION_PROTOCOL_OK
-                             </div>
-                          </div>
-                       </div>
-                    </div>
-                    {/* Floating Accent Cards */}
-                    <div className="absolute -top-10 -left-10 h-32 w-32 bg-brandblue-500/20 rounded-[2rem] blur-2xl animate-pulse" />
-                    <div className="absolute -bottom-10 -right-10 h-40 w-40 bg-emerald-500/10 rounded-[2rem] blur-3xl animate-float-delayed" />
-                 </div>
+              <p className="text-lg text-gray-600 mb-10 leading-relaxed max-w-xl">
+                Sell online with PayBot. Accept GCash, Maya, bank transfers, and more — all in one place. Perfect for small businesses, freelancers, and online stores.
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Link to="/register" className="flex-1 sm:flex-none">
+                  <Button className="w-full h-12 px-8 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-sm group">
+                    Get Started Free <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+                <Link to="/features" className="flex-1 sm:flex-none">
+                  <Button variant="outline" className="w-full h-12 px-8 border-gray-300 text-gray-900 hover:bg-gray-50 font-semibold rounded-lg">
+                    See How It Works
+                  </Button>
+                </Link>
               </div>
-           </div>
-        </div>
-      </section>
 
-      {/* ── Capability Grid ── */}
-      <section className="py-40 lg:py-60 bg-white">
-        <div className="max-w-7xl mx-auto px-10">
-           <div className="max-w-4xl mb-32">
-              <h2 className="text-[12px] font-black text-brand-blue-600 uppercase tracking-[0.5em] mb-8">Infrastructure_Protocol</h2>
-              <h3 className="text-6xl lg:text-9xl font-black text-[#0A0F1E] tracking-tighter leading-[0.9] uppercase">The new standard for <br /><span className="text-brand-blue-600">institutional</span> PHP liquidity.</h3>
-              <p className="mt-12 text-2xl text-muted-foreground font-black uppercase tracking-tight opacity-40 leading-relaxed">PayBot provides the underlying transmission layer for secure, real-time Philippine commerce cycles.</p>
-           </div>
-
-           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-12">
-              {[
-                { icon: Smartphone, title: 'Telegram Native', desc: 'Manage global invoices, payouts, and customer relations directly from your secure Telegram console node.' },
-                { icon: ShieldCheck, title: 'Security Kernel', desc: 'Bank-grade encryption with automated fraud detection and multi-gateway intelligent routing protocols.' },
-                { icon: Zap, title: 'Real-time Clearing', desc: 'Bridge local currency directly to global stablecoin liquidity with automated T+0 settlement cycles.' },
-                { icon: BarChart3, title: 'Advanced Ledger', desc: 'Granular monitoring of every transaction node with custom export protocols for enterprise-level reporting.' },
-                { icon: Building2, title: 'Direct Bank Bridge', desc: 'Native integration with InstaPay and PESONet networks, supporting all major Philippine bank entities.' },
-                { icon: MessageCircle, title: 'Automation Omni', desc: 'Event-driven webhooks and automated bot messages keep your entire business synchronized in real-time.' },
-              ].map((f, i) => (
-                <div key={i} className="p-12 rounded-[3.5rem] bg-[#F8FAFC] border border-black/[0.03] hover:border-brand-blue-500/30 transition-all duration-700 hover:-translate-y-3 group cursor-default shadow-sm hover:shadow-2xl">
-                   <div className="h-20 w-20 rounded-3xl bg-white shadow-2xl flex items-center justify-center mb-10 group-hover:scale-110 group-hover:rotate-6 transition-all duration-700 border border-black/5">
-                      <f.icon className="h-10 w-10 text-brand-blue-500" />
-                   </div>
-                   <h4 className="text-2xl font-black text-[#0A0F1E] uppercase tracking-tighter mb-6 group-hover:text-brandblue-600 transition-colors">{f.title}</h4>
-                   <p className="text-muted-foreground font-bold text-sm leading-relaxed opacity-60 uppercase tracking-tight">{f.desc}</p>
+              <div className="mt-12 grid grid-cols-3 gap-8 pt-8 border-t border-gray-200">
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">₱2B+</p>
+                  <p className="text-sm text-gray-600 mt-1">Processed</p>
                 </div>
-              ))}
-           </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">10k+</p>
+                  <p className="text-sm text-gray-600 mt-1">Merchants</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">99.9%</p>
+                  <p className="text-sm text-gray-600 mt-1">Uptime</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right side: Demo Card */}
+            <div className="hidden lg:block">
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-8 shadow-lg">
+                <div className="space-y-8">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-500 font-medium">Today's Revenue</p>
+                      <h3 className="text-4xl font-bold text-gray-900 mt-2">₱24,500</h3>
+                    </div>
+                    <div className="h-16 w-16 rounded-lg bg-green-100 flex items-center justify-center">
+                      <CheckCircle2 className="h-8 w-8 text-green-600" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                      <span className="text-sm text-gray-600">GCash Transfers</span>
+                      <span className="text-sm font-semibold text-gray-900">₱12,000</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-3 border-b border-gray-200">
+                      <span className="text-sm text-gray-600">Bank Deposits</span>
+                      <span className="text-sm font-semibold text-gray-900">₱8,500</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Maya Transfers</span>
+                      <span className="text-sm font-semibold text-gray-900">₱4,000</span>
+                    </div>
+                  </div>
+
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0" />
+                    <span className="text-sm font-semibold text-green-700">Settled Today</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* ── Activation CTA ── */}
-      <section className="py-40 lg:py-60 bg-[#0A0F1E] relative overflow-hidden">
-         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-5xl h-full bg-brand-blue-500/10 blur-[150px] pointer-events-none animate-pulse" />
-         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.02] pointer-events-none" />
+      {/* ── Why Choose PayBot ── */}
+      <section className="py-20 lg:py-32 bg-gray-50 border-t border-gray-200">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="mb-16">
+            <h2 className="text-sm font-semibold text-blue-600 uppercase tracking-wider mb-4">Why PayBot</h2>
+            <h3 className="text-4xl font-bold text-gray-900">Everything you need to accept payments</h3>
+          </div>
 
-         <div className="max-w-5xl mx-auto px-10 text-center relative z-10">
-            <div className="inline-flex h-24 w-24 rounded-[2.5rem] bg-white text-[#0A0F1E] items-center justify-center shadow-[0_30px_60px_rgba(255,255,255,0.1)] mb-16 animate-float border-4 border-brandblue-500/20">
-               <Bot className="h-12 w-12" />
-            </div>
-            <h2 className="text-6xl lg:text-9xl font-black text-white tracking-tighter mb-14 leading-[0.85] uppercase">
-               JOIN THE <br />NEXT <span className="text-gradient">GENERATION.</span>
-            </h2>
-            <p className="text-white/30 text-xl font-black mb-20 max-w-2xl mx-auto uppercase tracking-[0.4em] text-center leading-loose">
-               Activate your merchant node today and experience institutional T+0 settlement.
-            </p>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-8">
-               <Link to="/register" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full h-24 px-20 bg-white text-[#0A0F1E] hover:bg-slate-100 font-black rounded-full uppercase tracking-[0.4em] shadow-2xl active:scale-95 transition-all text-xs">GO_LIVE_3_MIN</Button>
-               </Link>
-               <Link to="/login" className="w-full sm:w-auto">
-                  <Button variant="ghost" size="lg" className="w-full h-24 px-20 font-black uppercase tracking-[0.4em] text-white/30 hover:text-white transition-colors rounded-full border border-white/5 hover:bg-white/5 text-xs">INIT_SESSION</Button>
-               </Link>
-            </div>
-         </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              { icon: Smartphone, title: 'Telegram Chat', desc: 'Manage payments right from your Telegram chat. No app downloads needed.' },
+              { icon: Shield, title: 'Bank-Level Security', desc: 'Your money is protected. All transactions are verified and secure.' },
+              { icon: Zap, title: 'Same-Day Payouts', desc: 'Money goes to your bank account the same day. No waiting periods.' },
+              { icon: BarChart3, title: 'Real Sales Reports', desc: 'See all your revenue and customer activity in one place.' },
+              { icon: Building2, title: 'All Local Banks', desc: 'Works with GCash, Maya, and every major Philippine bank.' },
+              { icon: MessageCircle, title: 'Auto Confirmations', desc: 'Your customers get payment confirmations automatically.' },
+            ].map((feature, i) => (
+              <div key={i} className="bg-white p-8 rounded-lg border border-gray-200 hover:border-blue-300 hover:shadow-lg transition-all">
+                <div className="h-12 w-12 rounded-lg bg-blue-100 flex items-center justify-center mb-6">
+                  <feature.icon className="h-6 w-6 text-blue-600" />
+                </div>
+                <h4 className="text-lg font-bold text-gray-900 mb-3">{feature.title}</h4>
+                <p className="text-gray-600 text-sm leading-relaxed">{feature.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
+      {/* ── Payment Methods ── */}
+      <section className="py-20 lg:py-32 bg-white">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="mb-16">
+            <h2 className="text-sm font-semibold text-blue-600 uppercase tracking-wider mb-4">Payment Methods</h2>
+            <h3 className="text-4xl font-bold text-gray-900">Accept every payment method your customers want</h3>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              { name: 'GCash', color: 'bg-blue-50' },
+              { name: 'Maya', color: 'bg-red-50' },
+              { name: 'Bank Transfer', color: 'bg-green-50' },
+              { name: 'USDT', color: 'bg-amber-50' },
+            ].map((method, i) => (
+              <div key={i} className={`${method.color} border border-gray-200 rounded-lg p-6 text-center hover:shadow-lg transition-shadow`}>
+                <p className="font-semibold text-gray-900">{method.name}</p>
+                <p className="text-sm text-gray-600 mt-2">Instant transfers</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA Section ── */}
+      <section className="py-20 lg:py-32 bg-blue-600 text-white">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-4xl lg:text-5xl font-bold mb-6">Start accepting payments in 3 minutes</h2>
+          <p className="text-lg text-blue-100 mb-10">No setup fees. No credit card required. Free forever plan available.</p>
+          <Link to="/register">
+            <Button className="h-12 px-8 bg-white hover:bg-gray-100 text-blue-600 font-semibold rounded-lg shadow-lg group">
+              Get Started Now <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer */}
       <AppFooter />
     </div>
   );
