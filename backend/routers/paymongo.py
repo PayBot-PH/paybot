@@ -124,25 +124,23 @@ async def _credit_wallet(
     reference_id: str,
 ) -> None:
     """Credit the user's PHP wallet and publish a wallet_update event."""
-    wallet_res = await db.execute(
-        select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == "PHP")
-    )
-    wallet = wallet_res.scalar_one_or_none()
-    if not wallet:
-        now_w = datetime.now()
-        wallet = Wallets(
-            user_id=user_id, balance=0.0, currency="PHP",
-            created_at=now_w, updated_at=now_w,
-        )
-        db.add(wallet)
-        await db.flush()
+    from services.wallets import WalletsService
+    svc = WalletsService(db)
+    
+    # get_or_create_wallet handles normalization (tg-123 -> 123)
+    wallet = await svc.get_or_create_wallet(user_id, "PHP", lock=True)
 
     balance_before = wallet.balance
-    wallet.balance += amount
+    wallet.balance = round(wallet.balance + amount, 2)
+    
+    # Ensure available balance is updated
+    if hasattr(wallet, 'available_balance'):
+        wallet.available_balance = round((wallet.available_balance or 0.0) + amount, 2)
+        
     wallet.updated_at = datetime.now(timezone.utc)
 
     wtxn = Wallet_transactions(
-        user_id=user_id,
+        user_id=wallet.user_id, # Use normalized ID
         wallet_id=wallet.id,
         transaction_type="top_up",
         amount=amount,
@@ -156,16 +154,8 @@ async def _credit_wallet(
     db.add(wtxn)
     await db.commit()
 
-    payment_event_bus.publish({
-        "event_type": "wallet_update",
-        "user_id": user_id,
-        "wallet_id": wallet.id,
-        "balance": wallet.balance,
-        "transaction_type": "top_up",
-        "amount": amount,
-        "transaction_id": wtxn.id,
-    })
-    logger.info("Wallet credited +%s PHP for user %s via PayMongo", amount, user_id)
+    await svc.publish_wallet_event(wallet.user_id, wallet, "top_up", amount, wtxn.id, note)
+    logger.info("Wallet credited +%s PHP for user %s via PayMongo", amount, wallet.user_id)
 
 
 # ---------- Endpoints ----------

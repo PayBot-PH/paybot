@@ -129,35 +129,41 @@ async def get_balance(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Get live gateway balance for super admins (PHP), or internal wallet balance for others."""
+    """Get internal wallet balance. Super admins can see gateway balance via specialized endpoints."""
     user_id = str(current_user.id)
     currency_upper = currency.upper()
 
     svc = WalletsService(db)
-
-    # Special case for Super Admins requesting PHP balance: show live PayMongo balance
-    perms = current_user.permissions
-    if currency_upper == "PHP" and perms and perms.is_super_admin:
-        try:
-            pm_svc = PayMongoService()
-            pm_bal = await pm_svc.get_balance()
-            if pm_bal.get("success"):
-                available = pm_bal.get("available", [])
-                php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
-                if php_entry is not None:
-                    # Satisfy schema with any wallet ID for this user
-                    wallet_info = await svc.get_balance(user_id, "PHP")
-                    return WalletBalanceResponse(
-                        wallet_id=wallet_info["wallet_id"],
-                        balance=float(php_entry["amount"]) / 100.0,
-                        currency="PHP",
-                    )
-        except Exception as pe:
-            logger.warning(f"PayMongo balance fetch failed: {pe}")
-
-    # Default: Return internal wallet balance via service
     result = await svc.get_balance(user_id, currency_upper)
     return WalletBalanceResponse(**result)
+
+
+@router.get("/gateway-balance")
+async def get_gateway_balance(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Super Admin only: Get the live balance from the payment gateway (PayMongo)."""
+    perms = current_user.permissions
+    if not perms or not perms.is_super_admin:
+        raise HTTPException(status_code=403, detail="Super admin access required.")
+
+    try:
+        pm_svc = PayMongoService()
+        pm_bal = await pm_svc.get_balance()
+        if pm_bal.get("success"):
+            available = pm_bal.get("available", [])
+            php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
+            return {
+                "success": True,
+                "balance": float(php_entry["amount"]) / 100.0 if php_entry else 0.0,
+                "currency": "PHP",
+                "provider": "PayMongo"
+            }
+        return {"success": False, "error": pm_bal.get("error")}
+    except Exception as e:
+        logger.error(f"Gateway balance fetch failed: {e}")
+        raise HTTPException(status_code=502, detail="Failed to fetch gateway balance")
 
 
 @router.get("/wallet", response_model=WalletBalanceResponse)

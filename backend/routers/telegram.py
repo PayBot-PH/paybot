@@ -225,10 +225,9 @@ async def _get_php_balance_for_bot(db: AsyncSession, tg_user_id: str) -> float:
 
     # Fallback: stored PHP wallet row
     try:
-        row = await db.execute(
-            select(Wallets).where(Wallets.user_id == tg_user_id, Wallets.currency == "PHP")
-        )
-        wallet = row.scalar_one_or_none()
+        from services.wallets import WalletsService
+        svc = WalletsService(db)
+        wallet = await svc.get_or_create_wallet(tg_user_id, "PHP")
         if wallet:
             return float(wallet.balance)
     except Exception as e:
@@ -586,15 +585,9 @@ async def _ensure_super_admin_chat(tg: "TelegramService", db: AsyncSession, chat
 
 
 async def _get_or_create_wallet(db: AsyncSession, user_id: str, currency: str) -> Wallets:
-    res = await db.execute(select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == currency))
-    wallet = res.scalar_one_or_none()
-    if wallet:
-        return wallet
-    now = datetime.now(timezone.utc)
-    wallet = Wallets(user_id=user_id, balance=0.0, currency=currency, created_at=now, updated_at=now)
-    db.add(wallet)
-    await db.flush()
-    return wallet
+    from services.wallets import WalletsService
+    svc = WalletsService(db)
+    return await svc.get_or_create_wallet(user_id, currency)
 
 
 def _short_address(address: str) -> str:
@@ -666,13 +659,13 @@ async def _process_withdrawal_request(
         await tg.send_message(chat_id, "❌ Amount must be positive.")
         return
 
-    user_wallet_id = f"tg-{chat_id}"
-    res = await db.execute(select(Wallets).where(Wallets.user_id == user_wallet_id, Wallets.currency == "PHP"))
-    wallet = res.scalar_one_or_none()
+    from services.wallets import WalletsService
+    wallet_svc = WalletsService(db)
+    wallet = await wallet_svc.get_or_create_wallet(chat_id, "PHP", lock=True)
+    user_wallet_id = wallet.user_id
 
-    if not wallet or wallet.balance < amount:
-        bal = wallet.balance if wallet else 0.0
-        await tg.send_message(chat_id, f"❌ Insufficient balance: ₱{bal:,.2f}")
+    if wallet.balance < amount:
+        await tg.send_message(chat_id, f"❌ Insufficient balance: ₱{wallet.balance:,.2f}")
         return
 
     now = datetime.now(timezone.utc)
@@ -695,6 +688,11 @@ async def _process_withdrawal_request(
 
     balance_before = wallet.balance
     wallet.balance = round(wallet.balance - amount, 2)
+    
+    # Also update available_balance for consistency
+    if hasattr(wallet, 'available_balance'):
+        wallet.available_balance = round((wallet.available_balance or 0.0) - amount, 2)
+
     wallet.updated_at = now
 
     wtxn = Wallet_transactions(
@@ -2215,35 +2213,13 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /balance & /wallet ====================
         elif text.startswith("/balance") or text.startswith("/wallet"):
-            is_wallet_cmd = text.startswith("/wallet")
-            is_super = await _is_super_admin_chat(db, chat_id)
-
-            # Super admins see the live Gateway balance on /balance.
-            # Everyone else (and super admins on /wallet) see their internal stored balance.
-            show_gateway = (not is_wallet_cmd) and is_super
-
             try:
                 wallet_service = WalletsService(db)
                 # Use service for consistent ID normalization
                 wallet = await wallet_service.get_or_create_wallet(chat_id, "PHP")
 
                 php_balance = wallet.balance
-                gateway_label = ""
-
-                if show_gateway:
-                    # Sync/Show PHP balance from PayMongo live account balance
-                    try:
-                        pm_svc = PayMongoService()
-                        pm_bal = await pm_svc.get_balance()
-                        if pm_bal.get("success"):
-                            available = pm_bal.get("available", [])
-                            php_entry = next((e for e in available if e.get("currency", "").upper() == "PHP"), None)
-                            if php_entry is not None:
-                                php_balance = float(php_entry["amount"]) / 100.0
-                                gateway_label = " (Live Gateway)"
-                    except Exception as pe:
-                        logger.warning(f"PayMongo balance fetch failed for /balance: {pe}")
-
+                
                 # USD wallet — compute balance from transaction history
                 usd_balance = await _compute_usd_balance_for_wallet(db, tg_user_id)
 
@@ -2260,17 +2236,15 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 php_balance = 0.0
                 usd_balance = 0.0
                 recent_wt = []
-                gateway_label = ""
                 try:
                     await db.rollback()
                 except Exception:
                     pass
 
-            title = "Company Balance" if gateway_label else "My Wallet"
             reply = (
-                f"💰 <b>{title}</b>\n"
+                f"💰 <b>My Wallet</b>\n"
                 f"━━━━━━━━━━━━━━━━━━━━\n"
-                f"🇵🇭 PHP: <b>₱{php_balance:,.2f}</b>{gateway_label}\n"
+                f"🇵🇭 PHP: <b>₱{php_balance:,.2f}</b>\n"
                 f"💵 USD: <b>${usd_balance:,.2f}</b> (USDT TRC20)\n"
             )
 

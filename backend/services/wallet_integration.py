@@ -19,7 +19,12 @@ class WalletIntegrationService:
     async def credit_merchant_from_payment(self, payment_data: dict):
         """Credit the merchant's PHP wallet when a POS payment is completed."""
         try:
-            user_id = payment_data.get("user_id")
+            user_id = payment_data.get("user_id", "")
+            
+            # Normalize user_id for PHP wallets (tg-123 -> 123)
+            if user_id.startswith("tg-"):
+                user_id = user_id[3:]
+
             amount = payment_data.get("amount", 0) / 100.0 # Convert cents to PHP float
             order_id = payment_data.get("order_id")
             terminal_id = payment_data.get("terminal_id")
@@ -48,12 +53,17 @@ class WalletIntegrationService:
                 await self.db.flush() # Get wallet ID
 
             balance_before = wallet.balance
-            wallet.balance += amount
+            wallet.balance = round(wallet.balance + amount, 2)
+            
+            # Ensure available balance is also updated for immediate liquidity
+            if hasattr(wallet, 'available_balance'):
+                wallet.available_balance = round((wallet.available_balance or 0.0) + amount, 2)
+                
             wallet.updated_at = datetime.now(timezone.utc)
 
             # Record wallet transaction
             txn = Wallet_transactions(
-                user_id=user_id,
+                user_id=wallet.user_id, # Use normalized ID from wallet object
                 wallet_id=wallet.id,
                 transaction_type="terminal_sale",
                 amount=amount,

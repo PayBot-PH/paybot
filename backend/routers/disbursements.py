@@ -106,11 +106,11 @@ class DisbursementsBatchDeleteRequest(BaseModel):
 # ---------- Routes ----------
 async def _require_php_balance(db: AsyncSession, user_id: str, amount: float) -> Wallets:
     """Check user has sufficient PHP wallet balance. Raises 402 if insufficient."""
-    result = await db.execute(
-        select(Wallets).where(Wallets.user_id == user_id, Wallets.currency == "PHP")
-    )
-    wallet = result.scalar_one_or_none()
-    balance = float(wallet.balance) if wallet else 0.0
+    from services.wallets import WalletsService
+    svc = WalletsService(db)
+    wallet = await svc.get_or_create_wallet(user_id, "PHP")
+    
+    balance = float(wallet.balance)
     if balance <= 0:
         raise HTTPException(
             status_code=402,
@@ -233,13 +233,15 @@ async def cancel_disbursements(
         disb.updated_at = datetime.now(timezone.utc)
 
         # 2. Refund wallet
-        result = await db.execute(
-            select(Wallets).where(Wallets.user_id == disb.user_id, Wallets.currency == "PHP")
-        )
-        wallet = result.scalar_one_or_none()
+        from services.wallets import WalletsService
+        svc = WalletsService(db)
+        wallet = await svc.get_or_create_wallet(disb.user_id, "PHP", lock=True)
+        
         if wallet:
             balance_before = wallet.balance
             wallet.balance = round(wallet.balance + disb.amount, 2)
+            if hasattr(wallet, 'available_balance'):
+                wallet.available_balance = round((wallet.available_balance or 0.0) + disb.amount, 2)
             wallet.updated_at = datetime.now(timezone.utc)
 
             # 3. Update wallet transaction
