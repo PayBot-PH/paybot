@@ -205,7 +205,7 @@ export default function Dashboard() {
       if (results[0].status === 'fulfilled') {
         const res = results[0] as PromiseFulfilledResult<any>;
         const statsData = res.value?.data;
-        if (statsData) setStats(statsData);
+        if (statsData && typeof statsData === 'object') setStats({ ...defaultStats, ...statsData });
       } else {
         setApiStatus('degrading');
       }
@@ -219,19 +219,19 @@ export default function Dashboard() {
       if (isSuperAdmin && results[2]?.status === 'fulfilled') {
         const res = results[2] as PromiseFulfilledResult<any>;
         const walletData = res.value?.data;
-        if (walletData?.balance != null) setWalletBalance(walletData.balance);
+        if (walletData && walletData.balance != null) setWalletBalance(walletData.balance);
       }
 
       if (results[3]?.status === 'fulfilled') {
         const res = results[3] as PromiseFulfilledResult<any>;
         const usdData = res.value?.data;
-        if (usdData?.balance != null) setUsdWalletBalance(usdData.balance);
+        if (usdData && usdData.balance != null) setUsdWalletBalance(usdData.balance);
       }
 
       if (results[4]?.status === 'fulfilled') {
         const res = results[4] as PromiseFulfilledResult<any>;
         const usdtData = res.value?.data;
-        if (usdtData) setUsdtStats(usdtData);
+        if (usdtData && typeof usdtData === 'object') setUsdtStats({ ...defaultUsdtStats, ...usdtData });
       }
 
       if (results[5].status === 'fulfilled') {
@@ -249,7 +249,7 @@ export default function Dashboard() {
       if (isSuperAdmin && results[7]?.status === 'fulfilled') {
           const res = results[7] as PromiseFulfilledResult<any>;
           const telemetryData = res.value?.data;
-          if (telemetryData) setTelemetry(telemetryData);
+          if (telemetryData && typeof telemetryData === 'object') setTelemetry(telemetryData);
       }
     } catch (err) {
       console.error('Unexpected error in fetchData:', err);
@@ -459,12 +459,12 @@ export default function Dashboard() {
               <CardHeader className="pb-6 pt-10 px-10 border-b border-border/10"><CardTitle className="text-[11px] font-black uppercase tracking-[0.4em] text-muted-foreground/40 flex items-center gap-3">System Terminal</CardTitle></CardHeader>
               <CardContent className="px-8 pb-10 pt-8">
                 <div className="grid grid-cols-2 gap-6">
-                  {[
+                  {([
                     { to: '/create-payment', icon: CreditCard, label: 'Charge', bg: 'bg-brandblue-500/10', text: 'text-brandblue-500', shadow: 'shadow-brandblue-500/20' },
                     { to: '/disbursements', icon: Send, label: 'Payout', bg: 'bg-emerald-500/10', text: 'text-emerald-500', shadow: 'shadow-emerald-500/20' },
                     { to: '/transactions', icon: FileText, label: 'Ledger', bg: 'bg-cyan-500/10', text: 'text-cyan-500', shadow: 'shadow-cyan-500/20' },
                     { to: '/wallet', icon: Wallet, label: 'Vault', bg: 'bg-indigo-500/10', text: 'text-indigo-500', shadow: 'shadow-indigo-500/20' },
-                  ].map(({ to, icon: Icon, label, bg, text, shadow }) => (
+                  ] as const).map(({ to, icon: Icon, label, bg, text, shadow }) => (
                     <Link key={label} to={to} className="block group">
                       <div className={`w-full flex flex-col items-center gap-4 p-8 rounded-[2.5rem] transition-all duration-500 ${bg} ${text} hover:scale-[1.08] hover:-translate-y-1 border border-transparent hover:border-white/20 shadow-lg ${shadow}`}>
                         <Icon className="h-8 w-8" />

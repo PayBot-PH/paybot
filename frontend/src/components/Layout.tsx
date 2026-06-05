@@ -217,7 +217,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                       className={`h-3.5 w-3.5 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-90' : ''}`}
                     />
                   </button>
-                  {isOpen && (
+                  {isOpen && group.children && Array.isArray(group.children) && (
                     <div className="mt-0.5 mb-1 ml-3">
                       {group.children.map(({ to, icon: Icon, label, badge }) => {
                         const active = isActive(to);

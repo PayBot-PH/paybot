@@ -94,17 +94,18 @@ class PhotonPayService:
         # through a proxy with a valid public source IP when the deployment environment uses
         # a transparent proxy that presents an unroutable address to PhotonPay (0.0.0.0:0).
         # Read via pydantic-settings so it works from both .env and OS environment variables.
-        self.proxy_url = ""
+        self.proxy_url = os.environ.get("PHOTONPAY_PROXY_URL", "").strip()
         try:
-            from core.config import settings as _settings
-            self.proxy_url = getattr(_settings, "photonpay_proxy_url", "").strip()
-            # Fall back to general PROXY_HOST / PROXY_PORT when no service-specific URL is set.
             if not self.proxy_url:
-                proxy_host = getattr(_settings, "proxy_host", "").strip()
-                proxy_port = int(getattr(_settings, "proxy_port", 0))
-                if proxy_host:
-                    port = proxy_port if proxy_port > 0 else _DEFAULT_PROXY_PORT
-                    self.proxy_url = f"http://{proxy_host}:{port}"
+                from core.config import settings as _settings
+                self.proxy_url = getattr(_settings, "photonpay_proxy_url", "").strip()
+                # Fall back to general PROXY_HOST / PROXY_PORT when no service-specific URL is set.
+                if not self.proxy_url:
+                    proxy_host = getattr(_settings, "proxy_host", "").strip()
+                    proxy_port = int(getattr(_settings, "proxy_port", 0))
+                    if proxy_host:
+                        port = proxy_port if proxy_port > 0 else _DEFAULT_PROXY_PORT
+                        self.proxy_url = f"http://{proxy_host}:{port}"
         except Exception:
             pass
         # Validate that the proxy URL has a scheme that httpx recognises.

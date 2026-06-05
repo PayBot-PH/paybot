@@ -87,7 +87,10 @@ export default function CreatePayment() {
                 toast.error(res.data?.message || 'Upstream connection error');
             }
         } catch (err: unknown) {
-            const errorMsg = (err as { data?: { detail?: string } })?.data?.detail || 'Node generation failed';
+            console.error('Node generation error:', err);
+            const errorMsg = (err as { data?: { detail?: string } })?.data?.detail
+                || (err as Error)?.message
+                || 'Node generation failed. Check API configuration.';
             toast.error(errorMsg);
         } finally {
             setLoading(false);

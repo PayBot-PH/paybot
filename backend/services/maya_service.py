@@ -23,12 +23,14 @@ class MayaService:
     """Service for Maya Manager Checkout integration."""
 
     def __init__(self):
-        self.secret_key = os.environ.get("MAYA_SECRET_KEY", "") or settings.maya_secret_key
-        self.mode = os.environ.get("MAYA_MODE", "") or settings.maya_mode or "sandbox"
-        self.base_url = os.environ.get("MAYA_BASE_URL", "") or settings.maya_base_url.strip()
+        self.secret_key = (os.environ.get("MAYA_SECRET_KEY") or getattr(settings, "maya_secret_key", "")).strip()
+        self.mode = (os.environ.get("MAYA_MODE") or getattr(settings, "maya_mode", "sandbox")).lower().strip()
+        self.base_url = (os.environ.get("MAYA_BASE_URL") or getattr(settings, "maya_base_url", "")).strip()
 
         if not self.base_url:
-            self.base_url = MAYA_LIVE_BASE_URL if self.mode.lower() == "live" else MAYA_SANDBOX_BASE_URL
+            self.base_url = MAYA_LIVE_BASE_URL if self.mode == "live" else MAYA_SANDBOX_BASE_URL
+        
+        self.base_url = self.base_url.rstrip("/")
 
         if not self.secret_key:
             logger.warning("MAYA_SECRET_KEY not configured - Maya API calls will fail")
