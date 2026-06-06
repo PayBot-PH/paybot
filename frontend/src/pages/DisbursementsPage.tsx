@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,7 +41,8 @@ interface Customer {
 
 export default function DisbursementsPage() {
   const { user } = useAuth();
-  const [mainTab, setMainTab] = useState('disbursements');
+  const [searchParams] = useSearchParams();
+  const [mainTab, setMainTab] = useState(searchParams.get('tab') || 'disbursements');
   const [wizardStep, setWizardStep] = useState(1);
   const [dAmount, setDAmount] = useState('');
   const [dBank, setDBank] = useState('BDO');
@@ -400,6 +402,22 @@ export default function DisbursementsPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-0 flex-1 overflow-hidden bg-card">
+                  <div className="bg-[#0A0F1E] px-10 py-4 flex items-center justify-between border-b border-white/5">
+                     <div className="flex gap-8">
+                        <div className="space-y-1">
+                           <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">Total_Volume</p>
+                           <p className="text-xs font-black text-white tabular-nums">₱{fmt(disbursements.reduce((acc, d) => acc + d.amount, 0))}</p>
+                        </div>
+                        <div className="space-y-1">
+                           <p className="text-[8px] font-black text-white/20 uppercase tracking-[0.3em]">Node_Count</p>
+                           <p className="text-xs font-black text-white tabular-nums">{disbursements.length}</p>
+                        </div>
+                     </div>
+                     <div className="flex items-center gap-2">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[8px] font-black text-emerald-500/60 uppercase tracking-widest">REALTIME_SYNC</span>
+                     </div>
+                  </div>
                   {listLoading ? (
                     <div className="flex flex-col items-center justify-center h-full space-y-8 px-10">
                       <Loader2 className="h-16 w-16 animate-spin text-brandblue-500 opacity-20" />

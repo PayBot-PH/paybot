@@ -21,6 +21,16 @@ import {
     Zap,
     Radio,
     MessageCircle,
+    CreditCard,
+    History,
+    Ban,
+    RefreshCcw,
+    Search,
+    Settings,
+    Wallet,
+    Backspace,
+    Printer,
+    Activity,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -37,12 +47,11 @@ interface PaymentTypeOption {
 }
 
 const TYPE_OPTIONS: PaymentTypeOption[] = [
-    { id: 'invoice', label: 'E-Invoice', icon: FileText, color: 'blue', desc: 'Enterprise billing with full tax support' },
-    { id: 'qr_code', label: 'Static QR', icon: QrCode, color: 'purple', desc: 'Instant mobile scanning via QR PH standard' },
-    { id: 'payment_link', label: 'Universal', icon: LinkIcon, color: 'cyan', desc: 'Secure reusable links for social commerce' },
-    { id: 'ewallet', label: 'E-Wallet', icon: Smartphone, color: 'emerald', desc: 'Direct charge for GCash, Maya, or GrabPay' },
-    { id: 'alipay', label: 'Alipay QR', icon: QrCode, color: 'rose', desc: 'Global Alipay HK / CN settlement' },
-    { id: 'wechat', label: 'WeChat QR', icon: MessageCircle, color: 'emerald', desc: 'Direct WeChat Pay settlement' },
+    { id: 'card', label: 'Card Payment', icon: CreditCard, color: 'blue', desc: 'Debit or Credit Card (Visa, Mastercard, JCB)' },
+    { id: 'qr_code', label: 'QR Ph / Maya', icon: QrCode, color: 'emerald', desc: 'Maya and QR Ph Universal Scanner' },
+    { id: 'ewallet', label: 'GCash via QR Ph', icon: Smartphone, color: 'blue', desc: 'Direct GCash payment via QR Ph' },
+    { id: 'invoice', label: 'E-Invoice', icon: FileText, color: 'purple', desc: 'Enterprise billing with full tax support' },
+    { id: 'payment_link', label: 'Payment Link', icon: LinkIcon, color: 'cyan', desc: 'Secure reusable links for social commerce' },
 ];
 
 interface FormState {
@@ -83,7 +92,20 @@ const PAYMENT_CONFIGS: Record<string, PaymentConfig> = {
         endpoint: '/api/v1/photonpay/wechat-session',
         getPayload: (s) => ({ amount: parseFloat(s.amount), description: s.description }),
     },
+    card: {
+        endpoint: '/api/v1/xendit/create-invoice', // Defaulting to invoice for now if card not specific
+        getPayload: (s) => ({ amount: parseFloat(s.amount), description: s.description }),
+    },
 };
+
+const TERMINAL_ACTIONS = [
+    { id: 'history', label: 'Transaction History', sub: 'View all transactions', icon: History, path: '/transactions' },
+    { id: 'void', label: 'Void', sub: 'Void invalid transactions', icon: Ban, path: '/disbursements?tab=refunds' },
+    { id: 'settlement', label: 'Settlement', sub: 'Settle all transactions', icon: CheckCircle, path: '/disbursements' },
+    { id: 'reversal', label: 'Pending Reversal', sub: 'Reverse failed transactions', icon: RefreshCcw, path: '/disbursements?tab=refunds' },
+    { id: 'balance', label: 'Balance Inquiry', sub: 'Check current balance', icon: Search, path: '/wallet' },
+    { id: 'settings', label: 'Settings', sub: 'Manage MPINs & terminal', icon: Settings, path: '/bot-settings' },
+];
 
 // --- Sub-components ---
 
@@ -157,8 +179,30 @@ export default function CreatePayment() {
 
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<Record<string, unknown> | null>(null);
+    const [activeTab, setActiveTab] = useState<'payment' | 'more'>('payment');
 
     const updateForm = (updates: Partial<FormState>) => setForm(prev => ({ ...prev, ...updates }));
+
+    const handleKeypadPress = (val: string) => {
+        setForm(prev => {
+            let currentRaw = prev.amount.replace('.', '').replace(/^0+/, '');
+            if (val === 'AC') {
+                currentRaw = '';
+            } else if (val === 'backspace') {
+                currentRaw = currentRaw.slice(0, -1);
+            } else {
+                currentRaw += val;
+            }
+
+            if (currentRaw === '' || currentRaw === '0') return { ...prev, amount: '' };
+
+            const numericValue = parseInt(currentRaw, 10);
+            if (isNaN(numericValue)) return prev;
+
+            const formatted = (numericValue / 100).toFixed(2);
+            return { ...prev, amount: formatted };
+        });
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -201,6 +245,13 @@ export default function CreatePayment() {
         toast.success('Protocol string copied to clipboard');
     };
 
+    const handlePrint = () => {
+        toast.info('Initializing thermal printer sequence...');
+        setTimeout(() => {
+            window.print();
+        }, 1000);
+    };
+
     const currentType = useMemo(() => TYPE_OPTIONS.find(t => t.id === paymentType) || TYPE_OPTIONS[0], [paymentType]);
 
     return (
@@ -232,10 +283,46 @@ export default function CreatePayment() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
                     {/* Left Column: Form Section */}
                     <div className="lg:col-span-7 space-y-10">
-                        <Card className="fintech-card border-0 shadow-2xl overflow-hidden bg-card/60 backdrop-blur-sm">
-                            {/* Payment Type Selection */}
-                            <div className="bg-[#0A0F1E] border-b border-white/5 p-8">
-                                <TerminalLabel className="mb-8 ml-1 block text-white/30">Order Configuration</TerminalLabel>
+                        <div className="flex gap-4 mb-2">
+                            <button
+                                onClick={() => setActiveTab('payment')}
+                                className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'payment' ? 'bg-brandblue-500 text-white shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                            >
+                                Payments
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('more')}
+                                className={`flex-1 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all ${activeTab === 'more' ? 'bg-brandblue-500 text-white shadow-lg' : 'bg-white/5 text-white/40 hover:bg-white/10'}`}
+                            >
+                                More Options
+                            </button>
+                        </div>
+
+                        {activeTab === 'payment' ? (
+                            <Card className="fintech-card border-0 shadow-2xl overflow-hidden bg-card/60 backdrop-blur-sm">
+                                {/* Terminal Header style from photo */}
+                                <div className="bg-brandblue-600 p-8 flex justify-between items-center text-white relative overflow-hidden">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-black/20 to-transparent" />
+                                    <div className="relative z-10 space-y-1">
+                                        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-70">Input Payment</p>
+                                        <h2 className="text-4xl font-black tabular-nums tracking-tighter">₱{form.amount || '0.00'}</h2>
+                                    </div>
+                                    <div className="relative z-10 bg-white/10 p-4 rounded-[1.5rem] backdrop-blur-md border border-white/10 shadow-2xl">
+                                        <Smartphone className="h-8 w-8" />
+                                    </div>
+                                </div>
+
+                                {/* Maya Business Header */}
+                                <div className="bg-[#0A0F1E] border-b border-white/5 p-6 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-brandblue-400 font-black text-lg tracking-tighter uppercase italic">maya</span>
+                                        <span className="bg-brandblue-500 text-white text-[8px] font-black px-2 py-0.5 rounded uppercase tracking-widest">BUSINESS</span>
+                                    </div>
+                                    <div className="text-[9px] font-black text-white/20 uppercase tracking-[0.2em]">Select Payment Option</div>
+                                </div>
+
+                                <div className="bg-[#0A0F1E]/50 border-b border-white/5 p-8">
+                                    <TerminalLabel className="mb-8 ml-1 block text-white/30">Order Configuration</TerminalLabel>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                                     {TYPE_OPTIONS.map((option) => {
                                         const Icon = option.icon;
@@ -264,25 +351,63 @@ export default function CreatePayment() {
                             <CardContent className="p-10">
                                 <form onSubmit={handleSubmit} className="space-y-10">
                                     {/* Amount Section */}
-                                    <div className="space-y-4">
+                                    <div className="space-y-6">
                                         <div className="flex items-center justify-between ml-1">
-                                           <TerminalLabel>Transmission Volume (PHP)</TerminalLabel>
-                                           <span className="text-[9px] font-black text-brandblue-500 uppercase tracking-widest bg-brandblue-500/5 px-2 py-0.5 rounded">T+0 Clearance</span>
+                                           <TerminalLabel>Input Sale Amount (PHP)</TerminalLabel>
+                                           <div className="flex gap-2">
+                                                <span className="text-[9px] font-black text-brandblue-500 uppercase tracking-widest bg-brandblue-500/5 px-2 py-1 rounded-lg border border-brandblue-500/10">T+0 Clearance</span>
+                                           </div>
                                         </div>
-                                        <div className="relative group">
-                                            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-3xl font-black text-brandblue-500 group-focus-within:scale-110 transition-transform">₱</div>
-                                            <Input
-                                                type="number"
-                                                step="0.01"
-                                                min="1"
-                                                placeholder="0.00"
-                                                value={form.amount}
-                                                onChange={(e) => updateForm({ amount: e.target.value })}
-                                                className="pl-12 h-24 text-4xl font-black bg-muted/20 border-border/40 rounded-3xl tabular-nums focus:ring-brandblue-500/10 transition-all border-2 shadow-inner"
-                                                required
-                                            />
+
+                                        {/* Virtual Keypad Grid */}
+                                        <div className="grid grid-cols-4 gap-3">
+                                            {[
+                                                '1', '2', '3', 'backspace',
+                                                '4', '5', '6', 'AC',
+                                                '7', '8', '9', 'proceed',
+                                                '00', '0', '000'
+                                            ].map((key) => {
+                                                if (key === 'proceed') {
+                                                    return (
+                                                        <button
+                                                            key={key}
+                                                            type="submit"
+                                                            disabled={loading}
+                                                            className="row-span-2 bg-brandblue-600 hover:bg-brandblue-700 text-white rounded-2xl flex flex-col items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-brandblue-500/20"
+                                                        >
+                                                            {loading ? (
+                                                                <Loader2 className="h-6 w-6 animate-spin" />
+                                                            ) : (
+                                                                <>
+                                                                    <div className="bg-white/20 p-2 rounded-full">
+                                                                        <ChevronRight className="h-5 w-5" />
+                                                                    </div>
+                                                                    <span className="text-[10px] font-black uppercase tracking-widest">Proceed</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <button
+                                                        key={key}
+                                                        type="button"
+                                                        onClick={() => handleKeypadPress(key)}
+                                                        className={`h-16 rounded-2xl flex items-center justify-center text-xl font-black transition-all active:scale-95 shadow-sm ${
+                                                            key === 'AC' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20 hover:bg-rose-500/20' :
+                                                            key === 'backspace' ? 'bg-white/5 text-white/40 border border-white/10 hover:bg-white/10' :
+                                                            'bg-white/5 text-white border border-white/5 hover:bg-white/10'
+                                                        }`}
+                                                    >
+                                                        {key === 'backspace' ? <Backspace className="h-6 w-6" /> : key}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
+
+                                    {/* Description Section */}
 
                                     {/* Description Section */}
                                     <div className="space-y-4">
@@ -342,38 +467,45 @@ export default function CreatePayment() {
                                             </div>
                                         </div>
                                     )}
-
-                                    {/* Action Button */}
-                                    <div className="pt-8">
-                                        <Button
-                                            type="submit"
-                                            disabled={loading}
-                                            className="w-full h-20 bg-brandblue-600 hover:bg-brandblue-700 text-white font-black text-sm rounded-[2rem] shadow-2xl shadow-brandblue-500/30 transition-all active:scale-95 uppercase tracking-[0.4em] group"
-                                        >
-                                            {loading ? (
-                                                <div className="flex items-center gap-4">
-                                                    <Loader2 className="h-7 w-7 animate-spin opacity-50" />
-                                                    SYNCHRONIZING_NODES...
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-4">
-                                                    <Zap className="h-7 w-7 fill-current group-hover:scale-125 transition-transform" />
-                                                    INITIATE {currentType.label.toUpperCase()} PROTOCOL
-                                                </div>
-                                            )}
-                                        </Button>
-                                    </div>
                                 </form>
                             </CardContent>
                         </Card>
+                        ) : (
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 gap-4">
+                                    {TERMINAL_ACTIONS.map((action) => (
+                                        <button
+                                            key={action.id}
+                                            onClick={() => navigate(action.path)}
+                                            className="flex items-center gap-6 p-8 bg-[#0A0F1E] hover:bg-brandblue-500/10 border border-white/5 rounded-[2rem] transition-all group text-left"
+                                        >
+                                            <div className="h-14 w-14 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10 group-hover:bg-brandblue-500 transition-colors">
+                                                <action.icon className="h-6 w-6 text-brandblue-400 group-hover:text-white" />
+                                            </div>
+                                            <div className="flex-1">
+                                                <h4 className="text-sm font-black text-white uppercase tracking-widest">{action.label}</h4>
+                                                <p className="text-[10px] text-white/40 font-medium uppercase tracking-tight">{action.sub}</p>
+                                            </div>
+                                            <ChevronRight className="h-5 w-5 text-white/20 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Network Status Info */}
-                        <div className="bg-[#0A0F1E] rounded-[2.5rem] p-10 border border-white/5 flex items-start gap-8 shadow-xl group">
+                        <div className="bg-[#0A0F1E] rounded-[2.5rem] p-10 border border-white/5 flex items-start gap-8 shadow-xl group relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                                <Activity className="h-24 w-24 text-emerald-500 animate-pulse" />
+                            </div>
                             <div className="h-16 w-16 rounded-2xl bg-white/5 flex items-center justify-center shrink-0 border border-white/10 group-hover:bg-brandblue-500 transition-colors duration-500">
                                 <ShieldCheck className="h-8 w-8 text-brandblue-400 group-hover:text-white transition-colors" />
                             </div>
-                            <div className="space-y-2">
-                                <p className="text-[11px] font-black text-white uppercase tracking-[0.3em]">Institutional Verification</p>
+                            <div className="space-y-2 relative z-10">
+                                <p className="text-[11px] font-black text-white uppercase tracking-[0.3em] flex items-center gap-3">
+                                    Institutional Verification
+                                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
+                                </p>
                                 <p className="text-xs text-white/40 leading-relaxed font-medium uppercase tracking-tight">
                                     Current node state: <span className="text-emerald-400">100%_OPERATIONAL</span>. High-priority clearing active across Maya & GCash networks.
                                     Cryptographic hashing enabled for all transmission payloads.
@@ -466,16 +598,27 @@ export default function CreatePayment() {
                                                 </Button>
                                             );
                                         })()}
-                                        <Button
-                                            variant="ghost"
-                                            className="text-white/40 hover:text-white hover:bg-white/5 font-black h-16 rounded-[1.5rem] text-[11px] uppercase tracking-[0.4em] transition-all border border-white/5"
-                                            onClick={() => {
-                                                setResult(null);
-                                                updateForm({ amount: '', description: '' });
-                                            }}
-                                        >
-                                            Reset_System_State
-                                        </Button>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <Button
+                                                variant="ghost"
+                                                className="text-white/40 hover:text-white hover:bg-white/5 font-black h-16 rounded-[1.5rem] text-[11px] uppercase tracking-[0.4em] transition-all border border-white/5 group"
+                                                onClick={handlePrint}
+                                            >
+                                                <Printer className="h-4 w-4 mr-3 group-hover:scale-110 transition-transform" />
+                                                Print_Receipt
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                className="text-white/40 hover:text-white hover:bg-white/5 font-black h-16 rounded-[1.5rem] text-[11px] uppercase tracking-[0.4em] transition-all border border-white/5"
+                                                onClick={() => {
+                                                    setResult(null);
+                                                    updateForm({ amount: '', description: '' });
+                                                }}
+                                            >
+                                                Reset_State
+                                            </Button>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
