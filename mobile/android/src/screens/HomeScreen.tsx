@@ -43,12 +43,13 @@ const StatusBadge = ({ status }) => {
     failed: { bg: '#FEE2E2', text: '#991B1B' },
   };
 
-  const colors = statusColors[status] || { bg: '#F3F4F6', text: '#374151' };
+  const currentStatus = status || 'pending';
+  const colors = statusColors[currentStatus.toLowerCase()] || { bg: '#F3F4F6', text: '#374151' };
 
   return (
     <View style={[styles.badge, { backgroundColor: colors.bg }]}>
       <Text style={[styles.badgeText, { color: colors.text }]}>
-        {status.toUpperCase()}
+        {currentStatus.toUpperCase()}
       </Text>
     </View>
   );
@@ -56,6 +57,12 @@ const StatusBadge = ({ status }) => {
 
 // Terminal Card Component
 const TerminalCard = ({ terminal, onPress, isSelected }) => {
+  if (!terminal) return null;
+
+  const methods = Array.isArray(terminal.enabled_payment_methods)
+    ? terminal.enabled_payment_methods
+    : [];
+
   return (
     <TouchableOpacity
       style={[
@@ -67,8 +74,8 @@ const TerminalCard = ({ terminal, onPress, isSelected }) => {
     >
       <View style={styles.terminalHeader}>
         <View style={styles.terminalInfo}>
-          <Text style={styles.terminalName}>{terminal.terminal_name}</Text>
-          <Text style={styles.terminalCode}>Code: {terminal.terminal_code}</Text>
+          <Text style={styles.terminalName}>{terminal.terminal_name || 'Unnamed Node'}</Text>
+          <Text style={styles.terminalCode}>Code: {terminal.terminal_code || 'N/A'}</Text>
           {terminal.is_t0_settlement && (
             <View style={styles.t0Badge}>
               <MaterialIcons name="bolt" size={14} color="#D97706" />
@@ -86,9 +93,9 @@ const TerminalCard = ({ terminal, onPress, isSelected }) => {
       <View style={styles.methodsContainer}>
         <Text style={styles.methodsLabel}>Payment Methods:</Text>
         <View style={styles.methodsList}>
-          {terminal.enabled_payment_methods.map((method, idx) => (
+          {methods.map((method, idx) => (
             <View key={idx} style={styles.methodBadge}>
-              <Text style={styles.methodText}>{method.toUpperCase()}</Text>
+              <Text style={styles.methodText}>{String(method).toUpperCase()}</Text>
             </View>
           ))}
         </View>
@@ -105,16 +112,14 @@ const TerminalCard = ({ terminal, onPress, isSelected }) => {
 
 // Transaction List Item
 const TransactionItem = ({ transaction }) => {
+  if (!transaction) return null;
+
   const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'check-circle';
-      case 'pending':
-        return 'access-time';
-      case 'failed':
-        return 'cancel';
-      default:
-        return 'help-outline';
+    switch (String(status).toLowerCase()) {
+      case 'completed': return 'check-circle';
+      case 'pending': return 'access-time';
+      case 'failed': return 'cancel';
+      default: return 'help-outline';
     }
   };
 
@@ -135,18 +140,18 @@ const TransactionItem = ({ transaction }) => {
       </View>
 
       <View style={styles.transactionInfo}>
-        <Text style={styles.transactionDesc}>{transaction.description}</Text>
+        <Text style={styles.transactionDesc}>{transaction.description || 'No Reference'}</Text>
         <Text style={styles.transactionDate}>
-          {new Date(transaction.created_at).toLocaleDateString()} •{' '}
-          {new Date(transaction.created_at).toLocaleTimeString([], {
+          {transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : 'N/A'} •{' '}
+          {transaction.created_at ? new Date(transaction.created_at).toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit',
-          })}
+          }) : ''}
         </Text>
       </View>
 
       <View style={styles.transactionRight}>
-        <Text style={styles.transactionAmount}>₱{(transaction.amount / 100).toFixed(2)}</Text>
+        <Text style={styles.transactionAmount}>₱{((transaction.amount || 0) / 100).toFixed(2)}</Text>
         <StatusBadge status={transaction.status} />
       </View>
     </View>
@@ -165,7 +170,9 @@ export const HomeScreen = ({ navigation }) => {
   const fetchWallet = async () => {
     try {
       const data = await terminalApi.getWalletBalance();
-      setWalletBalance(data.balance);
+      if (data && typeof data.balance === 'number') {
+        setWalletBalance(data.balance);
+      }
     } catch (err) {
       console.error('Failed to fetch wallet', err);
     }
@@ -176,12 +183,14 @@ export const HomeScreen = ({ navigation }) => {
       const storedToken = await AsyncStorage.getItem('auth_token');
       setToken(storedToken);
 
-      const id = await DeviceInfo.getUniqueId();
-      setDeviceId(id);
+      try {
+        const id = await DeviceInfo.getUniqueId();
+        setDeviceId(id);
+      } catch (e) {}
 
       try {
         const registration = await terminalApi.registerDevice();
-        if (registration.success && registration.data) {
+        if (registration && registration.success && registration.data) {
           setIsDeviceLinked(registration.data.is_linked);
         }
       } catch (err) {
@@ -217,7 +226,6 @@ export const HomeScreen = ({ navigation }) => {
     if (selectedTerminal && transactionsQuery.data?.data) {
       const latestTxn = transactionsQuery.data.data[0];
       if (latestTxn && latestTxn.status === 'pending' && latestTxn.payment_method === 'awaiting_selection') {
-        // Auto-navigate to payment screen for ECR push
         navigation.navigate('CreateTransaction', {
           terminal: selectedTerminal,
           ecrTransaction: latestTxn
@@ -234,8 +242,10 @@ export const HomeScreen = ({ navigation }) => {
         transactionsQuery.refetch(),
         fetchWallet(),
         (async () => {
-          const reg = await terminalApi.registerDevice();
-          if (reg.success && reg.data) setIsDeviceLinked(reg.data.is_linked);
+          try {
+            const reg = await terminalApi.registerDevice();
+            if (reg && reg.success && reg.data) setIsDeviceLinked(reg.data.is_linked);
+          } catch (e) {}
         })()
       ]);
     } catch (e) {
@@ -246,10 +256,14 @@ export const HomeScreen = ({ navigation }) => {
   }, [terminalsQuery, transactionsQuery]);
 
   useEffect(() => {
-    if (terminalsQuery.data?.data?.length === 1 && !selectedTerminal) {
+    if (terminalsQuery.data?.data?.length > 0 && !selectedTerminal) {
       setSelectedTerminal(terminalsQuery.data.data[0]);
     }
   }, [terminalsQuery.data, selectedTerminal]);
+
+  const formattedBalance = typeof walletBalance === 'number'
+    ? walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })
+    : '0.00';
 
   return (
     <SafeAreaView style={styles.container}>
@@ -271,12 +285,16 @@ export const HomeScreen = ({ navigation }) => {
           <TouchableOpacity
             style={styles.refreshButton}
             onPress={async () => {
-              const registration = await terminalApi.registerDevice();
-              if (registration.success && registration.data?.is_linked) {
-                setIsDeviceLinked(true);
-                terminalsQuery.refetch();
-              } else {
-                Toast.show({ type: 'info', text1: Strings.home.stillWaiting });
+              try {
+                const registration = await terminalApi.registerDevice();
+                if (registration && registration.success && registration.data?.is_linked) {
+                  setIsDeviceLinked(true);
+                  terminalsQuery.refetch();
+                } else {
+                  Toast.show({ type: 'info', text1: Strings.home.stillWaiting });
+                }
+              } catch (e) {
+                Toast.show({ type: 'error', text1: 'Connection failed' });
               }
             }}
           >
@@ -294,7 +312,6 @@ export const HomeScreen = ({ navigation }) => {
             />
           }
         >
-          {/* Header */}
           <View style={styles.header}>
             <View style={styles.headerTop}>
                <View>
@@ -303,33 +320,21 @@ export const HomeScreen = ({ navigation }) => {
                </View>
                <View style={styles.walletHeader}>
                  <Text style={styles.walletLabel}>{Strings.home.walletBalance}</Text>
-                 <Text style={styles.walletValue}>₱{walletBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+                 <Text style={styles.walletValue}>₱{formattedBalance}</Text>
                </View>
             </View>
           </View>
 
-          {/* Setup Guide - only show if no terminals or for new users */}
           {!selectedTerminal && (
             <View style={styles.guideCard}>
               <View style={styles.guideHeader}>
                 <MaterialIcons name="security" size={24} color={COLORS.primary} />
                 <Text style={styles.guideTitle}>{Strings.guide.activateTitle}</Text>
               </View>
-              <Text style={styles.guideText}>
-                {Strings.guide.activateText}
-              </Text>
-              <View style={styles.guideStep}>
-                <Text style={styles.stepNum}>1</Text>
-                <Text style={styles.stepText}>{Strings.guide.step1}</Text>
-              </View>
-              <View style={styles.guideStep}>
-                <Text style={styles.stepNum}>2</Text>
-                <Text style={styles.stepText}>{Strings.guide.step2}</Text>
-              </View>
-              <View style={styles.guideStep}>
-                <Text style={styles.stepNum}>3</Text>
-                <Text style={styles.stepText}>{Strings.guide.step3}</Text>
-              </View>
+              <Text style={styles.guideText}>{Strings.guide.activateText}</Text>
+              <View style={styles.guideStep}><Text style={styles.stepNum}>1</Text><Text style={styles.stepText}>{Strings.guide.step1}</Text></View>
+              <View style={styles.guideStep}><Text style={styles.stepNum}>2</Text><Text style={styles.stepText}>{Strings.guide.step2}</Text></View>
+              <View style={styles.guideStep}><Text style={styles.stepNum}>3</Text><Text style={styles.stepText}>{Strings.guide.step3}</Text></View>
               <TouchableOpacity
                 style={styles.guideButton}
                 onPress={() => Toast.show({ type: 'info', text1: 'Settings', text2: 'Please configure these in your Railway Dashboard.' })}
@@ -339,7 +344,6 @@ export const HomeScreen = ({ navigation }) => {
             </View>
           )}
 
-          {/* Terminals Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>{Strings.home.yourTerminals}</Text>
@@ -349,18 +353,14 @@ export const HomeScreen = ({ navigation }) => {
             {terminalsQuery.isLoading && !terminalsQuery.data ? (
               <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
             ) : terminalsQuery.data?.data?.length > 0 ? (
-              <FlatList
-                data={terminalsQuery.data.data}
-                keyExtractor={(item) => item.id.toString()}
-                renderItem={({ item }) => (
-                  <TerminalCard
-                    terminal={item}
-                    onPress={() => setSelectedTerminal(item)}
-                    isSelected={selectedTerminal?.id === item.id}
-                  />
-                )}
-                scrollEnabled={false}
-              />
+              terminalsQuery.data.data.map((item) => (
+                <TerminalCard
+                  key={item.id}
+                  terminal={item}
+                  onPress={() => setSelectedTerminal(item)}
+                  isSelected={selectedTerminal?.id === item.id}
+                />
+              ))
             ) : (
               <View style={styles.emptyState}>
                 <MaterialIcons name="devices" size={48} color={COLORS.textSecondary} />
@@ -370,7 +370,6 @@ export const HomeScreen = ({ navigation }) => {
             )}
           </View>
 
-          {/* Create Transaction */}
           {selectedTerminal && (
             <TouchableOpacity
               style={styles.createButton}
@@ -385,7 +384,6 @@ export const HomeScreen = ({ navigation }) => {
             </TouchableOpacity>
           )}
 
-          {/* Recent Transactions */}
           {selectedTerminal && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
@@ -396,12 +394,9 @@ export const HomeScreen = ({ navigation }) => {
               {transactionsQuery.isLoading && !transactionsQuery.data ? (
                 <ActivityIndicator size="large" color={COLORS.primary} style={{ marginVertical: 20 }} />
               ) : transactionsQuery.data?.data?.length > 0 ? (
-                <FlatList
-                  data={transactionsQuery.data.data}
-                  keyExtractor={(item) => item.id.toString()}
-                  renderItem={({ item }) => <TransactionItem transaction={item} />}
-                  scrollEnabled={false}
-                />
+                transactionsQuery.data.data.map((item) => (
+                  <TransactionItem key={item.id} transaction={item} />
+                ))
               ) : (
                 <View style={styles.emptyState}>
                   <MaterialIcons name="receipt" size={48} color={COLORS.textSecondary} />
@@ -417,340 +412,62 @@ export const HomeScreen = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
-    paddingBottom: 20,
-  },
-  header: {
-    backgroundColor: COLORS.dark,
-    padding: 20,
-    paddingTop: 10,
-  },
-  headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  walletHeader: {
-    alignItems: 'flex-end',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    padding: 10,
-    borderRadius: 12,
-  },
-  walletLabel: {
-    color: COLORS.textSecondary,
-    fontSize: 10,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  walletValue: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  headerTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  section: {
-    paddingHorizontal: 16,
-    marginTop: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  terminalCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 2,
-    borderColor: COLORS.border,
-  },
-  terminalCardSelected: {
-    borderColor: COLORS.primary,
-    backgroundColor: '#F0F7FF',
-  },
-  terminalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  terminalInfo: {
-    flex: 1,
-  },
-  terminalName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  terminalCode: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-    fontFamily: 'monospace',
-  },
-  t0Badge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginTop: 6,
-    alignSelf: 'flex-start',
-  },
-  t0Text: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#D97706',
-    marginLeft: 2,
-  },
-  terminalLocation: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginBottom: 12,
-  },
-  methodsContainer: {
-    marginTop: 8,
-  },
-  methodsLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    marginBottom: 8,
-  },
-  methodsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  methodBadge: {
-    backgroundColor: COLORS.light,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  methodText: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  selectionIndicator: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-  },
-  createButton: {
-    flexDirection: 'row',
-    backgroundColor: COLORS.primary,
-    marginHorizontal: 16,
-    marginTop: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  createButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
-  },
-  transactionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: COLORS.light,
-    marginBottom: 10,
-    borderRadius: 10,
-  },
-  transactionLeft: {
-    marginRight: 12,
-  },
-  transactionInfo: {
-    flex: 1,
-  },
-  transactionDesc: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  transactionDate: {
-    fontSize: 12,
-    color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  transactionRight: {
-    alignItems: 'flex-end',
-  },
-  transactionAmount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginBottom: 4,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  emptyStateText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginTop: 12,
-  },
-  emptyStateSubtext: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  guideCard: {
-    margin: 16,
-    padding: 16,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  guideHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  guideTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: COLORS.dark,
-    marginLeft: 8,
-  },
-  guideText: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    marginBottom: 12,
-  },
-  guideStep: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  stepNum: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: COLORS.primary,
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginRight: 8,
-  },
-  stepText: {
-    fontSize: 13,
-    color: COLORS.text,
-  },
-  bold: {
-    fontWeight: 'bold',
-  },
-  guideButton: {
-    marginTop: 15,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  guideButtonText: {
-    color: '#fff',
-    fontSize: 13,
-    fontWeight: 'bold',
-  },
-  code: {
-    fontFamily: 'monospace',
-    fontWeight: 'bold',
-    color: COLORS.primary,
-  },
-  waitingContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-    backgroundColor: '#fff',
-  },
-  waitingTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.dark,
-    marginTop: 24,
-    textAlign: 'center',
-  },
-  waitingSubtitle: {
-    fontSize: 16,
-    color: COLORS.textSecondary,
-    marginTop: 12,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  deviceIdBox: {
-    marginTop: 24,
-    padding: 16,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 12,
-    alignItems: 'center',
-    width: '100%',
-  },
-  deviceIdLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: COLORS.textSecondary,
-    marginBottom: 4,
-  },
-  deviceIdText: {
-    fontSize: 16,
-    fontFamily: 'monospace',
-    color: COLORS.primary,
-    fontWeight: 'bold',
-  },
-  refreshButton: {
-    marginTop: 32,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 12,
-  },
-  refreshButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { flex: 1, paddingBottom: 20 },
+  header: { backgroundColor: COLORS.dark, padding: 20, paddingTop: 10 },
+  headerTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  walletHeader: { alignItems: 'flex-end', backgroundColor: 'rgba(255,255,255,0.1)', padding: 10, borderRadius: 12 },
+  walletLabel: { color: COLORS.textSecondary, fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
+  walletValue: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff' },
+  headerSubtitle: { fontSize: 14, color: COLORS.textSecondary, marginTop: 4 },
+  section: { paddingHorizontal: 16, marginTop: 20 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  sectionTitle: { fontSize: 18, fontWeight: '600', color: COLORS.text },
+  terminalCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 2, borderColor: COLORS.border },
+  terminalCardSelected: { borderColor: COLORS.primary, backgroundColor: '#F0F7FF' },
+  terminalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
+  terminalInfo: { flex: 1 },
+  terminalName: { fontSize: 16, fontWeight: '600', color: COLORS.text },
+  terminalCode: { fontSize: 12, color: COLORS.textSecondary, marginTop: 4, fontFamily: 'monospace' },
+  t0Badge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, marginTop: 6, alignSelf: 'flex-start' },
+  t0Text: { fontSize: 10, fontWeight: 'bold', color: '#D97706', marginLeft: 2 },
+  terminalLocation: { fontSize: 13, color: COLORS.textSecondary, marginBottom: 12 },
+  methodsContainer: { marginTop: 8 },
+  methodsLabel: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 8 },
+  methodsList: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  methodBadge: { backgroundColor: COLORS.light, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+  methodText: { fontSize: 11, fontWeight: '600', color: COLORS.primary },
+  badge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+  badgeText: { fontSize: 11, fontWeight: '600' },
+  selectionIndicator: { position: 'absolute', top: 12, right: 12 },
+  createButton: { flexDirection: 'row', backgroundColor: COLORS.primary, marginHorizontal: 16, marginTop: 16, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  createButtonText: { color: '#fff', fontSize: 16, fontWeight: '600', marginLeft: 8 },
+  transactionItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 12, backgroundColor: COLORS.light, marginBottom: 10, borderRadius: 10 },
+  transactionLeft: { marginRight: 12 },
+  transactionInfo: { flex: 1 },
+  transactionDesc: { fontSize: 14, fontWeight: '600', color: COLORS.text },
+  transactionDate: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  transactionRight: { alignItems: 'flex-end' },
+  transactionAmount: { fontSize: 14, fontWeight: '700', color: COLORS.primary, marginBottom: 4 },
+  emptyState: { alignItems: 'center', paddingVertical: 32 },
+  emptyStateText: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginTop: 12 },
+  emptyStateSubtext: { fontSize: 13, color: COLORS.textSecondary, marginTop: 4 },
+  guideCard: { margin: 16, padding: 16, backgroundColor: '#EFF6FF', borderRadius: 12, borderWidth: 1, borderColor: '#BFDBFE' },
+  guideHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
+  guideTitle: { fontSize: 16, fontWeight: 'bold', color: COLORS.dark, marginLeft: 8 },
+  guideText: { fontSize: 14, color: COLORS.textSecondary, marginBottom: 12 },
+  guideStep: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  stepNum: { width: 20, height: 20, borderRadius: 10, backgroundColor: COLORS.primary, color: '#fff', fontSize: 12, fontWeight: 'bold', textAlign: 'center', lineHeight: 20, marginRight: 8 },
+  stepText: { fontSize: 13, color: COLORS.text },
+  guideButton: { marginTop: 15, backgroundColor: COLORS.primary, paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
+  guideButtonText: { color: '#fff', fontSize: 13, fontWeight: 'bold' },
+  waitingContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32, backgroundColor: '#fff' },
+  waitingTitle: { fontSize: 24, fontWeight: 'bold', color: COLORS.dark, marginTop: 24, textAlign: 'center' },
+  waitingSubtitle: { fontSize: 16, color: COLORS.textSecondary, marginTop: 12, textAlign: 'center', lineHeight: 24 },
+  deviceIdBox: { marginTop: 24, padding: 16, backgroundColor: '#F3F4F6', borderRadius: 12, alignItems: 'center', width: '100%' },
+  deviceIdLabel: { fontSize: 10, fontWeight: 'bold', color: COLORS.textSecondary, marginBottom: 4 },
+  deviceIdText: { fontSize: 16, fontFamily: 'monospace', color: COLORS.primary, fontWeight: 'bold' },
+  refreshButton: { marginTop: 32, backgroundColor: COLORS.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 },
+  refreshButtonText: { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

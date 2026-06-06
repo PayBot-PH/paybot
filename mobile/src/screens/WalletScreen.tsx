@@ -117,6 +117,10 @@ export const WalletScreen = () => {
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [topupAmount, setTopupAmount] = useState('');
 
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pin, setPin] = useState('');
+  const [pinLoading, setPinLoading] = useState(false);
+
   useEffect(() => {
     const loadToken = async () => {
       const storedToken = await AsyncStorage.getItem('auth_token');
@@ -176,12 +180,58 @@ export const WalletScreen = () => {
       });
       return;
     }
-    withdrawMutation.mutate({
-      amount: parseFloat(amount),
-      bank_name: bankName,
-      account_number: accountNumber,
-      note: note,
-    });
+    setPin('');
+    setShowPinModal(true);
+  };
+
+  const executeWithdraw = async () => {
+    if (pin.length < 4) {
+      Toast.show({ type: 'error', text1: 'Enter valid PIN' });
+      return;
+    }
+    setPinLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/wallet/withdraw`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          bank_name: bankName,
+          account_number: accountNumber,
+          note: note,
+          pin: pin
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.detail || 'Withdrawal failed');
+      }
+
+      Toast.show({
+        type: 'success',
+        text1: 'Success',
+        text2: 'Withdrawal request submitted',
+      });
+      setAmount('');
+      setBankName('');
+      setAccountNumber('');
+      setNote('');
+      setShowPinModal(false);
+      balanceQuery.refetch();
+    } catch (error: any) {
+      Toast.show({
+        type: 'error',
+        text1: 'Error',
+        text2: error.message,
+      });
+      setPin('');
+    } finally {
+      setPinLoading(false);
+    }
   };
 
   const handleTopup = () => {
@@ -362,6 +412,57 @@ export const WalletScreen = () => {
                 onPress={handleTopup}
               >
                 <Text style={[styles.modalBtnText, { color: '#fff' }]}>Submit</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* PIN Modal */}
+      <Modal
+        visible={showPinModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowPinModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.card }]}>
+            <View style={{ alignItems: 'center', marginBottom: 20 }}>
+               <View style={[styles.actionIcon, { backgroundColor: colors.surface, marginBottom: 12 }]}>
+                  <MaterialIcons name="lock-outline" size={32} color={common.primary} />
+               </View>
+               <Text style={[styles.modalTitle, { color: colors.text }]}>Confirm Transaction</Text>
+               <Text style={[styles.modalSubtitle, { color: colors.textSecondary, textAlign: 'center' }]}>
+                 Please enter your security PIN to authorize this withdrawal.
+               </Text>
+            </View>
+
+            <TextInput
+              style={[styles.pinInput, { backgroundColor: colors.surface, borderColor: colors.border, color: colors.text }]}
+              placeholder="••••"
+              placeholderTextColor={colors.textSecondary}
+              keyboardType="number-pad"
+              maxLength={6}
+              secureTextEntry
+              value={pin}
+              onChangeText={setPin}
+              autoFocus
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: colors.surface }]}
+                onPress={() => setShowPinModal(false)}
+                disabled={pinLoading}
+              >
+                <Text style={[styles.modalBtnText, { color: colors.text }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalBtn, { backgroundColor: common.primary }]}
+                onPress={executeWithdraw}
+                disabled={pinLoading || pin.length < 4}
+              >
+                {pinLoading ? <ActivityIndicator color="#fff" /> : <Text style={[styles.modalBtnText, { color: '#fff' }]}>Authorize</Text>}
               </TouchableOpacity>
             </View>
           </View>
@@ -576,5 +677,15 @@ const styles = StyleSheet.create({
   modalBtnText: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  pinInput: {
+    height: 60,
+    borderRadius: 16,
+    borderWidth: 1,
+    fontSize: 24,
+    textAlign: 'center',
+    letterSpacing: 10,
+    fontWeight: 'bold',
+    marginBottom: 10,
   },
 });

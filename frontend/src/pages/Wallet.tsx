@@ -12,6 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp';
+import PinAuthDialog from '@/components/PinAuthDialog';
+import {
   Loader2,
   Wallet as WalletIcon,
   Send,
@@ -37,6 +43,7 @@ import {
   History,
   PhilippinePeso,
   QrCode,
+  ShieldLock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
@@ -148,6 +155,10 @@ export default function Wallet() {
   const [sendUsdAmount, setSendUsdAmount] = useState('');
   const [sendUsdLoading, setSendUsdLoading] = useState(false);
 
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinValue, setPinValue] = useState('');
+  const [pendingAction, setPendingAction] = useState<{ type: 'withdraw' | 'send-usd', data: any } | null>(null);
+
   const fetchWalletData = useCallback(async () => {
     if (!user) return;
     try {
@@ -191,18 +202,34 @@ export default function Wallet() {
   const handleWithdraw = async () => {
     const amt = parseFloat(withdrawAmount);
     if (!amt || amt <= 0) { toast.error('Enter a valid amount'); return; }
+
+    // Prompt for PIN
+    setPendingAction({
+      type: 'withdraw',
+      data: { amount: amt, bank_name: withdrawBank, account_number: withdrawAccount, note: withdrawNote }
+    });
+    setPinValue('');
+    setPinDialogOpen(true);
+  };
+
+  const executeWithdraw = async (data: any, pin: string) => {
     setWithdrawLoading(true);
     try {
       const res = await fetch('/api/v1/wallet/withdraw', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ amount: amt, bank_name: withdrawBank, account_number: withdrawAccount, note: withdrawNote }),
+        body: JSON.stringify({ ...data, pin }),
       });
       if (res.ok) {
         toast.success('Withdrawal request submitted');
         setWithdrawAmount(''); setWithdrawAccount(''); setWithdrawNote('');
         fetchWalletData();
-      } else toast.error(await getResponseError(res, 'Failed'));
+        setPinDialogOpen(false);
+      } else {
+        const err = await getResponseError(res, 'Failed');
+        toast.error(err);
+        if (err.toLowerCase().includes('pin')) setPinValue('');
+      }
     } catch { toast.error('Connection error'); }
     finally { setWithdrawLoading(false); }
   };
@@ -210,17 +237,48 @@ export default function Wallet() {
   const handleSendUsd = async () => {
     const amt = parseFloat(sendUsdAmount);
     if (!amt || amt <= 0) { toast.error('Enter valid amount'); return; }
+
+    // Prompt for PIN
+    setPendingAction({
+      type: 'send-usd',
+      data: { recipient_username: sendUsdUsername.replace('@',''), amount: amt }
+    });
+    setPinValue('');
+    setPinDialogOpen(true);
+  };
+
+  const executeSendUsd = async (data: any, pin: string) => {
     setSendUsdLoading(true);
     try {
       const res = await fetch('/api/v1/wallet/send-usd', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-        body: JSON.stringify({ recipient_username: sendUsdUsername.replace('@',''), amount: amt }),
+        body: JSON.stringify({ ...data, pin }),
       });
-      if (res.ok) { toast.success('USD Transferred!'); setSendUsdUsername(''); setSendUsdAmount(''); fetchWalletData(); }
-      else toast.error(await getResponseError(res, 'Failed'));
+      if (res.ok) {
+        toast.success('USD Transferred!');
+        setSendUsdUsername(''); setSendUsdAmount('');
+        fetchWalletData();
+        setPinDialogOpen(false);
+      } else {
+        const err = await getResponseError(res, 'Failed');
+        toast.error(err);
+        if (err.toLowerCase().includes('pin')) setPinValue('');
+      }
     } catch { toast.error('Error'); }
     finally { setSendUsdLoading(false); }
+  };
+
+  const handlePinSubmit = () => {
+    if (pinValue.length < 4) {
+      toast.error('Enter full security PIN');
+      return;
+    }
+    if (pendingAction?.type === 'withdraw') {
+      executeWithdraw(pendingAction.data, pinValue);
+    } else if (pendingAction?.type === 'send-usd') {
+      executeSendUsd(pendingAction.data, pinValue);
+    }
   };
 
   const copyAddr = () => {
@@ -518,6 +576,15 @@ export default function Wallet() {
             </div>
          </DialogContent>
       </Dialog>
+
+      <PinAuthDialog
+        open={pinDialogOpen}
+        onOpenChange={setPinDialogOpen}
+        value={pinValue}
+        onValueChange={setPinValue}
+        onConfirm={handlePinSubmit}
+        loading={withdrawLoading || sendUsdLoading}
+      />
     </Layout>
   );
 }

@@ -120,8 +120,14 @@ def decode_access_token(token: str) -> Dict[str, Any]:
     except ExpiredSignatureError as exc:
         logger.info("Authentication token has expired")
         raise AccessTokenError("Token has expired") from exc
+    except JWSSignatureError as exc:
+        logger.warning("Token signature validation failed: signature mismatch")
+        raise AccessTokenError("Invalid authentication token") from exc
+    except JWTClaimsError as exc:
+        logger.warning("Token claims validation failed: %s", str(exc))
+        raise AccessTokenError("Invalid authentication token") from exc
     except JWTError as exc:
-        # Log error type only, not the full exception which may contain sensitive token data
+        # Catch-all for any other JWT-related errors
         logger.warning("Token validation failed: %s", type(exc).__name__)
         raise AccessTokenError("Invalid authentication token") from exc
 

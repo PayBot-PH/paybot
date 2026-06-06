@@ -79,8 +79,16 @@ const AppStack = () => {
           height: 60,
         },
         tabBarLabel: () => null,
-        tabBarIcon: ({ color, size }) => {
-          return <View style={{ width: size, height: size, backgroundColor: color, borderRadius: size / 2 }} />;
+        tabBarIcon: ({ color, size, focused }) => {
+          let iconName;
+          if (route.name === 'Home') {
+            iconName = 'dashboard';
+          } else if (route.name === 'Transactions') {
+            iconName = 'receipt-long';
+          } else if (route.name === 'Settings') {
+            iconName = 'settings';
+          }
+          return <MaterialIcons name={iconName} size={size} color={color} />;
         },
       })}
     >
@@ -141,13 +149,9 @@ export default function App() {
   }), []);
 
   React.useEffect(() => {
+    // App-level lock removed as per user request (Only ask PIN for send/withdraw)
     const subscription = AppState.addEventListener('change', async (nextAppState) => {
-      if (nextAppState === 'active' && isLoggedIn) {
-        const hasPin = await AsyncStorage.getItem('has_pin');
-        if (hasPin === 'true') {
-          setIsLocked(true);
-        }
-      }
+      // Logic removed
     });
 
     return () => {
@@ -168,11 +172,7 @@ export default function App() {
         if (registration.success && registration.data) {
           setIsDeviceLinked(registration.data.is_linked);
           setTerminalId(registration.data.terminal_id);
-          // If we have a terminal ID and it has a PIN, lock it initially
-          const hasPin = await AsyncStorage.getItem('has_pin');
-          if (token && hasPin === 'true') {
-            setIsLocked(true);
-          }
+          // Initial lock removed as per user request
         }
       } catch (e) {
         console.log('Failed during startup:', e);

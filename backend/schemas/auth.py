@@ -45,6 +45,7 @@ class TelegramWidgetLoginRequest(BaseModel):
     # Cloudflare Turnstile token produced by the frontend widget.
     # Verified server-side when CLOUDFLARE_TURNSTILE_SECRET_KEY is configured.
     cf_turnstile_token: Optional[str] = None
+    device_id: Optional[str] = None
 
     # Keep forward-compatible Telegram fields (e.g. allows_write_to_pm)
     # so backend signature verification can include every signed key.
@@ -56,6 +57,8 @@ class TokenExchangeResponse(BaseModel):
 
     token: str
     user: Optional[UserResponse] = None
+    terminal_id: Optional[int] = None
+    has_pin: bool = False
 
 
 class LoginRequest(BaseModel):

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,8 @@ import {
 import { WebView } from 'react-native-webview';
 import Toast from 'react-native-toast-message';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import DeviceInfo from 'react-native-device-info';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../contexts/AuthContext';
 import { API_URL, API_BASE_URL } from '../config';
 import { useTheme } from '../theme';
@@ -28,6 +30,15 @@ export const LoginScreen = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showTelegramLogin, setShowTelegramLogin] = useState(false);
+  const [deviceId, setDeviceId] = useState<string>('');
+
+  useEffect(() => {
+    const fetchDeviceId = async () => {
+      const id = await DeviceInfo.getUniqueId();
+      setDeviceId(id);
+    };
+    fetchDeviceId();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -40,12 +51,20 @@ export const LoginScreen = () => {
       const response = await fetch(`${API_URL}/auth/terminal-login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, device_id: deviceId }),
       });
 
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.detail || 'Login failed');
+      }
+
+      // Save terminal info if available
+      if (data.terminal_id) {
+        await AsyncStorage.setItem('terminal_id', data.terminal_id.toString());
+      }
+      if (data.has_pin !== undefined) {
+        await AsyncStorage.setItem('has_pin', data.has_pin ? 'true' : 'false');
       }
 
       await login(data.access_token, data.user);
@@ -66,15 +85,26 @@ export const LoginScreen = () => {
         const queryString = navState.url.split('?')[1];
         const params = Object.fromEntries(new URLSearchParams(queryString));
 
+        // Include device_id in the Telegram login request
+        const payload = { ...params, device_id: deviceId };
+
         const response = await fetch(`${API_URL}/auth/telegram-login-widget`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(params),
+          body: JSON.stringify(payload),
         });
 
         const data = await response.json();
         if (!response.ok) {
           throw new Error(data.detail || 'Telegram login failed');
+        }
+
+        // Save terminal info if available
+        if (data.terminal_id) {
+          await AsyncStorage.setItem('terminal_id', data.terminal_id.toString());
+        }
+        if (data.has_pin !== undefined) {
+          await AsyncStorage.setItem('has_pin', data.has_pin ? 'true' : 'false');
         }
 
         await login(data.token, data.user);

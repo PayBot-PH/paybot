@@ -253,7 +253,7 @@ export const HomeScreen = ({ navigation }) => {
   const [token, setToken] = useState(null);
   const [selectedTerminal, setSelectedTerminal] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-  const scrollY = new Animated.Value(0);
+  const scrollY = React.useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const loadToken = async () => {
@@ -313,8 +313,8 @@ export const HomeScreen = ({ navigation }) => {
       <Animated.View style={[styles.header, { height: headerHeight, backgroundColor: isDark ? colors.surface : common.primary }]}>
         <View style={styles.headerTop}>
           <View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.headerTitle}>PayBot</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={[styles.headerTitle, { marginRight: 8 }]}>PayBot</Text>
               <MaterialIcons name="verified" size={20} color="#fff" style={{ marginTop: 2 }} />
             </View>
             <View style={styles.statusRow}>

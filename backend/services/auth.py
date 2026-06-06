@@ -1,6 +1,7 @@
 import logging
 import os
 import time
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Tuple
 
@@ -8,6 +9,7 @@ from core.auth import create_access_token
 from core.config import settings
 from core.database import db_manager
 from models.auth import OIDCState, User
+from models.admin_users import AdminUser
 from schemas.auth import UserPermissions
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -106,6 +108,38 @@ class AuthService:
         await self.db.commit()
 
         return state_data
+
+    async def verify_pin(self, user_id: str, pin: str) -> bool:
+        """Verify the user's PIN. Returns True if valid or if user has no PIN set."""
+        if not pin:
+            # If PIN is required but not provided, it should fail elsewhere.
+            # Here we just verify against the DB.
+            pass
+
+        res = await self.db.execute(select(AdminUser).where(AdminUser.telegram_id == user_id))
+        admin = res.scalar_one_or_none()
+
+        if not admin or not admin.pin_hash:
+            return True # No PIN set, bypass check
+
+        # Check lock
+        if admin.pin_locked_until and datetime.utcnow() < admin.pin_locked_until.replace(tzinfo=None):
+            return False
+
+        hashed = hashlib.sha256(f"{admin.pin_salt}:{pin}".encode()).hexdigest()
+        if hashed == admin.pin_hash:
+            # Reset failed attempts
+            admin.pin_failed_attempts = 0
+            admin.pin_locked_until = None
+            await self.db.commit()
+            return True
+        else:
+            # Increment failed attempts
+            admin.pin_failed_attempts += 1
+            if admin.pin_failed_attempts >= 3:
+                admin.pin_locked_until = datetime.utcnow() + timedelta(minutes=5)
+            await self.db.commit()
+            return False
 
 
 async def initialize_admin_user():

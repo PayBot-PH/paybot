@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import PinAuthDialog from '@/components/PinAuthDialog';
 import {
   Building2, Loader2, Plus,
   Send, RotateCcw, Users, CalendarDays, History, Settings2,
@@ -68,6 +69,10 @@ export default function DisbursementsPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [listLoading, setListLoading] = useState(true);
 
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinValue, setPinValue] = useState('');
+  const [pendingAction, setPendingAction] = useState<{ type: 'disburse' | 'refund', data: any } | null>(null);
+
   const fetchAll = useCallback(async () => {
     if (!user) return;
     setListLoading(true);
@@ -95,35 +100,81 @@ export default function DisbursementsPage() {
 
   const handleDisburse = async () => {
     if (!dAmount || !dAccount || !dName) { toast.error('Fill all required fields'); return; }
+
+    setPendingAction({
+      type: 'disburse',
+      data: { amount: parseFloat(dAmount), bank_code: dBank, account_number: dAccount, account_name: dName, description: dDesc }
+    });
+    setPinValue('');
+    setPinDialogOpen(true);
+  };
+
+  const executeDisburse = async (data: any, pin: string) => {
     setDLoading(true);
     try {
       const res = await client.apiCall.invoke({
         url: '/api/v1/gateway/disbursement', method: 'POST',
-        data: { amount: parseFloat(dAmount), bank_code: dBank, account_number: dAccount, account_name: dName, description: dDesc },
+        data: { ...data, pin },
       });
       if (res.data?.success) {
         toast.success('Disbursement created!');
         setDAmount(''); setDAccount(''); setDName(''); setDDesc('');
         setWizardStep(1);
         fetchAll();
+        setPinDialogOpen(false);
       }
-      else toast.error(res.data?.message || 'Failed');
+      else {
+        const msg = res.data?.message || 'Failed';
+        toast.error(msg);
+        if (msg.toLowerCase().includes('pin')) setPinValue('');
+      }
     } catch (e: unknown) { toast.error((e as { data?: { detail?: string } })?.data?.detail || 'Failed'); }
     setDLoading(false);
   };
 
   const handleRefund = async () => {
     if (!rTxnId || !rAmount) { toast.error('Enter transaction ID and amount'); return; }
+
+    setPendingAction({
+      type: 'refund',
+      data: { transaction_id: parseInt(rTxnId), amount: parseFloat(rAmount), reason: rReason }
+    });
+    setPinValue('');
+    setPinDialogOpen(true);
+  };
+
+  const executeRefund = async (data: any, pin: string) => {
     setRLoading(true);
     try {
       const res = await client.apiCall.invoke({
         url: '/api/v1/gateway/refund', method: 'POST',
-        data: { transaction_id: parseInt(rTxnId), amount: parseFloat(rAmount), reason: rReason },
+        data: { ...data, pin },
       });
-      if (res.data?.success) { toast.success('Refund processed!'); setRTxnId(''); setRAmount(''); setRReason(''); fetchAll(); }
-      else toast.error(res.data?.message || 'Failed');
+      if (res.data?.success) {
+        toast.success('Refund processed!');
+        setRTxnId(''); setRAmount(''); setRReason('');
+        fetchAll();
+        setPinDialogOpen(false);
+      }
+      else {
+        const msg = res.data?.message || 'Failed';
+        toast.error(msg);
+        if (msg.toLowerCase().includes('pin')) setPinValue('');
+      }
     } catch (e: unknown) { toast.error((e as { data?: { detail?: string } })?.data?.detail || 'Failed'); }
     setRLoading(false);
+  };
+
+  const handlePinConfirm = () => {
+    if (pinValue.length < 4) {
+      toast.error('Enter full security PIN');
+      return;
+    }
+    if (pendingAction?.type === 'disburse') {
+      executeDisburse(pendingAction.data, pinValue);
+    } else if (pendingAction?.type === 'refund') {
+      executeRefund(pendingAction.data, pinValue);
+    }
   };
 
   const handleSubscribe = async () => {
@@ -544,6 +595,15 @@ export default function DisbursementsPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <PinAuthDialog
+        open={pinDialogOpen}
+        onOpenChange={setPinDialogOpen}
+        value={pinValue}
+        onValueChange={setPinValue}
+        onConfirm={handlePinConfirm}
+        loading={dLoading || rLoading}
+      />
     </Layout>
   );
 }

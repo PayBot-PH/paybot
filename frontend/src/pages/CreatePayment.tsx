@@ -1,65 +1,169 @@
 import { useState, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { client } from '@/lib/api';
-import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import {
     FileText,
     QrCode,
     LinkIcon,
-    Plus,
     Loader2,
     CheckCircle,
     Copy,
     ExternalLink,
     ChevronRight,
     ArrowLeft,
-    Info,
     Smartphone,
     ShieldCheck,
     Zap,
     Radio,
-    CreditCard as CardIcon,
-    Globe,
     MessageCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
 import { fmtCurrencyPhp } from '@/lib/format';
 
+// --- Types & Constants ---
+
+interface PaymentTypeOption {
+    id: string;
+    label: string;
+    icon: React.ElementType;
+    color: string;
+    desc: string;
+}
+
+const TYPE_OPTIONS: PaymentTypeOption[] = [
+    { id: 'invoice', label: 'E-Invoice', icon: FileText, color: 'blue', desc: 'Enterprise billing with full tax support' },
+    { id: 'qr_code', label: 'Static QR', icon: QrCode, color: 'purple', desc: 'Instant mobile scanning via QR PH standard' },
+    { id: 'payment_link', label: 'Universal', icon: LinkIcon, color: 'cyan', desc: 'Secure reusable links for social commerce' },
+    { id: 'ewallet', label: 'E-Wallet', icon: Smartphone, color: 'emerald', desc: 'Direct charge for GCash, Maya, or GrabPay' },
+    { id: 'alipay', label: 'Alipay QR', icon: QrCode, color: 'rose', desc: 'Global Alipay HK / CN settlement' },
+    { id: 'wechat', label: 'WeChat QR', icon: MessageCircle, color: 'emerald', desc: 'Direct WeChat Pay settlement' },
+];
+
+interface FormState {
+    amount: string;
+    description: string;
+    customerName: string;
+    customerEmail: string;
+    channelCode: string;
+}
+
+interface PaymentConfig {
+    endpoint: string;
+    getPayload: (state: FormState) => Record<string, unknown>;
+}
+
+const PAYMENT_CONFIGS: Record<string, PaymentConfig> = {
+    invoice: {
+        endpoint: '/api/v1/xendit/create-invoice',
+        getPayload: (s) => ({ amount: parseFloat(s.amount), description: s.description, customer_name: s.customerName, customer_email: s.customerEmail }),
+    },
+    qr_code: {
+        endpoint: '/api/v1/xendit/create-qr-code',
+        getPayload: (s) => ({ amount: parseFloat(s.amount), description: s.description }),
+    },
+    payment_link: {
+        endpoint: '/api/v1/xendit/create-payment-link',
+        getPayload: (s) => ({ amount: parseFloat(s.amount), description: s.description, customer_name: s.customerName, customer_email: s.customerEmail }),
+    },
+    ewallet: {
+        endpoint: '/api/v1/gateway/ewallet-charge',
+        getPayload: (s) => ({ amount: parseFloat(s.amount), channel_code: s.channelCode }),
+    },
+    alipay: {
+        endpoint: '/api/v1/photonpay/alipay-session',
+        getPayload: (s) => ({ amount: parseFloat(s.amount), description: s.description }),
+    },
+    wechat: {
+        endpoint: '/api/v1/photonpay/wechat-session',
+        getPayload: (s) => ({ amount: parseFloat(s.amount), description: s.description }),
+    },
+};
+
+// --- Sub-components ---
+
+const TerminalLabel = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
+    <Label className={`text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ${className}`}>
+        {children}
+    </Label>
+);
+
+const ResultField = ({ label, value, onCopy }: { label: string, value: unknown, onCopy: (v: string) => void }) => {
+    const isUrl = typeof value === 'string' && (value.startsWith('http') || value.startsWith('https'));
+
+    return (
+        <div className="space-y-3">
+            <Label className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] flex items-center justify-between px-1">
+                {label.replace(/_/g, ' ')}
+                <button
+                    onClick={() => onCopy(String(value))}
+                    className="text-[10px] font-black text-brandblue-400 hover:text-white transition-colors uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 px-3 py-1 rounded-lg border border-white/5"
+                >
+                    <Copy className="h-3 w-3" /> COPY
+                </button>
+            </Label>
+
+            <div className="flex items-center gap-4 p-6 bg-black/40 rounded-2xl border border-white/5 overflow-hidden group/field">
+                {isUrl ? (
+                    <a
+                        href={value as string}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-brandblue-400 font-bold truncate underline flex-1 hover:text-white transition-colors"
+                    >
+                        {value as string}
+                    </a>
+                ) : (
+                    <code className="text-sm text-white/90 font-black truncate flex-1 leading-none tabular-nums tracking-widest">
+                        {String(value)}
+                    </code>
+                )}
+
+                {isUrl && (
+                    <a
+                        href={value as string}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="h-10 w-10 rounded-xl bg-brandblue-500 flex items-center justify-center text-white hover:bg-brandblue-400 hover:scale-110 transition-all shrink-0 shadow-lg shadow-brandblue-500/30"
+                    >
+                        <ExternalLink className="h-5 w-5" />
+                    </a>
+                )}
+            </div>
+        </div>
+    );
+};
+
+// --- Main Component ---
+
 export default function CreatePayment() {
-    const { user } = useAuth();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
-    const initialType = searchParams.get('type') || 'invoice';
 
-    const [paymentType, setPaymentType] = useState(initialType);
-    const [amount, setAmount] = useState(searchParams.get('amount') || '');
-    const [description, setDescription] = useState(searchParams.get('description') || '');
-    const [customerName, setCustomerName] = useState(searchParams.get('customer_name') || '');
-    const [customerEmail, setCustomerEmail] = useState(searchParams.get('customer_email') || '');
-    const [channelCode, setChannelCode] = useState('PH_GCASH');
-    const [bankCode, setBankCode] = useState('BDO');
+    // Form State
+    const [paymentType, setPaymentType] = useState(searchParams.get('type') || 'invoice');
+    const [form, setForm] = useState<FormState>({
+        amount: searchParams.get('amount') || '',
+        description: searchParams.get('description') || '',
+        customerName: searchParams.get('customer_name') || '',
+        customerEmail: searchParams.get('customer_email') || '',
+        channelCode: 'PH_GCASH',
+    });
+
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<Record<string, unknown> | null>(null);
 
-    const typeOptions = [
-        { id: 'invoice', label: 'E-Invoice', icon: FileText, color: 'blue', desc: 'Enterprise billing with full tax support' },
-        { id: 'qr_code', label: 'Static QR', icon: QrCode, color: 'purple', desc: 'Instant mobile scanning via QR PH standard' },
-        { id: 'payment_link', label: 'Universal', icon: LinkIcon, color: 'cyan', desc: 'Secure reusable links for social commerce' },
-        { id: 'ewallet', label: 'E-Wallet', icon: Smartphone, color: 'emerald', desc: 'Direct charge for GCash, Maya, or GrabPay' },
-        { id: 'alipay', label: 'Alipay QR', icon: QrCode, color: 'rose', desc: 'Global Alipay HK / CN settlement' },
-        { id: 'wechat', label: 'WeChat QR', icon: MessageCircle, color: 'emerald', desc: 'Direct WeChat Pay settlement' },
-    ];
+    const updateForm = (updates: Partial<FormState>) => setForm(prev => ({ ...prev, ...updates }));
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!amount || parseFloat(amount) <= 0) {
+        const amountNum = parseFloat(form.amount);
+        if (isNaN(amountNum) || amountNum <= 0) {
             toast.error('Enter a valid operational amount');
             return;
         }
@@ -68,33 +172,13 @@ export default function CreatePayment() {
         setResult(null);
 
         try {
-            let endpoint = '';
-            let payload: Record<string, unknown> = {};
-
-            if (paymentType === 'invoice') {
-                endpoint = '/api/v1/xendit/create-invoice';
-                payload = { amount: parseFloat(amount), description, customer_name: customerName, customer_email: customerEmail };
-            } else if (paymentType === 'qr_code') {
-                endpoint = '/api/v1/xendit/create-qr-code';
-                payload = { amount: parseFloat(amount), description };
-            } else if (paymentType === 'payment_link') {
-                endpoint = '/api/v1/xendit/create-payment-link';
-                payload = { amount: parseFloat(amount), description, customer_name: customerName, customer_email: customerEmail };
-            } else if (paymentType === 'ewallet') {
-                endpoint = '/api/v1/gateway/ewallet-charge';
-                payload = { amount: parseFloat(amount), channel_code: channelCode };
-            } else if (paymentType === 'alipay') {
-                endpoint = '/api/v1/photonpay/alipay-session';
-                payload = { amount: parseFloat(amount), description };
-            } else if (paymentType === 'wechat') {
-                endpoint = '/api/v1/photonpay/wechat-session';
-                payload = { amount: parseFloat(amount), description };
-            }
+            const config = PAYMENT_CONFIGS[paymentType];
+            if (!config) throw new Error('Invalid protocol selected');
 
             const res = await client.apiCall.invoke({
-                url: endpoint,
+                url: config.endpoint,
                 method: 'POST',
-                data: payload,
+                data: config.getPayload(form),
             });
 
             if (res.data?.success) {
@@ -103,11 +187,9 @@ export default function CreatePayment() {
             } else {
                 toast.error(res.data?.message || 'Upstream connection error');
             }
-        } catch (err: unknown) {
+        } catch (err: any) {
             console.error('Node generation error:', err);
-            const errorMsg = (err as { data?: { detail?: string } })?.data?.detail
-                || (err as Error)?.message
-                || 'Node generation failed. Check API configuration.';
+            const errorMsg = err.data?.detail || err.message || 'Node generation failed. Check API configuration.';
             toast.error(errorMsg);
         } finally {
             setLoading(false);
@@ -119,37 +201,43 @@ export default function CreatePayment() {
         toast.success('Protocol string copied to clipboard');
     };
 
-    const currentType = useMemo(() => typeOptions.find(t => t.id === paymentType) || typeOptions[0], [paymentType]);
+    const currentType = useMemo(() => TYPE_OPTIONS.find(t => t.id === paymentType) || TYPE_OPTIONS[0], [paymentType]);
 
     return (
         <Layout>
             <div className="max-w-7xl mx-auto pb-16 space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-1000">
+                {/* Header Navigation */}
                 <div className="flex items-center justify-between">
-                    <button onClick={() => navigate(-1)} className="flex items-center text-[11px] font-black uppercase tracking-[0.4em] text-muted-foreground/60 hover:text-foreground transition-all group bg-muted/20 px-6 py-2.5 rounded-xl border border-border/20 shadow-sm">
+                    <button
+                        onClick={() => navigate(-1)}
+                        className="flex items-center text-[11px] font-black uppercase tracking-[0.4em] text-muted-foreground/60 hover:text-foreground transition-all group bg-muted/20 px-6 py-2.5 rounded-xl border border-border/20 shadow-sm"
+                    >
                         <ArrowLeft className="h-4 w-4 mr-3 group-hover:-translate-x-1.5 transition-transform" />
                         ABORT_SEQUENCE
                     </button>
                     <div className="flex items-center gap-3">
-                       <div className="fintech-badge bg-brandblue-500/10 text-brandblue-500 border-brandblue-500/20 px-5">PROTOCOL_READY</div>
+                       <div className="fintech-badge bg-brandblue-500/10 text-brandblue-500 border-brandblue-500/20 px-5 font-black uppercase tracking-widest text-[10px]">PROTOCOL_READY</div>
                     </div>
                 </div>
 
+                {/* Page Title */}
                 <div className="space-y-3">
                     <h1 className="text-4xl font-black tracking-tighter uppercase text-foreground">Deploy Terminal Order</h1>
                     <p className="text-muted-foreground font-medium flex items-center gap-3">
-                       <span className="flex h-2 w-2 rounded-full bg-brand-blue-500 shadow-[0_0_10px_rgba(0,122,255,0.8)]" />
+                       <span className="flex h-2 w-2 rounded-full bg-brandblue-500 shadow-[0_0_10px_rgba(0,122,255,0.8)]" />
                        <span className="uppercase tracking-[0.2em] text-[10px] font-black">Encrypted Payment Node Generation</span>
                     </p>
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-                    {/* Main Form Area */}
+                    {/* Left Column: Form Section */}
                     <div className="lg:col-span-7 space-y-10">
                         <Card className="fintech-card border-0 shadow-2xl overflow-hidden bg-card/60 backdrop-blur-sm">
+                            {/* Payment Type Selection */}
                             <div className="bg-[#0A0F1E] border-b border-white/5 p-8">
-                                <p className="text-[11px] font-black uppercase tracking-[0.4em] text-white/30 mb-8 ml-1">Order Configuration</p>
+                                <TerminalLabel className="mb-8 ml-1 block text-white/30">Order Configuration</TerminalLabel>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                                    {typeOptions.map((option) => {
+                                    {TYPE_OPTIONS.map((option) => {
                                         const Icon = option.icon;
                                         const isActive = paymentType === option.id;
 
@@ -158,10 +246,11 @@ export default function CreatePayment() {
                                                 key={option.id}
                                                 type="button"
                                                 onClick={() => setPaymentType(option.id)}
-                                                className={`flex flex-col items-center justify-center p-6 rounded-[2rem] border-2 transition-all duration-500 relative overflow-hidden group ${isActive
-                                                    ? 'bg-brandblue-500 border-brandblue-500 text-white shadow-2xl shadow-brandblue-500/40 scale-105'
-                                                    : 'bg-white/5 border-white/5 text-white/40 hover:border-white/10 hover:bg-white/[0.08] hover:text-white/60'
-                                                    }`}
+                                                className={`flex flex-col items-center justify-center p-6 rounded-[2rem] border-2 transition-all duration-500 relative overflow-hidden group ${
+                                                    isActive
+                                                        ? 'bg-brandblue-500 border-brandblue-500 text-white shadow-2xl shadow-brandblue-500/40 scale-105'
+                                                        : 'bg-white/5 border-white/5 text-white/40 hover:border-white/10 hover:bg-white/[0.08] hover:text-white/60'
+                                                }`}
                                             >
                                                 <Icon className={`h-6 w-6 mb-4 transition-all duration-500 ${isActive ? 'text-white scale-110' : 'opacity-20 group-hover:opacity-40 group-hover:scale-110'}`} />
                                                 <span className={`text-[9px] font-black uppercase tracking-widest text-center ${isActive ? 'text-white' : ''}`}>{option.label}</span>
@@ -174,46 +263,53 @@ export default function CreatePayment() {
 
                             <CardContent className="p-10">
                                 <form onSubmit={handleSubmit} className="space-y-10">
+                                    {/* Amount Section */}
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between ml-1">
-                                           <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60">Transmission Volume (PHP)</Label>
+                                           <TerminalLabel>Transmission Volume (PHP)</TerminalLabel>
                                            <span className="text-[9px] font-black text-brandblue-500 uppercase tracking-widest bg-brandblue-500/5 px-2 py-0.5 rounded">T+0 Clearance</span>
                                         </div>
                                         <div className="relative group">
-                                            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-3xl font-black text-brand-blue-500 group-focus-within:scale-110 transition-transform">₱</div>
+                                            <div className="absolute left-6 top-1/2 -translate-y-1/2 text-3xl font-black text-brandblue-500 group-focus-within:scale-110 transition-transform">₱</div>
                                             <Input
                                                 type="number"
                                                 step="0.01"
                                                 min="1"
                                                 placeholder="0.00"
-                                                value={amount}
-                                                onChange={(e) => setAmount(e.target.value)}
+                                                value={form.amount}
+                                                onChange={(e) => updateForm({ amount: e.target.value })}
                                                 className="pl-12 h-24 text-4xl font-black bg-muted/20 border-border/40 rounded-3xl tabular-nums focus:ring-brandblue-500/10 transition-all border-2 shadow-inner"
                                                 required
                                             />
                                         </div>
                                     </div>
 
+                                    {/* Description Section */}
                                     <div className="space-y-4">
-                                        <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Operational Specification</Label>
+                                        <TerminalLabel className="ml-1">Operational Specification</TerminalLabel>
                                         <Textarea
                                             placeholder="Specify transmission intent, node metadata, or customer references..."
-                                            value={description}
-                                            onChange={(e) => setDescription(e.target.value)}
+                                            value={form.description}
+                                            onChange={(e) => updateForm({ description: e.target.value })}
                                             className="bg-muted/20 border-border/40 rounded-[2rem] min-h-[120px] resize-none focus:ring-brandblue-500/10 text-base font-black uppercase tracking-tight p-8 border-2 shadow-inner"
                                         />
                                     </div>
 
+                                    {/* E-Wallet Channels */}
                                     {paymentType === 'ewallet' && (
                                         <div className="space-y-4 animate-in fade-in slide-in-from-top-4 duration-500">
-                                            <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Provider Node</Label>
+                                            <TerminalLabel className="ml-1">Provider Node</TerminalLabel>
                                             <div className="grid grid-cols-3 gap-4">
                                                 {['PH_GCASH', 'PH_MAYA', 'PH_GRABPAY'].map(p => (
                                                     <button
                                                         key={p}
                                                         type="button"
-                                                        onClick={() => setChannelCode(p)}
-                                                        className={`p-4 rounded-xl border-2 transition-all font-black text-[10px] uppercase tracking-widest ${channelCode === p ? 'bg-brandblue-500 border-brandblue-500 text-white' : 'bg-muted/20 border-border/40 text-muted-foreground'}`}
+                                                        onClick={() => updateForm({ channelCode: p })}
+                                                        className={`p-4 rounded-xl border-2 transition-all font-black text-[10px] uppercase tracking-widest ${
+                                                            form.channelCode === p
+                                                                ? 'bg-brandblue-500 border-brandblue-500 text-white'
+                                                                : 'bg-muted/20 border-border/40 text-muted-foreground hover:bg-muted/30'
+                                                        }`}
                                                     >
                                                         {p.replace('PH_', '')}
                                                     </button>
@@ -222,30 +318,32 @@ export default function CreatePayment() {
                                         </div>
                                     )}
 
+                                    {/* Advanced Identity Fields */}
                                     {['invoice', 'payment_link'].includes(paymentType) && (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-4 duration-500">
                                             <div className="space-y-4">
-                                                <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Target Identity (Name)</Label>
+                                                <TerminalLabel className="ml-1">Target Identity (Name)</TerminalLabel>
                                                 <Input
                                                     placeholder="ENTITY_STRING"
-                                                    value={customerName}
-                                                    onChange={(e) => setCustomerName(e.target.value)}
+                                                    value={form.customerName}
+                                                    onChange={(e) => updateForm({ customerName: e.target.value })}
                                                     className="bg-muted/20 border-border/40 focus:ring-brandblue-500/10 h-16 rounded-2xl px-6 font-black uppercase tracking-widest border-2 shadow-sm"
                                                 />
                                             </div>
                                             <div className="space-y-4">
-                                                <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Protocol Destination (Email)</Label>
+                                                <TerminalLabel className="ml-1">Protocol Destination (Email)</TerminalLabel>
                                                 <Input
                                                     type="email"
                                                     placeholder="VERIFIED_ENDPOINT"
-                                                    value={customerEmail}
-                                                    onChange={(e) => setCustomerEmail(e.target.value)}
+                                                    value={form.customerEmail}
+                                                    onChange={(e) => updateForm({ customerEmail: e.target.value })}
                                                     className="bg-muted/20 border-border/40 focus:ring-brandblue-500/10 h-16 rounded-2xl px-6 font-bold border-2 shadow-sm"
                                                 />
                                             </div>
                                         </div>
                                     )}
 
+                                    {/* Action Button */}
                                     <div className="pt-8">
                                         <Button
                                             type="submit"
@@ -269,7 +367,7 @@ export default function CreatePayment() {
                             </CardContent>
                         </Card>
 
-                        {/* Integration Protocol */}
+                        {/* Network Status Info */}
                         <div className="bg-[#0A0F1E] rounded-[2.5rem] p-10 border border-white/5 flex items-start gap-8 shadow-xl group">
                             <div className="h-16 w-16 rounded-2xl bg-white/5 flex items-center justify-center shrink-0 border border-white/10 group-hover:bg-brandblue-500 transition-colors duration-500">
                                 <ShieldCheck className="h-8 w-8 text-brandblue-400 group-hover:text-white transition-colors" />
@@ -284,7 +382,7 @@ export default function CreatePayment() {
                         </div>
                     </div>
 
-                    {/* Result / Preview Sidebar */}
+                    {/* Right Column: Results Sidebar */}
                     <div className="lg:col-span-5 space-y-10 sticky top-10">
                         {!result ? (
                             <div className="fintech-card border-dashed border-2 border-border/60 min-h-[600px] flex flex-col items-center justify-center text-center p-12 bg-muted/5 relative overflow-hidden group rounded-[3rem]">
@@ -318,60 +416,26 @@ export default function CreatePayment() {
                                        <div className="absolute top-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity"><Zap className="h-32 w-32 text-white" /></div>
                                         <div className="text-center mb-10 pb-8 border-b border-white/5">
                                             <p className="text-[11px] font-black text-white/30 uppercase tracking-[0.4em] mb-4">Payload Value</p>
-                                            <h2 className="text-5xl font-black text-white tracking-tighter tabular-nums">{fmtCurrencyPhp(parseFloat(amount))}</h2>
-                                            {description && <p className="text-xs text-white/40 mt-6 font-black uppercase tracking-[0.1em] opacity-80 leading-relaxed italic">"{description}"</p>}
+                                            <h2 className="text-5xl font-black text-white tracking-tighter tabular-nums">{fmtCurrencyPhp(parseFloat(form.amount))}</h2>
+                                            {form.description && <p className="text-xs text-white/40 mt-6 font-black uppercase tracking-[0.1em] opacity-80 leading-relaxed italic">"{form.description}"</p>}
                                         </div>
 
                                         <div className="space-y-8">
                                             {Object.entries(result).map(([key, value]) => {
                                                 if (!value || key === 'success' || key === 'message') return null;
-                                                const isUrl = typeof value === 'string' && (value.startsWith('http') || value.startsWith('https'));
-
                                                 return (
-                                                    <div key={key} className="space-y-3">
-                                                        <Label className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em] flex items-center justify-between px-1">
-                                                            {key.replace(/_/g, ' ')}
-                                                            <button
-                                                                onClick={() => copyToClipboard(String(value))}
-                                                                className="text-[10px] font-black text-brandblue-400 hover:text-white transition-colors uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 px-3 py-1 rounded-lg border border-white/5"
-                                                            >
-                                                                <Copy className="h-3 w-3" /> COPY
-                                                            </button>
-                                                        </Label>
-
-                                                        <div className="flex items-center gap-4 p-6 bg-black/40 rounded-2xl border border-white/5 overflow-hidden group/field">
-                                                            {isUrl ? (
-                                                                <a
-                                                                    href={value as string}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-xs text-brandblue-400 font-bold truncate underline flex-1 hover:text-white transition-colors"
-                                                                >
-                                                                    {value as string}
-                                                                </a>
-                                                            ) : (
-                                                                <code className="text-sm text-white/90 font-black truncate flex-1 leading-none tabular-nums tracking-widest">
-                                                                    {String(value)}
-                                                                </code>
-                                                            )}
-
-                                                            {isUrl && (
-                                                                <a
-                                                                    href={value as string}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    className="h-10 w-10 rounded-xl bg-brandblue-500 flex items-center justify-center text-white hover:bg-brandblue-400 hover:scale-110 transition-all shrink-0 shadow-lg shadow-brandblue-500/30"
-                                                                >
-                                                                    <ExternalLink className="h-5 w-5" />
-                                                                </a>
-                                                            )}
-                                                        </div>
-                                                    </div>
+                                                    <ResultField
+                                                        key={key}
+                                                        label={key}
+                                                        value={value}
+                                                        onCopy={copyToClipboard}
+                                                    />
                                                 );
                                             })}
                                         </div>
                                     </div>
 
+                                    {/* Link Actions */}
                                     <div className="flex flex-col gap-5">
                                         <Button
                                             className="h-20 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-[1.5rem] shadow-2xl shadow-emerald-500/20 transition-all active:scale-95 text-sm uppercase tracking-[0.3em] group"
@@ -385,8 +449,7 @@ export default function CreatePayment() {
                                             className="text-white/40 hover:text-white hover:bg-white/5 font-black h-16 rounded-[1.5rem] text-[11px] uppercase tracking-[0.4em] transition-all border border-white/5"
                                             onClick={() => {
                                                 setResult(null);
-                                                setAmount('');
-                                                setDescription('');
+                                                updateForm({ amount: '', description: '' });
                                             }}
                                         >
                                             Reset_System_State

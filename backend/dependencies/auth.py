@@ -29,8 +29,8 @@ async def get_current_user(request: Request, token: str = Depends(get_bearer_tok
     try:
         payload = decode_access_token(token)
     except AccessTokenError as exc:
-        # Log error type only, not the full exception which may contain sensitive token data
-        logger.warning("Token validation failed: %s", type(exc).__name__)
+        # Log error type and message for easier debugging without leaking token content
+        logger.warning("Token validation failed: %s (%s)", type(exc).__name__, exc.message)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=exc.message)
 
     user_id = payload.get("sub")

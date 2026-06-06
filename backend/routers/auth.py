@@ -29,6 +29,9 @@ from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from models.auth import User
 from models.admin_users import AdminUser
 from models.bot_settings import Bot_settings
+from models.pos_terminal import POSTerminal, POSTerminalDevice, TerminalStatus
+from services.pos_terminal import POSTerminalService
+from schemas.pos_terminal import POSTerminalDeviceCreate
 from schemas.auth import (
     PlatformTokenExchangeRequest,
     TelegramWidgetLoginRequest,
@@ -213,6 +216,54 @@ async def _verify_turnstile_token(token: str, secret_key: str, remote_ip: Option
     except Exception as exc:
         logger.error("[_verify_turnstile_token] Request failed: %s", exc)
         return False
+
+
+async def _handle_auto_device_assignment(db: AsyncSession, user_id: str, device_id: Optional[str]) -> tuple[Optional[int], bool]:
+    """Auto-assign a device to a terminal for the given user."""
+    if not device_id:
+        return None, False
+
+    try:
+        pos_service = POSTerminalService(db)
+        
+        # Register device if not exists
+        await pos_service.register_device(POSTerminalDeviceCreate(
+            device_id=device_id,
+            brand="Mobile",
+            model="Auto-Assigned",
+        ))
+        
+        # Check if terminal already exists for this device
+        res = await db.execute(
+            select(POSTerminal).where(POSTerminal.device_id == device_id)
+        )
+        terminal = res.scalar_one_or_none()
+        
+        if not terminal:
+            # Auto-assign: create new terminal
+            assign_res = await pos_service.assign_device(device_id, user_id)
+            if assign_res.get("success"):
+                terminal_id = assign_res.get("terminal_id")
+                # Re-fetch terminal to get the full object
+                terminal = await pos_service.get_terminal_by_id(terminal_id)
+                logger.info(f"Auto-assigned terminal {terminal_id} to user {user_id} for device {device_id}")
+        else:
+            # Terminal exists, ensure it's assigned to this user if not already
+            if terminal.user_id != user_id:
+                terminal.user_id = user_id
+                terminal.status = TerminalStatus.ACTIVE
+                await db.commit()
+                logger.info(f"Re-assigned terminal {terminal.id} to user {user_id} for device {device_id}")
+
+        if terminal:
+            terminal.last_device_id = device_id
+            terminal.authorized_at = datetime.utcnow()
+            await db.commit()
+            return terminal.id, bool(terminal.operator_pin)
+    except Exception as e:
+        logger.error(f"Error during auto device assignment: {e}")
+    
+    return None, False
 
 
 @router.post("/telegram-login", response_model=TokenExchangeResponse)
@@ -438,6 +489,10 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
     )
 
     logger.info("[telegram-login-widget] Bot admin authenticated: %s", telegram_user_id)
+    
+    # Auto-assign device if provided
+    terminal_id, has_pin = await _handle_auto_device_assignment(db, telegram_user_id, payload.device_id)
+
     # Set a short-lived cookie to mark Turnstile verification for this session
     try:
         secure = os.getenv("ENVIRONMENT", "prod").lower() not in ("dev", "development", "local")
@@ -445,7 +500,7 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
         response.set_cookie(key="turnstile_verified", value="1", httponly=True, secure=secure, max_age=86400, path="/")
     except Exception:
         pass
-    return TokenExchangeResponse(token=app_token, user=user_resp)
+    return TokenExchangeResponse(token=app_token, user=user_resp, terminal_id=terminal_id, has_pin=has_pin)
 
 
 class TurnstileVerifyRequest(BaseModel):
@@ -538,10 +593,13 @@ async def telegram_login_widget_page(redirect_url: str = "/auth/callback"):
         </div>
         <script>
             function onTelegramAuth(user) {{
-                // Signal back to native app via URL change or postMessage
-                const params = new URLSearchParams(user).toString();
-                // Redirect to the callback page which handles the logic
-                window.location.href = "{redirect_url}?" + params;
+                // Check if running inside a React Native WebView
+                if (window.ReactNativeWebView) {{
+                    window.ReactNativeWebView.postMessage(JSON.stringify(user));
+                }} else {{
+                    const params = new URLSearchParams(user).toString();
+                    window.location.href = "{redirect_url}?" + params;
+                }}
             }}
         </script>
     </body>
@@ -763,60 +821,8 @@ async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)
             detail="Invalid email or password",
         )
 
-    # Secure Device Binding
-    terminal_id = None
-    has_pin = False
-    
-    if payload.device_id:
-        try:
-            from models.pos_terminal import POSTerminal, POSTerminalDevice
-            # Check if columns exist before querying to prevent 500 errors on failed migrations
-            mapper = inspect(POSTerminal)
-            if "device_id" in mapper.attrs:
-                # Find terminal assigned to this user and device
-                res = await db.execute(
-                    select(POSTerminal).where(
-                        and_(
-                            POSTerminal.user_id == authenticated_user.id,
-                            POSTerminal.device_id == payload.device_id
-                        )
-                    )
-                )
-                terminal = res.scalar_one_or_none()
-                
-                # If no linked terminal, we still allow login for admins so they can reach the dashboard
-                # and register their device. We only block non-admin users without an authorized device.
-                if not terminal:
-                    device_res = await db.execute(
-                        select(POSTerminalDevice).where(POSTerminalDevice.device_id == payload.device_id)
-                    )
-                    device = device_res.scalar_one_or_none()
-                    
-                    # If user is admin, allow them in even if device isn't linked yet
-                    # This allows them to see the dashboard and assign themselves a terminal
-                    if authenticated_user.role == "admin":
-                        logger.info(f"Admin login allowed for unlinked device: {payload.device_id}")
-                    elif not device or not device.is_authorized:
-                         raise HTTPException(
-                            status_code=status.HTTP_403_FORBIDDEN,
-                            detail="This device is not authorized. Please contact your administrator.",
-                        )
-                else:
-                    terminal_id = terminal.id
-                    has_pin = bool(terminal.operator_pin)
-                    terminal.last_device_id = payload.device_id
-                    terminal.authorized_at = datetime.utcnow()
-                    await db.commit()
-            else:
-                logger.warning("POSTerminal table missing device_id column. Skipping device binding.")
-        except Exception as e:
-            logger.error(f"Error during terminal device binding: {e}")
-            # Fallback: allow login if it's an admin, otherwise block for safety
-            if authenticated_user.role != "admin":
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="Database error during device verification."
-                )
+    # Secure Device Binding with Auto-Assignment
+    terminal_id, has_pin = await _handle_auto_device_assignment(db, authenticated_user.id, payload.device_id)
 
     auth_service = AuthService(db)
     # Inject device_id into JWT claims for verification on every request

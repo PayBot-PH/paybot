@@ -370,6 +370,17 @@ def _wizard_start(chat_id: str, cmd: str, initial_data: Optional[Dict[str, str]]
     total_steps = len(steps)
     current_step_num = start_step + 1
 
+    # Ensure PIN session is active for sensitive commands
+    if cmd in ("/send", "/sendusd", "/sendusdt", "/withdraw", "/disburse"):
+        owner_bypass = (chat_id == _get_bot_owner_id()) or chat_id in [
+            e.strip().lstrip("@") for e in str(getattr(settings, "telegram_admin_ids", "") or "").split(",") if e.strip()
+        ]
+        if not owner_bypass and not _is_pin_session_active(chat_id):
+            # We can't easily check DB here as this function is not async and doesn't have DB access.
+            # We'll return a message that will be caught by the caller if possible, 
+            # or just rely on the command-level checks.
+            return "🔐 <b>PIN Required</b>\n\nPlease authenticate first via /login [PIN]"
+
     return (
         f"<b>{cmd} Wizard</b> — Step {current_step_num} of {total_steps}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -1130,6 +1141,21 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
             elif cq_data.startswith("wizard:"):
                 await tg.answer_callback_query(cq_id)
                 cmd = cq_data.split(":")[1]
+                
+                # PIN check for sensitive wizard commands
+                if cmd in ("/send", "/sendusd", "/sendusdt", "/withdraw", "/disburse"):
+                    owner_bypass = (cq_chat_id == _get_bot_owner_id()) or cq_chat_id in [
+                        e.strip().lstrip("@") for e in str(getattr(settings, "telegram_admin_ids", "") or "").split(",") if e.strip()
+                    ]
+                    if not owner_bypass and not _is_pin_session_active(cq_chat_id):
+                        admin_record = await _get_admin_user_record(db, cq_chat_id)
+                        if admin_record and admin_record.pin_hash:
+                            await tg.send_message(cq_chat_id, "🔐 <b>PIN Required</b>\n\nPlease authenticate first:\n\n<code>/login [your PIN]</code>")
+                            return {"status": "ok"}
+                        elif admin_record:
+                            await tg.send_message(cq_chat_id, "🔒 <b>Security Setup Required</b>\n\nPlease set a PIN first:\n\n<code>/setpin [4-6 digits]</code>")
+                            return {"status": "ok"}
+
                 await tg.send_message(cq_chat_id, _wizard_start(cq_chat_id, cmd))
 
             elif cq_data.startswith("action:"):
@@ -1200,40 +1226,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                 return {"status": "ok"}
 
         # ==================== PIN session gate ====================
-        # Bot owner / env-listed admins bypass the PIN gate so they're never
-        # locked out of the bot even if no PIN is set.
-        owner_bypass = (chat_id == _get_bot_owner_id()) or chat_id in [
-            e.strip().lstrip("@") for e in str(getattr(settings, "telegram_admin_ids", "") or "").split(",") if e.strip()
-        ]
-        if not owner_bypass:
-            # Allow /login, /setpin, /start, /register without an active session
-            pin_exempt = text and any(
-                text.startswith(cmd) for cmd in ("/login", "/setpin", "/start", "/register", "/logout")
-            )
-            if not pin_exempt and not _is_pin_session_active(chat_id):
-                # Fetch admin to check if PIN is set
-                try:
-                    _adm_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == chat_id))
-                    _adm = _adm_res.scalar_one_or_none()
-                except Exception:
-                    _adm = None
-                if _adm and _adm.pin_hash:
-                    name_display = f" {first_name}" if first_name else ""
-                    await tg.send_message(
-                        chat_id,
-                        f"🔐 <b>Session Expired</b>\n\n"
-                        f"Hey{name_display}! Your session has timed out for security. No worries — just log back in:\n\n"
-                        f"<code>/login [your PIN]</code>",
-                    )
-                    return {"status": "ok"}
-                elif _adm and not _adm.pin_hash:
-                    await tg.send_message(
-                        chat_id,
-                        "🔒 <b>Secure Your Account</b>\n\n"
-                        "You're almost ready! Set a PIN to protect your account and unlock bot access:\n\n"
-                        "<code>/setpin [4–6 digit PIN]</code>\n\nExample: <code>/setpin 1234</code>",
-                    )
-                    return {"status": "ok"}
+        # MOVED: PIN gate is now only applied to /send and /withdraw commands.
 
         # ==================== Photo message → receipt upload or wizard photo step ====================
         if photos and not text:
@@ -2204,6 +2197,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /disburse ====================
         elif text.startswith("/disburse"):
+            # PIN check
+            owner_bypass = (chat_id == _get_bot_owner_id()) or chat_id in [
+                e.strip().lstrip("@") for e in str(getattr(settings, "telegram_admin_ids", "") or "").split(",") if e.strip()
+            ]
+            if not owner_bypass and not _is_pin_session_active(chat_id):
+                admin_record = await _get_admin_user_record(db, chat_id)
+                if admin_record and admin_record.pin_hash:
+                    await tg.send_message(chat_id, "🔐 <b>PIN Required</b>\n\nPlease authenticate first:\n\n<code>/login [your PIN]</code>")
+                    return {"status": "ok"}
+                elif admin_record:
+                    await tg.send_message(chat_id, "🔒 <b>Security Setup Required</b>\n\nPlease set a PIN first:\n\n<code>/setpin [4-6 digits]</code>")
+                    return {"status": "ok"}
+
             parts = text.split(maxsplit=4)
             if len(parts) < 5:
                 await tg.send_message(chat_id, _wizard_start(chat_id, "/disburse"))
@@ -2466,6 +2472,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /sendusdt ====================
         elif text.startswith("/sendusdt"):
+            # PIN check
+            owner_bypass = (chat_id == _get_bot_owner_id()) or chat_id in [
+                e.strip().lstrip("@") for e in str(getattr(settings, "telegram_admin_ids", "") or "").split(",") if e.strip()
+            ]
+            if not owner_bypass and not _is_pin_session_active(chat_id):
+                admin_record = await _get_admin_user_record(db, chat_id)
+                if admin_record and admin_record.pin_hash:
+                    await tg.send_message(chat_id, "🔐 <b>PIN Required</b>\n\nPlease authenticate first:\n\n<code>/login [your PIN]</code>")
+                    return {"status": "ok"}
+                elif admin_record:
+                    await tg.send_message(chat_id, "🔒 <b>Security Setup Required</b>\n\nPlease set a PIN first:\n\n<code>/setpin [4-6 digits]</code>")
+                    return {"status": "ok"}
+
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
                 await tg.send_message(chat_id, _wizard_start(chat_id, "/sendusdt"))
@@ -2548,6 +2567,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /sendusd (send USD to user by @username) ====================
         elif text.startswith("/sendusd"):
+            # PIN check
+            owner_bypass = (chat_id == _get_bot_owner_id()) or chat_id in [
+                e.strip().lstrip("@") for e in str(getattr(settings, "telegram_admin_ids", "") or "").split(",") if e.strip()
+            ]
+            if not owner_bypass and not _is_pin_session_active(chat_id):
+                admin_record = await _get_admin_user_record(db, chat_id)
+                if admin_record and admin_record.pin_hash:
+                    await tg.send_message(chat_id, "🔐 <b>PIN Required</b>\n\nPlease authenticate first:\n\n<code>/login [your PIN]</code>")
+                    return {"status": "ok"}
+                elif admin_record:
+                    await tg.send_message(chat_id, "🔒 <b>Security Setup Required</b>\n\nPlease set a PIN first:\n\n<code>/setpin [4-6 digits]</code>")
+                    return {"status": "ok"}
+
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
                 await tg.send_message(chat_id, _wizard_start(chat_id, "/sendusd"))
@@ -2713,6 +2745,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /send ====================
         elif text.startswith("/send"):
+            # PIN check
+            owner_bypass = (chat_id == _get_bot_owner_id()) or chat_id in [
+                e.strip().lstrip("@") for e in str(getattr(settings, "telegram_admin_ids", "") or "").split(",") if e.strip()
+            ]
+            if not owner_bypass and not _is_pin_session_active(chat_id):
+                admin_record = await _get_admin_user_record(db, chat_id)
+                if admin_record and admin_record.pin_hash:
+                    await tg.send_message(chat_id, "🔐 <b>PIN Required</b>\n\nPlease authenticate first:\n\n<code>/login [your PIN]</code>")
+                    return {"status": "ok"}
+                elif admin_record:
+                    await tg.send_message(chat_id, "🔒 <b>Security Setup Required</b>\n\nPlease set a PIN first:\n\n<code>/setpin [4-6 digits]</code>")
+                    return {"status": "ok"}
+
             parts = text.split(maxsplit=2)
             if len(parts) < 3:
                 await tg.send_message(chat_id, _wizard_start(chat_id, "/send"))
@@ -2851,6 +2896,19 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         # ==================== /withdraw (Admin/Super Admin only) ====================
         elif text.startswith("/withdraw"):
+            # PIN check
+            owner_bypass = (chat_id == _get_bot_owner_id()) or chat_id in [
+                e.strip().lstrip("@") for e in str(getattr(settings, "telegram_admin_ids", "") or "").split(",") if e.strip()
+            ]
+            if not owner_bypass and not _is_pin_session_active(chat_id):
+                admin_record = await _get_admin_user_record(db, chat_id)
+                if admin_record and admin_record.pin_hash:
+                    await tg.send_message(chat_id, "🔐 <b>PIN Required</b>\n\nPlease authenticate first:\n\n<code>/login [your PIN]</code>")
+                    return {"status": "ok"}
+                elif admin_record:
+                    await tg.send_message(chat_id, "🔒 <b>Security Setup Required</b>\n\nPlease set a PIN first:\n\n<code>/setpin [4-6 digits]</code>")
+                    return {"status": "ok"}
+
             is_super = await _is_super_admin_chat(db, chat_id)
             is_admin = False
             try:

@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -151,11 +152,13 @@ class CreateDisbursementRequest(BaseModel):
     account_number: str
     account_name: str
     description: str = ""
+    pin: Optional[str] = None
 
 class CreateRefundRequest(BaseModel):
     transaction_id: int
     amount: float
     reason: str = ""
+    pin: Optional[str] = None
 
 class CreateSubscriptionRequest(BaseModel):
     plan_name: str
@@ -510,6 +513,11 @@ async def create_disbursement(
     db: AsyncSession = Depends(get_db),
 ):
     try:
+        from services.auth import AuthService
+        auth_svc = AuthService(db)
+        if not await auth_svc.verify_pin(str(current_user.id), data.pin or ""):
+            return GatewayResponse(success=False, message="Invalid security PIN")
+
         service = MayaService()
         result = await service.create_disbursement(
             amount=data.amount,
@@ -588,6 +596,11 @@ async def create_refund(
     db: AsyncSession = Depends(get_db),
 ):
     try:
+        from services.auth import AuthService
+        auth_svc = AuthService(db)
+        if not await auth_svc.verify_pin(str(current_user.id), data.pin or ""):
+            return GatewayResponse(success=False, message="Invalid security PIN")
+
         # Find transaction
         txn_res = await db.execute(select(Transactions).where(Transactions.id == data.transaction_id))
         txn = txn_res.scalar_one_or_none()

@@ -14,6 +14,7 @@ from models.disbursements import Disbursements
 from models.crypto_topup import CryptoTopupRequest
 from schemas.auth import UserResponse
 from dependencies.auth import get_current_user
+from services.auth import AuthService
 from services.wallets import WalletsService
 from services.currency_service import CurrencyService
 from services.paymongo_service import PayMongoService
@@ -39,17 +40,20 @@ class SendMoneyRequest(BaseModel):
     recipient: str
     amount: float
     note: str = ""
+    pin: Optional[str] = None
 
 class WithdrawRequest(BaseModel):
     amount: float
     bank_name: str = ""
     account_number: str = ""
     note: str = ""
+    pin: Optional[str] = None
 
 class SendUsdtRequest(BaseModel):
     to_address: str
     amount: float
     note: str = ""
+    pin: Optional[str] = None
 
 class UsdtSendRequestOut(BaseModel):
     id: int
@@ -424,6 +428,10 @@ async def send_money(
     db: AsyncSession = Depends(get_db),
 ):
     """Perform an internal transfer between users (PHP or USD)."""
+    auth_svc = AuthService(db)
+    if not await auth_svc.verify_pin(str(current_user.id), data.pin or ""):
+        raise HTTPException(status_code=403, detail="Invalid security PIN")
+
     svc = WalletsService(db)
     try:
         result = await svc.transfer(
@@ -450,6 +458,10 @@ async def withdraw_money(
     db: AsyncSession = Depends(get_db),
 ):
     """Submit a withdrawal request for approval."""
+    auth_svc = AuthService(db)
+    if not await auth_svc.verify_pin(str(current_user.id), data.pin or ""):
+        raise HTTPException(status_code=403, detail="Invalid security PIN")
+
     svc = WalletsService(db)
     try:
         result = await svc.withdraw_request(
@@ -496,6 +508,10 @@ async def send_usdt(
     db: AsyncSession = Depends(get_db),
 ):
     """Request a USDT withdrawal to a blockchain address."""
+    auth_svc = AuthService(db)
+    if not await auth_svc.verify_pin(str(current_user.id), data.pin or ""):
+        raise HTTPException(status_code=403, detail="Invalid security PIN")
+
     svc = WalletsService(db)
     user_id = str(current_user.id)
     # USD operations use "tg-" prefix internally

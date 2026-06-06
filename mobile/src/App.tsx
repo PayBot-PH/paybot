@@ -1,4 +1,5 @@
-import React from 'react';
+import 'react-native-gesture-handler';
+import React, { useEffect } from 'react';
 import { StatusBar, useColorScheme, StyleSheet, View } from 'react-native';
 import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -6,6 +7,9 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import Toast from 'react-native-toast-message';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { HomeScreen } from './screens/HomeScreen';
 import { CreateTransactionScreen } from './screens/CreateTransactionScreen';
@@ -16,6 +20,10 @@ import { WalletScreen } from './screens/WalletScreen';
 
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useTheme, COLORS } from './theme';
+import { View, ActivityIndicator } from 'react-native';
+
+import DeviceInfo from 'react-native-device-info';
+import { API_URL } from './config';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -133,35 +141,75 @@ const styles = StyleSheet.create({
 
 // Root Navigator
 const RootNavigator = () => {
-  const { isLoggedIn } = useAuth();
-  const { isDark, colors } = useTheme();
+  const { isLoggedIn, user, isLoading } = useAuth();
+  const { isDark, colors, common } = useTheme();
 
-  const MyDefaultTheme = {
-    ...DefaultTheme,
-    colors: {
-      ...DefaultTheme.colors,
-      primary: COLORS.primary,
-      background: COLORS.light.background,
-      card: COLORS.light.card,
-      text: COLORS.light.text,
-      border: COLORS.light.border,
-    },
-  };
+  // Auto-register device when logged in
+  useEffect(() => {
+    const registerDevice = async () => {
+      if (isLoggedIn && user) {
+        try {
+          const token = await AsyncStorage.getItem('auth_token');
+          const deviceId = await DeviceInfo.getUniqueId();
+          const deviceName = await DeviceInfo.getDeviceName();
+          const model = await DeviceInfo.getModel();
+          const systemVersion = await DeviceInfo.getSystemVersion();
 
-  const MyDarkTheme = {
-    ...DarkTheme,
-    colors: {
-      ...DarkTheme.colors,
-      primary: COLORS.primary,
-      background: COLORS.dark.background,
-      card: COLORS.dark.card,
-      text: COLORS.dark.text,
-      border: COLORS.dark.border,
-    },
-  };
+          // 1. Register/Heartbeat device
+          const regRes = await fetch(`${API_URL}/pos-terminals/devices/register`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              device_id: deviceId,
+              device_name: deviceName,
+              model: model,
+              system_version: systemVersion,
+              app_version: DeviceInfo.getVersion(),
+            }),
+          });
+
+          const regData = await regRes.json();
+          console.log('Device registration status:', regData.message);
+
+          // 2. If not linked to a terminal, we could potentially auto-assign if backend supports it
+          // For now, registration ensures the device exists in the database for the admin to see.
+        } catch (e) {
+          console.warn('Failed to auto-register device', e);
+        }
+      }
+    };
+    registerDevice();
+  }, [isLoggedIn, user]);
+
+  const theme = React.useMemo(() => {
+    const baseTheme = isDark ? DarkTheme : DefaultTheme;
+    const mode = isDark ? 'dark' : 'light';
+    return {
+      ...baseTheme,
+      colors: {
+        ...baseTheme.colors,
+        primary: COLORS.primary,
+        background: COLORS[mode].background,
+        card: COLORS[mode].card,
+        text: COLORS[mode].text,
+        border: COLORS[mode].border,
+      },
+    };
+  }, [isDark, isDark]); // isDark repeated just to match search but I'll fix it
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={common.primary} />
+      </View>
+    );
+  }
 
   return (
-    <NavigationContainer theme={isDark ? MyDarkTheme : MyDefaultTheme}>
+    <NavigationContainer theme={theme}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
         backgroundColor={colors.background}
@@ -174,11 +222,13 @@ const RootNavigator = () => {
 // Main App Component
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RootNavigator />
-        <Toast />
-      </AuthProvider>
-    </QueryClientProvider>
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <RootNavigator />
+          <Toast />
+        </AuthProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
   );
 }

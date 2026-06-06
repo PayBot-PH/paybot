@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import PinAuthDialog from '@/components/PinAuthDialog';
 import {
   Camera, Upload, QrCode, Loader2, CheckCircle, AlertCircle,
   ScanLine, X, RefreshCw, Send, Zap, ShieldCheck, Smartphone,
@@ -68,6 +69,9 @@ export default function ScanQRPH() {
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
+
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinValue, setPinValue] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -164,21 +168,41 @@ export default function ScanQRPH() {
     if (!qrData) return;
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) { toast.error('Invalid amount provided.'); return; }
+
+    setPinValue('');
+    setPinDialogOpen(true);
+  };
+
+  const executePay = async () => {
+    if (pinValue.length < 4) {
+      toast.error('Enter valid PIN');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await client.apiCall.invoke({
         url: '/api/v1/xendit/pay-qrph',
         method: 'POST',
         data: {
-          qr_data: qrData.raw,
-          amount: amt,
-          description: description || qrData.merchantName || 'QRPH payment',
-          merchant_name: qrData.merchantName,
-          reference_number: qrData.referenceNumber,
+          qr_data: qrData!.raw,
+          amount: parseFloat(amount),
+          description: description || qrData!.merchantName || 'QRPH payment',
+          merchant_name: qrData!.merchantName,
+          reference_number: qrData!.referenceNumber,
+          pin: pinValue
         },
       });
-      if (res.data?.success) { setResult(res.data.data || res.data); toast.success('Capital transfer successful!'); }
-      else toast.error(res.data?.message || 'Transaction aborted.');
+      if (res.data?.success) {
+        setResult(res.data.data || res.data);
+        toast.success('Capital transfer successful!');
+        setPinDialogOpen(false);
+      }
+      else {
+        const msg = res.data?.message || 'Transaction aborted.';
+        toast.error(msg);
+        if (msg.toLowerCase().includes('pin')) setPinValue('');
+      }
     } catch { toast.error('Kernel communication failure.'); }
     finally { setLoading(false); }
   };
@@ -384,6 +408,15 @@ export default function ScanQRPH() {
            </div>
         </div>
       </div>
+
+      <PinAuthDialog
+        open={pinDialogOpen}
+        onOpenChange={setPinDialogOpen}
+        value={pinValue}
+        onValueChange={setPinValue}
+        onConfirm={executePay}
+        loading={loading}
+      />
     </Layout>
   );
 }
