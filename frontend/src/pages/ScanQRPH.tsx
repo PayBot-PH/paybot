@@ -11,7 +11,7 @@ import PinAuthDialog from '@/components/PinAuthDialog';
 import {
   Camera, Upload, QrCode, Loader2, CheckCircle, AlertCircle,
   ScanLine, X, RefreshCw, Send, Zap, ShieldCheck, Smartphone,
-  Info, ArrowLeft
+  Info, ArrowLeft, Store, Globe
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';

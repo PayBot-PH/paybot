@@ -13,7 +13,7 @@ import PinAuthDialog from '@/components/PinAuthDialog';
 import {
   Building2, Loader2, Plus,
   Send, RotateCcw, Users, CalendarDays, History, Settings2,
-  ChevronRight, Check, ShieldCheck, Receipt, Search, Trash2
+  ChevronRight, Check, ShieldCheck, Receipt, Search, Trash2, Zap
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
