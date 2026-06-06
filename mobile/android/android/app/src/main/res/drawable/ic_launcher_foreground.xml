@@ -4,30 +4,30 @@
     android:height="108dp"
     android:viewportWidth="100"
     android:viewportHeight="100">
-    <!-- Robot Body -->
+    <!-- Center the robot in the 100x100 viewport -->
+    <!-- Sides/Ears -->
     <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="5.5"
-        android:strokeLineJoin="round"
-        android:pathData="M20,32h60v46h-60z" />
+        android:fillColor="#FFFFFF"
+        android:pathData="M13,42h10c2.76,0 5,2.24 5,5v6c0,2.76 -2.24,5 -5,5h-10c-2.76,0 -5,-2.24 -5,-5v-6c0,-2.76 2.24,-5 5,-5z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M77,42h10c2.76,0 5,2.24 5,5v6c0,2.76 -2.24,5 -5,5h-10c-2.76,0 -5,-2.24 -5,-5v-6c0,-2.76 2.24,-5 5,-5z" />
     <!-- Antenna -->
     <path
         android:strokeColor="#FFFFFF"
-        android:strokeWidth="4.5"
+        android:strokeWidth="7"
         android:strokeLineCap="round"
-        android:pathData="M50,32v-13" />
-    <!-- Antenna Tip -->
+        android:strokeLineJoin="round"
+        android:pathData="M48,26V15h14" />
+    <!-- Main Body -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M50,14m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
-    <!-- Eyes -->
+        android:pathData="M20,26h60c7.73,0 14,6.27 14,14v20c0,7.73 -6.27,14 -14,14h-60c-7.73,0 -14,-6.27 -14,-14v-20c0,-7.73 6.27,-14 14,-14z" />
+    <!-- Eyes (Blue Color #2B66FF) -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M26,46h20v12h-20z M54,46h20v12h-20z" />
-    <!-- Smile -->
+        android:fillColor="#2B66FF"
+        android:pathData="M37,40h7c1.93,0 3.5,1.57 3.5,3.5v11c0,1.93 -1.57,3.5 -3.5,3.5h-7c-1.93,0 -3.5,-1.57 -3.5,-3.5v-11c0,-1.93 1.57,-3.5 3.5,-3.5z" />
     <path
-        android:strokeColor="#FFFFFF"
-        android:strokeWidth="4.5"
-        android:strokeLineCap="round"
-        android:pathData="M36,67c5,10 23,10 28,0" />
+        android:fillColor="#2B66FF"
+        android:pathData="M56,40h7c1.93,0 3.5,1.57 3.5,3.5v11c0,1.93 -1.57,3.5 -3.5,3.5h-7c-1.93,0 -3.5,-1.57 -3.5,-3.5v-11c0,-1.93 1.57,-3.5 3.5,-3.5z" />
 </vector>

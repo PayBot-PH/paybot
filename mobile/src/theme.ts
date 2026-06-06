@@ -1,7 +1,7 @@
 import { useColorScheme } from 'react-native';
 
 export const COLORS = {
-  primary: '#0EA5E9',
+  primary: '#2B66FF',
   secondary: '#10B981',
   success: '#10B981',
   warning: '#F59E0B',

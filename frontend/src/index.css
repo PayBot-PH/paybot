@@ -16,8 +16,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 220 25% 12%;
 
-    /* GCash signature blue #007AFF */
-    --primary: 211 100% 50%;
+    /* PayBot signature blue #2B66FF */
+    --primary: 223 100% 59%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 220 20% 95%;
@@ -26,37 +26,37 @@
     --muted: 220 16% 93%;
     --muted-foreground: 220 14% 46%;
 
-    --accent: 211 100% 95%;
-    --accent-foreground: 211 100% 38%;
+    --accent: 223 100% 95%;
+    --accent-foreground: 223 100% 38%;
 
     --destructive: 0 84% 58%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 220 18% 89%;
     --input: 220 18% 89%;
-    --ring: 211 100% 50%;
+    --ring: 223 100% 59%;
 
     --radius: 1rem;
 
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 25% 12%;
-    --sidebar-primary: 211 100% 50%;
+    --sidebar-primary: 223 100% 59%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 211 100% 95%;
-    --sidebar-accent-foreground: 211 100% 38%;
+    --sidebar-accent: 223 100% 95%;
+    --sidebar-accent-foreground: 223 100% 38%;
     --sidebar-border: 220 18% 91%;
-    --sidebar-ring: 211 100% 50%;
+    --sidebar-ring: 223 100% 59%;
 
-    --brand-blue-50: 211 100% 97%;
-    --brand-blue-100: 211 100% 93%;
-    --brand-blue-200: 211 100% 85%;
-    --brand-blue-300: 211 90% 72%;
-    --brand-blue-400: 211 90% 58%;
-    --brand-blue-500: 211 100% 50%;
-    --brand-blue-600: 211 100% 42%;
-    --brand-blue-700: 211 100% 34%;
-    --brand-blue-800: 211 100% 26%;
-    --brand-blue-900: 211 100% 18%;
+    --brand-blue-50: 223 100% 97%;
+    --brand-blue-100: 223 100% 93%;
+    --brand-blue-200: 223 100% 85%;
+    --brand-blue-300: 223 90% 72%;
+    --brand-blue-400: 223 90% 65%;
+    --brand-blue-500: 223 100% 59%;
+    --brand-blue-600: 223 100% 50%;
+    --brand-blue-700: 223 100% 40%;
+    --brand-blue-800: 223 100% 30%;
+    --brand-blue-900: 223 100% 20%;
     --brand-ink-900: 220 30% 10%;
 
     /* Typography Overrides */
