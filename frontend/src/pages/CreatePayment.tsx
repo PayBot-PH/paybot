@@ -28,7 +28,7 @@ import {
     Search,
     Settings,
     Wallet,
-    Backspace,
+    Delete,
     Printer,
     Activity,
 } from 'lucide-react';
@@ -400,7 +400,7 @@ export default function CreatePayment() {
                                                             'bg-white/5 text-white border border-white/5 hover:bg-white/10'
                                                         }`}
                                                     >
-                                                        {key === 'backspace' ? <Backspace className="h-6 w-6" /> : key}
+                                                        {key === 'backspace' ? <Delete className="h-6 w-6" /> : key}
                                                     </button>
                                                 );
                                             })}
