@@ -835,8 +835,18 @@ async def calculate_fees(data: FeeCalcRequest):
 async def get_xendit_balance(
     current_user: UserResponse = Depends(get_current_user),
 ):
-    # Xendit has been removed; live balance lookup is unavailable.
-    return {"success": False, "error": "Xendit integration removed: balance lookup unavailable."}
+    from services.xendit_service import XenditService
+    import httpx as _httpx
+    svc = XenditService()
+    try:
+        async with _httpx.AsyncClient() as client:
+            r = await client.get(f"{svc.base_url}/balance", auth=svc._auth(), timeout=15.0)
+            r.raise_for_status()
+            data = r.json()
+            return {"success": True, "balance": data.get("balance", 0), "currency": "PHP"}
+    except Exception as e:
+        logger.error("Xendit balance error: %s", e)
+        return {"success": False, "balance": None, "error": str(e)}
 
 
 # ==================== PAYMONGO BALANCE ====================
@@ -862,9 +872,32 @@ async def get_paymongo_balance(
 async def get_available_banks(
     current_user: UserResponse = Depends(get_current_user),
 ):
-    # Available banks list was previously provided by Xendit. Not available
-    # when Xendit has been removed. Return empty list and a helpful message.
-    return {"success": False, "banks": [], "message": "Available bank list unavailable: Xendit integration removed."}
+    from services.xendit_service import XenditService
+    svc = XenditService()
+    result = await svc.get_available_banks()
+    _fallback = [
+        {"name": "BDO Unibank", "code": "BDO"},
+        {"name": "Bank of the Philippine Islands", "code": "BPI"},
+        {"name": "GCash", "code": "GCASH"},
+        {"name": "Maya", "code": "PAYMAYA"},
+        {"name": "Metrobank", "code": "MBTC"},
+        {"name": "UnionBank", "code": "UBP"},
+        {"name": "Landbank", "code": "LBPH"},
+        {"name": "PNB", "code": "PNB"},
+        {"name": "Security Bank", "code": "SECB"},
+        {"name": "RCBC", "code": "RCBC"},
+    ]
+    if result.get("success"):
+        banks = result.get("banks", [])
+        normalized = []
+        for b in banks:
+            if isinstance(b, dict):
+                normalized.append({
+                    "name": b.get("name") or b.get("bank_name") or b.get("code", ""),
+                    "code": b.get("bank_code") or b.get("code") or b.get("name", ""),
+                })
+        return {"success": True, "banks": normalized or _fallback}
+    return {"success": True, "banks": _fallback}
 
 
 # ==================== REPORTS & ANALYTICS ====================
