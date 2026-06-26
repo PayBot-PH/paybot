@@ -190,7 +190,7 @@ const TerminalCard: React.FC<{ terminal: Terminal }> = ({ terminal }) => {
             </div>
             <div className="flex items-center gap-3">
               <code className="text-[9px] font-black text-brandblue-400 bg-brandblue-500/5 px-2 py-1 rounded border border-brandblue-500/10 tracking-[0.2em]">{terminal.terminal_code}</code>
-              <span className="text-[9px] font-black text-white/20 uppercase tracking-widest flex items-center gap-1.5">
+              <span className="text-[9px] font-black text-white/60 uppercase tracking-widest flex items-center gap-1.5">
                 <Globe className="h-3 w-3" /> {terminal.location || 'GLOBAL_NODE'}
               </span>
             </div>
@@ -221,7 +221,7 @@ const TerminalCard: React.FC<{ terminal: Terminal }> = ({ terminal }) => {
                       <div className="flex items-center gap-3">
                         <p className="text-lg font-black text-white tabular-nums">₱{(txn.amount / 100).toFixed(2)}</p>
                         <span className="h-1 w-1 rounded-full bg-white/10" />
-                        <p className="text-[9px] font-black text-white/20 tracking-widest uppercase">
+                        <p className="text-[9px] font-black text-white/60 tracking-widest uppercase">
                           {new Date(txn.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })}
                         </p>
                       </div>
@@ -247,14 +247,14 @@ const TerminalCard: React.FC<{ terminal: Terminal }> = ({ terminal }) => {
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md bg-[#0A0F1E] border-white/10 rounded-[2.5rem] shadow-3xl text-white">
-                <DialogHeader className="space-y-3">
+                  <DialogHeader className="space-y-3">
                   <DialogTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-3">
                     <div className="h-10 w-10 rounded-xl bg-brandblue-500/20 flex items-center justify-center border border-brandblue-500/40">
                       <Zap className="h-6 w-6 text-brandblue-400" />
                     </div>
                     Create_Payment_Order
                   </DialogTitle>
-                  <DialogDescription className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
+                  <DialogDescription className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">
                     Deploying encrypted order to node: <span className="text-brandblue-400">{terminal.terminal_name}</span>
                   </DialogDescription>
                 </DialogHeader>
@@ -319,7 +319,7 @@ export const POSTerminalDashboard: React.FC = () => {
       {terminalsQuery.isLoading ? (
         <div className="h-[400px] flex flex-col items-center justify-center gap-8 px-10">
           <Activity className="h-20 w-20 animate-spin text-brandblue-500 opacity-20" />
-          <p className="text-[11px] font-black uppercase tracking-[0.5em] text-muted-foreground/40 animate-pulse">Synchronizing Fleet Metadata...</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.5em] text-muted-foreground/70 animate-pulse">Synchronizing Fleet Metadata...</p>
         </div>
       ) : terminalsQuery.isError ? (
         <Card className="bg-rose-500/5 border-2 border-rose-500/20 rounded-[2.5rem] p-12 text-center">
@@ -335,9 +335,9 @@ export const POSTerminalDashboard: React.FC = () => {
         </div>
       ) : (
         <Card className="fintech-card border-dashed border-2 border-border/60 min-h-[400px] flex flex-col items-center justify-center text-center p-12 bg-muted/5 rounded-[3rem] group">
-          <CreditCard className="w-20 h-20 mx-auto text-muted-foreground/10 group-hover:scale-110 transition-transform duration-700 mb-8" />
+          <CreditCard className="w-20 h-20 mx-auto text-muted-foreground/60 group-hover:scale-110 transition-transform duration-700 mb-8" />
           <h3 className="text-2xl font-black text-foreground/40 uppercase tracking-tighter mb-4">No Terminals Provisioned</h3>
-          <p className="text-[11px] text-muted-foreground/40 max-w-[320px] font-black uppercase tracking-[0.3em] leading-relaxed">
+          <p className="text-[11px] text-muted-foreground/70 max-w-[320px] font-black uppercase tracking-[0.3em] leading-relaxed">
             Identity does not possess active edge hardware licenses. Contact institutional support.
           </p>
         </Card>

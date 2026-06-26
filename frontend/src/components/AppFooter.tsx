@@ -79,14 +79,14 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
               </div>
               <div>
                 <p className="text-foreground font-black text-xl leading-none uppercase tracking-tighter">{APP_NAME}</p>
-                <p className="text-muted-foreground/40 text-[10px] font-black uppercase tracking-[0.3em] mt-1.5">{APP_TAGLINE}</p>
+                <p className="text-muted-foreground/80 text-[10px] font-black uppercase tracking-[0.3em] mt-1.5">{APP_TAGLINE}</p>
               </div>
             </Link>
-            <p className="text-muted-foreground/60 text-sm font-bold leading-relaxed max-w-sm uppercase tracking-tight">
+            <p className="text-muted-foreground/90 text-sm font-bold leading-relaxed max-w-sm uppercase tracking-tight">
               The institutional transmission layer for Philippine liquidity nodes. Real-time clearing between local networks and global asset vaults.
             </p>
             <div className="pt-4 flex flex-col gap-3">
-               <p className="text-[10px] font-black text-muted-foreground/30 uppercase tracking-[0.4em]">Kernel_Support</p>
+               <p className="text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.4em]">Kernel_Support</p>
                <a
                  href={SUPPORT_URL}
                  target="_blank"
@@ -102,13 +102,13 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
 
           {/* Navigation column */}
           <div>
-            <p className="text-muted-foreground/40 text-[10px] font-black uppercase tracking-[0.4em] mb-8">Protocol_Links</p>
+            <p className="text-muted-foreground/80 text-[10px] font-black uppercase tracking-[0.4em] mb-8">Protocol_Links</p>
             <ul className="space-y-4">
               {NAV_LINKS.map(({ label, to }) => (
                 <li key={label}>
                   <Link
                     to={to}
-                    className="text-muted-foreground/80 hover:text-brandblue-500 text-xs font-black uppercase tracking-widest transition-all"
+                    className="text-muted-foreground hover:text-brandblue-500 text-xs font-black uppercase tracking-widest transition-all"
                   >
                     {label}
                   </Link>
@@ -119,7 +119,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
 
           {/* Legal & compliance column */}
           <div>
-            <p className="text-muted-foreground/40 text-[10px] font-black uppercase tracking-[0.4em] mb-8">Node_Compliance</p>
+            <p className="text-muted-foreground/80 text-[10px] font-black uppercase tracking-[0.4em] mb-8">Node_Compliance</p>
             <ul className="space-y-5">
               {[
                 { img: '/logos/bsp.svg', label: 'BSP Regulated' },
@@ -127,13 +127,13 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
                 { img: '/logos/dpo.svg', label: 'DPO/NPC Node' },
               ].map(c => (
                 <li key={c.label} className="flex items-center gap-3 grayscale opacity-40 hover:grayscale-0 hover:opacity-100 transition-all duration-500 cursor-default">
-                  <img src={c.img} alt={c.label} className="h-6 w-auto shadow-sm" />
-                  <span className="text-muted-foreground/60 text-[10px] font-black uppercase tracking-widest">{c.label}</span>
+                  <img src={c.img} alt="" aria-hidden="true" className="h-6 w-auto shadow-sm" />
+                  <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">{c.label}</span>
                 </li>
               ))}
               <li className="flex items-center gap-3 pt-2">
-                <Shield className="h-4 w-4 text-emerald-500/40 shrink-0" />
-                <span className="text-muted-foreground/40 text-[9px] font-black uppercase tracking-widest">AES-256 GCM Encryption</span>
+                <Shield className="h-4 w-4 text-emerald-500/70 shrink-0" />
+                <span className="text-muted-foreground/80 text-[9px] font-black uppercase tracking-widest">AES-256 GCM Encryption</span>
               </li>
             </ul>
           </div>
@@ -141,7 +141,7 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
 
         {/* ── PAYMENT BRANDS ROW ───────────────────────────────── */}
         <div className={`border-t ${dividerClass} py-12`}>
-          <p className="text-muted-foreground/20 text-[10px] font-black uppercase tracking-[0.5em] text-center mb-10">
+          <p className="text-muted-foreground/60 text-[10px] font-black uppercase tracking-[0.5em] text-center mb-10">
             ACCEPTED_NETWORK_ENTITIES
           </p>
           <div className="flex flex-wrap items-center justify-center gap-4">
@@ -155,8 +155,8 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
                 <span className="text-muted-foreground text-[10px] font-black uppercase tracking-widest">{name}</span>
               </div>
             ))}
-            <div className="flex items-center gap-2 bg-muted/10 border border-transparent rounded-full px-5 py-2">
-              <span className="text-muted-foreground/30 text-[9px] font-black uppercase tracking-[0.2em]">+100 INSTITUTIONAL_BANKS</span>
+              <div className="flex items-center gap-2 bg-muted/10 border border-transparent rounded-full px-5 py-2">
+              <span className="text-muted-foreground/60 text-[9px] font-black uppercase tracking-[0.2em]">+100 INSTITUTIONAL_BANKS</span>
             </div>
           </div>
         </div>
@@ -164,11 +164,11 @@ export default function AppFooter({ variant = 'public' }: AppFooterProps) {
         {/* ── BOTTOM BAR: copyright ────────────────────────────── */}
         <div className={`border-t ${dividerClass} pt-12 flex flex-col sm:flex-row items-center justify-between gap-6`}>
           <div className="flex flex-col sm:flex-row items-center gap-4">
-             <p className="text-muted-foreground/20 text-[10px] font-black uppercase tracking-[0.3em]">
+             <p className="text-muted-foreground/60 text-[10px] font-black uppercase tracking-[0.3em]">
                © {new Date().getFullYear()} {COMPANY_NAME}
              </p>
-             <span className="hidden sm:block h-1 w-1 rounded-full bg-muted-foreground/10" />
-             <p className="text-muted-foreground/20 text-[10px] font-black uppercase tracking-[0.3em]">NODE_ID: PRODUCTION_PH_01</p>
+             <span className="hidden sm:block h-1 w-1 rounded-full bg-muted-foreground/30" />
+             <p className="text-muted-foreground/60 text-[10px] font-black uppercase tracking-[0.3em]">NODE_ID: PRODUCTION_PH_01</p>
           </div>
           <div className="flex items-center gap-4 bg-[#0A0F1E] border border-white/5 rounded-full px-6 py-2.5 shadow-2xl">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.8)] shrink-0" />

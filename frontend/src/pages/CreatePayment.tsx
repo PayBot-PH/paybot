@@ -522,7 +522,7 @@ export default function CreatePayment() {
                                 <div className="h-28 w-28 rounded-[2.5rem] bg-muted/20 flex items-center justify-center mb-10 shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-all duration-700">
                                     <Radio className="h-14 w-14 text-muted-foreground/20 group-hover:text-brandblue-500/20 transition-colors animate-pulse" />
                                 </div>
-                                <h3 className="text-2xl font-black text-foreground/40 uppercase tracking-tighter mb-4">Awaiting Signal</h3>
+                                <h2 className="text-2xl font-black text-foreground/40 uppercase tracking-tighter mb-4">Awaiting Signal</h2>
                                 <p className="text-[11px] text-muted-foreground/60 max-w-[280px] font-black uppercase tracking-[0.3em] leading-relaxed">
                                     Execute terminal configuration to emit network payment assets
                                 </p>

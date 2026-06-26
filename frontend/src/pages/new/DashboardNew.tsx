@@ -8,24 +8,24 @@ export default function DashboardNew() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card>
-          <h3 className="text-sm font-semibold text-muted-foreground">Total Revenue</h3>
+          <h2 className="text-sm font-semibold text-muted-foreground">Total Revenue</h2>
           <div className="text-2xl font-extrabold mt-2">₱ 1,234,567</div>
         </Card>
 
         <Card>
-          <h3 className="text-sm font-semibold text-muted-foreground">Transactions</h3>
+          <h2 className="text-sm font-semibold text-muted-foreground">Transactions</h2>
           <div className="text-2xl font-extrabold mt-2">4,321</div>
         </Card>
 
         <Card>
-          <h3 className="text-sm font-semibold text-muted-foreground">Active Merchants</h3>
+          <h2 className="text-sm font-semibold text-muted-foreground">Active Merchants</h2>
           <div className="text-2xl font-extrabold mt-2">128</div>
         </Card>
       </div>
 
       <div className="mt-8">
-        <Card>
-          <h3 className="font-bold text-lg mb-3">Recent Transactions</h3>
+          <Card>
+          <h2 className="font-bold text-lg mb-3">Recent Transactions</h2>
           <table className="modern-table">
             <thead>
               <tr>

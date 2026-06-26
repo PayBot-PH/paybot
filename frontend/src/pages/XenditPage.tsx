@@ -96,7 +96,7 @@ export default function XenditPage() {
                    </div>
                    <div>
                       <CardTitle className="text-xl font-black uppercase tracking-tight text-foreground">Economic configuration</CardTitle>
-                      <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/40 mt-1">Standard processing parameters for local transactions</CardDescription>
+                      <CardDescription className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/90 mt-1">Standard processing parameters for local transactions</CardDescription>
                    </div>
                  </div>
                </CardHeader>
@@ -105,9 +105,9 @@ export default function XenditPage() {
                     <table className="modern-table">
                        <thead>
                          <tr className="bg-[#0A0F1E]">
-                           <th className="px-10 py-8 text-white/30 border-white/5 uppercase tracking-[0.4em]">Channel Protocol</th>
-                           <th className="px-10 py-8 text-white/30 border-white/5 uppercase tracking-[0.4em]">MDR Basis</th>
-                           <th className="px-10 py-8 text-white/30 border-white/5 uppercase tracking-[0.4em]">Base Surcharge</th>
+                           <th className="px-10 py-8 text-white/60 border-white/5 uppercase tracking-[0.4em]">Channel Protocol</th>
+                           <th className="px-10 py-8 text-white/60 border-white/5 uppercase tracking-[0.4em]">MDR Basis</th>
+                           <th className="px-10 py-8 text-white/60 border-white/5 uppercase tracking-[0.4em]">Base Surcharge</th>
                          </tr>
                        </thead>
                        <tbody className="divide-y divide-border/10">
@@ -127,8 +127,8 @@ export default function XenditPage() {
                                    <span className="text-sm font-black text-foreground uppercase tracking-tight">{row.group}</span>
                                  </div>
                                </td>
-                               <td className="px-10 py-8 text-sm font-black text-brandblue-600 tracking-widest">{row.rate}</td>
-                               <td className="px-10 py-8 text-sm font-black text-muted-foreground/60 tracking-widest uppercase">{row.fixed}</td>
+                                 <td className="px-10 py-8 text-sm font-black text-brandblue-600 tracking-widest">{row.rate}</td>
+                                   <td className="px-10 py-8 text-sm font-black text-muted-foreground/80 tracking-widest uppercase">{row.fixed}</td>
                             </tr>
                           ))}
                        </tbody>
@@ -140,7 +140,7 @@ export default function XenditPage() {
 
           <div className="space-y-10">
              <Card className="fintech-card border-0 shadow-2xl bg-[#0A0F1E] border-white/5">
-                <CardHeader className="p-8 border-b border-white/5"><CardTitle className="text-[11px] font-black text-white/20 uppercase tracking-[0.4em]">Grid Health</CardTitle></CardHeader>
+                <CardHeader className="p-8 border-b border-white/5"><CardTitle className="text-[11px] font-black text-white/60 uppercase tracking-[0.4em]">Grid Health</CardTitle></CardHeader>
                 <CardContent className="space-y-8 p-8">
                    {[
                      { label: 'API Endpoint v4', status: 'OPTIMAL', color: 'bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.5)]' },
@@ -150,7 +150,7 @@ export default function XenditPage() {
                      <div key={item.label} className="flex items-center justify-between group/h">
                         <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">{item.label}</span>
                         <div className="flex items-center gap-3">
-                           <span className="text-[9px] font-black uppercase tracking-widest text-white/20 group-hover/h:text-white/40 transition-colors">{item.status}</span>
+                           <span className="text-[9px] font-black uppercase tracking-widest text-white/60 group-hover/h:text-white/60 transition-colors">{item.status}</span>
                            <div className={`h-2 w-2 rounded-full ${item.color} group-hover/h:scale-125 transition-transform`} />
                         </div>
                      </div>
@@ -164,14 +164,14 @@ export default function XenditPage() {
                    <div className="flex items-center gap-6 group/m">
                       <div className="h-16 w-16 rounded-2xl bg-brandblue-500/10 flex items-center justify-center border-2 border-brandblue-500/20 text-brandblue-600 shadow-xl transition-all group-hover/m:scale-110 group-hover/m:rotate-3"><BarChart3 className="h-8 w-8" /></div>
                       <div className="space-y-1">
-                        <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em]">MTD Transmission</p>
+                        <p className="text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em]">MTD Transmission</p>
                         <p className="text-xl font-black text-foreground tracking-tighter tabular-nums">₱ 142,500.00</p>
                       </div>
                    </div>
                    <div className="flex items-center gap-6 group/m">
                       <div className="h-16 w-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center border-2 border-emerald-500/20 text-emerald-600 shadow-xl transition-all group-hover/m:scale-110 group-hover/m:-rotate-3"><Clock className="h-8 w-8" /></div>
                       <div className="space-y-1">
-                        <p className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.2em]">AVG_RESPONSE_TIME</p>
+                        <p className="text-[10px] font-black text-muted-foreground/70 uppercase tracking-[0.2em]">AVG_RESPONSE_TIME</p>
                         <p className="text-xl font-black text-foreground tracking-tighter tabular-nums">1.4 SECONDS</p>
                       </div>
                    </div>
@@ -179,7 +179,7 @@ export default function XenditPage() {
              </Card>
 
              <div className="p-10 rounded-[3rem] border-2 border-dashed border-border/60 flex flex-col items-center text-center space-y-6 bg-muted/5 group hover:bg-muted/10 transition-all duration-1000">
-                <div className="h-20 w-20 rounded-[2.5rem] bg-muted flex items-center justify-center text-muted-foreground/10 group-hover:scale-110 transition-transform duration-700 shadow-inner"><Info className="h-10 w-10" /></div>
+                <div className="h-20 w-20 rounded-[2.5rem] bg-muted flex items-center justify-center text-muted-foreground/60 group-hover:scale-110 transition-transform duration-700 shadow-inner"><Info className="h-10 w-10" /></div>
                 <div className="space-y-3">
                    <p className="text-base font-black text-foreground/60 uppercase tracking-widest">Compliance Protocol</p>
                    <p className="text-[10px] text-muted-foreground/60 font-black uppercase leading-relaxed tracking-widest px-4">

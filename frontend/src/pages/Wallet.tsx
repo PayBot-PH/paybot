@@ -396,10 +396,10 @@ export default function Wallet() {
                     <TabsContent value="withdraw" className="mt-0 space-y-10 animate-in fade-in slide-in-from-top-4 duration-500">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                         <div className="space-y-4">
-                          <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Transfer Amount (PHP)</Label>
+                          <Label htmlFor="withdraw-amount" className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Transfer Amount (PHP)</Label>
                           <div className="relative group">
                             <span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-brand-blue-500 text-2xl">₱</span>
-                            <Input type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} className="pl-12 h-20 bg-muted/20 border-border/40 text-3xl font-black rounded-3xl tabular-nums focus:ring-brandblue-500/10 transition-all" placeholder="0.00" />
+                            <Input id="withdraw-amount" type="number" value={withdrawAmount} onChange={e => setWithdrawAmount(e.target.value)} className="pl-12 h-20 bg-muted/20 border-border/40 text-3xl font-black rounded-3xl tabular-nums focus:ring-brandblue-500/10 transition-all" placeholder="0.00" />
                           </div>
                         </div>
                         <div className="space-y-4">
@@ -410,12 +410,12 @@ export default function Wallet() {
                           </Select>
                         </div>
                         <div className="space-y-4">
-                          <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Beneficiary Account</Label>
-                          <Input value={withdrawAccount} onChange={e => setWithdrawAccount(e.target.value)} className="h-20 bg-muted/20 border-border/40 font-black text-lg rounded-3xl px-8 tracking-[0.3em] tabular-nums uppercase focus:ring-brandblue-500/10" placeholder="09XXXXXXXXX" />
+                          <Label htmlFor="withdraw-account" className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Beneficiary Account</Label>
+                          <Input id="withdraw-account" value={withdrawAccount} onChange={e => setWithdrawAccount(e.target.value)} className="h-20 bg-muted/20 border-border/40 font-black text-lg rounded-3xl px-8 tracking-[0.3em] tabular-nums uppercase focus:ring-brandblue-500/10" placeholder="09XXXXXXXXX" />
                         </div>
                         <div className="space-y-4">
-                          <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Transaction Ref</Label>
-                          <Input value={withdrawNote} onChange={e => setWithdrawNote(e.target.value)} className="h-20 bg-muted/20 border-border/40 text-sm font-black rounded-3xl px-8 uppercase tracking-tight focus:ring-brandblue-500/10" placeholder="Internal memo" />
+                          <Label htmlFor="withdraw-note" className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Transaction Ref</Label>
+                          <Input id="withdraw-note" value={withdrawNote} onChange={e => setWithdrawNote(e.target.value)} className="h-20 bg-muted/20 border-border/40 text-sm font-black rounded-3xl px-8 uppercase tracking-tight focus:ring-brandblue-500/10" placeholder="Internal memo" />
                         </div>
                       </div>
                       <Button onClick={handleWithdraw} disabled={withdrawLoading} className="w-full h-20 bg-brandblue-600 hover:bg-brandblue-700 text-white font-black rounded-[2rem] shadow-2xl shadow-brandblue-500/30 uppercase tracking-[0.4em] transition-all active:scale-95 text-[11px]">
@@ -431,11 +431,11 @@ export default function Wallet() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-10">
                         <div className="space-y-4">
                           <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Target Account @ID</Label>
-                          <div className="relative group"><span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-emerald-500 text-2xl group-focus-within:scale-125 transition-transform duration-300">@</span><Input value={sendUsdUsername} onChange={e => setSendUsdUsername(e.target.value)} className="pl-12 h-20 bg-muted/20 border-border/40 text-lg font-black rounded-3xl px-8 uppercase tracking-widest focus:ring-emerald-500/10" placeholder="RECIPIENT_ID" /></div>
+                          <div className="relative group"><span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-emerald-500 text-2xl group-focus-within:scale-125 transition-transform duration-300">@</span><Input id="send-usd-username" value={sendUsdUsername} onChange={e => setSendUsdUsername(e.target.value)} className="pl-12 h-20 bg-muted/20 border-border/40 text-lg font-black rounded-3xl px-8 uppercase tracking-widest focus:ring-emerald-500/10" placeholder="RECIPIENT_ID" /></div>
                         </div>
                         <div className="space-y-4">
-                          <Label className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Asset Value (USDT)</Label>
-                          <div className="relative group"><span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-emerald-500 text-2xl group-focus-within:scale-125 transition-transform duration-300">$</span><Input type="number" value={sendUsdAmount} onChange={e => setSendUsdAmount(e.target.value)} className="pl-12 h-20 bg-muted/20 border-border/40 text-3xl font-black rounded-3xl tabular-nums focus:ring-emerald-500/10" placeholder="0.00" /></div>
+                          <Label htmlFor="send-usd-amount" className="text-[11px] font-black uppercase tracking-[0.3em] text-muted-foreground/60 ml-1">Asset Value (USDT)</Label>
+                          <div className="relative group"><span className="absolute left-6 top-1/2 -translate-y-1/2 font-black text-emerald-500 text-2xl group-focus-within:scale-125 transition-transform duration-300">$</span><Input id="send-usd-amount" type="number" value={sendUsdAmount} onChange={e => setSendUsdAmount(e.target.value)} className="pl-12 h-20 bg-muted/20 border-border/40 text-3xl font-black rounded-3xl tabular-nums focus:ring-emerald-500/10" placeholder="0.00" /></div>
                         </div>
                       </div>
                       <Button onClick={handleSendUsd} disabled={sendUsdLoading} className="w-full h-20 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-[2rem] shadow-2xl shadow-emerald-600/30 uppercase tracking-[0.4em] transition-all active:scale-95 text-[11px]">

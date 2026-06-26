@@ -12,6 +12,8 @@ export const translations = {
     /* Nav items */
     nav_dashboard: 'Dashboard',
     nav_wallet: 'Wallet',
+    nav_merchants: 'Merchants',
+    nav_users: 'Users',
     nav_scan_qrph: 'Scan QRPH',
     nav_transactions: 'Transactions',
     nav_disbursements: 'Disbursements',
@@ -61,6 +63,8 @@ export const translations = {
     /* Nav items */
     nav_dashboard: '仪表板',
     nav_wallet: '钱包',
+    nav_merchants: '商家',
+    nav_users: '用户',
     nav_scan_qrph: '扫描 QRPH',
     nav_transactions: '交易记录',
     nav_disbursements: '付款',

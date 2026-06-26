@@ -47,6 +47,8 @@ import DesignSystemDemo from './pages/DesignSystemDemo';
 import DashboardNew from './pages/new/DashboardNew';
 import WalletNew from './pages/new/WalletNew';
 import TransactionsNew from './pages/new/TransactionsNew';
+import Merchants from './pages/Merchants';
+import Users from './pages/Users';
 
 const queryClient = new QueryClient();
 
@@ -99,10 +101,15 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 // Wraps children in a div that re-mounts (and fades in) on every route change
 function PageFade({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  // Provide a main landmark and a screen-reader-only page title
+  const path = location.pathname === '/' ? 'Dashboard' : location.pathname.replace(/^\/+|\/+$/g, '').replace(/[-_/]/g, ' ') || 'Page';
+  const title = path.split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+
   return (
-    <div key={location.key} className="page-enter">
+    <main key={location.key} id="main-content" role="main" className="page-enter">
+      <h1 className="sr-only">{title}</h1>
       {children}
-    </div>
+    </main>
   );
 }
 
@@ -194,6 +201,8 @@ function AuthAwareShell() {
             <Route path="/logout-callback" element={<LogoutCallbackPage />} />
             <Route path="/maintenance" element={<MaintenancePage />} />
             <Route path="/" element={<DashboardNew />} />
+            <Route path="/merchants" element={<Merchants />} />
+            <Route path="/users" element={<Users />} />
             <Route path="/wallet" element={<Wallet />} />
             <Route path="/transactions" element={<Transactions />} />
             <Route path="/create-payment" element={<CreatePayment />} />

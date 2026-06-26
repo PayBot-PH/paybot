@@ -136,7 +136,7 @@ export default function PaymentsHub() {
           <div className="lg:col-span-7 space-y-10">
             <Card className="fintech-card border-0 shadow-2xl overflow-hidden bg-card/60 backdrop-blur-sm">
               <div className="bg-[#0A0F1E] border-b border-white/5 p-8">
-                <p className="text-[11px] font-black uppercase tracking-[0.4em] text-white/30 mb-6 ml-1">Transmission Protocol</p>
+                <p className="text-[11px] font-black uppercase tracking-[0.4em] text-white/60 mb-6 ml-1">Transmission Protocol</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {methods.map((m) => {
                     const Icon = m.icon;
@@ -151,7 +151,7 @@ export default function PaymentsHub() {
                             : 'bg-white/5 border-white/5 text-white/40 hover:border-white/10 hover:bg-white/[0.08] hover:text-white/60'
                         }`}
                       >
-                        <Icon className={`h-6 w-6 ${isActive ? 'text-white' : 'text-white/20'}`} />
+                        <Icon className={`h-6 w-6 ${isActive ? 'text-white' : 'text-white/60'}`} />
                         <span className="uppercase tracking-widest">{m.label}</span>
                       </button>
                     );
@@ -281,7 +281,7 @@ export default function PaymentsHub() {
                 <div className="h-28 w-28 rounded-[2.5rem] bg-muted/20 flex items-center justify-center mb-10 shadow-inner group-hover:scale-110 group-hover:rotate-6 transition-all duration-700">
                   <Smartphone className="h-14 w-14 text-muted-foreground/20 group-hover:text-brandblue-500/20 transition-colors" />
                 </div>
-                <h3 className="text-2xl font-black text-foreground/40 uppercase tracking-tighter mb-4">Awaiting Signal</h3>
+                <h2 className="text-2xl font-black text-foreground/40 uppercase tracking-tighter mb-4">Awaiting Signal</h2>
                 <p className="text-[11px] text-muted-foreground/60 max-w-[280px] font-black uppercase tracking-[0.3em] leading-relaxed">
                   Configure channel parameters to generate encrypted network assets
                 </p>
@@ -341,7 +341,7 @@ export default function PaymentsHub() {
                         return (
                           <div key={key} className="space-y-3">
                             <div className="flex items-center justify-between px-1">
-                              <Label className="text-[10px] font-black text-white/20 uppercase tracking-[0.4em]">
+                              <Label className="text-[10px] font-black text-white/60 uppercase tracking-[0.4em]">
                                 {key.replace(/_/g, ' ')}
                               </Label>
                               <button onClick={() => copy(String(value))} className="text-[10px] font-black text-brandblue-400 hover:text-white transition-colors uppercase tracking-[0.2em] flex items-center gap-2 bg-white/5 px-3 py-1 rounded-lg">

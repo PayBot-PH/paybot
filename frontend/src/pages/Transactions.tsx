@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -212,10 +213,11 @@ export default function Transactions() {
           <CardContent className="p-10">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 items-end">
               <div className="lg:col-span-2 space-y-3 relative group">
-                <Label className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground/60 ml-1">Universal Search</Label>
+                <Label htmlFor="transactions-search" className="text-[10px] font-black uppercase tracking-[0.4em] text-muted-foreground/60 ml-1">Universal Search</Label>
                 <div className="relative">
                    <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground/40 group-focus-within:text-brandblue-500 transition-colors" />
                    <Input
+                     id="transactions-search"
                      placeholder="Reference, Entity, Metadata..."
                      value={searchTerm}
                      onChange={(e) => setSearchTerm(e.target.value)}

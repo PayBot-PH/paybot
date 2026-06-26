@@ -5,10 +5,10 @@ import { APP_NAME, COMPANY_NAME, SUPPORT_LINKS } from '@/lib/brand';
 
 type PolicyTab = 'terms' | 'privacy' | 'refund';
 
-const renderSupportLinks = () =>
+  const renderSupportLinks = () =>
   SUPPORT_LINKS.map(({ href, handle }, index) => (
     <span key={handle}>
-      <a href={href} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300">
+      <a href={href} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 underline-offset-2 hover:underline focus:underline">
         {handle}
       </a>
       {index === SUPPORT_LINKS.length - 2 ? ' and ' : index < SUPPORT_LINKS.length - 1 ? ', ' : ''}

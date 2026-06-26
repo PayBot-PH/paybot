@@ -102,6 +102,7 @@ export default function Layout({ children, connected }: LayoutProps) {
       items: [
         { to: '/', icon: LayoutDashboard, label: t('nav_dashboard') },
         { to: '/wallet', icon: Wallet, label: t('nav_wallet') },
+        { to: '/merchants', icon: Building2, label: t('nav_merchants') },
       ],
     },
     {
@@ -151,6 +152,7 @@ export default function Layout({ children, connected }: LayoutProps) {
             { to: '/pos-terminals', icon: Smartphone, label: 'POS Terminals', badge: 'Super' },
             { to: '/terminal-simulator', icon: Monitor, label: 'ECR Simulator', badge: 'Super' },
             { to: '/roles', icon: Shield, label: t('nav_roles'), badge: 'Super' },
+            { to: '/users', icon: User, label: t('nav_users'), badge: 'Super' },
             {
               type: 'group' as const,
               key: 'requests',
@@ -180,7 +182,7 @@ export default function Layout({ children, connected }: LayoutProps) {
       {navSections.map((section) => (
         <div key={section.label} className="mb-1">
           <p className={`px-3 pt-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest ${
-            isMobile ? 'text-white/40' : 'text-muted-foreground/70'
+            isMobile ? 'text-white/70' : 'text-muted-foreground/90'
           }`}>
             {section.label}
           </p>
@@ -209,7 +211,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                     </div>
                     <span className="flex-1 truncate text-left">{group.label}</span>
                     {group.badge && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
                         {group.badge}
                       </span>
                     )}
@@ -231,13 +233,13 @@ export default function Layout({ children, connected }: LayoutProps) {
                                 ? 'bg-primary/10 text-primary border-primary font-semibold dark:bg-primary/15'
                                 : isMobile
                                   ? 'text-white/50 hover:text-white hover:bg-white/5 border-transparent'
-                                  : 'text-foreground/60 hover:text-foreground hover:bg-muted border-transparent'
+                                              : 'text-foreground hover:text-foreground hover:bg-muted border-transparent'
                             }`}
                           >
                             <Icon className="h-3.5 w-3.5 shrink-0" />
                             <span className="flex-1 truncate text-xs">{label}</span>
                             {badge && (
-                              <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+                              <span className="text-[8px] font-bold px-1 py-0.5 rounded-full bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
                                 {badge}
                               </span>
                             )}
@@ -263,7 +265,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                     ? 'bg-primary/10 text-primary border-primary font-semibold dark:bg-primary/15'
                     : isMobile
                       ? 'text-white/70 hover:text-white hover:bg-white/5 border-transparent'
-                      : 'text-foreground/70 hover:text-foreground hover:bg-muted border-transparent'
+                      : 'text-foreground hover:text-foreground hover:bg-muted border-transparent'
                 }`}
               >
                 <div className={`flex items-center justify-center h-6 w-6 rounded-lg shrink-0 transition-all duration-150 ${
@@ -271,9 +273,9 @@ export default function Layout({ children, connected }: LayoutProps) {
                 }`}>
                   <item.icon className="h-3.5 w-3.5" />
                 </div>
-                <span className="flex-1 truncate">{item.label}</span>
+                <span className="flex-1 truncate text-foreground">{item.label}</span>
                 {item.badge && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400">
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300">
                     {item.badge}
                   </span>
                 )}
@@ -290,7 +292,7 @@ export default function Layout({ children, connected }: LayoutProps) {
           target="_blank"
           rel="noopener noreferrer"
           className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 border-l-2 border-transparent ${
-            isMobile ? 'text-white/50 hover:text-white hover:bg-white/5' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+            isMobile ? 'text-white/50 hover:text-white hover:bg-white/5' : 'text-foreground hover:text-foreground hover:bg-muted'
           }`}
         >
           <div className="flex items-center justify-center h-6 w-6 rounded-lg shrink-0">
@@ -308,13 +310,13 @@ export default function Layout({ children, connected }: LayoutProps) {
       {/* ─── Desktop Sidebar ─── */}
       <aside className="hidden md:flex flex-col w-64 fixed inset-y-0 left-0 z-40 bg-card/60 backdrop-blur-2xl border-r border-border/40 shadow-2xl">
         {/* Brand */}
-        <Link to="/" className="flex items-center gap-4 px-8 h-24 border-b border-border/40 shrink-0 group transition-all hover:bg-muted/10">
+            <Link to="/" className="flex items-center gap-4 px-8 h-24 border-b border-border/40 shrink-0 group transition-all hover:bg-muted/10">
           <div className="h-11 w-11 rounded-2xl bg-[#0A0F1E] flex items-center justify-center shrink-0 shadow-2xl shadow-brand-blue-500/20 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 border border-white/5">
             <img src="/logo.svg" alt={APP_NAME} className="h-7 w-7 shrink-0 animate-logo-bounce" />
           </div>
           <div>
             <p className="text-lg font-black tracking-tighter text-foreground uppercase">{APP_NAME}</p>
-            <p className="text-[9px] text-muted-foreground/60 font-black uppercase tracking-[0.3em]">{APP_SUBTITLE}</p>
+            <p className="text-[9px] text-muted-foreground/90 font-black uppercase tracking-[0.3em]">{APP_SUBTITLE}</p>
           </div>
         </Link>
 
@@ -328,11 +330,11 @@ export default function Layout({ children, connected }: LayoutProps) {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[11px] font-black truncate tracking-widest text-white uppercase">{userName}</p>
-              <p className="text-[9px] font-black uppercase text-white/20 tracking-[0.2em] leading-none mt-1 group-hover:text-white/60">{isSuperAdmin ? 'ROOT_USER' : 'ADMIN_NODE'}</p>
+              <p className="text-[9px] font-black uppercase text-white/60 tracking-[0.2em] leading-none mt-1 group-hover:text-white/80">{isSuperAdmin ? 'ROOT_USER' : 'ADMIN_NODE'}</p>
             </div>
             <button
               onClick={() => logout()}
-              className="p-2 rounded-lg text-white/20 hover:text-white hover:bg-white/10 transition-all active:scale-90"
+                className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10 transition-all active:scale-90"
               title="Sign out"
             >
               <LogOut className="h-4 w-4" />
@@ -353,7 +355,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                 </div>
                 <p className="text-xl font-black tracking-tighter text-white uppercase">{APP_NAME}</p>
               </Link>
-              <button onClick={() => setSidebarOpen(false)} className="h-10 w-10 flex items-center justify-center rounded-xl bg-white/5 text-white/40 hover:text-white transition-all active:scale-90">
+              <button onClick={() => setSidebarOpen(false)} className="h-10 w-10 flex items-center justify-center rounded-xl bg-white/5 text-white/40 hover:text-white transition-all active:scale-90" aria-label="Close navigation menu">
                 <X className="h-5 w-5" />
               </button>
             </div>
@@ -381,6 +383,7 @@ export default function Layout({ children, connected }: LayoutProps) {
           <button
             className="md:hidden h-12 w-12 flex items-center justify-center rounded-2xl bg-muted/20 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all active:scale-90"
             onClick={() => setSidebarOpen(true)}
+            aria-label="Open navigation menu"
           >
             <Menu className="h-6 w-6" />
           </button>
@@ -444,7 +447,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                 </div>
                 <div className="text-left space-y-0.5">
                   <p className="text-xs font-black text-foreground truncate max-w-[120px] uppercase tracking-tight leading-none">{userName}</p>
-                  <p className="text-[9px] font-bold text-muted-foreground/40 uppercase tracking-[0.3em]">{isSuperAdmin ? 'ROOT' : 'ADMIN'}</p>
+                  <p className="text-[9px] font-bold text-muted-foreground/80 uppercase tracking-[0.3em]">{isSuperAdmin ? 'ROOT' : 'ADMIN'}</p>
                 </div>
                 <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-500 ${userMenuOpen ? 'rotate-180' : ''}`} />
               </button>
