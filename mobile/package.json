@@ -31,7 +31,7 @@
     "moment": "^2.29.4",
     "react": "^18.2.0",
     "react-hook-form": "^7.76.1",
-    "react-native": "^0.72.0",
+    "react-native": "^0.86.0",
     "react-native-background-fetch": "^4.4.2",
     "react-native-barcode-builder": "^2.0.0",
     "react-native-camera": "^4.2.1",
