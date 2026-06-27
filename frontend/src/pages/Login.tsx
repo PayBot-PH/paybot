@@ -139,7 +139,7 @@ export default function Login() {
         }
     };
 
-    if (user) return <Navigate to="/intro" replace />;
+    if (user) return <Navigate to="/dashboard" replace />;
 
     return (
         <div className="min-h-screen bg-[#0A0F1E] text-white overflow-x-hidden font-sans">

@@ -44,7 +44,6 @@ import AlipayPage from './pages/AlipayPage';
 import WeChatPage from './pages/WeChatPage';
 import HomePage from './pages/Index';
 import DesignSystemDemo from './pages/DesignSystemDemo';
-import DashboardNew from './pages/new/DashboardNew';
 import WalletNew from './pages/new/WalletNew';
 import TransactionsNew from './pages/new/TransactionsNew';
 import Merchants from './pages/Merchants';
@@ -102,7 +101,7 @@ function MaintenanceGuard({ children }: { children: React.ReactNode }) {
 function PageFade({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   // Provide a main landmark and a screen-reader-only page title
-  const path = location.pathname === '/' ? 'Dashboard' : location.pathname.replace(/^\/+|\/+$/g, '').replace(/[-_/]/g, ' ') || 'Page';
+  const path = location.pathname === '/' ? 'Home' : location.pathname.replace(/^\/+/g, '').replace(/[-_/]/g, ' ') || 'Page';
   const title = path.split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
 
   return (
@@ -187,9 +186,6 @@ function AuthAwareShell() {
         <PageFade>
           <Routes>
             <Route path="/design" element={<DesignSystemDemo />} />
-            <Route path="/new/dashboard" element={<DashboardNew />} />
-            <Route path="/new/wallet" element={<WalletNew />} />
-            <Route path="/new/transactions" element={<TransactionsNew />} />
             <Route path="/home" element={<HomePage />} />
             <Route path="/intro" element={<BotIntro />} />
             <Route path="/login" element={<Login />} />
@@ -201,7 +197,7 @@ function AuthAwareShell() {
             <Route path="/logout-callback" element={<LogoutCallbackPage />} />
             <Route path="/maintenance" element={<MaintenancePage />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/merchants" element={<Merchants />} />
             <Route path="/users" element={<Users />} />
             <Route path="/wallet" element={<Wallet />} />
