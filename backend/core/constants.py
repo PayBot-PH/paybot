@@ -2,7 +2,6 @@
 
 # xend PH bank accounts
 PAYBOT_BANK_ACCOUNTS = {
-    "GoTyme Digital Bank": {"number": "012116012891", "name": "xend PH"},
     "Security Bank Corporation": {"number": "0000068888173", "name": "xend PH"},
     "Asia United Bank": {"number": "934105321485", "name": "xend PH"},
 }

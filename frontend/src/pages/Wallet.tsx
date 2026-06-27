@@ -162,7 +162,6 @@ const BANKS = ['BDO', 'BPI', 'UNIONBANK', 'RCBC', 'CHINABANK', 'PNB', 'METROBANK
 
 // xend bank accounts for top-up
 const TOPUP_BANKS: { bank: string; name: string; number: string }[] = [
-  { bank: 'GoTyme Digital Bank',       name: 'xend', number: '012116012891'  },
   { bank: 'Security Bank Corporation', name: 'xend', number: '0000068888173' },
   { bank: 'Asia United Bank',          name: 'xend', number: '934105321485'  },
 ];
