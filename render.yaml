@@ -1,0 +1,54 @@
+# Render deployment config for PayBot
+# Adjust branch, plan, and secret management as needed in Render dashboard.
+
+services:
+  - type: web
+    name: paybot-backend
+    env: docker
+    plan: starter
+    repo: https://github.com/PayBot-PH/paybot
+    branch: main
+    dockerfilePath: backend/Dockerfile
+    autoDeploy: true
+    instances: 1
+    healthCheckPath: /health
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_BOT_USERNAME
+        sync: false
+      - key: TELEGRAM_ADMIN_IDS
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: XENDIT_SECRET_KEY
+        sync: false
+      - key: PAYMONGO_SECRET_KEY
+        sync: false
+      - key: PAYMONGO_PUBLIC_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
+# Managed database for the service. After creation, copy the connection string into the
+# DATABASE_URL env var (or let Render link the database to the service automatically).
+databases:
+  - name: paybot-db
+    plan: starter
+
+# Optional one-off job to run DB migrations. You can run this manually from the Render UI
+# or enable it as a deploy hook. Adjust the alembic config path if needed.
+jobs:
+  - name: migrate-database
+    type: job
+    env: docker
+    plan: starter
+    repo: https://github.com/PayBot-PH/paybot
+    branch: main
+    dockerfilePath: backend/Dockerfile
+    command: alembic -c backend/alembic.ini upgrade head
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
