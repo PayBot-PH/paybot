@@ -28,7 +28,6 @@ import {
   Check,
   Bitcoin,
   AlertCircle,
-  Bank,
   ShieldAlert,
   Link as LinkIcon,
 } from 'lucide-react';
@@ -181,7 +180,7 @@ function TopupBankLogo({ logo, bank }: { logo: string | undefined; bank: string 
 
   return (
     <div className="h-6 w-6 rounded-md bg-muted/80 flex items-center justify-center text-slate-100">
-      <Bank className="h-4 w-4" />
+      <div className="text-xs font-semibold">B</div>
     </div>
   );
 }

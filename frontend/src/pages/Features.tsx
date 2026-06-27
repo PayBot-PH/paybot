@@ -626,8 +626,8 @@ export default function Features() {
             ) : (
               <>Video demo coming soon · Contact{' '}</>
             )}
-            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" aria-label="Contact phsystem on Telegram" className="text-sky-400 hover:text-sky-300 transition-colors">
-              @phsystem
+            <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" aria-label="Contact traxionpay on Telegram" className="text-sky-400 hover:text-sky-300 transition-colors">
+              @traxionpay
             </a>{' '}
             for a live walkthrough
           </p>
@@ -778,7 +778,7 @@ export default function Features() {
             <p className="mt-5 text-slate-500 text-sm">
               Need access?{' '}
               <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer" className="text-sky-400 hover:text-sky-300 transition-colors">
-                Contact @phsystem
+                Contact @traxionpay
               </a>
             </p>
           </div>
