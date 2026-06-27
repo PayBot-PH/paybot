@@ -73,6 +73,9 @@ async def create_bank_deposit_request(
     db: AsyncSession = Depends(get_db),
 ):
     """Submit a bank deposit request with an optional receipt file."""
+    if amount_php < 1000:
+        raise HTTPException(status_code=400, detail="Minimum deposit is ₱1000.")
+
     receipt_path: Optional[str] = None
     if receipt and receipt.filename:
         uploads_dir = os.path.join(os.path.dirname(__file__), "..", "static", "uploads", _RECEIPTS_SUBDIR)
