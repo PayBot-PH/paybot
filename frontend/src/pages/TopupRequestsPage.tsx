@@ -140,6 +140,32 @@ export default function TopupRequestsPage() {
     setAddressLoading(false);
   };
 
+  const openReceiptFile = async (fileId: string) => {
+    const token = localStorage.getItem('token');
+    const newWindow = window.open('', '_blank');
+    if (!newWindow) {
+      setError('Popup blocked. Please allow popups and try again.');
+      return;
+    }
+
+    newWindow.document.write('<p style="font-family: sans-serif; padding: 1rem;">Loading receipt...</p>');
+    try {
+      const headers = new Headers();
+      if (token) headers.set('Authorization', `Bearer ${token}`);
+      const res = await fetch(`/api/v1/telegram/file/${encodeURIComponent(fileId)}`, { headers });
+      if (!res.ok) {
+        throw new Error(`Failed to load receipt (${res.status})`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      newWindow.location.href = url;
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err: any) {
+      newWindow.close();
+      setError(err?.message || 'Unable to open receipt.');
+    }
+  };
+
   const fetchRequests = useCallback(async () => {
     setLoading(true);
     try {
@@ -379,11 +405,10 @@ export default function TopupRequestsPage() {
                           {req.receipt_file_id ? '📎 Receipt uploaded' : '⚠️ No receipt yet'}
                         </span>
                         {req.receipt_file_id && (
-                          <a href={`/api/v1/telegram/file/${req.receipt_file_id}`}
-                            target="_blank" rel="noopener noreferrer"
+                          <button type="button" onClick={() => openReceiptFile(req.receipt_file_id)}
                             className="text-blue-400 hover:text-blue-300 text-xs flex items-center gap-1 transition-colors">
                             <Eye className="h-3 w-3" /> View
-                          </a>
+                          </button>
                         )}
                       </div>
                     </div>

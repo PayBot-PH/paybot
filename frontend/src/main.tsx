@@ -1,5 +1,6 @@
 import { Component, ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
+import '@/lib/api';
 import App from './App.tsx';
 import './index.css';
 
