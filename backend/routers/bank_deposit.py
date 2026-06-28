@@ -208,7 +208,7 @@ async def approve_bank_deposit_request(
 
     logger.info(
         "Bank deposit #%s approved — ₱%.2f PHP credited to %s",
-        deposit_id, amount_php, user_wallet_id,
+        deposit_id, amount_php, user_id,
     )
     return req
 

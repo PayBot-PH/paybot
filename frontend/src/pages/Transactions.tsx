@@ -283,7 +283,17 @@ export default function Transactions() {
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4 text-right">
                             <span className="text-sm font-mono font-medium text-foreground">
-                              ₱{txn.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                              {(() => {
+                                const amt = typeof txn.amount === 'number' ? txn.amount : Number(txn.amount || 0);
+                                try {
+                                  if (txn.currency && txn.currency.toUpperCase() === 'USD') {
+                                    return `$${amt.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                                  }
+                                  return `₱${amt.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
+                                } catch (e) {
+                                  return `₱${String(amt)}`;
+                                }
+                              })()}
                             </span>
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4 text-center">
@@ -297,12 +307,18 @@ export default function Transactions() {
                             </Badge>
                           </td>
                           <td className="px-3 md:px-4 py-3 md:py-4 hidden lg:table-cell">
-                            <div className="text-xs text-muted-foreground">
-                              {new Date(txn.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            </div>
-                            <div className="text-[11px] text-muted-foreground mt-0.5">
-                              {new Date(txn.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
-                            </div>
+                            {txn.created_at ? (
+                              <>
+                                <div className="text-xs text-muted-foreground">
+                                  {new Date(txn.created_at).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                </div>
+                                <div className="text-[11px] text-muted-foreground mt-0.5">
+                                  {new Date(txn.created_at).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="text-xs text-muted-foreground">—</div>
+                            )}
                           </td>
                           <td className="px-3 md:px-6 py-3 md:py-4 text-right">
                             <div className="flex items-center justify-end space-x-1">

@@ -188,7 +188,7 @@ async def approve_topup_request(
 
     logger.info(
         "Topup #%s approved — $%.2f USDT → ₱%.2f PHP (rate %.2f) credited to %s",
-        topup_id, amount_usdt, amount_php, rate, user_wallet_id,
+        topup_id, amount_usdt, amount_php, rate, user_id,
     )
     return req
 
