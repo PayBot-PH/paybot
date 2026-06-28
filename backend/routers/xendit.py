@@ -95,14 +95,27 @@ async def xendit_webhook(
         raw_body = await request.body()
         svc = XenditService()
 
-        # Verify token
-        token = x_callback_token or request.headers.get("X-Callback-Token") or ""
-        if token:
-            if not svc.verify_webhook_token(token):
-                logger.warning("Xendit webhook: invalid X-CALLBACK-TOKEN")
-                return {"status": "error", "message": "Invalid callback token"}
+        # Prefer HMAC signature verification when a webhook secret is configured.
+        # Xendit may send signatures in different headers depending on integration.
+        signature = (
+            request.headers.get("X-Callback-Signature")
+            or request.headers.get("X-Xendit-Signature")
+            or request.headers.get("X-Signature")
+            or request.headers.get("X-XENDIT-SIGNATURE")
+        )
+        if signature:
+            if not svc.verify_webhook_signature(raw_body, signature):
+                logger.warning("Xendit webhook: invalid HMAC signature")
+                return {"status": "error", "message": "Invalid webhook signature"}
         else:
-            logger.debug("Xendit webhook: no X-CALLBACK-TOKEN header — skipping verification")
+            # Fallback to legacy token header (X-CALLBACK-TOKEN) when signature not provided
+            token = x_callback_token or request.headers.get("X-Callback-Token") or ""
+            if token:
+                if not svc.verify_webhook_token(token):
+                    logger.warning("Xendit webhook: invalid X-CALLBACK-TOKEN")
+                    return {"status": "error", "message": "Invalid callback token"}
+            else:
+                logger.debug("Xendit webhook: no verification header present — skipping verification")
 
         body = json.loads(raw_body)
         event_type = body.get("event") or body.get("type") or ""

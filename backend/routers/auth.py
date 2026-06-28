@@ -29,13 +29,10 @@ from fastapi.responses import RedirectResponse, JSONResponse, HTMLResponse
 from models.auth import User
 from models.admin_users import AdminUser
 from models.bot_settings import Bot_settings
-<<<<<<< HEAD
 from models.pos_terminal import POSTerminal, POSTerminalDevice, TerminalStatus
 from services.pos_terminal import POSTerminalService
 from schemas.pos_terminal import POSTerminalDeviceCreate
-=======
 from models.kyb_registrations import KybRegistration
->>>>>>> parent of c6d943c (feat: delete KYC and KYB features from dashboard and telegram bot)
 from schemas.auth import (
     PlatformTokenExchangeRequest,
     TelegramWidgetLoginRequest,

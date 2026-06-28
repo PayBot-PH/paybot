@@ -1452,50 +1452,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         tg = TelegramService()
         tg_user_id = f"tg-{chat_id}"
 
-<<<<<<< HEAD
-        # ==================== Access control ====================
-        # Check if this user is an authorized admin.
-        admin_record = await _get_admin_user_record(db, chat_id)
-        is_admin = admin_record is not None
-
-        if is_admin and admin_record:
-            # Sync in-memory language if not set
-            if chat_id not in _user_lang:
-                _user_lang[chat_id] = admin_record.language or 'en'
-
-        if not is_admin:
-            # Auto-authorize users on /start if they are not already in admin_users
-            if text and text.startswith("/start"):
-                try:
-                    new_admin = AdminUser(
-                        telegram_id=chat_id,
-                        telegram_username=username,
-                        name=first_name or username or chat_id,
-                        is_active=True,
-                        is_super_admin=False,
-                        can_manage_payments=True,
-                        can_manage_disbursements=True,
-                        can_view_reports=True,
-                        can_manage_wallet=True,
-                        can_manage_transactions=True,
-                        added_by="auto_system",
-                    )
-                    db.add(new_admin)
-                    await db.commit()
-                    is_admin = True
-                except Exception as e:
-                    logger.error(f"Auto-admin creation failed: {e}")
-                    await db.rollback()
-
-            if not is_admin:
-                await tg.send_message(
-                    chat_id,
-                    "👋 <b>xend ✅</b>\n"
-                    "━━━━━━━━━━━━━━━━━━━━\n"
-                    "Please type /start to begin."
-                )
-                return {"status": "ok"}
-=======
         # ==================== Access control: KYB gate ====================
         # Check if this user is an authorized admin.  Non-admins are routed
         # through the KYB registration flow (photos or text).
@@ -1503,7 +1459,6 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         if not is_admin:
             await _handle_kyb_flow(db, tg, chat_id, username, text, photos)
             return {"status": "ok"}
->>>>>>> parent of c6d943c (feat: delete KYC and KYB features from dashboard and telegram bot)
 
         # ==================== PIN session gate ====================
         # MOVED: PIN gate is now only applied to /send and /withdraw commands.

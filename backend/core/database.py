@@ -271,8 +271,16 @@ class DatabaseManager:
                 self._initialized = True
                 logger.info(f"Duplicate table creation: {e}, ignored.")
             except Exception as e:
-                logger.error(f"Failed to create tables: {e}")
-                raise
+                # SQLite may raise an OperationalError when attempting to create
+                # an index that already exists (e.g. 'index ix_xyz already exists').
+                # Treat this particular error as non-fatal and consider tables initialized.
+                msg = str(e).lower()
+                if "already exists" in msg and "index" in msg:
+                    self._initialized = True
+                    logger.warning(f"Ignored non-fatal existing-index error during create_all: {e}")
+                else:
+                    logger.error(f"Failed to create tables: {e}")
+                    raise
         finally:
             self._table_creation_lock.release()
 
