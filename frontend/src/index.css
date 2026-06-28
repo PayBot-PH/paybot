@@ -60,6 +60,18 @@
   }
 
   .dark {
+  --brand-blue-50: 220 55% 8%;
+  --brand-blue-100: 220 50% 12%;
+  --brand-blue-200: 220 46% 18%;
+  --brand-blue-300: 220 42% 30%;
+  --brand-blue-400: 220 38% 45%;
+  --brand-blue-500: 220 34% 55%;
+  --brand-blue-600: 220 32% 65%;
+  --brand-blue-700: 220 30% 75%;
+  --brand-blue-800: 220 28% 85%;
+  --brand-blue-900: 220 26% 92%;
+  --brand-ink-900: 220 28% 95%;
+    
     --background: 214 18% 8%;
     --foreground: 214 14% 92%;
 
