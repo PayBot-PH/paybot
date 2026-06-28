@@ -181,11 +181,7 @@ export default function Register() {
           </div>
 
           <h2 className="text-2xl font-bold text-white mb-3">Apply for Access</h2>
-<<<<<<< HEAD
           <p className="text-emerald-50/95 text-sm mb-8 leading-relaxed">
-=======
-          <p className="text-blue-100 text-sm mb-8 leading-relaxed">
->>>>>>> parent of c6d943c (feat: delete KYC and KYB features from dashboard and telegram bot)
             Submit your KYC information to request admin dashboard access. After approval, you'll be notified via Telegram.
           </p>
 
@@ -210,11 +206,7 @@ export default function Register() {
 
           <div className="mt-8 bg-white/15 border border-white/20 rounded-xl p-3">
             <p className="text-white text-xs font-semibold mb-1">Security Notice</p>
-<<<<<<< HEAD
             <p className="text-emerald-50/90 text-xs">Your Telegram username is required to receive approval notifications and to link your account after approval.</p>
-=======
-            <p className="text-blue-100 text-xs">Your Telegram username is required to receive approval notifications and to link your account after approval.</p>
->>>>>>> parent of c6d943c (feat: delete KYC and KYB features from dashboard and telegram bot)
           </div>
         </div>
 

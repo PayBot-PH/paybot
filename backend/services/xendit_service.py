@@ -213,7 +213,13 @@ class XenditService:
         Xendit signs payloads using the webhook secret and HMAC-SHA256 over the raw body.
         The header key may vary; callers should pass the header value.
         """
-        secret_key = (secret or os.environ.get("XENDIT_WEBHOOK_SECRET") or getattr(settings, "xendit_secret_key", "")).strip()
+        # Prefer an explicit webhook secret setting. Do NOT fall back to the main
+        # Xendit API key for webhook signature verification — they are different.
+        secret_key = (
+            secret
+            or os.environ.get("XENDIT_WEBHOOK_SECRET")
+            or getattr(settings, "xendit_webhook_secret", "")
+        ).strip()
         if not secret_key:
             logger.warning("XENDIT_WEBHOOK_SECRET not configured — skipping Xendit webhook verification")
             return False

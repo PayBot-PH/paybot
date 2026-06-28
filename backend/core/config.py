@@ -79,6 +79,7 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_bot_username: str = ""
     xendit_secret_key: str = ""
+    xendit_webhook_secret: str = ""
     xendit_webhook_token: str = ""
     xendit_callback_url: str = ""
     xendit_base_url: str = ""

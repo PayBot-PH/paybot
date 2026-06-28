@@ -41,27 +41,10 @@ export default function Layout({ children, connected }: LayoutProps) {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
-<<<<<<< HEAD
     const onScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-=======
-    setOpenGroups((prev) => {
-      const next = new Set(prev);
-      if (['/xendit', '/alipay', '/wechat'].some((r) => path.startsWith(r))) {
-        next.add('gateways');
-      }
-      if (['/usdt-send-requests', '/topup-requests', '/bank-deposits'].some((r) => path.startsWith(r))) {
-        next.add('requests');
-      }
-      if (['/kyb-registrations', '/kyc-verifications'].some((r) => path.startsWith(r))) {
-        next.add('compliance');
-      }
-      return next;
-    });
-  }, [path]);
->>>>>>> parent of c6d943c (feat: delete KYC and KYB features from dashboard and telegram bot)
 
   const visibleNav = navItems.filter(item => {
     if (item.adminOnly && !isSuperAdmin) return false;
@@ -69,101 +52,10 @@ export default function Layout({ children, connected }: LayoutProps) {
     return true;
   });
 
-<<<<<<< HEAD
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
     return location.pathname.startsWith(path);
   };
-=======
-  /* ─── Navigation structure ──────────────────────────────────── */
-  const navSections: NavSection[] = [
-    {
-      label: t('nav_overview'),
-      items: [
-        { to: '/', icon: LayoutDashboard, label: t('nav_dashboard') },
-        { to: '/wallet', icon: Wallet, label: t('nav_wallet') },
-      ],
-    },
-    {
-      label: t('nav_payments'),
-      items: [
-        {
-          type: 'group' as const,
-          key: 'gateways',
-          icon: Zap,
-          label: t('nav_gateways'),
-          children: [
-            { to: '/xendit', icon: Zap, label: t('nav_xendit') },
-            { to: '/alipay', icon: QrCode, label: t('nav_alipay') },
-            { to: '/wechat', icon: QrCode, label: t('nav_wechat') },
-          ],
-        },
-        { to: '/scan-qrph', icon: ScanLine, label: t('nav_scan_qrph') },
-        { to: '/transactions', icon: FileText, label: t('nav_transactions') },
-        { to: '/disbursements', icon: ArrowRightLeft, label: t('nav_disbursements') },
-        { to: '/reports', icon: Activity, label: t('nav_reports') },
-      ],
-    },
-    /* Bot section — shown to admins / can_manage_bot users */
-    ...(isAdmin || permissions?.can_manage_bot || isSuperAdmin
-      ? [{
-          label: t('nav_bot'),
-          items: [
-            ...(isAdmin || isSuperAdmin
-              ? [{ to: '/bot-messages', icon: MessageSquare, label: t('nav_bot_messages') }]
-              : []),
-            ...(permissions?.can_manage_bot || isSuperAdmin
-              ? [{ to: '/bot-settings', icon: Bot, label: t('nav_bot_settings') }]
-              : []),
-            ...(permissions?.can_manage_bot || isSuperAdmin
-              ? [{ to: '/messenger', icon: MessageCircle, label: t('nav_messenger') }]
-              : []),
-          ] as NavEntry[],
-        }]
-      : []),
-    /* Administration — super admin only, with collapsible sub-groups */
-    ...(isSuperAdmin
-      ? [{
-          label: t('nav_administration'),
-          items: [
-            { to: '/admin-management', icon: ShieldCheck, label: t('nav_admin_management'), badge: 'Super' },
-            { to: '/pos-terminals', icon: Smartphone, label: 'POS Terminals', badge: 'Super' },
-            { to: '/terminal-simulator', icon: Monitor, label: 'ECR Simulator', badge: 'Super' },
-            { to: '/roles', icon: Shield, label: t('nav_roles'), badge: 'Super' },
-            {
-              type: 'group' as const,
-              key: 'requests',
-              icon: Inbox,
-              label: t('nav_requests'),
-              badge: 'Super',
-              children: [
-                { to: '/usdt-send-requests', icon: Send, label: t('nav_usdt_requests'), badge: 'Super' },
-                { to: '/topup-requests', icon: DollarSign, label: t('nav_topup_requests'), badge: 'Super' },
-                { to: '/bank-deposits', icon: Building2, label: t('nav_bank_deposits'), badge: 'Super' },
-              ],
-            },
-            {
-              type: 'group' as const,
-              key: 'compliance',
-              icon: Settings2,
-              label: t('nav_compliance'),
-              badge: 'Super',
-              children: [
-                { to: '/kyb-registrations', icon: ClipboardList, label: t('nav_kyb_registrations'), badge: 'Super' },
-                { to: '/kyc-verifications', icon: UserCheck, label: t('nav_kyc_verifications'), badge: 'Super' },
-              ],
-            },
-          ] as NavEntry[],
-        }]
-      : []),
-    {
-      label: t('nav_help'),
-      items: [
-        { to: '/policies', icon: BookOpen, label: t('nav_policies') },
-      ],
-    },
-  ];
->>>>>>> parent of c6d943c (feat: delete KYC and KYB features from dashboard and telegram bot)
 
   const handleLogout = () => {
     logout();
