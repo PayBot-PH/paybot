@@ -9,7 +9,7 @@ import {
   Home, LayoutDashboard, CreditCard, Send, FileText, BarChart3,
   Wallet, Settings, LogOut, Menu, User, ShieldCheck, Crown,
   ChevronRight, Zap, Bell, CheckCircle, XCircle, Clock, Bot,
-  MessageSquare, Users, CalendarDays, RotateCcw, ArrowUpFromLine,
+  MessageSquare, ArrowUpFromLine,
   DollarSign, ClipboardList
 } from 'lucide-react';
 
@@ -25,9 +25,6 @@ const navItems = [
   { label: 'Transactions', icon: FileText, path: '/transactions' },
   { label: 'Reports', icon: BarChart3, path: '/reports' },
   { label: 'Wallet', icon: Wallet, path: '/wallet' },
-  { label: 'Refunds', icon: RotateCcw, path: '/refunds' },
-  { label: 'Schedules', icon: CalendarDays, path: '/schedules' },
-  { label: 'Customers', icon: Users, path: '/customers' },
   { label: 'Bot Messages', icon: MessageSquare, path: '/bot-messages' },
   { label: 'KYB Registrations', icon: ClipboardList, path: '/kyb-registrations', adminOnly: true },
   { label: 'KYC Verifications', icon: ShieldCheck, path: '/kyc-verifications', adminOnly: true },
