@@ -12,6 +12,7 @@ from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from models.disbursements import Disbursements
 from models.crypto_topup import CryptoTopupRequest
+from models.usdt_send_requests import UsdtSendRequest
 from schemas.auth import UserResponse
 from dependencies.auth import get_current_user
 from services.auth import AuthService
@@ -54,6 +55,41 @@ class SendUsdtRequest(BaseModel):
     amount: float
     note: str = ""
     pin: Optional[str] = None
+
+class DashboardWithdrawRequest(BaseModel):
+    """Withdraw request model from dashboard (supports both PHP and USDT)"""
+    request_type: str  # 'php_bank' or 'usdt_trc20'
+    amount: float
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    account_name: Optional[str] = None
+    usdt_address: Optional[str] = None
+    usdt_platform: Optional[str] = None
+    note: Optional[str] = None
+
+class WithdrawRequestResponse(BaseModel):
+    """Response model for withdraw request"""
+    id: int
+    amount: float
+    bank_name: Optional[str] = None
+    account_number: Optional[str] = None
+    account_name: Optional[str] = None
+    note: Optional[str] = None
+    status: str
+    created_at: Optional[datetime] = None
+    processed_at: Optional[datetime] = None
+    processed_by: Optional[str] = None
+    rejection_reason: Optional[str] = None
+    request_type: str
+    usdt_address: Optional[str] = None
+    usdt_platform: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class WithdrawRequestsListResponse(BaseModel):
+    """Response model for listing withdraw requests"""
+    requests: List[WithdrawRequestResponse]
+    total: int
 
 class UsdtSendRequestOut(BaseModel):
     id: int
@@ -556,6 +592,189 @@ async def send_usdt(
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/withdraw-request", response_model=WalletActionResponse)
+async def submit_withdraw_request(
+    data: DashboardWithdrawRequest,
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Submit a withdrawal request (PHP bank or USDT)."""
+    svc = WalletsService(db)
+    user_id = str(current_user.id)
+    
+    try:
+        if data.request_type == "php_bank":
+            if not data.bank_name or not data.account_number or not data.account_name:
+                raise ValueError("Bank name, account number, and account name are required for PHP bank withdrawal")
+            
+            result = await svc.withdraw_request(
+                user_id=user_id,
+                amount=data.amount,
+                bank_name=data.bank_name,
+                account_number=data.account_number,
+                account_name=data.account_name,
+                note=data.note or ""
+            )
+            
+            # Optional: Notify super admin via Telegram
+            from core.config import settings
+            owner_id = str(getattr(settings, "telegram_bot_owner_id", "") or "").strip()
+            if owner_id:
+                try:
+                    tg = TelegramService()
+                    await tg.send_message(
+                        owner_id,
+                        f"🔔 <b>New Dashboard Withdrawal Request</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"👤 From: {current_user.name} (ID: {current_user.id})\n"
+                        f"💰 Amount: <b>₱{data.amount:,.2f}</b>\n"
+                        f"🏦 Bank: {data.bank_name}\n"
+                        f"🔢 Account: <code>{data.account_number}</code>\n"
+                        f"🆔 Ref: <code>{result.get('reference_id', '')}</code>"
+                    )
+                except Exception:
+                    pass
+            
+            return WalletActionResponse(
+                success=True,
+                message="PHP withdrawal request submitted for admin approval",
+                balance=result.get("balance", 0),
+                transaction_id=result.get("transaction_id", 0)
+            )
+        
+        elif data.request_type == "usdt_trc20":
+            if not data.usdt_address or not data.usdt_platform:
+                raise ValueError("USDT address and platform are required for USDT withdrawal")
+            
+            # Re-using adjust_balance for a pending debit is one way,
+            # but here we implement the specific logic for USDT send.
+            balance = await svc.compute_usd_balance(user_id)
+            if balance < data.amount:
+                raise ValueError(f"Insufficient USD balance (Available: ${balance:,.2f})")
+
+            wallet = await svc.get_or_create_wallet(user_id, "USD")
+            now = datetime.now(timezone.utc)
+            new_bal = balance - data.amount
+            
+            # Create USDT send request in database
+            usdt_req = UsdtSendRequest(
+                user_id=user_id,
+                to_address=data.usdt_address,
+                amount=data.amount,
+                status="pending",
+                note=data.note or "",
+                platform=data.usdt_platform,
+                created_at=now,
+                updated_at=now,
+            )
+            db.add(usdt_req)
+            
+            # Deduct from USD wallet
+            wallet.balance = round(new_bal, 2)
+            wallet.available_balance = round(new_bal, 2)
+            wallet.updated_at = now
+            await db.commit()
+            await db.refresh(usdt_req)
+            
+            # Optional: Notify super admin via Telegram
+            from core.config import settings
+            owner_id = str(getattr(settings, "telegram_bot_owner_id", "") or "").strip()
+            if owner_id:
+                try:
+                    tg = TelegramService()
+                    await tg.send_message(
+                        owner_id,
+                        f"🔔 <b>New USDT Withdrawal Request</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"👤 From: {current_user.name} (ID: {current_user.id})\n"
+                        f"💰 Amount: <b>${data.amount:,.2f}</b>\n"
+                        f"📱 Platform: {data.usdt_platform}\n"
+                        f"📍 Address: <code>{data.usdt_address}</code>"
+                    )
+                except Exception:
+                    pass
+            
+            return WalletActionResponse(
+                success=True,
+                message="USDT withdrawal request submitted for admin approval",
+                balance=new_bal,
+                transaction_id=usdt_req.id
+            )
+        
+        else:
+            raise ValueError(f"Invalid request type: {data.request_type}")
+    
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Withdraw request error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to process withdrawal request")
+
+
+@router.get("/withdraw-requests", response_model=WithdrawRequestsListResponse)
+async def get_withdraw_requests(
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fetch all withdrawal requests for the current user."""
+    user_id = str(current_user.id)
+    
+    try:
+        # Get PHP bank withdrawal requests from Disbursements table
+        from sqlalchemy import select
+        stmt = select(Disbursements).where(
+            (Disbursements.user_id == user_id) &
+            (Disbursements.disbursement_type == "single") &
+            (Disbursements.status.in_(["pending", "approved", "rejected", "processing", "completed"]))
+        ).order_by(Disbursements.created_at.desc())
+        result = await db.execute(stmt)
+        php_requests = result.scalars().all()
+        
+        # Convert to response model
+        requests = []
+        for disb in php_requests:
+            requests.append(WithdrawRequestResponse(
+                id=disb.id,
+                amount=disb.amount,
+                bank_name=disb.bank_code,
+                account_number=disb.account_number,
+                account_name=disb.account_name,
+                note=disb.description,
+                status=disb.status,
+                created_at=disb.created_at,
+                processed_at=disb.updated_at,
+                request_type="php_bank"
+            ))
+        
+        # Get USDT withdrawal requests from UsdtSendRequest table
+        stmt_usdt = select(UsdtSendRequest).where(
+            (UsdtSendRequest.user_id == user_id)
+        ).order_by(UsdtSendRequest.created_at.desc())
+        result_usdt = await db.execute(stmt_usdt)
+        usdt_requests = result_usdt.scalars().all()
+        
+        for usdt in usdt_requests:
+            requests.append(WithdrawRequestResponse(
+                id=usdt.id,
+                amount=usdt.amount,
+                usdt_address=usdt.to_address,
+                usdt_platform=getattr(usdt, "platform", "unknown"),
+                note=usdt.note,
+                status=usdt.status,
+                created_at=usdt.created_at,
+                request_type="usdt_trc20"
+            ))
+        
+        # Sort by created_at descending
+        requests.sort(key=lambda r: r.created_at or datetime.now(timezone.utc), reverse=True)
+        
+        return WithdrawRequestsListResponse(requests=requests, total=len(requests))
+    
+    except Exception as e:
+        logger.error(f"Get withdraw requests error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch withdrawal requests")
 
 
 @router.get("/transactions")
