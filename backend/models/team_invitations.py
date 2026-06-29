@@ -13,13 +13,24 @@ class TeamInvitation(Base):
 
     # Permissions as JSON for flexibility
     permissions = Column(JSON, nullable=False, default={
-        "can_manage_payments": True,
-        "can_manage_disbursements": True,
-        "can_view_reports": True,
-        "can_manage_wallet": False,
-        "can_manage_transactions": True,
-        "can_manage_bot": False,
-        "can_approve_topups": False,
+        "can_add_delete_user": False,
+        "can_edit_user_access": False,
+        "can_edit_business_settings": False,
+        "can_add_edit_delete_cards_promotion": False,
+        "can_upload_delete_batch_disbursements": False,
+        "can_validate_batch_disbursements": False,
+        "can_generate_invoice": False,
+        "can_add_edit_customers": False,
+        "can_view_transaction_details": False,
+        "can_download_csv_report": False,
+        "can_withdraw_funds": False,
+        "can_create_transfers": False,
+        "can_add_edit_delete_withdrawal_account": False,
+        "can_see_api_keys": False,
+        "can_resend_callbacks": False,
+        "can_change_callback_urls": False,
+        "can_approve_batch_disbursements": False,
+        "can_refund_cards_charges": False,
     })
 
     status = Column(String(20), default="pending", nullable=False)  # pending, accepted, expired, revoked

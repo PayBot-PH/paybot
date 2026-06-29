@@ -57,13 +57,24 @@ interface Role {
 }
 
 const PERMISSION_LABELS: Record<string, string> = {
-  can_manage_payments: 'Manage Payments',
-  can_manage_disbursements: 'Manage Disbursements',
-  can_view_reports: 'View Reports',
-  can_manage_wallet: 'Manage Wallet',
-  can_manage_transactions: 'Manage Transactions',
-  can_manage_bot: 'Manage Bot',
-  can_approve_topups: 'Approve Topups',
+  can_add_delete_user: 'Add/Delete User',
+  can_edit_user_access: 'Edit User Access',
+  can_edit_business_settings: 'Edit Business Settings',
+  can_add_edit_delete_cards_promotion: 'Cards Promotion',
+  can_upload_delete_batch_disbursements: 'Batch Disbursements',
+  can_validate_batch_disbursements: 'Validate Disbursements',
+  can_generate_invoice: 'Generate Invoice',
+  can_add_edit_customers: 'Manage Customers',
+  can_view_transaction_details: 'View Transactions',
+  can_download_csv_report: 'Download Reports',
+  can_withdraw_funds: 'Withdraw Funds',
+  can_create_transfers: 'Create Transfers',
+  can_add_edit_delete_withdrawal_account: 'Manage Withdrawal Account',
+  can_see_api_keys: 'See API Keys',
+  can_resend_callbacks: 'Resend Callbacks',
+  can_change_callback_urls: 'Change Callback URLs',
+  can_approve_batch_disbursements: 'Approve Disbursements',
+  can_refund_cards_charges: 'Refund Cards',
   can_manage_team: 'Manage Team',
 };
 
@@ -183,8 +194,11 @@ export function TeamInvitationsTab() {
                   <SelectContent>
                     <SelectItem value="super_admin">Super Admin</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="operator">Operator</SelectItem>
+                    <SelectItem value="editor">Editor</SelectItem>
                     <SelectItem value="viewer">Viewer</SelectItem>
+                    <SelectItem value="withdrawer">Withdrawer</SelectItem>
+                    <SelectItem value="developer">Developer</SelectItem>
+                    <SelectItem value="approver">Approver</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
