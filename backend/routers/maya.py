@@ -16,107 +16,11 @@ from services.event_bus import payment_event_bus
 
 logger = logging.getLogger(__name__)
 
-# We use the prefix /api/v1/xendit to satisfy the frontend's hardcoded paths
-router = APIRouter(prefix="/api/v1/xendit", tags=["Payments (Maya)"])
-
-
-class CreateInvoiceRequest(BaseModel):
-    amount: float
-    description: str = ""
-    customer_name: Optional[str] = None
-    customer_email: Optional[str] = None
-    external_id: Optional[str] = None
-
-
-@router.post("/create-invoice")
-@router.post("/create-payment-link")
-async def create_maya_checkout(
-    data: CreateInvoiceRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Alias for Maya Checkout (fulfills frontend Xendit requests)"""
-    try:
-        service = MayaService()
-        result = await service.create_checkout(
-            amount=data.amount,
-            description=data.description,
-            customer_name=data.customer_name or "",
-            customer_email=data.customer_email or "",
-            external_id=data.external_id or "",
-        )
-        
-        if not result.get("success"):
-            raise HTTPException(status_code=400, detail=result.get("error", "Maya checkout failed"))
-
-        # Save to transactions table
-        txn_service = TransactionsService(db)
-        await txn_service.create_transaction(
-            user_id=str(current_user.id),
-            transaction_type="invoice",
-            amount=data.amount,
-            external_id=result.get("external_id", ""),
-            gateway_id=result.get("checkout_id", ""),
-            description=data.description,
-            payment_url=result.get("checkout_url", ""),
-        )
-
-        return {
-            "success": True,
-            "invoice_url": result.get("checkout_url"),
-            "external_id": result.get("external_id"),
-            "amount": data.amount,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Maya Checkout Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/create-qr-code")
-async def create_maya_qr(
-    data: CreateInvoiceRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    """Alias for Maya QR (fulfills frontend Xendit requests)"""
-    try:
-        service = MayaService()
-        result = await service.create_qr_payment(
-            amount=data.amount,
-            description=data.description,
-            external_id=data.external_id or "",
-        )
-        
-        if not result.get("success"):
-             # Fallback to checkout if QR fails
-             return await create_maya_checkout(data, current_user, db)
-
-        # Save to transactions table
-        txn_service = TransactionsService(db)
-        txn = await txn_service.create_transaction(
-            user_id=str(current_user.id),
-            transaction_type="qr_code",
-            amount=data.amount,
-            external_id=result.get("external_id", ""),
-            gateway_id=result.get("qr_id", ""),
-            description=data.description,
-            payment_url=result.get("redirect_url", ""),
-        )
-        # Note: qr_content is currently mapped to qr_code_url in the model
-        txn.qr_code_url = result.get("qr_content", "")
-        await db.commit()
-        
-        return {
-            "success": True,
-            "qr_string": result.get("qr_content"),
-            "external_id": result.get("external_id"),
-            "amount": data.amount,
-        }
-    except Exception as e:
-        logger.error(f"Maya QR Error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# Change prefix to /api/v1/maya to avoid conflicts with xendit.py
+# Payment creation endpoints (create-invoice, create-qr-code, create-payment-link)
+# are now exclusively handled by xendit.py router with Maya as a fallback service.
+# This file provides utility endpoints only.
+router = APIRouter(prefix="/api/v1/maya", tags=["Maya Utilities"])
 
 
 @router.get("/transaction-stats")
