@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { TeamInvitationsTab, TeamMembersTab } from '@/components/TeamManagement';
 import {
   ShieldCheck,
   Plus,
@@ -72,7 +73,7 @@ interface CryptoTopupRequest {
   created_at: string | null;
 }
 
-type AdminTab = 'admins' | 'users' | 'roles' | 'crypto' | 'usd-wallets';
+type AdminTab = 'admins' | 'users' | 'roles' | 'crypto' | 'usd-wallets' | 'team-invitations' | 'team-members';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1242,6 +1243,16 @@ export default function AdminManagement() {
       label: 'USD Wallets',
       icon: <WalletIcon className="h-3.5 w-3.5" />,
     }] : []),
+    ...(isSuperAdmin ? [{
+      id: 'team-invitations',
+      label: 'Team Invitations',
+      icon: <Mail className="h-3.5 w-3.5" />,
+    }] : []),
+    ...(isSuperAdmin ? [{
+      id: 'team-members',
+      label: 'Team Members',
+      icon: <Users className="h-3.5 w-3.5" />,
+    }] : []),
   ];
 
   return (
@@ -1523,6 +1534,16 @@ export default function AdminManagement() {
         {/* ── USD Wallets Tab ── */}
         {activeTab === 'usd-wallets' && isSuperAdmin && (
           <UsdWalletsTab onError={setError} />
+        )}
+
+        {/* ── Team Invitations Tab ── */}
+        {activeTab === 'team-invitations' && isSuperAdmin && (
+          <TeamInvitationsTab />
+        )}
+
+        {/* ── Team Members Tab ── */}
+        {activeTab === 'team-members' && isSuperAdmin && (
+          <TeamMembersTab />
         )}
       </div>
     </Layout>
