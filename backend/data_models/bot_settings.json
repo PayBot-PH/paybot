@@ -1,0 +1,41 @@
+{
+    "title": "bot_settings",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID of the admin"
+        },
+        "welcome_message": {
+            "type": "string",
+            "description": "Bot welcome message"
+        },
+        "bot_status": {
+            "type": "string",
+            "description": "Bot status: active, inactive",
+            "default": "inactive"
+        },
+        "webhook_url": {
+            "type": "string",
+            "description": "Telegram webhook URL"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        },
+        "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id"
+    ]
+}

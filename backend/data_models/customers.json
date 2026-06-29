@@ -1,0 +1,53 @@
+{
+    "title": "customers",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID"
+        },
+        "name": {
+            "type": "string",
+            "description": "Customer name"
+        },
+        "email": {
+            "type": "string",
+            "description": "Customer email"
+        },
+        "phone": {
+            "type": "string",
+            "description": "Customer phone"
+        },
+        "notes": {
+            "type": "string",
+            "description": "Additional notes"
+        },
+        "total_payments": {
+            "type": "integer",
+            "description": "Total number of payments"
+        },
+        "total_amount": {
+            "type": "number",
+            "description": "Total amount paid"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        },
+        "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id",
+        "name"
+    ]
+}

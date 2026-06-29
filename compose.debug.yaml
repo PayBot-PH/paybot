@@ -1,0 +1,6 @@
+services:
+  paybot:
+    image: paybot
+    build:
+      context: .
+      dockerfile: ./Dockerfile

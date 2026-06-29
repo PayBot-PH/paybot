@@ -1,0 +1,69 @@
+{
+    "title": "disbursements",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID"
+        },
+        "external_id": {
+            "type": "string",
+            "description": "External reference ID"
+        },
+        "xendit_id": {
+            "type": "string",
+            "description": "Xendit disbursement ID"
+        },
+        "amount": {
+            "type": "number",
+            "description": "Disbursement amount"
+        },
+        "currency": {
+            "type": "string",
+            "description": "Currency code"
+        },
+        "bank_code": {
+            "type": "string",
+            "description": "Bank code"
+        },
+        "account_number": {
+            "type": "string",
+            "description": "Account number"
+        },
+        "account_name": {
+            "type": "string",
+            "description": "Account holder name"
+        },
+        "description": {
+            "type": "string",
+            "description": "Description"
+        },
+        "status": {
+            "type": "string",
+            "description": "Status: pending, completed, failed"
+        },
+        "disbursement_type": {
+            "type": "string",
+            "description": "Type: single, batch, ewallet"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        },
+        "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id",
+        "amount"
+    ]
+}

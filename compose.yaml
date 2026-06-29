@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: paybot
+      POSTGRES_PASSWORD: paybot_dev_password
+      POSTGRES_DB: paybot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paybot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  paybot:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+      args:
+        VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY:-}
+        VITE_TELEGRAM_BOT_USERNAME: ${VITE_TELEGRAM_BOT_USERNAME:-}
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://paybot:paybot_dev_password@db:5432/paybot
+      PORT: "8000"
+      ENVIRONMENT: dev
+    env_file:
+      - backend/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "python -m alembic upgrade head &&
+             python -m uvicorn main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  postgres_data:

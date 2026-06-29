@@ -1,0 +1,80 @@
+{
+    "title": "transactions",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID of the admin"
+        },
+        "transaction_type": {
+            "type": "string",
+            "description": "Type: invoice, qr_code, payment_link"
+        },
+        "external_id": {
+            "type": "string",
+            "description": "External ID from Xendit"
+        },
+        "xendit_id": {
+            "type": "string",
+            "description": "Xendit resource ID"
+        },
+        "amount": {
+            "type": "number",
+            "description": "Transaction amount in PHP"
+        },
+        "currency": {
+            "type": "string",
+            "description": "Currency code, default PHP",
+            "default": "PHP"
+        },
+        "status": {
+            "type": "string",
+            "description": "Payment status: pending, paid, expired, cancelled"
+        },
+        "description": {
+            "type": "string",
+            "description": "Transaction description"
+        },
+        "customer_name": {
+            "type": "string",
+            "description": "Customer name"
+        },
+        "customer_email": {
+            "type": "string",
+            "description": "Customer email"
+        },
+        "payment_url": {
+            "type": "string",
+            "description": "Payment URL or link"
+        },
+        "qr_code_url": {
+            "type": "string",
+            "description": "QR code image URL if applicable"
+        },
+        "telegram_chat_id": {
+            "type": "string",
+            "description": "Telegram chat ID that initiated this"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        },
+        "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id",
+        "transaction_type",
+        "amount",
+        "status"
+    ]
+}

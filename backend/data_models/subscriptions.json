@@ -1,0 +1,75 @@
+{
+    "title": "subscriptions",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "User ID"
+        },
+        "plan_name": {
+            "type": "string",
+            "description": "Subscription plan name"
+        },
+        "amount": {
+            "type": "number",
+            "description": "Recurring amount"
+        },
+        "currency": {
+            "type": "string",
+            "description": "Currency code"
+        },
+        "interval": {
+            "type": "string",
+            "description": "Billing interval: daily, weekly, monthly, yearly"
+        },
+        "customer_name": {
+            "type": "string",
+            "description": "Customer name"
+        },
+        "customer_email": {
+            "type": "string",
+            "description": "Customer email"
+        },
+        "status": {
+            "type": "string",
+            "description": "Status: active, paused, cancelled, expired"
+        },
+        "next_billing_date": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Next billing date"
+        },
+        "total_cycles": {
+            "type": "integer",
+            "description": "Total billing cycles completed"
+        },
+        "external_id": {
+            "type": "string",
+            "description": "External reference ID"
+        },
+        "xendit_id": {
+            "type": "string",
+            "description": "Xendit subscription ID"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        },
+        "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last update timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "user_id",
+        "plan_name",
+        "amount"
+    ]
+}

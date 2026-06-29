@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: paybot
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-paybot_password}
+      POSTGRES_DB: paybot
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paybot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    image: ${APP_IMAGE:-ghcr.io/paybot-ph/paybot:latest}
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://paybot:${DB_PASSWORD:-paybot_password}@db:5432/paybot
+      PORT: "8000"
+      ENVIRONMENT: production
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME}
+      TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS}
+      XENDIT_SECRET_KEY: ${XENDIT_SECRET_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ADMIN_USER_PASSWORD: ${ADMIN_USER_PASSWORD}
+      PYTHON_BACKEND_URL: ${PYTHON_BACKEND_URL}
+      PAYMONGO_SECRET_KEY: ${PAYMONGO_SECRET_KEY:-}
+      PAYMONGO_PUBLIC_KEY: ${PAYMONGO_PUBLIC_KEY:-}
+      PAYMONGO_WEBHOOK_SECRET: ${PAYMONGO_WEBHOOK_SECRET:-}
+      PHOTONPAY_APP_ID: ${PHOTONPAY_APP_ID:-}
+      PHOTONPAY_APP_SECRET: ${PHOTONPAY_APP_SECRET:-}
+      PHOTONPAY_SITE_ID: ${PHOTONPAY_SITE_ID:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "python -m alembic upgrade head &&
+             uvicorn main:app --host 0.0.0.0 --port 8000 --log-level info"
+
+volumes:
+  postgres_data:

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 80" role="img" aria-label="Asia United Bank">
+  <defs>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#003865" />
+      <stop offset="100%" stop-color="#00A3E0" />
+    </linearGradient>
+  </defs>
+  <rect width="260" height="80" rx="16" fill="url(#grad2)" />
+  <path d="M32 60 L56 20 L80 60 L104 20 L128 60" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" />
+  <text x="140" y="50" fill="#FFFFFF" font-family="Inter,Arial,Helvetica,sans-serif" font-size="28" font-weight="700">AUB</text>
+</svg>

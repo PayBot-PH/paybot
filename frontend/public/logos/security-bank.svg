@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 80" role="img" aria-label="Security Bank">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#003A6E" />
+      <stop offset="100%" stop-color="#0076C8" />
+    </linearGradient>
+  </defs>
+  <rect width="260" height="80" rx="16" fill="url(#grad)" />
+  <g transform="translate(20 10)">
+    <path d="M4 46 L20 10 L36 46 Z" fill="#FFFFFF" opacity="0.95" />
+    <path d="M20 10 L20 46" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" />
+  </g>
+  <text x="100" y="50" fill="#FFFFFF" font-family="Inter,Arial,Helvetica,sans-serif" font-size="28" font-weight="700">SEC</text>
+  <text x="100" y="70" fill="#FFFFFF" font-family="Inter,Arial,Helvetica,sans-serif" font-size="18">Bank</text>
+</svg>

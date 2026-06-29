@@ -1,0 +1,21 @@
+name: Keep Alive
+
+on:
+  schedule:
+    # Every 5 minutes — prevents Railway free tier from sleeping
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping production app
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 https://paybotph.up.railway.app/health)
+          echo "Health check status: $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ App is healthy"
+          else
+            echo "⚠️ App returned status $STATUS (may be waking up)"
+          fi
