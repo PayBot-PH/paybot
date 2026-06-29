@@ -35,6 +35,8 @@ export default function CreatePayment() {
   const [paymentType, setPaymentType] = useState(initialType);
   const [amount, setAmount] = useState(searchParams.get('amount') || '');
   const [description, setDescription] = useState(searchParams.get('description') || '');
+  const [descriptor, setDescriptor] = useState(searchParams.get('descriptor') || '');
+  const [merchantName, setMerchantName] = useState(searchParams.get('merchant_name') || '');
   const [customerName, setCustomerName] = useState(searchParams.get('customer_name') || '');
   const [customerEmail, setCustomerEmail] = useState(searchParams.get('customer_email') || '');
   const [loading, setLoading] = useState(false);
@@ -56,13 +58,13 @@ export default function CreatePayment() {
 
       if (paymentType === 'invoice') {
         endpoint = '/api/v1/xendit/create-invoice';
-        payload = { amount: parseFloat(amount), description, customer_name: customerName, customer_email: customerEmail };
+        payload = { amount: parseFloat(amount), description, descriptor: descriptor.trim() || undefined, merchant_name: merchantName.trim() || undefined, customer_name: customerName, customer_email: customerEmail };
       } else if (paymentType === 'qr_code') {
         endpoint = '/api/v1/xendit/create-qr-code';
-        payload = { amount: parseFloat(amount), description };
+        payload = { amount: parseFloat(amount), description, descriptor: descriptor.trim() || undefined, merchant_name: merchantName.trim() || undefined };
       } else {
         endpoint = '/api/v1/xendit/create-payment-link';
-        payload = { amount: parseFloat(amount), description, customer_name: customerName, customer_email: customerEmail };
+        payload = { amount: parseFloat(amount), description, descriptor: descriptor.trim() || undefined, merchant_name: merchantName.trim() || undefined, customer_name: customerName, customer_email: customerEmail };
       }
 
       const res = await client.apiCall.invoke({
@@ -169,6 +171,33 @@ export default function CreatePayment() {
                     className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground resize-none"
                     rows={3}
                   />
+                </div>
+
+                <div>
+                  <Label className="text-muted-foreground">Merchant Name</Label>
+                  <Input
+                    placeholder="e.g. Click Store"
+                    value={merchantName}
+                    onChange={(e) => setMerchantName(e.target.value)}
+                    className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Shown to payer on checkout page
+                  </p>
+                </div>
+
+                <div>
+                  <Label className="text-muted-foreground">Bank Descriptor</Label>
+                  <Input
+                    placeholder="e.g. CLICK STORE PH"
+                    value={descriptor}
+                    onChange={(e) => setDescriptor(e.target.value.slice(0, 22))}
+                    maxLength={22}
+                    className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Shown on payer&apos;s bank statement · {descriptor.length}/22 chars
+                  </p>
                 </div>
 
                 {paymentType !== 'qr_code' && (

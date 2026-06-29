@@ -9,16 +9,30 @@ import {
   Home, LayoutDashboard, CreditCard, Send, FileText, BarChart3,
   Wallet, Settings, LogOut, Menu, User, ShieldCheck, Crown,
   ChevronRight, Zap, Bell, CheckCircle, XCircle, Clock, Bot,
-  MessageSquare, ArrowUpFromLine,
-  DollarSign, ClipboardList
+  MessageSquare, ArrowUpFromLine, DollarSign, ClipboardList,
+  ChevronDown, Lock, FileCheck, AlertCircle, Sparkles
 } from 'lucide-react';
+import '../styles/dashboard-enhancements.css';
 
 interface LayoutProps {
   children: React.ReactNode;
   connected?: boolean;
 }
 
-const navItems = [
+interface NavSection {
+  label: string;
+  items: NavItem[];
+}
+
+interface NavItem {
+  label: string;
+  icon: any;
+  path: string;
+  adminOnly?: boolean;
+  permission?: string;
+}
+
+const userNavItems: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/' },
   { label: 'Payments', icon: CreditCard, path: '/payments' },
   { label: 'Disbursements', icon: Send, path: '/disbursements' },
@@ -26,14 +40,16 @@ const navItems = [
   { label: 'Reports', icon: BarChart3, path: '/reports' },
   { label: 'Wallet', icon: Wallet, path: '/wallet' },
   { label: 'Bot Messages', icon: MessageSquare, path: '/bot-messages' },
-  { label: 'KYB Registrations', icon: ClipboardList, path: '/kyb-registrations', adminOnly: true },
-  { label: 'KYC Verifications', icon: ShieldCheck, path: '/kyc-verifications', adminOnly: true },
-  { label: 'Top-up Requests', icon: DollarSign, path: '/topup-requests', adminOnly: true },
-  { label: 'USDT Requests', icon: Send, path: '/usdt-send-requests', adminOnly: true },
-  { label: 'Bank Deposits', icon: ArrowUpFromLine, path: '/bank-deposits', adminOnly: true },
+];
+
+const adminNavItems: NavItem[] = [
+  { label: 'KYB Registrations', icon: ClipboardList, path: '/kyb-registrations' },
+  { label: 'KYC Verifications', icon: ShieldCheck, path: '/kyc-verifications' },
+  { label: 'Top-up Requests', icon: DollarSign, path: '/topup-requests' },
+  { label: 'USDT Requests', icon: Send, path: '/usdt-send-requests' },
+  { label: 'Bank Deposits', icon: ArrowUpFromLine, path: '/bank-deposits' },
   { label: 'Bot Settings', icon: Bot, path: '/bot-settings', permission: 'can_manage_bot' },
-  { label: 'Admin Management', icon: ShieldCheck, path: '/admin-management', adminOnly: true },
-  { label: 'Settings', icon: Settings, path: '/settings' },
+  { label: 'Admin Management', icon: ShieldCheck, path: '/admin-management' },
 ];
 
 export default function Layout({ children, connected }: LayoutProps) {
@@ -42,6 +58,7 @@ export default function Layout({ children, connected }: LayoutProps) {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [adminMenuOpen, setAdminMenuOpen] = useState(true);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -49,11 +66,28 @@ export default function Layout({ children, connected }: LayoutProps) {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  const visibleNav = navItems.filter(item => {
-    if (item.adminOnly && !isSuperAdmin) return false;
-    if (item.permission && !permissions?.[item.permission as keyof typeof permissions]) return false;
-    return true;
-  });
+  const getVisibleItems = (items: NavItem[]) =>
+    items.filter(item => {
+      if (item.permission && !permissions?.[item.permission as keyof typeof permissions]) return false;
+      return true;
+    });
+
+  const sections: NavSection[] = [
+    {
+      label: 'Main',
+      items: getVisibleItems(userNavItems),
+    },
+    ...(isSuperAdmin ? [{
+      label: 'Administration',
+      items: getVisibleItems(adminNavItems),
+    }] : []),
+    {
+      label: 'Account',
+      items: [{ label: 'Settings', icon: Settings, path: '/settings' }],
+    },
+  ];
+
+  const allItems = [...userNavItems, ...(isSuperAdmin ? adminNavItems : []), { label: 'Settings', icon: Settings, path: '/settings' }];
 
   const isActive = (path: string) => {
     if (path === '/') return location.pathname === '/';
@@ -71,45 +105,68 @@ export default function Layout({ children, connected }: LayoutProps) {
       <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 border-r border-slate-200 bg-white">
         {/* Logo */}
         <div className="h-16 flex items-center px-5 border-b border-slate-100">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center">
-              <Zap className="h-4 w-4 text-white" />
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 group-hover:opacity-40 transition-opacity duration-300" />
+              <Sparkles className="h-4 w-4 text-white relative z-10 group-hover:animate-spin transition-transform" />
             </div>
-            <span className="text-base font-semibold text-slate-900 tracking-tight">xend</span>
+            <span className="text-base font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent group-hover:from-slate-700 group-hover:to-slate-500 transition-all duration-300">xend</span>
           </Link>
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
-          {visibleNav.map(item => {
-            const active = isActive(item.path);
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                  active
-                    ? 'bg-slate-100 text-slate-900'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <item.icon className={`h-4 w-4 shrink-0 ${active ? 'text-slate-900' : 'text-slate-400'}`} />
-                <span className="truncate">{item.label}</span>
-                {active && <ChevronRight className="h-3.5 w-3.5 ml-auto text-slate-400" />}
-              </Link>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-6">
+          {sections.map((section, idx) => (
+            <div key={section.label} className={idx > 0 ? 'pt-2' : ''}>
+              {section.label !== 'Main' && (
+                <div className="px-3 py-2 flex items-center justify-between group">
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{section.label}</p>
+                  {section.label === 'Administration' && isSuperAdmin && (
+                    <Crown className="h-3 w-3 text-amber-500" />
+                  )}
+                </div>
+              )}
+              <div className="space-y-0.5">
+                {section.items.map(item => {
+                  const active = isActive(item.path);
+                  return (
+                    <Link
+                      key={item.path}
+                      to={item.path}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-smooth ${
+                        active
+                          ? 'bg-slate-100 text-slate-900 shadow-sm'
+                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <item.icon className={`h-4 w-4 shrink-0 transition-transform ${active ? 'text-slate-900 animate-float' : 'text-slate-400 group-hover:scale-110'}`} />
+                      <span className="truncate">{item.label}</span>
+                      {active && <ChevronRight className="h-3.5 w-3.5 ml-auto text-slate-400 animate-float" style={{animationDelay: '0.2s'}} />}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* User / Logout */}
-        <div className="p-4 border-t border-slate-100">
-          <div className="flex items-center gap-3 mb-3 px-1">
-            <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center">
-              <User className="h-4 w-4 text-slate-500" />
+        <div className="p-4 border-t border-slate-100 space-y-3">
+          <div className="flex items-center gap-3 px-1">
+            <div className={`h-9 w-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+              isSuperAdmin ? 'bg-amber-100' : 'bg-slate-100'
+            }`}>
+              {isSuperAdmin ? (
+                <Crown className={`h-4.5 w-4.5 ${isSuperAdmin ? 'text-amber-600' : 'text-slate-500'}`} />
+              ) : (
+                <User className="h-4 w-4 text-slate-500" />
+              )}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-slate-900 truncate">{user?.name || user?.telegram_username || 'Admin'}</p>
-              <p className="text-xs text-slate-500 truncate">{isSuperAdmin ? 'Super Administrator' : 'Administrator'}</p>
+              <p className={`text-xs font-medium truncate ${isSuperAdmin ? 'text-amber-600' : 'text-slate-500'}`}>
+                {isSuperAdmin ? '👑 Super Administrator' : '🔐 Administrator'}
+              </p>
             </div>
           </div>
           <Button
@@ -136,33 +193,48 @@ export default function Layout({ children, connected }: LayoutProps) {
               </SheetTrigger>
               <SheetContent side="left" className="w-72 p-0 bg-white border-r border-slate-200">
                 <div className="h-16 flex items-center px-5 border-b border-slate-100">
-                  <Link to="/" className="flex items-center gap-2.5" onClick={() => setMobileOpen(false)}>
-                    <div className="h-8 w-8 rounded-lg bg-slate-900 flex items-center justify-center">
-                      <Zap className="h-4 w-4 text-white" />
+                  <Link to="/" className="flex items-center gap-2.5 group" onClick={() => setMobileOpen(false)}>
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 group-hover:opacity-40 transition-opacity" />
+                      <Sparkles className="h-4 w-4 text-white relative z-10" />
                     </div>
-                    <span className="text-base font-semibold text-slate-900 tracking-tight">xend</span>
+                    <span className="text-base font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">xend</span>
                   </Link>
                 </div>
-                <nav className="py-4 px-3 space-y-0.5">
-                  {visibleNav.map(item => {
-                    const active = isActive(item.path);
-                    return (
-                      <Link
-                        key={item.path}
-                        to={item.path}
-                        onClick={() => setMobileOpen(false)}
-                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                          active
-                            ? 'bg-slate-100 text-slate-900'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                        }`}
-                      >
-                        <item.icon className={`h-4 w-4 shrink-0 ${active ? 'text-slate-900' : 'text-slate-400'}`} />
-                        <span className="truncate">{item.label}</span>
-                        {active && <ChevronRight className="h-3.5 w-3.5 ml-auto text-slate-400" />}
-                      </Link>
-                    );
-                  })}
+                <nav className="py-4 px-3 space-y-6">
+                  {sections.map((section, idx) => (
+                    <div key={section.label}>
+                      {section.label !== 'Main' && (
+                        <div className="px-3 py-2 flex items-center justify-between group">
+                          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{section.label}</p>
+                          {section.label === 'Administration' && isSuperAdmin && (
+                            <Crown className="h-3 w-3 text-amber-500" />
+                          )}
+                        </div>
+                      )}
+                      <div className="space-y-0.5">
+                        {section.items.map(item => {
+                          const active = isActive(item.path);
+                          return (
+                            <Link
+                              key={item.path}
+                              to={item.path}
+                              onClick={() => setMobileOpen(false)}
+                              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                                active
+                                  ? 'bg-slate-100 text-slate-900'
+                                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                              }`}
+                            >
+                              <item.icon className={`h-4 w-4 shrink-0 ${active ? 'text-slate-900' : 'text-slate-400'}`} />
+                              <span className="truncate">{item.label}</span>
+                              {active && <ChevronRight className="h-3.5 w-3.5 ml-auto text-slate-400" />}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </nav>
                 <div className="p-4 border-t border-slate-100">
                   <Button
@@ -177,11 +249,12 @@ export default function Layout({ children, connected }: LayoutProps) {
                 </div>
               </SheetContent>
             </Sheet>
-            <Link to="/" className="flex items-center gap-2">
-              <div className="h-7 w-7 rounded-lg bg-slate-900 flex items-center justify-center">
-                <Zap className="h-3.5 w-3.5 text-white" />
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="h-7 w-7 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20" />
+                <Sparkles className="h-3.5 w-3.5 text-white relative z-10" />
               </div>
-              <span className="text-sm font-semibold text-slate-900">xend</span>
+              <span className="text-sm font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">xend</span>
             </Link>
           </div>
 
@@ -208,7 +281,7 @@ export default function Layout({ children, connected }: LayoutProps) {
         }`}>
           <div className="flex items-center gap-3">
             <h2 className="text-sm font-medium text-slate-500">
-              {navItems.find(n => isActive(n.path))?.label || 'Dashboard'}
+              {allItems.find(n => isActive(n.path))?.label || 'Dashboard'}
             </h2>
           </div>
           <div className="flex items-center gap-3">

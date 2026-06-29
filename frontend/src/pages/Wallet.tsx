@@ -474,43 +474,27 @@ export default function WalletPage() {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {FUND_WALLET_METHODS.map(method => (
-                      <button
-                        key={method.value}
-                        type="button"
-                        onClick={() => setFundMethod(method.value as 'bank_transfer' | 'ubp_bills_payment')}
-                        className={`rounded-2xl border p-2.5 text-left transition ${fundMethod === method.value ? 'border-blue-600 bg-blue-50' : 'border-slate-200 bg-white hover:border-slate-300'}`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-semibold text-slate-900">{method.label}</span>
-                          <span className={`h-2.5 w-2.5 rounded-full ${fundMethod === method.value ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                  <div className=”rounded-2xl border border-slate-200 bg-slate-50 p-3”>
+                    <p className=”text-[10px] uppercase tracking-wide text-slate-500 mb-3”>Bank Account Details</p>
+                    <div className=”space-y-2”>
+                      {DEPOSIT_DESTINATIONS.map(dest => (
+                        <div key={dest.value} className=”rounded-lg border border-slate-200 bg-white p-3”>
+                          <div className=”grid grid-cols-2 gap-4 text-sm”>
+                            <div>
+                              <p className=”text-[10px] uppercase tracking-[0.18em] text-slate-500”>Bank</p>
+                              <p className=”mt-1 font-semibold text-slate-900”>{dest.label}</p>
+                            </div>
+                            <div>
+                              <p className=”text-[10px] uppercase tracking-[0.18em] text-slate-500”>Account Name</p>
+                              <p className=”mt-1 font-semibold text-slate-900”>{dest.account_name}</p>
+                            </div>
+                            <div className=”col-span-2”>
+                              <p className=”text-[10px] uppercase tracking-[0.18em] text-slate-500”>Account Number</p>
+                              <p className=”mt-1 font-semibold text-slate-900 font-mono”>{dest.account_number}</p>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-2">{method.description}</p>
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-2.5">
-                    <p className="text-[10px] uppercase tracking-wide text-slate-500">{fundMethod === 'bank_transfer' ? 'Bank Transfer Instructions' : 'UBP Bills Payment Instructions'}</p>
-                    <div className="mt-2 text-xs text-slate-700 space-y-1">
-                      {fundMethod === 'bank_transfer' ? (
-                        <>
-                          <p>1. Log in to your bank app or portal.</p>
-                          <p>2. Transfer to one of Xendit&apos;s bank accounts below.</p>
-                          <p>3. Use the selected destination and method when you submit proof.</p>
-                        </>
-                      ) : (
-                        <>
-                          <p>1. Log in to your UnionBank (UBP) account.</p>
-                          <p>2. Go to Pay Bills (UBP Online) or Bills Payment (UBP The Portal).</p>
-                          <p>3. Click Select Biller and go to the Biller List section.</p>
-                          <p>4. Select biller name “XENDIT BALANCE TOP-UP”.</p>
-                          <p>5. Enter your payment code: <span className="font-medium">uso1h0</span>.</p>
-                          <p>6. Enter the amount you want to top-up.</p>
-                          <p>7. Choose when to process the top-up and click Pay to continue.</p>
-                        </>
-                      )}
+                      ))}
                     </div>
                   </div>
 
@@ -752,8 +736,8 @@ export default function WalletPage() {
                       Top Up USDT
                     </CardTitle>
                   </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
+                  <CardContent className="space-y-2">
+                    <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
                     <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
                     <div>
                       <p className="text-[10px] font-medium text-amber-800">USDT → PHP credit</p>

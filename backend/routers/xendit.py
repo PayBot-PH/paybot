@@ -47,6 +47,7 @@ async def _credit_wallet(
     amount: float,
     note: str,
     reference_id: str,
+    apply_fee: bool = False,
 ) -> None:
     from services.wallets import WalletsService
 
@@ -54,16 +55,22 @@ async def _credit_wallet(
     wallet = await svc.get_or_create_wallet(user_id, "PHP", lock=True)
 
     balance_before = wallet.balance
-    wallet.balance = round(wallet.balance + amount, 2)
+
+    # Calculate fee if applicable (0.5% deduction)
+    fee = round(amount * 0.005, 2) if apply_fee else 0
+    credit_amount = round(amount - fee, 2)
+
+    wallet.balance = round(wallet.balance + credit_amount, 2)
     if hasattr(wallet, "available_balance"):
-        wallet.available_balance = round((wallet.available_balance or 0.0) + amount, 2)
+        wallet.available_balance = round((wallet.available_balance or 0.0) + credit_amount, 2)
     wallet.updated_at = datetime.now(timezone.utc)
 
+    # Credit transaction
     wtxn = Wallet_transactions(
         user_id=wallet.user_id,
         wallet_id=wallet.id,
         transaction_type="top_up",
-        amount=amount,
+        amount=credit_amount,
         balance_before=balance_before,
         balance_after=wallet.balance,
         note=note,
@@ -72,8 +79,29 @@ async def _credit_wallet(
         created_at=datetime.now(timezone.utc),
     )
     db.add(wtxn)
+
+    # Record fee as separate transaction if applicable
+    if fee > 0:
+        fee_note = f"Payment processing fee (0.5%) for {note}"
+        wtxn_fee = Wallet_transactions(
+            user_id=wallet.user_id,
+            wallet_id=wallet.id,
+            transaction_type="fee",
+            amount=-fee,
+            balance_before=wallet.balance,
+            balance_after=round(wallet.balance - fee, 2),
+            note=fee_note,
+            status="completed",
+            reference_id=reference_id,
+            created_at=datetime.now(timezone.utc),
+        )
+        wallet.balance = round(wallet.balance - fee, 2)
+        if hasattr(wallet, "available_balance"):
+            wallet.available_balance = round((wallet.available_balance or 0.0) - fee, 2)
+        db.add(wtxn_fee)
+
     await db.commit()
-    await svc.publish_wallet_event(wallet.user_id, wallet, "top_up", amount, wtxn.id, note)
+    await svc.publish_wallet_event(wallet.user_id, wallet, "top_up", credit_amount, wtxn.id, note)
 
 
 # ---------------------------------------------------------------------------
@@ -192,6 +220,7 @@ async def xendit_webhook(
                             topup_amount,
                             note=f"Xendit payment: {txn.description or txn.external_id}",
                             reference_id=txn.external_id or xendit_id,
+                            apply_fee=True,
                         )
                         payment_event_bus.publish(
                             {
@@ -275,6 +304,8 @@ async def xendit_webhook(
 class CreateXenditInvoiceRequest(BaseModel):
     amount: float
     description: str = ""
+    descriptor: str = ""
+    merchant_name: str = ""
     customer_name: str = ""
     customer_email: str = ""
     external_id: str = ""
@@ -283,6 +314,8 @@ class CreateXenditInvoiceRequest(BaseModel):
 class CreateXenditQRRequest(BaseModel):
     amount: float
     description: str = ""
+    descriptor: str = ""
+    merchant_name: str = ""
     external_id: str = ""
 
 
@@ -297,11 +330,12 @@ async def create_xendit_invoice(
 
     svc = XenditService()
     external_id = data.external_id or f"xendit-inv-{uuid.uuid4().hex[:12]}"
+    merchant_name = (data.merchant_name or "Click Store").strip()
     result = await svc.create_invoice(
         amount=data.amount,
         external_id=external_id,
         payer_email=data.customer_email,
-        description=data.description or "Click Store",
+        description=data.descriptor or data.description or merchant_name,
     )
 
     if not result.get("success"):
@@ -311,7 +345,7 @@ async def create_xendit_invoice(
             maya = MayaService()
             fallback = await maya.create_checkout(
                 amount=data.amount,
-                description=data.description or "Invoice",
+                description=data.descriptor or data.description or merchant_name,
                 customer_name=data.customer_name,
                 customer_email=data.customer_email,
                 external_id=external_id,
@@ -380,10 +414,11 @@ async def create_xendit_qr(
 
     svc = XenditService()
     external_id = data.external_id or f"xendit-qr-{uuid.uuid4().hex[:12]}"
+    merchant_name = (data.merchant_name or "Click Store").strip()
     result = await svc.create_qr_code(
         amount=data.amount,
         external_id=external_id,
-        description=data.description or "Click Store",
+        description=data.descriptor or data.description or merchant_name,
     )
     if not result.get("success"):
         try:
@@ -392,7 +427,7 @@ async def create_xendit_qr(
             maya = MayaService()
             fallback = await maya.create_qr_payment(
                 amount=data.amount,
-                description=data.description,
+                description=data.descriptor or data.description or merchant_name,
                 external_id=external_id,
             )
             if fallback.get("success"):
@@ -455,11 +490,12 @@ async def create_xendit_payment_link(
 
     svc = XenditService()
     external_id = data.external_id or f"xendit-pl-{uuid.uuid4().hex[:12]}"
+    merchant_name = (data.merchant_name or "Click Store").strip()
     result = await svc.create_invoice(
         amount=data.amount,
         external_id=external_id,
         payer_email=data.customer_email,
-        description=data.description or "Click Store",
+        description=data.descriptor or data.description or merchant_name,
     )
     if not result.get("success"):
         try:
@@ -468,7 +504,7 @@ async def create_xendit_payment_link(
             maya = MayaService()
             fallback = await maya.create_checkout(
                 amount=data.amount,
-                description=data.description or "Payment Link",
+                description=data.descriptor or data.description or merchant_name,
                 customer_name=data.customer_name,
                 customer_email=data.customer_email,
                 external_id=external_id,
