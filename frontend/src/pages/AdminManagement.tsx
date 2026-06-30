@@ -48,6 +48,7 @@ interface AdminUser {
   can_manage_transactions: boolean;
   can_manage_bot: boolean;
   can_approve_topups: boolean;
+  can_manage_team: boolean;
   added_by: string | null;
 }
 
@@ -85,6 +86,7 @@ const PERMISSION_KEYS: { key: keyof AdminUser; label: string; color: string }[] 
   { key: 'can_manage_transactions', label: 'Transactions', color: 'cyan' },
   { key: 'can_manage_bot', label: 'Bot Settings', color: 'slate' },
   { key: 'can_approve_topups', label: 'Approve Topups', color: 'teal' },
+  { key: 'can_manage_team', label: 'Manage Team', color: 'violet' },
 ];
 
 const defaultForm = {
@@ -99,6 +101,7 @@ const defaultForm = {
   can_manage_transactions: true,
   can_manage_bot: false,
   can_approve_topups: false,
+  can_manage_team: false,
 };
 
 interface RolePreset {
@@ -1070,6 +1073,7 @@ function UsdWalletsTab({ onError }: { onError: (msg: string) => void }) {
 export default function AdminManagement() {
   const { isSuperAdmin, permissions } = useAuth();
   const canApproveTopups = isSuperAdmin || !!permissions?.can_approve_topups;
+  const canManageTeam = isSuperAdmin || !!permissions?.can_manage_team;
   const [activeTab, setActiveTab] = useState<AdminTab>('admins');
   const [admins, setAdmins] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1243,12 +1247,12 @@ export default function AdminManagement() {
       label: 'USD Wallets',
       icon: <WalletIcon className="h-3.5 w-3.5" />,
     }] : []),
-    ...(isSuperAdmin ? [{
+    ...(canManageTeam ? [{
       id: 'team-invitations',
       label: 'Team Invitations',
       icon: <Mail className="h-3.5 w-3.5" />,
     }] : []),
-    ...(isSuperAdmin ? [{
+    ...(canManageTeam ? [{
       id: 'team-members',
       label: 'Team Members',
       icon: <Users className="h-3.5 w-3.5" />,
@@ -1537,12 +1541,12 @@ export default function AdminManagement() {
         )}
 
         {/* ── Team Invitations Tab ── */}
-        {activeTab === 'team-invitations' && isSuperAdmin && (
+        {activeTab === 'team-invitations' && canManageTeam && (
           <TeamInvitationsTab />
         )}
 
         {/* ── Team Members Tab ── */}
-        {activeTab === 'team-members' && isSuperAdmin && (
+        {activeTab === 'team-members' && canManageTeam && (
           <TeamMembersTab />
         )}
       </div>

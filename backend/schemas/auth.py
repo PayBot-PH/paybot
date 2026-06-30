@@ -13,6 +13,7 @@ class UserPermissions(BaseModel):
     can_manage_transactions: bool = True
     can_manage_bot: bool = False
     can_approve_topups: bool = False
+    can_manage_team: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -23,6 +24,8 @@ class UserResponse(BaseModel):
     name: Optional[str] = None
     role: str = "user"  # user/admin
     last_login: Optional[datetime] = None
+    organization_id: Optional[str] = None
+    organization_name: Optional[str] = None
     permissions: Optional[UserPermissions] = None
 
     model_config = ConfigDict(from_attributes=True)

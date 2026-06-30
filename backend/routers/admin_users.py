@@ -38,6 +38,9 @@ class AdminUserOut(BaseModel):
     can_manage_transactions: bool
     can_manage_bot: bool
     can_approve_topups: bool
+    can_manage_team: bool
+    organization_id: Optional[str] = None
+    organization_name: Optional[str] = None
     added_by: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
@@ -55,6 +58,9 @@ class AdminUserCreate(BaseModel):
     can_manage_transactions: bool = True
     can_manage_bot: bool = False
     can_approve_topups: bool = False
+    can_manage_team: bool = False
+    organization_id: Optional[str] = None
+    organization_name: Optional[str] = None
 
 
 class AdminUserUpdate(BaseModel):
@@ -69,6 +75,9 @@ class AdminUserUpdate(BaseModel):
     can_manage_transactions: Optional[bool] = None
     can_manage_bot: Optional[bool] = None
     can_approve_topups: Optional[bool] = None
+    can_manage_team: Optional[bool] = None
+    organization_id: Optional[str] = None
+    organization_name: Optional[str] = None
 
 
 def _require_super_admin(current_user: UserResponse):
@@ -87,8 +96,17 @@ async def list_admin_users(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """List all admin users. Any admin can view."""
-    res = await db.execute(select(AdminUser).order_by(AdminUser.id))
+    """List admin users. Super admins see all; org admins see their organization only."""
+    query = select(AdminUser)
+    perms = current_user.permissions
+    if not perms or not perms.is_super_admin:
+        actor_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == str(current_user.id)))
+        actor = actor_res.scalar_one_or_none()
+        if not actor or not actor.organization_id:
+            raise HTTPException(status_code=403, detail="Organization admin access required.")
+        query = query.where(AdminUser.organization_id == actor.organization_id)
+
+    res = await db.execute(query.order_by(AdminUser.id))
     return res.scalars().all()
 
 
@@ -118,6 +136,9 @@ async def create_admin_user(
         can_manage_transactions=data.can_manage_transactions,
         can_manage_bot=data.can_manage_bot,
         can_approve_topups=data.can_approve_topups,
+        can_manage_team=data.can_manage_team,
+        organization_id=data.organization_id,
+        organization_name=data.organization_name,
         added_by=current_user.id,
     )
     db.add(admin)

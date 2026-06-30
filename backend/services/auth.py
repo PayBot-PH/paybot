@@ -51,6 +51,8 @@ class AuthService:
         self,
         user: User,
         permissions: Optional[UserPermissions] = None,
+        organization_id: Optional[str] = None,
+        organization_name: Optional[str] = None,
     ) -> Tuple[str, datetime, Dict[str, Any]]:
         """Generate application JWT token for the authenticated user."""
         try:
@@ -70,6 +72,10 @@ class AuthService:
             claims["name"] = user.name
         if user.last_login:
             claims["last_login"] = user.last_login.isoformat()
+        if organization_id:
+            claims["organization_id"] = organization_id
+        if organization_name:
+            claims["organization_name"] = organization_name
         if permissions:
             claims["permissions"] = permissions.model_dump()
         token = create_access_token(claims, expires_minutes=expires_minutes)

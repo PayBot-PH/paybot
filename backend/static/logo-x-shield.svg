@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024" role="img" aria-label="X shield logo">
+  <defs>
+    <!-- Shield gradient (navy to deep navy) -->
+    <linearGradient id="gShield" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0B3A66" />
+      <stop offset="60%" stop-color="#072640" />
+      <stop offset="100%" stop-color="#021423" />
+    </linearGradient>
+
+    <!-- Metallic silver main gradient for the X -->
+    <linearGradient id="gMetal" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f7f9fa" />
+      <stop offset="20%" stop-color="#e6e9ec" />
+      <stop offset="50%" stop-color="#bfc6cc" />
+      <stop offset="80%" stop-color="#d7dadd" />
+      <stop offset="100%" stop-color="#f8f9fa" />
+    </linearGradient>
+
+    <!-- Subtle specular highlight gradient for metallic sheen -->
+    <linearGradient id="gSheen" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.85)" />
+      <stop offset="35%" stop-color="rgba(255,255,255,0.06)" />
+      <stop offset="65%" stop-color="rgba(255,255,255,0.06)" />
+      <stop offset="100%" stop-color="rgba(255,255,255,0.85)" />
+    </linearGradient>
+
+    <!-- Soft inner shadow for shield -->
+    <filter id="innerShadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feOffset dx="0" dy="6" result="off"/>
+      <feGaussianBlur in="off" stdDeviation="18" result="blur"/>
+      <feComposite in="blur" in2="SourceAlpha" operator="out" result="inner"/>
+      <feColorMatrix in="inner" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.6 0"/>
+      <feBlend in="SourceGraphic" in2="inner" mode="normal"/>
+    </filter>
+
+    <!-- Drop shadow for the X -->
+    <filter id="xDrop" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000" flood-opacity="0.45" />
+    </filter>
+
+    <!-- Slight bevel using feSpecularLighting for a metallic look (subtle) -->
+    <filter id="bevel" x="-20%" y="-20%" width="140%" height="140%" >
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur" />
+      <feSpecularLighting in="blur" surfaceScale="6" specularConstant="0.25" specularExponent="20" lighting-color="#ffffff" result="spec">
+        <fePointLight x="-100" y="-200" z="300" />
+      </feSpecularLighting>
+      <feComposite in="spec" in2="SourceAlpha" operator="in" result="specIn"/>
+      <feMerge>
+        <feMergeNode in="specIn" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+  </defs>
+
+  <!-- Background (transparent) -->
+  <rect width="100%" height="100%" fill="none" />
+
+  <!-- Shield base -->
+  <g transform="translate(512,140)">
+    <path d="M0,0 L-280,0 C-300,0 -320,20 -320,50 L-320,180 C- -320,430 -20,650 0,720 20,650 320,430 320,180 L320,50 C320,20 300,0 280,0 Z"
+          transform="translate(0,40) scale(0.9)"
+          fill="url(#gShield)"
+          stroke="#031628" stroke-opacity="0.25" stroke-width="10"
+          filter="url(#innerShadow)"
+          />
+
+    <!-- Shield outline highlight -->
+    <path d="M0,0 L-280,0 C-300,0 -320,20 -320,50 L-320,180 C- -320,430 -20,650 0,720 20,650 320,430 320,180 L320,50 C320,20 300,0 280,0 Z"
+          transform="translate(0,40) scale(0.9)"
+          fill="none"
+          stroke="rgba(255,255,255,0.06)"
+          stroke-width="6"
+          stroke-linejoin="round"
+          />
+
+    <!-- Central rounded inset to add depth -->
+    <path d="M-220,20 C-220,20 -140,260 0,420 140,260 220,20 220,20 L220,170 C220,400 100,560 0,620 -100,560 -220,400 -220,170 Z"
+          transform="translate(0,40) scale(0.9)"
+          fill="rgba(0,0,0,0.06)" />
+
+    <!-- Metallic X -->
+    <g transform="translate(0,120) scale(0.9)" filter="url(#xDrop)">
+      <!-- Left-Negative leg -->
+      <path d="M-160,-40 L-40,200 L-80,220 L- -200,-20 Z"
+            fill="url(#gMetal)" stroke="#aeb6bc" stroke-width="2" stroke-linejoin="round"/>
+      <!-- Right-Positive leg -->
+      <path d="M160,-40 L40,200 L80,220 L200,-20 Z"
+            fill="url(#gMetal)" stroke="#aeb6bc" stroke-width="2" stroke-linejoin="round"/>
+
+      <!-- Central crossover bevel highlight -->
+      <path d="M-40,200 L40,200 L160,-40 L80,-60 L-80,-60 L-160,-40 Z"
+            fill="url(#gSheen)" opacity="0.28"/>
+
+      <!-- Add subtle bevel/specular via overlay -->
+      <g filter="url(#bevel)" opacity="0.9">
+        <path d="M-160,-40 L-40,200 L-80,220 L- -200,-20 Z"
+              fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-linejoin="round" />
+        <path d="M160,-40 L40,200 L80,220 L200,-20 Z"
+              fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1" stroke-linejoin="round" />
+      </g>
+
+      <!-- Inner dark edges for depth -->
+      <path d="M-160,-40 L-40,200 L-80,220 L-200,-20 Z"
+            fill="none" stroke="rgba(0,0,0,0.28)" stroke-width="12" stroke-linejoin="round" stroke-linecap="round" opacity="0.12"/>
+      <path d="M160,-40 L40,200 L80,220 L200,-20 Z"
+            fill="none" stroke="rgba(0,0,0,0.28)" stroke-width="12" stroke-linejoin="round" stroke-linecap="round" opacity="0.12"/>
+
+    </g>
+
+  </g>
+
+  <!-- Small shine accent on upper-right shield -->
+  <ellipse cx="730" cy="220" rx="38" ry="14" fill="rgba(255,255,255,0.06)" transform="rotate(-20 730 220)" />
+
+</svg>

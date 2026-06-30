@@ -37,6 +37,8 @@ interface TeamInvitation {
   invited_by: string;
   permissions: Record<string, boolean>;
   notes?: string;
+  organization_id?: string;
+  organization_name?: string;
 }
 
 interface TeamMember {
@@ -47,6 +49,18 @@ interface TeamMember {
   permissions: Record<string, boolean>;
   joined_at: string;
   is_active: boolean;
+  organization_id?: string;
+  organization_name?: string;
+}
+
+interface OrganizationWalletBalance {
+  organization_id: string;
+  organization_name?: string;
+  wallet_id: number;
+  currency: string;
+  balance: number;
+  available_balance: number;
+  pending_balance: number;
 }
 
 interface Role {
@@ -315,6 +329,7 @@ export function TeamInvitationsTab() {
 export function TeamMembersTab() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(false);
+  const [orgWallet, setOrgWallet] = useState<OrganizationWalletBalance | null>(null);
 
   const fetchMembers = async () => {
     try {
@@ -326,6 +341,15 @@ export function TeamMembersTab() {
       });
       if (res.data?.members) {
         setMembers(res.data.members);
+      }
+
+      const walletRes = await client.apiCall.invoke({
+        url: '/api/v1/wallet/organization-balance',
+        method: 'GET',
+        data: {},
+      });
+      if (walletRes.data?.organization_id) {
+        setOrgWallet(walletRes.data as OrganizationWalletBalance);
       }
     } catch (err) {
       toast.error('Failed to load team members');
@@ -348,6 +372,21 @@ export function TeamMembersTab() {
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6">
+        {orgWallet && (
+          <div className="mb-4 p-4 rounded-lg border border-emerald-200 bg-emerald-50">
+            <p className="text-xs text-emerald-700 font-medium">Organization Wallet</p>
+            <p className="text-base font-semibold text-emerald-900 mt-1">
+              {orgWallet.currency} {Number(orgWallet.balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-xs text-emerald-700 mt-1">
+              Available: {orgWallet.currency} {Number(orgWallet.available_balance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+            <p className="text-[11px] text-emerald-600 mt-0.5">
+              {orgWallet.organization_name || orgWallet.organization_id}
+            </p>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-slate-400" />
@@ -366,6 +405,11 @@ export function TeamMembersTab() {
                       <Shield className="h-3 w-3" />
                       {member.role}
                     </span>
+                    {(member.organization_name || member.organization_id) && (
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Org: {member.organization_name || member.organization_id}
+                      </p>
+                    )}
                     <div className="flex flex-wrap gap-1 mt-2">
                       {Object.entries(member.permissions)
                         .filter(([, enabled]) => enabled)

@@ -9,12 +9,15 @@ class Wallets(Base):
         Index("idx_wallets_user_currency", "user_id", "currency"),
         # Index for admin operations
         Index("idx_wallets_status", "is_frozen"),
+        # Index for organization-level wallet lookup and aggregation
+        Index("idx_wallets_organization_currency", "organization_id", "currency"),
         # extend_existing allows the table definition to be updated if it already exists
         {"extend_existing": True},
     )
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
     user_id = Column(String, nullable=False)
+    organization_id = Column(String, nullable=True)
     balance = Column(Float, nullable=False, default=0.0)
     available_balance = Column(Float, nullable=False, default=0.0, server_default='0.0') # Funds ready to withdraw
     pending_balance = Column(Float, nullable=False, default=0.0, server_default='0.0')   # Funds in clearing period

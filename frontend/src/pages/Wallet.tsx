@@ -474,23 +474,23 @@ export default function WalletPage() {
                     </p>
                   </div>
 
-                  <div className=”rounded-2xl border border-slate-200 bg-slate-50 p-3”>
-                    <p className=”text-[10px] uppercase tracking-wide text-slate-500 mb-3”>Bank Account Details</p>
-                    <div className=”space-y-2”>
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-3">Bank Account Details</p>
+                    <div className="space-y-2">
                       {DEPOSIT_DESTINATIONS.map(dest => (
-                        <div key={dest.value} className=”rounded-lg border border-slate-200 bg-white p-3”>
-                          <div className=”grid grid-cols-2 gap-4 text-sm”>
+                        <div key={dest.value} className="rounded-lg border border-slate-200 bg-white p-3">
+                          <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
-                              <p className=”text-[10px] uppercase tracking-[0.18em] text-slate-500”>Bank</p>
-                              <p className=”mt-1 font-semibold text-slate-900”>{dest.label}</p>
+                              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Bank</p>
+                              <p className="mt-1 font-semibold text-slate-900">{dest.label}</p>
                             </div>
                             <div>
-                              <p className=”text-[10px] uppercase tracking-[0.18em] text-slate-500”>Account Name</p>
-                              <p className=”mt-1 font-semibold text-slate-900”>{dest.account_name}</p>
+                              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Account Name</p>
+                              <p className="mt-1 font-semibold text-slate-900">{dest.account_name}</p>
                             </div>
-                            <div className=”col-span-2”>
-                              <p className=”text-[10px] uppercase tracking-[0.18em] text-slate-500”>Account Number</p>
-                              <p className=”mt-1 font-semibold text-slate-900 font-mono”>{dest.account_number}</p>
+                            <div className="col-span-2">
+                              <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Account Number</p>
+                              <p className="mt-1 font-semibold text-slate-900 font-mono">{dest.account_number}</p>
                             </div>
                           </div>
                         </div>

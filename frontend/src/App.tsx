@@ -142,7 +142,7 @@ function AuthAwareShell() {
             <Route path="/bot-settings" element={<BotSettings />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/messenger" element={<MessengerPage />} />
-            <Route path="/admin-management" element={<RequireSuperAdmin><AdminManagement /></RequireSuperAdmin>} />
+            <Route path="/admin-management" element={<ProtectedAdminRoute><AdminManagement /></ProtectedAdminRoute>} />
             <Route path="/bot-messages" element={<ProtectedAdminRoute><BotMessagesPage /></ProtectedAdminRoute>} />
             <Route path="/topup-requests" element={<RequireSuperAdmin><TopupRequestsPage /></RequireSuperAdmin>} />
             <Route path="/usdt-send-requests" element={<RequireSuperAdmin><UsdtSendRequestsPage /></RequireSuperAdmin>} />

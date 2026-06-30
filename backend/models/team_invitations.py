@@ -36,6 +36,8 @@ class TeamInvitation(Base):
     status = Column(String(20), default="pending", nullable=False)  # pending, accepted, expired, revoked
 
     invited_by = Column(String(64), nullable=False)  # telegram_id of inviter
+    organization_id = Column(String(64), nullable=True, index=True)
+    organization_name = Column(String(256), nullable=True)
     invited_at = Column(DateTime(timezone=True), server_default=func.now())
     accepted_at = Column(DateTime(timezone=True), nullable=True)
     expires_at = Column(DateTime(timezone=True), nullable=True)

@@ -17,6 +17,7 @@ interface UserPermissions {
   can_manage_transactions: boolean;
   can_manage_bot: boolean;
   can_approve_topups: boolean;
+  can_manage_team: boolean;
 }
 
 interface User {
@@ -24,6 +25,8 @@ interface User {
   email: string;
   name?: string;
   role: string;
+  organization_id?: string;
+  organization_name?: string;
   permissions?: UserPermissions;
 }
 

@@ -8,6 +8,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from models.admin_users import AdminUser
 from models.wallets import Wallets
 from models.wallet_transactions import Wallet_transactions
 from models.disbursements import Disbursements
@@ -204,6 +205,16 @@ class WalletBalancesResponse(BaseModel):
     primary_currency: str = "PHP"
 
 
+class OrganizationWalletBalanceResponse(BaseModel):
+    organization_id: str
+    organization_name: Optional[str] = None
+    wallet_id: int
+    currency: str
+    balance: float
+    available_balance: float
+    pending_balance: float
+
+
 # ---------- Endpoints ----------
 
 @router.get("/balance", response_model=WalletBalanceResponse)
@@ -219,6 +230,32 @@ async def get_balance(
     svc = WalletsService(db)
     result = await svc.get_balance(user_id, currency_upper)
     return WalletBalanceResponse(**result)
+
+
+@router.get("/organization-balance", response_model=OrganizationWalletBalanceResponse)
+async def get_organization_balance(
+    currency: str = "PHP",
+    current_user: UserResponse = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return the organization wallet balance for organization members/admins."""
+    actor_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == str(current_user.id)))
+    actor = actor_res.scalar_one_or_none()
+
+    if not actor or not actor.organization_id:
+        raise HTTPException(status_code=403, detail="Organization membership required.")
+
+    svc = WalletsService(db)
+    org_wallet = await svc.get_or_create_organization_wallet(actor.organization_id, currency.upper())
+    return OrganizationWalletBalanceResponse(
+        organization_id=actor.organization_id,
+        organization_name=actor.organization_name,
+        wallet_id=org_wallet.id,
+        currency=(org_wallet.currency or currency).upper(),
+        balance=org_wallet.balance,
+        available_balance=org_wallet.available_balance,
+        pending_balance=org_wallet.pending_balance,
+    )
 
 
 # ---------- Multi-Currency Conversion Endpoints ----------
@@ -807,12 +844,25 @@ async def admin_list_php_wallets(
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Admin: List all PHP wallets with associated Telegram usernames."""
-    if not (current_user.permissions and current_user.permissions.is_super_admin):
-        raise HTTPException(status_code=403, detail="Super admin access required.")
+    """Admin: List PHP wallets (super admins see all; org admins see org members)."""
+    perms = current_user.permissions
+    if not perms:
+        raise HTTPException(status_code=403, detail="Admin permissions required.")
+
+    actor_res = await db.execute(select(AdminUser).where(AdminUser.telegram_id == str(current_user.id)))
+    actor = actor_res.scalar_one_or_none()
 
     svc = WalletsService(db)
-    res = await db.execute(select(Wallets).where(Wallets.currency == "PHP").order_by(Wallets.id))
+    query = select(Wallets).where(Wallets.currency == "PHP")
+    if not perms.is_super_admin:
+        if not actor or not actor.organization_id:
+            raise HTTPException(status_code=403, detail="Organization admin access required.")
+        query = query.where(
+            Wallets.organization_id == actor.organization_id,
+            ~Wallets.user_id.like("org:%"),
+        )
+
+    res = await db.execute(query.order_by(Wallets.id))
     wallets = res.scalars().all()
 
     items = []

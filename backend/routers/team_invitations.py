@@ -55,6 +55,18 @@ class TeamMemberResponse(BaseModel):
     joined_at: Optional[str]
     permissions: dict
 
+
+def _can_manage_team(admin: Optional[AdminUser]) -> bool:
+    if not admin:
+        return False
+    return bool(admin.is_super_admin or admin.can_manage_team)
+
+
+def _is_org_admin(admin: Optional[AdminUser]) -> bool:
+    if not admin:
+        return False
+    return bool((not admin.is_super_admin) and admin.organization_id)
+
 # ────────────────────────────────────────────────────────────────
 # Predefined Roles
 # ────────────────────────────────────────────────────────────────
@@ -105,7 +117,7 @@ PREDEFINED_ROLES = {
             "can_change_callback_urls": False,
             "can_approve_batch_disbursements": False,
             "can_refund_cards_charges": False,
-            "can_manage_team": False,
+            "can_manage_team": True,
         }
     },
     "editor": {
@@ -241,22 +253,27 @@ async def send_team_invitation(
     db: AsyncSession = Depends(get_db),
 ):
     """Send invitation to new team member"""
-    # Only super admins can manage team
+    # Super admins and organization admins with team permission can invite
     admin_res = await db.execute(
         select(AdminUser).where(AdminUser.telegram_id == current_user.get("telegram_id"))
     )
     admin = admin_res.scalar_one_or_none()
 
-    if not admin or not admin.is_super_admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only super admin can invite team members")
+    if not _can_manage_team(admin):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to invite team members")
+
+    # Organization admins cannot invite super admins
+    if _is_org_admin(admin) and request.role == "super_admin":
+        raise HTTPException(status_code=400, detail="Organization admin cannot assign super_admin role")
 
     # Check if email already invited or registered
-    existing = await db.execute(
-        select(TeamInvitation).where(
-            TeamInvitation.email == request.email,
-            TeamInvitation.status.in_(["pending", "accepted"])
-        )
+    existing_query = select(TeamInvitation).where(
+        TeamInvitation.email == request.email,
+        TeamInvitation.status.in_(["pending", "accepted"])
     )
+    if _is_org_admin(admin):
+        existing_query = existing_query.where(TeamInvitation.organization_id == admin.organization_id)
+    existing = await db.execute(existing_query)
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="User already invited or registered")
 
@@ -274,6 +291,8 @@ async def send_team_invitation(
         role=request.role,
         permissions=permissions,
         invited_by=current_user.get("telegram_id"),
+        organization_id=admin.organization_id if _is_org_admin(admin) else None,
+        organization_name=admin.organization_name if _is_org_admin(admin) else None,
         expires_at=datetime.now(timezone.utc) + timedelta(days=7),
         notes=request.notes,
     )
@@ -306,12 +325,13 @@ async def list_invitations(
     )
     admin = admin_res.scalar_one_or_none()
 
-    if not admin or not admin.is_super_admin:
+    if not _can_manage_team(admin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
-    result = await db.execute(
-        select(TeamInvitation).order_by(TeamInvitation.created_at.desc())
-    )
+    query = select(TeamInvitation)
+    if _is_org_admin(admin):
+        query = query.where(TeamInvitation.organization_id == admin.organization_id)
+    result = await db.execute(query.order_by(TeamInvitation.created_at.desc()))
     invitations = result.scalars().all()
 
     return {
@@ -345,7 +365,7 @@ async def update_invitation(
     )
     admin = admin_res.scalar_one_or_none()
 
-    if not admin or not admin.is_super_admin:
+    if not _can_manage_team(admin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
     inv_res = await db.execute(
@@ -355,6 +375,12 @@ async def update_invitation(
 
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
+
+    if _is_org_admin(admin) and invitation.organization_id != admin.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this invitation")
+
+    if _is_org_admin(admin) and request.role == "super_admin":
+        raise HTTPException(status_code=400, detail="Organization admin cannot assign super_admin role")
 
     if invitation.status != "pending":
         raise HTTPException(status_code=400, detail="Can only update pending invitations")
@@ -391,7 +417,7 @@ async def revoke_invitation(
     )
     admin = admin_res.scalar_one_or_none()
 
-    if not admin or not admin.is_super_admin:
+    if not _can_manage_team(admin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
     inv_res = await db.execute(
@@ -401,6 +427,9 @@ async def revoke_invitation(
 
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
+
+    if _is_org_admin(admin) and invitation.organization_id != admin.organization_id:
+        raise HTTPException(status_code=403, detail="Not authorized for this invitation")
 
     invitation.status = "revoked"
     await db.commit()
@@ -493,9 +522,19 @@ async def list_team_members(
     db: AsyncSession = Depends(get_db),
 ):
     """List all active team members"""
-    admin_res = await db.execute(
-        select(AdminUser).where(AdminUser.is_active == True)
+    admin_scope_res = await db.execute(
+        select(AdminUser).where(AdminUser.telegram_id == current_user.get("telegram_id"))
     )
+    admin_scope = admin_scope_res.scalar_one_or_none()
+
+    if not _can_manage_team(admin_scope):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    query = select(AdminUser).where(AdminUser.is_active == True)
+    if _is_org_admin(admin_scope):
+        query = query.where(AdminUser.organization_id == admin_scope.organization_id)
+
+    admin_res = await db.execute(query)
     admins = admin_res.scalars().all()
 
     return {
@@ -513,7 +552,10 @@ async def list_team_members(
                     "can_manage_transactions": admin.can_manage_transactions,
                     "can_manage_bot": admin.can_manage_bot,
                     "can_approve_topups": admin.can_approve_topups,
+                    "can_manage_team": admin.can_manage_team,
                 },
+                "organization_id": admin.organization_id,
+                "organization_name": admin.organization_name,
                 "joined_at": admin.created_at.isoformat() if admin.created_at else None,
                 "is_active": admin.is_active,
             }

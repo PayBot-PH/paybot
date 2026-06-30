@@ -22,6 +22,11 @@ class AdminUser(Base):
     can_manage_transactions = Column(Boolean, default=True, server_default='true', nullable=False)
     can_manage_bot = Column(Boolean, default=False, server_default='false', nullable=False)
     can_approve_topups = Column(Boolean, default=False, server_default='false', nullable=False)
+    can_manage_team = Column(Boolean, default=False, server_default='false', nullable=False)
+
+    # Organization scoping for non-super-admin users
+    organization_id = Column(String(64), index=True, nullable=True)
+    organization_name = Column(String(256), nullable=True)
 
     # PIN authentication (sha256 hex digest of salt:pin)
     pin_hash = Column(String(128), nullable=True)

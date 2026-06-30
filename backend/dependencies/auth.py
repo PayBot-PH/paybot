@@ -69,6 +69,8 @@ async def get_current_user(request: Request, token: str = Depends(get_bearer_tok
         name=payload.get("name"),
         role=payload.get("role", "user"),
         last_login=last_login,
+        organization_id=payload.get("organization_id"),
+        organization_name=payload.get("organization_name"),
         permissions=UserPermissions(**payload["permissions"]) if payload.get("permissions") else None,
     )
 

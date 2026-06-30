@@ -82,8 +82,14 @@ class WalletsService:
 
         if not wallet:
             now = datetime.now(timezone.utc)
+            org_id = None
+            admin_res = await self.db.execute(select(AdminUser).where(AdminUser.telegram_id == normalized_user_id))
+            admin_user = admin_res.scalar_one_or_none()
+            if admin_user and admin_user.organization_id:
+                org_id = admin_user.organization_id
             wallet = Wallets(
                 user_id=normalized_user_id,
+                organization_id=org_id,
                 balance=0.0,
                 currency=currency_upper,
                 created_at=now,
@@ -96,6 +102,46 @@ class WalletsService:
                 return await self.get_or_create_wallet(normalized_user_id, currency_upper, lock=True)
             logger.info(f"Created new {currency_upper} wallet for user {normalized_user_id}")
 
+        return wallet
+
+    async def get_or_create_organization_wallet(
+        self, organization_id: str, currency: str = "PHP", lock: bool = False
+    ) -> Wallets:
+        """Get or create the dedicated organization wallet row."""
+        if not organization_id:
+            raise ValueError("organization_id is required")
+
+        normalized_org_id = organization_id.strip()
+        currency_upper = currency.upper()
+        org_wallet_user_id = f"org:{normalized_org_id}"
+
+        query = select(Wallets).where(
+            Wallets.user_id == org_wallet_user_id,
+            Wallets.currency == currency_upper,
+        )
+        if lock:
+            query = query.with_for_update()
+
+        result = await self.db.execute(query)
+        wallet = result.scalar_one_or_none()
+        if wallet:
+            return wallet
+
+        now = datetime.now(timezone.utc)
+        wallet = Wallets(
+            user_id=org_wallet_user_id,
+            organization_id=normalized_org_id,
+            balance=0.0,
+            available_balance=0.0,
+            pending_balance=0.0,
+            currency=currency_upper,
+            created_at=now,
+            updated_at=now,
+        )
+        self.db.add(wallet)
+        await self.db.flush()
+        if lock:
+            return await self.get_or_create_organization_wallet(normalized_org_id, currency_upper, lock=True)
         return wallet
 
     async def compute_usd_balance(self, user_id: str) -> float:

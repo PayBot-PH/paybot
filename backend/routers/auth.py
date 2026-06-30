@@ -415,6 +415,7 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
             can_manage_transactions=True,
             can_manage_bot=True,
             can_approve_topups=True,
+            can_manage_team=True,
         )
         if db_admin:
             # Promote existing DB record to super admin and update name/username
@@ -422,6 +423,7 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
                 db_admin.is_super_admin = True
                 db_admin.can_manage_bot = True
                 db_admin.can_approve_topups = True
+                db_admin.can_manage_team = True
                 db_admin.name = display_name
                 db_admin.telegram_username = payload.username or db_admin.telegram_username
                 await db.commit()
@@ -443,6 +445,7 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
                     can_manage_transactions=True,
                     can_manage_bot=True,
                     can_approve_topups=True,
+                    can_manage_team=True,
                     added_by="env_config",
                 )
                 db.add(new_admin)
@@ -460,6 +463,7 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
             can_manage_transactions=db_admin.can_manage_transactions,
             can_manage_bot=db_admin.can_manage_bot,
             can_approve_topups=db_admin.can_approve_topups,
+            can_manage_team=db_admin.can_manage_team,
         )
         # Auto-update name/username in DB
         try:
@@ -473,7 +477,12 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
     user = User(id=telegram_user_id, email=admin_email, name=display_name, role="admin")
     auth_service = AuthService(db)
     try:
-        app_token, _, _ = await auth_service.issue_app_token(user=user, permissions=perms)
+        app_token, _, _ = await auth_service.issue_app_token(
+            user=user,
+            permissions=perms,
+            organization_id=db_admin.organization_id if db_admin else None,
+            organization_name=db_admin.organization_name if db_admin else None,
+        )
     except ValueError as exc:
         logger.error("[telegram-login-widget] Failed to issue token: %s", exc)
         raise HTTPException(
@@ -486,6 +495,8 @@ async def telegram_login_widget(payload: TelegramWidgetLoginRequest, request: Re
         email=user.email,
         name=user.name,
         role=user.role,
+        organization_id=db_admin.organization_id if db_admin else None,
+        organization_name=db_admin.organization_name if db_admin else None,
         permissions=perms
     )
 
@@ -847,6 +858,7 @@ async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)
             can_manage_transactions=admin_record.can_manage_transactions,
             can_manage_bot=admin_record.can_manage_bot,
             can_approve_topups=admin_record.can_approve_topups,
+            can_manage_team=admin_record.can_manage_team,
         )
     elif authenticated_user.role == "admin":
         # Fallback for admin role without record
@@ -859,6 +871,7 @@ async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)
             can_manage_transactions=True,
             can_manage_bot=True,
             can_approve_topups=True,
+            can_manage_team=True,
         )
     else:
         perms = UserPermissions(is_super_admin=False)
@@ -869,6 +882,8 @@ async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)
         "role": authenticated_user.role,
         "name": authenticated_user.name,
         "permissions": perms.model_dump(),
+        "organization_id": admin_record.organization_id if admin_record else None,
+        "organization_name": admin_record.organization_name if admin_record else None,
         **claims_override
     }
     
@@ -880,6 +895,8 @@ async def login_mobile(payload: LoginRequest, db: AsyncSession = Depends(get_db)
         email=authenticated_user.email,
         name=authenticated_user.name,
         role=authenticated_user.role,
+        organization_id=admin_record.organization_id if admin_record else None,
+        organization_name=admin_record.organization_name if admin_record else None,
         permissions=perms
     )
 
