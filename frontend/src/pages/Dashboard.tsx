@@ -95,15 +95,45 @@ function formatTxnDate(dateStr: string): string {
   return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
 }
 
-function StatCard({ label, value, sub, icon, loading }: {
+function StatCard({ label, value, sub, icon, loading, tone = 'slate' }: {
   label: string;
   value: string | number;
   sub?: string;
   icon: React.ReactNode;
   loading: boolean;
+  tone?: 'emerald' | 'blue' | 'amber' | 'rose' | 'slate';
 }) {
+  const toneClasses = {
+    emerald: {
+      ring: 'ring-emerald-100',
+      badge: 'from-emerald-100 to-emerald-50 text-emerald-700',
+      top: 'from-emerald-400/70 to-emerald-200/20',
+    },
+    blue: {
+      ring: 'ring-blue-100',
+      badge: 'from-blue-100 to-blue-50 text-blue-700',
+      top: 'from-blue-400/70 to-blue-200/20',
+    },
+    amber: {
+      ring: 'ring-amber-100',
+      badge: 'from-amber-100 to-amber-50 text-amber-700',
+      top: 'from-amber-400/70 to-amber-200/20',
+    },
+    rose: {
+      ring: 'ring-rose-100',
+      badge: 'from-rose-100 to-rose-50 text-rose-700',
+      top: 'from-rose-400/70 to-rose-200/20',
+    },
+    slate: {
+      ring: 'ring-slate-100',
+      badge: 'from-slate-100 to-slate-50 text-slate-700',
+      top: 'from-slate-400/70 to-slate-200/20',
+    },
+  } as const;
+
   return (
-    <Card className="card-3d bg-white border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-lg overflow-hidden group">
+    <Card className={`card-3d bg-white border border-slate-200 hover:border-slate-300 shadow-sm hover:shadow-lg overflow-hidden group ring-1 ${toneClasses[tone].ring}`}>
+      <div className={`h-1 w-full bg-gradient-to-r ${toneClasses[tone].top}`} />
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
@@ -121,7 +151,7 @@ function StatCard({ label, value, sub, icon, loading }: {
               </p>
             )}
           </div>
-          <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-slate-100 to-slate-50 flex items-center justify-center shrink-0 text-slate-600 group-hover:text-slate-700 transition-colors transform group-hover:scale-110 transition-transform">
+          <div className={`h-10 w-10 rounded-lg bg-gradient-to-br ${toneClasses[tone].badge} flex items-center justify-center shrink-0 group-hover:text-slate-700 transition-colors transform group-hover:scale-110 transition-transform`}>
             {icon}
           </div>
         </div>
@@ -225,30 +255,50 @@ export default function Dashboard() {
     <Layout connected={connected}>
       {/* ===== HERO HEADER ===== */}
       <div className="mb-8">
-        <div className="flex items-center gap-3 mb-1">
-          <span>{greeting.icon}</span>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            {greeting.text}{userName ? `, ${userName}` : ''}
-          </h1>
-        </div>
-        <p className="text-sm text-slate-500 max-w-lg leading-relaxed">
-          {APP_DESCRIPTION}
-        </p>
-        <div className="flex items-center gap-2 mt-3">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${
-            isSuperAdmin
-              ? 'bg-amber-50 text-amber-700 border-amber-200'
-              : 'bg-slate-100 text-slate-600 border-slate-200'
-          }`}>
-            {isSuperAdmin ? <Crown className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
-            {isSuperAdmin ? 'Super Administrator' : 'Administrator'}
-          </span>
-          {!loading && stats.total_count > 0 && (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
-              <TrendingUp className="h-3 w-3" />
-              {successRate}% success rate
-            </span>
-          )}
+        <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-6 shadow-sm">
+          <div className="absolute -top-14 -right-10 h-40 w-40 rounded-full bg-blue-200/30 blur-2xl" />
+          <div className="absolute -bottom-12 -left-8 h-32 w-32 rounded-full bg-emerald-200/30 blur-2xl" />
+
+          <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <span>{greeting.icon}</span>
+                <h1 className="text-2xl font-semibold text-slate-900">
+                  {greeting.text}{userName ? `, ${userName}` : ''}
+                </h1>
+              </div>
+              <p className="text-sm text-slate-500 max-w-xl leading-relaxed">
+                {APP_DESCRIPTION}
+              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium border ${
+                  isSuperAdmin
+                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                    : 'bg-slate-100 text-slate-600 border-slate-200'
+                }`}>
+                  {isSuperAdmin ? <Crown className="h-3 w-3" /> : <ShieldCheck className="h-3 w-3" />}
+                  {isSuperAdmin ? 'Super Administrator' : 'Administrator'}
+                </span>
+                {!loading && stats.total_count > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                    <TrendingUp className="h-3 w-3" />
+                    {successRate}% success rate
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 min-w-[230px]">
+              <div className="rounded-xl border border-slate-200/80 bg-white/90 p-3">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Revenue Today</p>
+                <p className="text-base font-semibold text-slate-900 mt-1">₱{fmt(stats.paid_amount || 0)}</p>
+              </div>
+              <div className="rounded-xl border border-slate-200/80 bg-white/90 p-3">
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">Pending</p>
+                <p className="text-base font-semibold text-amber-700 mt-1">{stats.pending_count}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -305,18 +355,18 @@ export default function Dashboard() {
         </Link>
 
         <StatCard label="Total Transactions" value={stats.total_count} sub={`₱${fmt(stats.total_amount || 0)}`}
-          icon={<Activity className="h-4 w-4" />} loading={loading} />
+          icon={<Activity className="h-4 w-4" />} loading={loading} tone="blue" />
         <StatCard label="Paid" value={stats.paid_count} sub={`₱${fmt(stats.paid_amount || 0)}`}
-          icon={<CheckCircle className="h-4 w-4" />} loading={loading} />
+          icon={<CheckCircle className="h-4 w-4" />} loading={loading} tone="emerald" />
       </div>
 
       {/* ===== SECOND STATS ROW ===== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <StatCard label="Pending" value={stats.pending_count} sub={`₱${fmt(stats.pending_amount || 0)}`}
-          icon={<Clock className="h-4 w-4" />} loading={loading} />
+          icon={<Clock className="h-4 w-4" />} loading={loading} tone="amber" />
         <StatCard label="Expired" value={stats.expired_count}
           sub={stats.expired_count > 0 ? `of ${stats.total_count} total` : undefined}
-          icon={<XCircle className="h-4 w-4" />} loading={loading} />
+          icon={<XCircle className="h-4 w-4" />} loading={loading} tone="rose" />
 
         {/* USDT Settlement Card */}
         <Card className="bg-white border border-slate-200 sm:col-span-2">

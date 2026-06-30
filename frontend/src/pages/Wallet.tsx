@@ -365,23 +365,36 @@ export default function WalletPage() {
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-slate-900 flex items-center gap-2">
-            <Wallet className="h-6 w-6 text-slate-500" />
-            Wallet
-          </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage your PHP and USDT balances, fund your wallet with PHP deposits or USDT top-ups, request withdrawals, and view transaction history.
-          </p>
+          <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-emerald-50 p-6 shadow-sm">
+            <div className="absolute -top-14 -right-10 h-40 w-40 rounded-full bg-emerald-200/30 blur-2xl" />
+            <div className="absolute -bottom-12 -left-8 h-32 w-32 rounded-full bg-blue-200/30 blur-2xl" />
+            <div className="relative z-10 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold text-slate-900 flex items-center gap-2">
+                  <Wallet className="h-6 w-6 text-slate-500" />
+                  Wallet
+                </h1>
+                <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+                  Manage PHP and USDT balances, fund your account, submit withdrawals, and track activity in one place.
+                </p>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-xs text-slate-600">
+                <Clock className="h-3.5 w-3.5 text-amber-500" />
+                Requests are reviewed by admin
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Balance Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {/* PHP Balance */}
-          <Card className="bg-white border border-slate-200">
+          <Card className="card-3d bg-white border border-slate-200 ring-1 ring-emerald-100 overflow-hidden">
+            <div className="h-1 w-full bg-gradient-to-r from-emerald-400/70 to-emerald-200/20" />
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">PHP Wallet</span>
-                <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-100 to-emerald-50 flex items-center justify-center text-emerald-700">
                   <Landmark className="h-4 w-4" />
                 </div>
               </div>
@@ -395,11 +408,12 @@ export default function WalletPage() {
           </Card>
 
           {/* USD Balance */}
-          <Card className="bg-white border border-slate-200">
+          <Card className="card-3d bg-white border border-slate-200 ring-1 ring-blue-100 overflow-hidden">
+            <div className="h-1 w-full bg-gradient-to-r from-blue-400/70 to-blue-200/20" />
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">USDT Wallet</span>
-                <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center text-blue-700">
                   <DollarSign className="h-4 w-4" />
                 </div>
               </div>
@@ -413,11 +427,12 @@ export default function WalletPage() {
           </Card>
 
           {/* Quick Stats */}
-          <Card className="bg-white border border-slate-200">
+          <Card className="card-3d bg-white border border-slate-200 ring-1 ring-amber-100 overflow-hidden">
+            <div className="h-1 w-full bg-gradient-to-r from-amber-400/70 to-amber-200/20" />
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-4">
                 <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">Pending Requests</span>
-                <div className="h-8 w-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-amber-100 to-amber-50 flex items-center justify-center text-amber-700">
                   <Clock className="h-4 w-4" />
                 </div>
               </div>
@@ -433,7 +448,7 @@ export default function WalletPage() {
 
         {/* Main Tabs */}
         <Tabs defaultValue="fund" className="space-y-6">
-          <TabsList className="flex flex-wrap items-center justify-start gap-1 rounded-xl border border-slate-200 bg-white p-1">
+          <TabsList className="flex flex-wrap items-center justify-start gap-1 rounded-xl border border-slate-200 bg-gradient-to-r from-white to-slate-50 p-1 shadow-sm">
             <TabsTrigger value="fund" className="flex-1 justify-center whitespace-nowrap rounded-lg px-3 py-2 text-[11px] font-medium sm:flex-none sm:text-xs data-[state=active]:bg-slate-100 data-[state=active]:text-slate-900">
               <ArrowDownToLine className="mr-1.5 h-3.5 w-3.5" />
               Fund Wallet

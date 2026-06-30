@@ -102,9 +102,9 @@ export default function Layout({ children, connected }: LayoutProps) {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* ─── Desktop Sidebar ─── */}
-      <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 border-r border-slate-200 bg-white">
+      <aside className="hidden lg:flex flex-col w-64 h-screen sticky top-0 border-r border-slate-200 bg-gradient-to-b from-white via-white to-slate-50/80">
         {/* Logo */}
-        <div className="h-16 flex items-center px-5 border-b border-slate-100">
+        <div className="h-16 flex items-center px-5 border-b border-slate-100 bg-white/90 backdrop-blur-sm">
           <Link to="/" className="flex items-center gap-2.5 group">
             <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-slate-900 to-slate-700 flex items-center justify-center relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 group-hover:opacity-40 transition-opacity duration-300" />
@@ -135,8 +135,8 @@ export default function Layout({ children, connected }: LayoutProps) {
                       to={item.path}
                       className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-smooth ${
                         active
-                          ? 'bg-slate-100 text-slate-900 shadow-sm'
-                          : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          ? 'bg-gradient-to-r from-slate-100 to-blue-50 text-slate-900 shadow-sm border border-slate-200'
+                          : 'text-slate-600 hover:bg-white hover:text-slate-900 hover:border hover:border-slate-200'
                       }`}
                     >
                       <item.icon className={`h-4 w-4 shrink-0 transition-transform ${active ? 'text-slate-900 animate-float' : 'text-slate-400 group-hover:scale-110'}`} />

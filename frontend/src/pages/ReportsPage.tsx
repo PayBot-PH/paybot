@@ -90,77 +90,95 @@ export default function ReportsPage() {
   return (
     <Layout>
       <div className="max-w-6xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
-          <div className="flex items-center gap-3">
-            <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-full sm:w-[140px] bg-muted border-border text-foreground"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-muted border-border">
-                <SelectItem value="daily" className="text-foreground">Daily</SelectItem>
-                <SelectItem value="weekly" className="text-foreground">Weekly</SelectItem>
-                <SelectItem value="monthly" className="text-foreground">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button onClick={fetchReport} variant="outline" size="sm" className="border-slate-500 text-slate-200 hover:text-foreground">
-              <RefreshCcw className="h-4 w-4" />
-            </Button>
+        <div className="mb-6 rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-indigo-50 p-5 shadow-sm relative overflow-hidden animate-fade-in-up">
+          <div className="absolute -top-12 -right-10 h-36 w-36 rounded-full bg-indigo-200/30 blur-2xl" />
+          <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-blue-200/30 blur-2xl" />
+          <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Reports & Analytics</h1>
+              <p className="text-sm text-slate-500 mt-1">Revenue, trends, and operational metrics for your selected period.</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Select value={period} onValueChange={setPeriod}>
+                <SelectTrigger className="w-full sm:w-[140px] bg-white border-slate-200 text-foreground"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-white border-slate-200">
+                  <SelectItem value="daily" className="text-foreground">Daily</SelectItem>
+                  <SelectItem value="weekly" className="text-foreground">Weekly</SelectItem>
+                  <SelectItem value="monthly" className="text-foreground">Monthly</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button onClick={fetchReport} variant="outline" size="sm" className="border-slate-200 bg-white text-slate-700 hover:text-foreground btn-hover-lift transition-smooth">
+                <RefreshCcw className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-16"><Loader2 className="h-8 w-8 animate-spin text-blue-400" /></div>
+          <div className="py-16 px-6">
+            <div className="max-w-md mx-auto space-y-3 animate-fade-in-up">
+              <div className="h-3 w-2/3 mx-auto rounded-full skeleton-loading" />
+              <div className="h-3 w-5/6 mx-auto rounded-full skeleton-loading" />
+              <div className="h-3 w-3/4 mx-auto rounded-full skeleton-loading" />
+              <div className="flex justify-center pt-2"><Loader2 className="h-6 w-6 animate-spin text-blue-400" /></div>
+            </div>
+          </div>
         ) : report ? (
           <>
             {/* Revenue Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <Card className="bg-gradient-to-br from-emerald-600 to-emerald-800 border-0">
+              <Card className="bg-white border border-slate-200 ring-1 ring-emerald-100 overflow-hidden shadow-sm card-3d animate-fade-in-up animate-stagger-1">
+                <div className="h-1 w-full bg-gradient-to-r from-emerald-400/70 to-emerald-200/20" />
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-emerald-200">Paid Revenue</p>
-                      <p className="text-2xl font-bold text-white mt-1">{fmt(report.paid_revenue)}</p>
+                      <p className="text-sm text-slate-500">Paid Revenue</p>
+                      <p className="text-2xl font-bold text-foreground mt-1">{fmt(report.paid_revenue)}</p>
                     </div>
-                    <div className="h-10 w-10 bg-white/20 rounded-xl flex items-center justify-center">
-                      <TrendingUp className="h-5 w-5 text-white" />
+                    <div className="h-10 w-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+                      <TrendingUp className="h-5 w-5 text-emerald-700" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-amber-600 to-amber-800 border-0">
+              <Card className="bg-white border border-slate-200 ring-1 ring-amber-100 overflow-hidden shadow-sm card-3d animate-fade-in-up animate-stagger-2">
+                <div className="h-1 w-full bg-gradient-to-r from-amber-400/70 to-amber-200/20" />
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-amber-200">Pending</p>
-                      <p className="text-2xl font-bold text-white mt-1">{fmt(report.pending_revenue)}</p>
+                      <p className="text-sm text-slate-500">Pending</p>
+                      <p className="text-2xl font-bold text-foreground mt-1">{fmt(report.pending_revenue)}</p>
                     </div>
-                    <div className="h-10 w-10 bg-white/20 rounded-xl flex items-center justify-center">
-                      <DollarSign className="h-5 w-5 text-white" />
+                    <div className="h-10 w-10 bg-amber-100 rounded-xl flex items-center justify-center">
+                      <DollarSign className="h-5 w-5 text-amber-700" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-red-600 to-red-800 border-0">
+              <Card className="bg-white border border-slate-200 ring-1 ring-red-100 overflow-hidden shadow-sm card-3d animate-fade-in-up animate-stagger-3">
+                <div className="h-1 w-full bg-gradient-to-r from-red-400/70 to-red-200/20" />
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-red-200">Disbursed + Refunded</p>
-                      <p className="text-2xl font-bold text-white mt-1">{fmt(report.total_disbursed + report.total_refunded)}</p>
+                      <p className="text-sm text-slate-500">Disbursed + Refunded</p>
+                      <p className="text-2xl font-bold text-foreground mt-1">{fmt(report.total_disbursed + report.total_refunded)}</p>
                     </div>
-                    <div className="h-10 w-10 bg-white/20 rounded-xl flex items-center justify-center">
-                      <TrendingDown className="h-5 w-5 text-white" />
+                    <div className="h-10 w-10 bg-red-100 rounded-xl flex items-center justify-center">
+                      <TrendingDown className="h-5 w-5 text-red-700" />
                     </div>
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-gradient-to-br from-blue-600 to-indigo-800 border-0">
+              <Card className="bg-white border border-slate-200 ring-1 ring-blue-100 overflow-hidden shadow-sm card-3d animate-fade-in-up animate-stagger-4">
+                <div className="h-1 w-full bg-gradient-to-r from-blue-400/70 to-indigo-200/20" />
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-blue-200">Net Revenue</p>
-                      <p className="text-2xl font-bold text-white mt-1">{fmt(report.net_revenue)}</p>
+                      <p className="text-sm text-slate-500">Net Revenue</p>
+                      <p className="text-2xl font-bold text-foreground mt-1">{fmt(report.net_revenue)}</p>
                     </div>
-                    <div className="h-10 w-10 bg-white/20 rounded-xl flex items-center justify-center">
-                      <BarChart3 className="h-5 w-5 text-white" />
+                    <div className="h-10 w-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <BarChart3 className="h-5 w-5 text-blue-700" />
                     </div>
                   </div>
                 </CardContent>
@@ -169,7 +187,7 @@ export default function ReportsPage() {
 
             {/* Stats Row */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <Card className="bg-card border-border">
+              <Card className="bg-white border border-slate-200 shadow-sm animate-fade-in-up animate-stagger-1">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
@@ -182,7 +200,7 @@ export default function ReportsPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-card border-border">
+              <Card className="bg-white border border-slate-200 shadow-sm animate-fade-in-up animate-stagger-2">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
@@ -195,7 +213,7 @@ export default function ReportsPage() {
                   </div>
                 </CardContent>
               </Card>
-              <Card className="bg-card border-border">
+              <Card className="bg-white border border-slate-200 shadow-sm animate-fade-in-up animate-stagger-3">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
@@ -214,7 +232,7 @@ export default function ReportsPage() {
 
             {/* Breakdowns */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <Card className="bg-card border-border">
+              <Card className="bg-white border border-slate-200 shadow-sm animate-fade-in-up animate-stagger-1">
                 <CardHeader><CardTitle className="text-foreground">Payment Method Breakdown</CardTitle></CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -244,7 +262,7 @@ export default function ReportsPage() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-card border-border">
+              <Card className="bg-white border border-slate-200 shadow-sm animate-fade-in-up animate-stagger-2">
                 <CardHeader><CardTitle className="text-foreground">Status Breakdown</CardTitle></CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -281,7 +299,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Fee Calculator */}
-            <Card className="bg-card border-border">
+            <Card className="bg-white border border-slate-200 shadow-sm animate-fade-in-up animate-stagger-3">
               <CardHeader><CardTitle className="text-foreground flex items-center"><Calculator className="h-5 w-5 mr-2 text-yellow-400" />Fee Calculator</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -320,7 +338,13 @@ export default function ReportsPage() {
             </Card>
           </>
         ) : (
-          <p className="text-muted-foreground text-center py-16">No report data available</p>
+          <div className="text-center py-16 px-6 animate-fade-in-up">
+            <div className="h-14 w-14 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-3">
+              <PieChart className="h-7 w-7" />
+            </div>
+            <p className="text-slate-700 font-medium">No report data available</p>
+            <p className="text-sm text-slate-500 mt-1">Try another period or refresh to load analytics.</p>
+          </div>
         )}
       </div>
     </Layout>

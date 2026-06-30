@@ -165,18 +165,32 @@ export default function Transactions() {
 
   return (
     <Layout connected={connected}>
-      <div className="flex items-center justify-between mb-6 gap-3">
-          <h1 className="text-xl sm:text-2xl font-bold text-foreground">Transactions</h1>
-          <Link to="/create-payment">
-            <Button className="bg-blue-600 hover:bg-blue-700 text-white shrink-0">
-              <Plus className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">New Payment</span>
-            </Button>
-          </Link>
+      <div className="mb-6 rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-blue-50 p-5 shadow-sm relative overflow-hidden animate-fade-in-up">
+        <div className="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-blue-200/30 blur-2xl" />
+        <div className="absolute -bottom-10 -left-10 h-28 w-28 rounded-full bg-cyan-200/30 blur-2xl" />
+        <div className="relative z-10 flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">Transactions</h1>
+            <p className="text-sm text-slate-500 mt-1">Track payment activity, statuses, and customer details in real time.</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white/90 px-2.5 py-1.5 text-xs text-slate-600">
+              {connected ? <Wifi className="h-3.5 w-3.5 text-emerald-500" /> : <WifiOff className="h-3.5 w-3.5 text-red-500" />}
+              {connected ? 'Live updates' : 'Offline updates'}
+            </div>
+            <Link to="/create-payment">
+              <Button className="bg-blue-600 hover:bg-blue-700 text-white shrink-0 btn-hover-lift transition-smooth">
+                <Plus className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">New Payment</span>
+              </Button>
+            </Link>
+          </div>
+        </div>
         </div>
 
         {/* Filters */}
-        <Card className="bg-card border-border mb-6">
+        <Card className="bg-white border border-slate-200 mb-6 shadow-sm animate-fade-in-up animate-stagger-1">
+          <div className="h-1 w-full bg-gradient-to-r from-blue-400/70 to-cyan-200/20" />
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1">
@@ -185,14 +199,14 @@ export default function Transactions() {
                   placeholder="Search by ID, description, customer..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  className="pl-9 bg-slate-50 border-slate-200 text-foreground placeholder:text-muted-foreground"
                 />
               </div>
               <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
-                <SelectTrigger className="w-full sm:w-[140px] bg-muted border-border text-foreground">
+                <SelectTrigger className="w-full sm:w-[140px] bg-slate-50 border-slate-200 text-foreground">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="bg-muted border-border">
+                <SelectContent className="bg-white border-slate-200">
                   <SelectItem value="all" className="text-foreground">All Status</SelectItem>
                   <SelectItem value="paid" className="text-emerald-400">Paid</SelectItem>
                   <SelectItem value="pending" className="text-amber-400">Pending</SelectItem>
@@ -200,10 +214,10 @@ export default function Transactions() {
                 </SelectContent>
               </Select>
               <Select value={typeFilter} onValueChange={(v) => { setTypeFilter(v); setPage(0); }}>
-                <SelectTrigger className="w-full sm:w-[160px] bg-muted border-border text-foreground">
+                <SelectTrigger className="w-full sm:w-[160px] bg-slate-50 border-slate-200 text-foreground">
                   <SelectValue placeholder="Type" />
                 </SelectTrigger>
-                <SelectContent className="bg-muted border-border">
+                <SelectContent className="bg-white border-slate-200">
                   <SelectItem value="all" className="text-foreground">All Types</SelectItem>
                   <SelectItem value="invoice" className="text-blue-400">Invoice</SelectItem>
                   <SelectItem value="qr_code" className="text-purple-400">QR Code</SelectItem>
@@ -215,22 +229,33 @@ export default function Transactions() {
         </Card>
 
         {/* Transaction List */}
-        <Card className="bg-card border-border">
+        <Card className="bg-white border border-slate-200 shadow-sm overflow-hidden animate-fade-in-up animate-stagger-2">
+          <div className="h-1 w-full bg-gradient-to-r from-slate-300/80 to-blue-100/30" />
           <CardContent className="p-0">
             {loading ? (
-              <div className="flex items-center justify-center py-16">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+              <div className="py-16 px-6">
+                <div className="max-w-md mx-auto space-y-3 animate-fade-in-up">
+                  <div className="h-3 w-2/3 mx-auto rounded-full skeleton-loading" />
+                  <div className="h-3 w-5/6 mx-auto rounded-full skeleton-loading" />
+                  <div className="h-3 w-3/4 mx-auto rounded-full skeleton-loading" />
+                  <div className="flex justify-center pt-2">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500" />
+                  </div>
+                </div>
               </div>
             ) : filteredTxns.length === 0 ? (
-              <div className="text-center py-16">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No transactions found</p>
+              <div className="text-center py-16 px-6 animate-fade-in-up">
+                <div className="h-14 w-14 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-3">
+                  <FileText className="h-7 w-7" />
+                </div>
+                <p className="text-slate-700 font-medium">No transactions found</p>
+                <p className="text-sm text-slate-500 mt-1">Try changing filters or create a new payment to get started.</p>
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border">
+                    <tr className="border-b border-slate-200 bg-slate-50/70">
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-6 py-3">Type</th>
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-6 py-3">ID</th>
                       <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-3 md:px-6 py-3 hidden md:table-cell">Description</th>

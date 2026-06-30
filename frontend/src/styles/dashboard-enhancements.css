@@ -1,9 +1,17 @@
 /* ========== 3D & ANIMATION EFFECTS ========== */
 
+:root {
+  --motion-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-ease-emphasized: cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-duration-fast: 180ms;
+  --motion-duration-base: 300ms;
+  --motion-duration-slow: 500ms;
+}
+
 /* 3D Card Hover Effects */
 .card-3d {
   perspective: 1000px;
-  transition: all 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+  transition: all var(--motion-duration-base) var(--motion-ease-emphasized);
 }
 
 .card-3d:hover {
@@ -13,7 +21,7 @@
 
 .card-3d-inner {
   transform-style: preserve-3d;
-  transition: transform 0.4s cubic-bezier(0.23, 1, 0.320, 1);
+  transition: transform var(--motion-duration-base) var(--motion-ease-emphasized);
 }
 
 .card-3d:hover .card-3d-inner {
@@ -83,7 +91,7 @@
 }
 
 .animate-fade-in-up {
-  animation: fadeInUp 0.6s ease-out;
+  animation: fadeInUp 0.6s var(--motion-ease-standard);
 }
 
 /* Stagger animation for multiple elements */
@@ -122,11 +130,11 @@
 
 /* Smooth Transitions */
 .transition-smooth {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--motion-duration-base) var(--motion-ease-standard);
 }
 
 .transition-smooth-lg {
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--motion-duration-slow) var(--motion-ease-standard);
 }
 
 /* Button Hover Effects */
@@ -241,4 +249,34 @@
 @keyframes skeleton {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-3d,
+  .card-3d-inner,
+  .transition-smooth,
+  .transition-smooth-lg {
+    transition-duration: 0ms !important;
+  }
+
+  .card-3d:hover,
+  .card-3d:hover .card-3d-inner,
+  .btn-hover-lift:hover,
+  .hover-scale:hover,
+  .hover-scale-sm:hover {
+    transform: none !important;
+  }
+
+  .animated-gradient,
+  .animate-float,
+  .animate-pulse-scale,
+  .animate-glow,
+  .animate-fade-in-up,
+  .animate-icon-spin,
+  .animate-shine,
+  .status-pulse,
+  .skeleton-loading,
+  .icon-badge::after {
+    animation: none !important;
+  }
 }

@@ -11,10 +11,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from core.database import get_db
+from dependencies.auth import get_admin_user
 from models.admin_users import AdminUser
 from models.team_invitations import TeamInvitation, AdminRole
-from core.auth import get_current_admin
 from pydantic import BaseModel, EmailStr
+from schemas.auth import UserResponse
 
 logger = logging.getLogger(__name__)
 
@@ -249,13 +250,13 @@ PREDEFINED_ROLES = {
 @router.post("/invite", response_model=InvitationResponse)
 async def send_team_invitation(
     request: SendInvitationRequest,
-    current_user: dict = Depends(get_current_admin),
+    current_user: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Send invitation to new team member"""
     # Super admins and organization admins with team permission can invite
     admin_res = await db.execute(
-        select(AdminUser).where(AdminUser.telegram_id == current_user.get("telegram_id"))
+        select(AdminUser).where(AdminUser.telegram_id == str(current_user.id))
     )
     admin = admin_res.scalar_one_or_none()
 
@@ -290,7 +291,7 @@ async def send_team_invitation(
         invitation_token=token,
         role=request.role,
         permissions=permissions,
-        invited_by=current_user.get("telegram_id"),
+        invited_by=str(current_user.id),
         organization_id=admin.organization_id if _is_org_admin(admin) else None,
         organization_name=admin.organization_name if _is_org_admin(admin) else None,
         expires_at=datetime.now(timezone.utc) + timedelta(days=7),
@@ -301,7 +302,7 @@ async def send_team_invitation(
     await db.commit()
     await db.refresh(invitation)
 
-    logger.info(f"Team invitation sent to {request.email} by {current_user.get('telegram_id')}")
+    logger.info(f"Team invitation sent to {request.email} by {current_user.id}")
 
     return InvitationResponse(
         id=invitation.id,
@@ -316,12 +317,12 @@ async def send_team_invitation(
 
 @router.get("/invitations")
 async def list_invitations(
-    current_user: dict = Depends(get_current_admin),
+    current_user: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all pending invitations"""
     admin_res = await db.execute(
-        select(AdminUser).where(AdminUser.telegram_id == current_user.get("telegram_id"))
+        select(AdminUser).where(AdminUser.telegram_id == str(current_user.id))
     )
     admin = admin_res.scalar_one_or_none()
 
@@ -356,12 +357,12 @@ async def list_invitations(
 async def update_invitation(
     invitation_id: int,
     request: SendInvitationRequest,
-    current_user: dict = Depends(get_current_admin),
+    current_user: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Update invitation role and permissions"""
     admin_res = await db.execute(
-        select(AdminUser).where(AdminUser.telegram_id == current_user.get("telegram_id"))
+        select(AdminUser).where(AdminUser.telegram_id == str(current_user.id))
     )
     admin = admin_res.scalar_one_or_none()
 
@@ -408,12 +409,12 @@ async def update_invitation(
 @router.delete("/invitations/{invitation_id}")
 async def revoke_invitation(
     invitation_id: int,
-    current_user: dict = Depends(get_current_admin),
+    current_user: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Revoke a pending invitation"""
     admin_res = await db.execute(
-        select(AdminUser).where(AdminUser.telegram_id == current_user.get("telegram_id"))
+        select(AdminUser).where(AdminUser.telegram_id == str(current_user.id))
     )
     admin = admin_res.scalar_one_or_none()
 
@@ -434,14 +435,14 @@ async def revoke_invitation(
     invitation.status = "revoked"
     await db.commit()
 
-    logger.info(f"Invitation {invitation_id} revoked by {current_user.get('telegram_id')}")
+    logger.info(f"Invitation {invitation_id} revoked by {current_user.id}")
 
     return {"status": "revoked"}
 
 
 @router.get("/roles")
 async def list_roles(
-    current_user: dict = Depends(get_current_admin),
+    current_user: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all available roles"""
@@ -477,12 +478,12 @@ async def create_custom_role(
     name: str,
     description: Optional[str],
     permissions: dict,
-    current_user: dict = Depends(get_current_admin),
+    current_user: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Create a custom role"""
     admin_res = await db.execute(
-        select(AdminUser).where(AdminUser.telegram_id == current_user.get("telegram_id"))
+        select(AdminUser).where(AdminUser.telegram_id == str(current_user.id))
     )
     admin = admin_res.scalar_one_or_none()
 
@@ -518,12 +519,12 @@ async def create_custom_role(
 
 @router.get("/members")
 async def list_team_members(
-    current_user: dict = Depends(get_current_admin),
+    current_user: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all active team members"""
     admin_scope_res = await db.execute(
-        select(AdminUser).where(AdminUser.telegram_id == current_user.get("telegram_id"))
+        select(AdminUser).where(AdminUser.telegram_id == str(current_user.id))
     )
     admin_scope = admin_scope_res.scalar_one_or_none()
 
