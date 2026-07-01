@@ -119,7 +119,7 @@ export default function CreatePayment() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(localStorage.getItem('auth_token') ? { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } : {}),
+          ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {}),
           ...(apiKey.trim() ? { 'X-API-Key': apiKey.trim() } : {}),
         },
         body: JSON.stringify(payload),
