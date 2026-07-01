@@ -202,7 +202,7 @@ export default function ScanQRPH() {
     setLoading(true);
     try {
       const res = await client.apiCall.invoke({
-        url: '/api/v1/xendit/pay-qrph',
+        url: '/api/v1/xend/pay-qrph',
         method: 'POST',
         data: {
           qr_data: qrData.raw,

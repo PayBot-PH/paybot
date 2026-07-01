@@ -51,11 +51,11 @@ class AdminUserCreate(BaseModel):
     telegram_username: Optional[str] = None
     name: Optional[str] = None
     is_super_admin: bool = False
-    can_manage_payments: bool = True
-    can_manage_disbursements: bool = True
-    can_view_reports: bool = True
-    can_manage_wallet: bool = True
-    can_manage_transactions: bool = True
+    can_manage_payments: bool = False
+    can_manage_disbursements: bool = False
+    can_view_reports: bool = False
+    can_manage_wallet: bool = False
+    can_manage_transactions: bool = False
     can_manage_bot: bool = False
     can_approve_topups: bool = False
     can_manage_team: bool = False
@@ -104,6 +104,8 @@ async def list_admin_users(
         actor = actor_res.scalar_one_or_none()
         if not actor or not actor.organization_id:
             raise HTTPException(status_code=403, detail="Organization admin access required.")
+        if not actor.can_manage_team:
+            raise HTTPException(status_code=403, detail="Team management permission required.")
         query = query.where(AdminUser.organization_id == actor.organization_id)
 
     res = await db.execute(query.order_by(AdminUser.id))

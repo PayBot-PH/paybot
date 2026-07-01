@@ -10,7 +10,7 @@ import {
   Wallet, Settings, LogOut, Menu, User, ShieldCheck, Crown,
   ChevronRight, Zap, Bell, CheckCircle, XCircle, Clock, Bot,
   MessageSquare, ArrowUpFromLine, DollarSign, ClipboardList,
-  ChevronDown, Lock, FileCheck, AlertCircle, Sparkles
+  ChevronDown, Lock, FileCheck, AlertCircle, Sparkles, Code2,
 } from 'lucide-react';
 import '../styles/dashboard-enhancements.css';
 
@@ -40,6 +40,7 @@ const userNavItems: NavItem[] = [
   { label: 'Reports', icon: BarChart3, path: '/reports' },
   { label: 'Wallet', icon: Wallet, path: '/wallet' },
   { label: 'Bot Messages', icon: MessageSquare, path: '/bot-messages' },
+  { label: 'Developer Experience', icon: Code2, path: '/developer-experience', permission: 'can_manage_bot' },
 ];
 
 const adminNavItems: NavItem[] = [
@@ -48,7 +49,7 @@ const adminNavItems: NavItem[] = [
   { label: 'Top-up Requests', icon: DollarSign, path: '/topup-requests' },
   { label: 'USDT Requests', icon: Send, path: '/usdt-send-requests' },
   { label: 'Bank Deposits', icon: ArrowUpFromLine, path: '/bank-deposits' },
-  { label: 'Bot Settings', icon: Bot, path: '/bot-settings', permission: 'can_manage_bot' },
+  { label: 'Bot Settings', icon: Bot, path: '/bot-settings' },
   { label: 'Admin Management', icon: ShieldCheck, path: '/admin-management' },
 ];
 

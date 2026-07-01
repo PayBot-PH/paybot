@@ -173,7 +173,7 @@ export default function Dashboard() {
     if (!user) return;
     try {
       const results = await Promise.allSettled([
-        client.apiCall.invoke({ url: '/api/v1/xendit/transaction-stats', method: 'GET', data: {} }),
+        client.apiCall.invoke({ url: '/api/v1/xend/transaction-stats', method: 'GET', data: {} }),
         client.entities.transactions.query({ query: {}, sort: '-created_at', limit: 8 }),
         client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=PHP', method: 'GET', data: {} }),
         client.apiCall.invoke({ url: '/api/v1/wallet/balance?currency=USD', method: 'GET', data: {} }),

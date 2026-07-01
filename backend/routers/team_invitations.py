@@ -2,6 +2,7 @@
 Team Invitations and Role Management API
 """
 import secrets
+import re
 from datetime import datetime, timezone, timedelta
 import logging
 from typing import Optional
@@ -28,6 +29,8 @@ router = APIRouter(prefix="/api/v1/team", tags=["team-management"])
 class SendInvitationRequest(BaseModel):
     email: EmailStr
     role: str = "admin"  # admin, operator, viewer
+    organization_name: Optional[str] = None
+    organization_id: Optional[str] = None
     permissions: Optional[dict] = None
     notes: Optional[str] = None
 
@@ -35,6 +38,8 @@ class InvitationResponse(BaseModel):
     id: int
     email: str
     role: str
+    organization_id: Optional[str] = None
+    organization_name: Optional[str] = None
     status: str
     invited_at: str
     expires_at: Optional[str]
@@ -67,6 +72,55 @@ def _is_org_admin(admin: Optional[AdminUser]) -> bool:
     if not admin:
         return False
     return bool((not admin.is_super_admin) and admin.organization_id)
+
+
+def _validate_role_name(role: str) -> str:
+    normalized = (role or "").strip()
+    if normalized not in PREDEFINED_ROLES:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    return normalized
+
+
+def _to_org_slug(value: str) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", (value or "").strip().lower()).strip("-")
+    if not base:
+        raise HTTPException(status_code=400, detail="Organization name or ID is required")
+    return base[:48]
+
+
+async def _resolve_super_admin_org_scope(
+    db: AsyncSession,
+    request: SendInvitationRequest,
+    role_name: str,
+) -> tuple[Optional[str], Optional[str]]:
+    raw_org_name = (request.organization_name or "").strip()
+    raw_org_id = (request.organization_id or "").strip()
+
+    if role_name == "owner" and not (raw_org_name or raw_org_id):
+        raise HTTPException(status_code=400, detail="organization_name or organization_id is required when inviting owner")
+
+    if not (raw_org_name or raw_org_id):
+        return None, None
+
+    org_name = raw_org_name or raw_org_id
+    org_id_base = _to_org_slug(raw_org_id or raw_org_name)
+
+    # Keep org_id unique across pending invitations and existing admin users.
+    org_id = org_id_base
+    suffix = 1
+    while True:
+        inv_exists = await db.execute(
+            select(TeamInvitation.id).where(TeamInvitation.organization_id == org_id).limit(1)
+        )
+        admin_exists = await db.execute(
+            select(AdminUser.id).where(AdminUser.organization_id == org_id).limit(1)
+        )
+        if not inv_exists.scalar_one_or_none() and not admin_exists.scalar_one_or_none():
+            break
+        suffix += 1
+        org_id = f"{org_id_base}-{suffix}"
+
+    return org_id, org_name
 
 # ────────────────────────────────────────────────────────────────
 # Predefined Roles
@@ -121,6 +175,30 @@ PREDEFINED_ROLES = {
             "can_manage_team": True,
         }
     },
+    "owner": {
+        "description": "Organization owner with full org-level access",
+        "permissions": {
+            "can_add_delete_user": True,
+            "can_edit_user_access": True,
+            "can_edit_business_settings": True,
+            "can_add_edit_delete_cards_promotion": True,
+            "can_upload_delete_batch_disbursements": True,
+            "can_validate_batch_disbursements": True,
+            "can_generate_invoice": True,
+            "can_add_edit_customers": True,
+            "can_view_transaction_details": True,
+            "can_download_csv_report": True,
+            "can_withdraw_funds": True,
+            "can_create_transfers": True,
+            "can_add_edit_delete_withdrawal_account": True,
+            "can_see_api_keys": True,
+            "can_resend_callbacks": True,
+            "can_change_callback_urls": True,
+            "can_approve_batch_disbursements": True,
+            "can_refund_cards_charges": True,
+            "can_manage_team": True,
+        }
+    },
     "editor": {
         "description": "Batch disbursement and customer management",
         "permissions": {
@@ -146,7 +224,7 @@ PREDEFINED_ROLES = {
         }
     },
     "viewer": {
-        "description": "View-only access to reports and transactions",
+        "description": "View reports/transactions and manage withdrawals",
         "permissions": {
             "can_add_delete_user": False,
             "can_edit_user_access": False,
@@ -158,30 +236,6 @@ PREDEFINED_ROLES = {
             "can_add_edit_customers": False,
             "can_view_transaction_details": True,
             "can_download_csv_report": True,
-            "can_withdraw_funds": False,
-            "can_create_transfers": False,
-            "can_add_edit_delete_withdrawal_account": False,
-            "can_see_api_keys": False,
-            "can_resend_callbacks": False,
-            "can_change_callback_urls": False,
-            "can_approve_batch_disbursements": False,
-            "can_refund_cards_charges": False,
-            "can_manage_team": False,
-        }
-    },
-    "withdrawer": {
-        "description": "Withdrawal and fund transfer management",
-        "permissions": {
-            "can_add_delete_user": False,
-            "can_edit_user_access": False,
-            "can_edit_business_settings": False,
-            "can_add_edit_delete_cards_promotion": False,
-            "can_upload_delete_batch_disbursements": False,
-            "can_validate_batch_disbursements": False,
-            "can_generate_invoice": False,
-            "can_add_edit_customers": False,
-            "can_view_transaction_details": False,
-            "can_download_csv_report": False,
             "can_withdraw_funds": True,
             "can_create_transfers": True,
             "can_add_edit_delete_withdrawal_account": True,
@@ -263,9 +317,17 @@ async def send_team_invitation(
     if not _can_manage_team(admin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to invite team members")
 
+    role_name = _validate_role_name(request.role)
+
     # Organization admins cannot invite super admins
-    if _is_org_admin(admin) and request.role == "super_admin":
+    if _is_org_admin(admin) and role_name == "super_admin":
         raise HTTPException(status_code=400, detail="Organization admin cannot assign super_admin role")
+    if _is_org_admin(admin) and role_name == "owner":
+        raise HTTPException(status_code=400, detail="Organization admin cannot assign owner role")
+
+    # Organization admins must use predefined role templates only (no custom permissions overrides).
+    if _is_org_admin(admin) and request.permissions:
+        raise HTTPException(status_code=400, detail="Organization admin cannot set custom permissions")
 
     # Check if email already invited or registered
     existing_query = select(TeamInvitation).where(
@@ -282,18 +344,23 @@ async def send_team_invitation(
     token = secrets.token_urlsafe(32)
 
     # Get permissions from predefined role or use custom
-    role_config = PREDEFINED_ROLES.get(request.role)
+    role_config = PREDEFINED_ROLES.get(role_name)
     permissions = request.permissions or (role_config["permissions"] if role_config else {})
+
+    org_id = admin.organization_id if _is_org_admin(admin) else None
+    org_name = admin.organization_name if _is_org_admin(admin) else None
+    if admin and admin.is_super_admin:
+        org_id, org_name = await _resolve_super_admin_org_scope(db, request, role_name)
 
     # Create invitation
     invitation = TeamInvitation(
         email=request.email,
         invitation_token=token,
-        role=request.role,
+        role=role_name,
         permissions=permissions,
         invited_by=str(current_user.id),
-        organization_id=admin.organization_id if _is_org_admin(admin) else None,
-        organization_name=admin.organization_name if _is_org_admin(admin) else None,
+        organization_id=org_id,
+        organization_name=org_name,
         expires_at=datetime.now(timezone.utc) + timedelta(days=7),
         notes=request.notes,
     )
@@ -308,6 +375,8 @@ async def send_team_invitation(
         id=invitation.id,
         email=invitation.email,
         role=invitation.role,
+        organization_id=invitation.organization_id,
+        organization_name=invitation.organization_name,
         status=invitation.status,
         invited_at=invitation.invited_at.isoformat(),
         expires_at=invitation.expires_at.isoformat() if invitation.expires_at else None,
@@ -345,6 +414,8 @@ async def list_invitations(
                 "invited_at": inv.invited_at.isoformat(),
                 "expires_at": inv.expires_at.isoformat() if inv.expires_at else None,
                 "invited_by": inv.invited_by,
+                "organization_id": inv.organization_id,
+                "organization_name": inv.organization_name,
                 "permissions": inv.permissions,
                 "notes": inv.notes,
             }
@@ -369,6 +440,8 @@ async def update_invitation(
     if not _can_manage_team(admin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
+    role_name = _validate_role_name(request.role)
+
     inv_res = await db.execute(
         select(TeamInvitation).where(TeamInvitation.id == invitation_id)
     )
@@ -380,17 +453,22 @@ async def update_invitation(
     if _is_org_admin(admin) and invitation.organization_id != admin.organization_id:
         raise HTTPException(status_code=403, detail="Not authorized for this invitation")
 
-    if _is_org_admin(admin) and request.role == "super_admin":
+    if _is_org_admin(admin) and role_name == "super_admin":
         raise HTTPException(status_code=400, detail="Organization admin cannot assign super_admin role")
+    if _is_org_admin(admin) and role_name == "owner":
+        raise HTTPException(status_code=400, detail="Organization admin cannot assign owner role")
+
+    if _is_org_admin(admin) and request.permissions:
+        raise HTTPException(status_code=400, detail="Organization admin cannot set custom permissions")
 
     if invitation.status != "pending":
         raise HTTPException(status_code=400, detail="Can only update pending invitations")
 
     # Update permissions
-    role_config = PREDEFINED_ROLES.get(request.role)
+    role_config = PREDEFINED_ROLES.get(role_name)
     permissions = request.permissions or (role_config["permissions"] if role_config else {})
 
-    invitation.role = request.role
+    invitation.role = role_name
     invitation.permissions = permissions
     invitation.notes = request.notes
 
@@ -446,9 +524,21 @@ async def list_roles(
     db: AsyncSession = Depends(get_db),
 ):
     """List all available roles"""
+    admin_res = await db.execute(
+        select(AdminUser).where(AdminUser.telegram_id == str(current_user.id))
+    )
+    admin = admin_res.scalar_one_or_none()
+
+    if not _can_manage_team(admin):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
     # Get custom roles from database
     result = await db.execute(select(AdminRole))
     custom_roles = result.scalars().all()
+
+    builtin_roles = PREDEFINED_ROLES.items()
+    if _is_org_admin(admin):
+        builtin_roles = ((name, cfg) for name, cfg in builtin_roles if name not in {"super_admin", "owner"})
 
     # Return predefined + custom roles
     return {
@@ -459,7 +549,7 @@ async def list_roles(
                 "permissions": config["permissions"],
                 "is_builtin": True,
             }
-            for name, config in PREDEFINED_ROLES.items()
+            for name, config in builtin_roles
         ] + [
             {
                 "id": role.id,

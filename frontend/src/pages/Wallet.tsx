@@ -75,8 +75,8 @@ const USDT_PLATFORMS: { code: string; name: string }[] = [
 ];
 
 const DEPOSIT_DESTINATIONS = [
-  { value: 'Security Bank Corporation', label: 'Security Bank', account_number: '0000068888173', account_name: 'Xendit Philippines Inc' },
-  { value: 'Asia United Bank', label: 'Asia United Bank', account_number: '934105321485', account_name: 'Xendit Philippines Inc' },
+  { value: 'Security Bank Corporation', label: 'Security Bank', account_number: '0000068888173', account_name: 'xend Philippines Inc' },
+  { value: 'Asia United Bank', label: 'Asia United Bank', account_number: '934105321485', account_name: 'xend Philippines Inc' },
 ];
 
 const DEPOSIT_CHANNELS = DEPOSIT_DESTINATIONS.map(dest => ({ value: dest.value, label: dest.label }));
@@ -90,8 +90,8 @@ const TOPUP_METHODS = [
 ];
 
 const FUND_WALLET_METHODS = [
-  { value: 'bank_transfer', label: 'Bank Transfer', description: 'Transfer funds directly from a Philippine bank into the Xendit account.' },
-  { value: 'ubp_bills_payment', label: 'UBP Bills Payment', description: 'Use UnionBank Bills Payment and enter your Xendit payment code to top up.' },
+  { value: 'bank_transfer', label: 'Bank Transfer', description: 'Transfer funds directly from a Philippine bank into the xend account.' },
+  { value: 'ubp_bills_payment', label: 'UBP Bills Payment', description: 'Use UnionBank Bills Payment and enter your xend payment code to top up.' },
 ];
 
 const FUND_WALLET_STEP_TITLES = ['Choose method', 'Top up details', 'Confirm top up', 'Submit proof'];
@@ -554,13 +554,13 @@ export default function WalletPage() {
                                 {fundMethod === 'bank_transfer' ? (
                                   <>
                                     <p>1. Log in to your bank app or portal.</p>
-                                    <p>2. Transfer to one of Xendit&apos;s bank accounts below.</p>
+                                    <p>2. Transfer to one of xend&apos;s bank accounts below.</p>
                                     <p>3. Use the selected destination and method when you submit proof.</p>
                                   </>
                                 ) : (
                                   <>
                                     <p>1. Log in to your UnionBank online banking.</p>
-                                    <p>2. Choose Bills Payment and select Xendit Balance Top-up.</p>
+                                    <p>2. Choose Bills Payment and select xend Balance Top-up.</p>
                                     <p>3. Enter the amount and your payment code, then pay.</p>
                                   </>
                                 )}
@@ -642,7 +642,7 @@ export default function WalletPage() {
                                   </div>
                                   <div>
                                     <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Account Name</p>
-                                    <p className="mt-2 text-slate-900 font-semibold">{DEPOSIT_DESTINATIONS.find(d => d.value === depositChannel)?.account_name || 'Xendit Philippines Inc'}</p>
+                                    <p className="mt-2 text-slate-900 font-semibold">{DEPOSIT_DESTINATIONS.find(d => d.value === depositChannel)?.account_name || 'xend Philippines Inc'}</p>
                                   </div>
                                 </div>
                                 <div className="mt-4 grid grid-cols-2 gap-3">

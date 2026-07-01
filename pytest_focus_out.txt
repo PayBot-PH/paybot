@@ -1,0 +1,398 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.1, pytest-9.1.1, pluggy-1.6.0 -- /home/codespace/.python/current/bin/python
+cachedir: .pytest_cache
+rootdir: /workspaces/paybot/backend
+configfile: pytest.ini
+plugins: anyio-4.12.1, asyncio-1.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=function, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+tests/test_bot.py::TestHealth::test_root_health ERROR                    [100%]
+
+==================================== ERRORS ====================================
+________________ ERROR at setup of TestHealth.test_root_health _________________
+
+    @pytest.fixture(scope="module")
+    def client():
+>       with TestClient(app) as c:
+
+tests/test_bot.py:26: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <starlette.testclient.TestClient object at 0x7f279aeab290>
+
+    def __enter__(self) -> Self:
+        with contextlib.ExitStack() as stack:
+            self.portal = portal = stack.enter_context(anyio.from_thread.start_blocking_portal(**self.async_backend))
+    
+            @stack.callback
+            def reset_portal() -> None:
+                self.portal = None
+    
+            send: anyio.create_memory_object_stream[MutableMapping[str, Any] | None] = (
+                anyio.create_memory_object_stream(math.inf)
+            )
+            receive: anyio.create_memory_object_stream[MutableMapping[str, Any]] = anyio.create_memory_object_stream(
+                math.inf
+            )
+            for channel in (*send, *receive):
+                stack.callback(channel.close)
+            self.stream_send = StapledObjectStream(*send)
+            self.stream_receive = StapledObjectStream(*receive)
+            self.task = portal.start_task_soon(self.lifespan)
+>           portal.call(self.wait_startup)
+
+/usr/local/python/3.12.1/lib/python3.12/site-packages/starlette/testclient.py:697: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <anyio.from_thread.BlockingPortal object at 0x7f279b2f5790>
+func = <bound method TestClient.wait_startup of <starlette.testclient.TestClient object at 0x7f279aeab290>>
+args = ()
+
+    def call(
+        self,
+        func: Callable[[Unpack[PosArgsT]], Awaitable[T_Retval] | T_Retval],
+        *args: Unpack[PosArgsT],
+    ) -> T_Retval:
+        """
+        Call the given function in the event loop thread.
+    
+        If the callable returns a coroutine object, it is awaited on.
+    
+        :param func: any callable
+        :raises RuntimeError: if the portal is not running or if this method is called
+            from within the event loop thread
+    
+        """
+>       return cast(T_Retval, self.start_task_soon(func, *args).result())
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+/home/codespace/.local/lib/python3.12/site-packages/anyio/from_thread.py:334: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = None, timeout = None
+
+    def result(self, timeout=None):
+        """Return the result of the call that the future represents.
+    
+        Args:
+            timeout: The number of seconds to wait for the result if the future
+                isn't done. If None, then there is no limit on the wait time.
+    
+        Returns:
+            The result of the call that the future represents.
+    
+        Raises:
+            CancelledError: If the future was cancelled.
+            TimeoutError: If the future didn't finish executing before the given
+                timeout.
+            Exception: If the call raised then that exception will be raised.
+        """
+        try:
+            with self._condition:
+                if self._state in [CANCELLED, CANCELLED_AND_NOTIFIED]:
+                    raise CancelledError()
+                elif self._state == FINISHED:
+                    return self.__get_result()
+    
+                self._condition.wait(timeout)
+    
+                if self._state in [CANCELLED, CANCELLED_AND_NOTIFIED]:
+>                   raise CancelledError()
+E                   concurrent.futures._base.CancelledError
+
+/usr/local/python/3.12.1/lib/python3.12/concurrent/futures/_base.py:454: CancelledError
+------------------------------ Captured log setup ------------------------------
+CRITICAL main:main.py:176 MAYA_SECRET_KEY is not configured. Maya-based payment features require this credential.
+ERROR    asyncio:base_events.py:1805 unhandled exception during asyncio.run() shutdown
+task: <Task finished name='anyio.from_thread.start_blocking_portal.<locals>.run_portal' coro=<start_blocking_portal.<locals>.run_portal() done, defined at /home/codespace/.local/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:2318> exception=BaseExceptionGroup('unhandled errors in a TaskGroup', [SystemExit(1)])>
+  + Exception Group Traceback (most recent call last):
+  |   File "/home/codespace/.local/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2325, in wrapper
+  |     return await func(*args)
+  |            ^^^^^^^^^^^^^^^^^
+  |   File "/home/codespace/.local/lib/python3.12/site-packages/anyio/from_thread.py", line 522, in run_portal
+  |     async with BlockingPortal() as portal_:
+  |   File "/home/codespace/.local/lib/python3.12/site-packages/anyio/from_thread.py", line 210, in __aexit__
+  |     return await self._task_group.__aexit__(exc_type, exc_val, exc_tb)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/home/codespace/.local/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 783, in __aexit__
+  |     raise BaseExceptionGroup(
+  | BaseExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/home/codespace/.local/lib/python3.12/site-packages/anyio/_backends/_asyncio.py", line 2342, in run
+    |     return runner.run(wrapper())
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/asyncio/runners.py", line 118, in run
+    |     return self._loop.run_until_complete(task)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/asyncio/base_events.py", line 671, in run_until_complete
+    |     self.run_forever()
+    |   File "/usr/local/python/3.12.1/lib/python3.12/asyncio/base_events.py", line 638, in run_forever
+    |     self._run_once()
+    |   File "/usr/local/python/3.12.1/lib/python3.12/asyncio/base_events.py", line 1971, in _run_once
+    |     handle._run()
+    |   File "/usr/local/python/3.12.1/lib/python3.12/asyncio/events.py", line 84, in _run
+    |     self._context.run(self._callback, *self._args)
+    |   File "/home/codespace/.local/lib/python3.12/site-packages/anyio/from_thread.py", line 259, in _call_func
+    |     retval = await retval_or_awaitable
+    |              ^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/starlette/testclient.py", line 713, in lifespan
+    |     await self.app(scope, self.stream_receive.receive, self.stream_send.send)
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/applications.py", line 1163, in __call__
+    |     await super().__call__(scope, receive, send)
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/starlette/applications.py", line 90, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/starlette/middleware/errors.py", line 151, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/starlette/middleware/base.py", line 103, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/starlette/middleware/cors.py", line 80, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/starlette/middleware/exceptions.py", line 49, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py", line 18, in __call__
+    |     await self.app(scope, receive, send)
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/starlette/routing.py", line 660, in __call__
+    |     await self.middleware_stack(scope, receive, send)
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 2535, in app
+    |     await self.lifespan(scope, receive, send)
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/starlette/routing.py", line 638, in lifespan
+    |     async with self.lifespan_context(app) as maybe_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/routing.py", line 232, in merged_lifespan
+    |     async with original_context(app) as maybe_original_state:
+    |   File "/usr/local/python/3.12.1/lib/python3.12/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/workspaces/paybot/backend/main.py", line 177, in lifespan
+    |     sys.exit(1)
+    | SystemExit: 1
+    +------------------------------------
+=============================== warnings summary ===============================
+../../../usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/testclient.py:1
+  /usr/local/python/3.12.1/lib/python3.12/site-packages/fastapi/testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+../../../usr/local/python/3.12.1/lib/python3.12/site-packages/passlib/utils/__init__.py:854
+  /usr/local/python/3.12.1/lib/python3.12/site-packages/passlib/utils/__init__.py:854: DeprecationWarning: 'crypt' is deprecated and slated for removal in Python 3.13
+    from crypt import crypt as _crypt
+
+../../../usr/local/python/3.12.1/lib/python3.12/site-packages/pydantic/_internal/_config.py:291
+../../../usr/local/python/3.12.1/lib/python3.12/site-packages/pydantic/_internal/_config.py:291
+../../../usr/local/python/3.12.1/lib/python3.12/site-packages/pydantic/_internal/_config.py:291
+../../../usr/local/python/3.12.1/lib/python3.12/site-packages/pydantic/_internal/_config.py:291
+  /usr/local/python/3.12.1/lib/python3.12/site-packages/pydantic/_internal/_config.py:291: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+models/kyb_registrations.py:30
+  /workspaces/paybot/backend/models/kyb_registrations.py:30: SAWarning: This declarative base already contains a class with the same class name and module name as models.kyb_registrations.KybRegistration, and will be replaced in the string-lookup table.
+    class KybRegistration(Base):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/test_bot.py::TestHealth::test_root_health - concurrent.futures._base.CancelledError
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+========================= 7 warnings, 1 error in 3.18s =========================

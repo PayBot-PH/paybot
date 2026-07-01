@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TeamInvitationsTab, TeamMembersTab } from '@/components/TeamManagement';
+import { getRoleDisplayName } from '@/lib/roleDisplay';
 import {
   ShieldCheck,
   Plus,
@@ -474,7 +475,7 @@ function UserManagementTab({
                       ? 'bg-blue-500/15 border-blue-500/25 text-blue-400'
                       : 'bg-muted/40 border-border/40 text-muted-foreground'
                   }`}>
-                    {user.role}
+                    {getRoleDisplayName(user.role)}
                   </Badge>
                 )}
               </div>
@@ -498,8 +499,18 @@ function RoleSelector({
   const [open, setOpen] = useState(false);
 
   const roles = [
-    { value: 'admin', label: 'Admin', color: 'text-blue-400', bg: 'bg-blue-500/15 border-blue-500/25' },
-    { value: 'user', label: 'User', color: 'text-muted-foreground', bg: 'bg-muted/40 border-border/40' },
+    {
+      value: 'admin',
+      label: getRoleDisplayName('admin'),
+      color: 'text-blue-400',
+      bg: 'bg-blue-500/15 border-blue-500/25',
+    },
+    {
+      value: 'user',
+      label: getRoleDisplayName('user'),
+      color: 'text-muted-foreground',
+      bg: 'bg-muted/40 border-border/40',
+    },
   ];
   const current = roles.find((r) => r.value === currentRole) || roles[1];
 

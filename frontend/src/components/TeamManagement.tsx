@@ -26,6 +26,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { client } from '@/lib/api';
+import { getRoleDisplayName } from '@/lib/roleDisplay';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface TeamInvitation {
   id: number;
@@ -93,11 +95,14 @@ const PERMISSION_LABELS: Record<string, string> = {
 };
 
 export function TeamInvitationsTab() {
+  const { isSuperAdmin } = useAuth();
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
   const [loading, setLoading] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [selectedRole, setSelectedRole] = useState('admin');
   const [email, setEmail] = useState('');
+  const [organizationName, setOrganizationName] = useState('');
+  const [organizationId, setOrganizationId] = useState('');
   const [notes, setNotes] = useState('');
   const [formLoading, setFormLoading] = useState(false);
 
@@ -129,16 +134,28 @@ export function TeamInvitationsTab() {
       toast.error('Please enter an email address');
       return;
     }
+    if (isSuperAdmin && selectedRole === 'owner' && !organizationName.trim() && !organizationId.trim()) {
+      toast.error('Organization name or ID is required for owner invitations');
+      return;
+    }
 
     try {
       setFormLoading(true);
       await client.apiCall.invoke({
         url: '/api/v1/team/invite',
         method: 'POST',
-        data: { email, role: selectedRole, notes: notes || undefined },
+        data: {
+          email,
+          role: selectedRole,
+          organization_name: isSuperAdmin ? (organizationName.trim() || undefined) : undefined,
+          organization_id: isSuperAdmin ? (organizationId.trim() || undefined) : undefined,
+          notes: notes || undefined,
+        },
       });
       toast.success('Invitation sent successfully');
       setEmail('');
+      setOrganizationName('');
+      setOrganizationId('');
       setNotes('');
       setSelectedRole('admin');
       setFormOpen(false);
@@ -206,16 +223,41 @@ export function TeamInvitationsTab() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                    {isSuperAdmin && <SelectItem value="super_admin">Super Admin</SelectItem>}
+                    {isSuperAdmin && <SelectItem value="owner">Owner</SelectItem>}
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="editor">Editor</SelectItem>
                     <SelectItem value="viewer">Viewer</SelectItem>
-                    <SelectItem value="withdrawer">Withdrawer</SelectItem>
-                    <SelectItem value="developer">Developer</SelectItem>
+                    <SelectItem value="developer">Developers</SelectItem>
                     <SelectItem value="approver">Approver</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {isSuperAdmin && (
+                <>
+                  <div>
+                    <Label className="text-sm font-medium">Organization Name (Optional)</Label>
+                    <Input
+                      placeholder="Acme Trading Inc"
+                      value={organizationName}
+                      onChange={(e) => setOrganizationName(e.target.value)}
+                      className="mt-1.5"
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium">Organization ID (Optional)</Label>
+                    <Input
+                      placeholder="acme-trading"
+                      value={organizationId}
+                      onChange={(e) => setOrganizationId(e.target.value)}
+                      className="mt-1.5"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">Set either name or ID. Owner invites require one of them.</p>
+                  </div>
+                </>
+              )}
 
               <div>
                 <Label className="text-sm font-medium">Notes (Optional)</Label>
@@ -290,9 +332,15 @@ export function TeamInvitationsTab() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-1">
-                      Role: <span className="font-medium">{inv.role}</span> • Sent{' '}
+                      Role: <span className="font-medium">{getRoleDisplayName(inv.role)}</span> • Sent{' '}
                       {new Date(inv.invited_at).toLocaleDateString()}
                     </p>
+                    {(inv.organization_name || inv.organization_id) && (
+                      <p className="text-xs text-slate-600 mt-1">
+                        Organization: {inv.organization_name || inv.organization_id}
+                        {inv.organization_name && inv.organization_id ? ` (${inv.organization_id})` : ''}
+                      </p>
+                    )}
                     {inv.notes && <p className="text-xs text-slate-600 mt-1">Note: {inv.notes}</p>}
                     <div className="flex flex-wrap gap-1 mt-2">
                       {Object.entries(inv.permissions)
@@ -403,7 +451,7 @@ export function TeamMembersTab() {
                     <p className="text-xs text-slate-500 mt-0.5">@{member.telegram_id}</p>
                     <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 mt-2">
                       <Shield className="h-3 w-3" />
-                      {member.role}
+                      {getRoleDisplayName(member.role)}
                     </span>
                     {(member.organization_name || member.organization_id) && (
                       <p className="text-[11px] text-slate-500 mt-1">

@@ -26,12 +26,19 @@ export default function PaymentsHub() {
   const [bankCode, setBankCode] = useState('BDO');
   const [ewalletProvider, setEwalletProvider] = useState('PH_GCASH');
   const [mobileNumber, setMobileNumber] = useState('');
+  const [apiKey, setApiKey] = useState(localStorage.getItem('payment_api_key') || '');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
 
   usePaymentEvents({ enabled: !!user });
 
   const reset = () => { setAmount(''); setDescription(''); setCustomerName(''); setCustomerEmail(''); setResult(null); };
+
+  useEffect(() => {
+    if (apiKey.trim()) {
+      localStorage.setItem('payment_api_key', apiKey.trim());
+    }
+  }, [apiKey]);
 
   const handleCreate = async () => {
     if (!amount || parseFloat(amount) <= 0) { toast.error('Enter a valid amount'); return; }
@@ -44,15 +51,15 @@ export default function PaymentsHub() {
 
       switch (tab) {
         case 'invoice':
-          endpoint = '/api/v1/xendit/create-invoice';
+          endpoint = '/api/v1/xend/create-invoice';
           payload = { amount: amt, description, customer_name: customerName, customer_email: customerEmail };
           break;
         case 'qr_code':
-          endpoint = '/api/v1/xendit/create-qr-code';
+          endpoint = '/api/v1/xend/create-qr-code';
           payload = { amount: amt, description };
           break;
         case 'payment_link':
-          endpoint = '/api/v1/xendit/create-payment-link';
+          endpoint = '/api/v1/xend/create-payment-link';
           payload = { amount: amt, description, customer_name: customerName, customer_email: customerEmail };
           break;
         case 'virtual_account':
@@ -75,7 +82,11 @@ export default function PaymentsHub() {
 
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(localStorage.getItem('auth_token') ? { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } : {}),
+          ...(apiKey.trim() ? { 'X-API-Key': apiKey.trim() } : {}),
+        },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
@@ -144,6 +155,17 @@ export default function PaymentsHub() {
                       className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground resize-none" rows={2} />
                   </div>
                 )}
+
+                <div>
+                  <Label className="text-muted-foreground">Magpie/Xend API Key (optional)</Label>
+                  <Input
+                    placeholder="xend_live_..."
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">If provided, requests send <code>X-API-Key</code> for direct integration auth.</p>
+                </div>
 
                 {(tab === 'invoice' || tab === 'payment_link' || tab === 'virtual_account') && (
                   <div>

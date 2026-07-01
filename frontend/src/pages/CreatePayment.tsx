@@ -1,6 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +26,28 @@ import {
 import { toast } from 'sonner';
 import Layout from '@/components/Layout';
 
+const METHOD_OPTIONS = [
+  { value: 'visa', label: 'Visa' },
+  { value: 'mastercard', label: 'Mastercard' },
+  { value: 'jcb', label: 'JCB' },
+  { value: 'amex', label: 'Amex' },
+  { value: 'unionpay', label: 'UnionPay' },
+  { value: 'apple_pay', label: 'Apple Pay' },
+  { value: 'google_pay', label: 'Google Pay' },
+  { value: 'gcash', label: 'GCash' },
+  { value: 'grabpay', label: 'GrabPay' },
+  { value: 'maya', label: 'Maya' },
+  { value: 'alipay', label: 'Alipay' },
+  { value: 'wechat_pay', label: 'WeChat Pay' },
+  { value: 'bank_transfer', label: 'Bank Transfer' },
+  { value: 'instapay', label: 'InstaPay' },
+  { value: 'pesonet', label: 'PESONet' },
+  { value: 'qrph', label: 'QRPH' },
+  { value: 'paypal', label: 'PayPal' },
+] as const;
+
+const QR_METHODS = new Set(['qrph', 'maya', 'gcash', 'grabpay', 'alipay', 'wechat_pay']);
+
 export default function CreatePayment() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -39,8 +60,35 @@ export default function CreatePayment() {
   const [merchantName, setMerchantName] = useState(searchParams.get('merchant_name') || '');
   const [customerName, setCustomerName] = useState(searchParams.get('customer_name') || '');
   const [customerEmail, setCustomerEmail] = useState(searchParams.get('customer_email') || '');
+  const [apiKey, setApiKey] = useState(localStorage.getItem('payment_api_key') || '');
+  const [paymentMethods, setPaymentMethods] = useState<string[]>(
+    (searchParams.get('payment_methods') || '')
+      .split(',')
+      .map((m) => m.trim())
+      .filter(Boolean)
+  );
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
+
+  const visibleMethods = useMemo(
+    () => METHOD_OPTIONS.filter((m) => (paymentType === 'qr_code' ? QR_METHODS.has(m.value) : true)),
+    [paymentType]
+  );
+
+  useEffect(() => {
+    const allowed = new Set(visibleMethods.map((m) => m.value));
+    setPaymentMethods((prev) => prev.filter((m) => allowed.has(m)));
+  }, [visibleMethods]);
+
+  useEffect(() => {
+    if (apiKey.trim()) {
+      localStorage.setItem('payment_api_key', apiKey.trim());
+    }
+  }, [apiKey]);
+
+  const togglePaymentMethod = (method: string) => {
+    setPaymentMethods((prev) => (prev.includes(method) ? prev.filter((m) => m !== method) : [...prev, method]));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,32 +105,39 @@ export default function CreatePayment() {
       let payload: Record<string, unknown> = {};
 
       if (paymentType === 'invoice') {
-        endpoint = '/api/v1/xendit/create-invoice';
-        payload = { amount: parseFloat(amount), description, descriptor: descriptor.trim() || undefined, merchant_name: merchantName.trim() || undefined, customer_name: customerName, customer_email: customerEmail };
+        endpoint = '/api/v1/xend/create-invoice';
+        payload = { amount: parseFloat(amount), description, descriptor: descriptor.trim() || undefined, merchant_name: merchantName.trim() || undefined, customer_name: customerName, customer_email: customerEmail, payment_methods: paymentMethods };
       } else if (paymentType === 'qr_code') {
-        endpoint = '/api/v1/xendit/create-qr-code';
-        payload = { amount: parseFloat(amount), description, descriptor: descriptor.trim() || undefined, merchant_name: merchantName.trim() || undefined };
+        endpoint = '/api/v1/xend/create-qr-code';
+        payload = { amount: parseFloat(amount), description, descriptor: descriptor.trim() || undefined, merchant_name: merchantName.trim() || undefined, payment_methods: paymentMethods };
       } else {
-        endpoint = '/api/v1/xendit/create-payment-link';
-        payload = { amount: parseFloat(amount), description, descriptor: descriptor.trim() || undefined, merchant_name: merchantName.trim() || undefined, customer_name: customerName, customer_email: customerEmail };
+        endpoint = '/api/v1/xend/create-payment-link';
+        payload = { amount: parseFloat(amount), description, descriptor: descriptor.trim() || undefined, merchant_name: merchantName.trim() || undefined, customer_name: customerName, customer_email: customerEmail, payment_methods: paymentMethods };
       }
 
-      const res = await client.apiCall.invoke({
-        url: endpoint,
+      const res = await fetch(endpoint, {
         method: 'POST',
-        data: payload,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(localStorage.getItem('auth_token') ? { Authorization: `Bearer ${localStorage.getItem('auth_token')}` } : {}),
+          ...(apiKey.trim() ? { 'X-API-Key': apiKey.trim() } : {}),
+        },
+        body: JSON.stringify(payload),
       });
-      const responseData = res.data?.data ?? res.data;
 
-      if (res.data?.success) {
+      const data = await res.json();
+      const responseData = data?.data ?? data;
+
+      if (!res.ok) {
+        toast.error(data?.detail || data?.message || `Error ${res.status}`);
+      } else if (data?.success) {
         setResult(responseData);
-        toast.success(res.data.message || 'Payment created successfully!');
+        toast.success(data.message || 'Payment created successfully!');
       } else {
-        toast.error(res.data?.message || 'Failed to create payment');
+        toast.error(data?.message || 'Failed to create payment');
       }
     } catch (err: unknown) {
-      const errorMsg = (err as { data?: { detail?: string } })?.data?.detail || 'Failed to create payment';
-      toast.error(errorMsg);
+      toast.error((err as Error)?.message || 'Failed to create payment');
     } finally {
       setLoading(false);
     }
@@ -171,6 +226,43 @@ export default function CreatePayment() {
                     className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground resize-none"
                     rows={3}
                   />
+                </div>
+
+                <div>
+                  <Label className="text-muted-foreground">Payment Methods ({paymentMethods.length} selected)</Label>
+                  <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {visibleMethods.map((method) => {
+                      const selected = paymentMethods.includes(method.value);
+                      return (
+                        <button
+                          key={method.value}
+                          type="button"
+                          onClick={() => togglePaymentMethod(method.value)}
+                          className={`rounded-md border px-2.5 py-1.5 text-xs text-left transition-smooth ${
+                            selected
+                              ? 'border-blue-500/60 bg-blue-500/15 text-blue-300'
+                              : 'border-border bg-muted text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          {method.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Based on xend payment method guide. Leave unselected to allow gateway defaults.
+                  </p>
+                </div>
+
+                <div>
+                  <Label className="text-muted-foreground">Magpie/Xend API Key (optional)</Label>
+                  <Input
+                    placeholder="xend_live_..."
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">If provided, requests include <code>X-API-Key</code>.</p>
                 </div>
 
                 <div>

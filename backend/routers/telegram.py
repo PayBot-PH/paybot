@@ -26,7 +26,6 @@ from models.subscriptions import Subscriptions
 from schemas.auth import UserResponse
 from services.telegram_service import TelegramService, _resolve_bot_token, t as _t, user_lang as _user_lang
 from services.maya_service import MayaService
-from services.xendit_service import XenditService
 from services.event_bus import payment_event_bus
 from services.paymongo_service import PayMongoService
 from services.photonpay_service import PhotonPayService
@@ -266,6 +265,12 @@ class BotConfigUpdate(BaseModel):
     maintenance_message: Optional[str] = None
     commands_enabled: Optional[str] = None
     whatsapp_number: Optional[str] = None
+
+
+def _require_super_admin(current_user: UserResponse):
+    perms = current_user.permissions
+    if not perms or not perms.is_super_admin:
+        raise HTTPException(status_code=403, detail="Super admin access required for bot settings.")
 
 
 # ---------- KYB constants ----------
@@ -1163,6 +1168,7 @@ async def get_bot_config(
     db: AsyncSession = Depends(get_db),
 ):
     """Get (or create) the bot configuration for the current user."""
+    _require_super_admin(current_user)
     service = Bot_settingsService(db)
     result = await service.get_list(skip=0, limit=1, user_id=str(current_user.id))
     if result["total"] == 0:
@@ -1195,6 +1201,7 @@ async def update_bot_config(
     db: AsyncSession = Depends(get_db),
 ):
     """Update bot configuration for the current user."""
+    _require_super_admin(current_user)
     service = Bot_settingsService(db)
     result = await service.get_list(skip=0, limit=1, user_id=str(current_user.id))
     update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
@@ -2171,15 +2178,15 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
                     description = parts[2] if len(parts) > 2 else "QR payment"
-                    xendit_svc = XenditService()
+                    maya_svc = MayaService()
                     ext_id = f"qr-{uuid.uuid4().hex[:8]}"
-                    result = await xendit_svc.create_qr_code(amount=amount, external_id=ext_id, description=description)
+                    result = await maya_svc.create_qr_payment(amount=amount, external_id=ext_id, description=description, payment_methods=["qrph"])
                     if result.get("success"):
                         reply = (
                             f"✅ <b>QR Code Generated</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💰 Amount: <b>₱{amount:,.2f}</b>\n"
-                            f"📱 QR String: <code>{result.get('qr_string', '')}</code>\n"
+                            f"📱 QR String: <code>{result.get('qr_content', '')}</code>\n"
                             f"🆔 Ref: <code>{result.get('external_id', '')}</code>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
                             f"💡 <i>Tip: Tap the QR string to copy it.</i>"
@@ -2189,9 +2196,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             now = datetime.now(timezone.utc)
                             txn = Transactions(
                                 user_id=f"tg-{chat_id}", transaction_type="qr_code",
-                                external_id=result.get("external_id", ""), xendit_id=result.get("qr_id", ""),
+                                external_id=result.get("external_id", ""), xendit_id=result.get("qr_id", "") or result.get("checkout_id", ""),
                                 amount=amount, currency="PHP", status="pending", description=description,
-                                qr_code_url=result.get("qr_string", ""), telegram_chat_id=chat_id,
+                                qr_code_url=result.get("qr_content", "") or result.get("redirect_url", ""), telegram_chat_id=chat_id,
                                 created_at=now, updated_at=now,
                             )
                             db.add(txn)
@@ -2289,10 +2296,9 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                             await _safe_log(db, chat_id, username, text)
                             return {"status": "ok"}
                         
-                        xendit_svc = XenditService()
-                        result = await xendit_svc.create_qr_code(amount=amount, description=description)
+                        result = await maya.create_qr_payment(amount=amount, description=description, payment_methods=["alipay", "qrph"])
                         if result.get("success"):
-                            qr_url = result.get("qr_image_url", "")
+                            qr_url = result.get("qr_content", "") or result.get("redirect_url", "")
                             ref_num = result.get("external_id", "")
                             caption = (
                                 f"✅ <b>Alipay Payment Ready!</b>\n"
@@ -2308,7 +2314,7 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                                 now = datetime.now(timezone.utc)
                                 txn = Transactions(
                                     user_id=f"tg-{chat_id}", transaction_type="alipay_qr",
-                                    external_id=ref_num, xendit_id=result.get("id", ""),
+                                    external_id=ref_num, xendit_id=result.get("qr_id", "") or result.get("checkout_id", ""),
                                     amount=amount, currency="PHP", status="pending", description=description,
                                     qr_code_url=qr_url, telegram_chat_id=chat_id,
                                     created_at=now, updated_at=now,
@@ -2469,35 +2475,11 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
                         await tg.send_message(chat_id, "❌ Amount must be greater than zero.")
                         await _safe_log(db, chat_id, username, text)
                         return {"status": "ok"}
-                    bank_code = parts[2].upper()
-                    xendit_svc = XenditService()
-                    result = await xendit_svc.create_virtual_account(amount=amount, bank_code=bank_code, account_name=username)
-                    if result.get("success"):
-                        reply = (
-                            f"✅ <b>Virtual Account Created!</b>\n\n🏦 Bank: {bank_code}\n💰 ₱{amount:,.2f}\n"
-                            f"🔢 Account: <code>{result.get('account_number', '')}</code>\n"
-                            f"🆔 <code>{result.get('external_id', '')}</code>"
-                        )
-                        await tg.send_message(chat_id, reply)
-                        try:
-                            now = datetime.now(timezone.utc)
-                            txn = Transactions(
-                                user_id=f"tg-{chat_id}", transaction_type="virtual_account",
-                                external_id=result.get("external_id", ""), xendit_id=result.get("va_id", ""),
-                                amount=amount, currency="PHP", status="pending",
-                                description=f"VA: {bank_code}", telegram_chat_id=chat_id,
-                                created_at=now, updated_at=now,
-                            )
-                            db.add(txn)
-                            await db.commit()
-                        except Exception as e:
-                            logger.error(f"DB save failed for /va: {e}", exc_info=True)
-                            try:
-                                await db.rollback()
-                            except Exception:
-                                pass
-                    else:
-                        await tg.send_message(chat_id, f"❌ Failed: {result.get('error', 'Unknown error')}")
+                    await tg.send_message(
+                        chat_id,
+                        "❌ <b>/va is no longer supported.</b>\n\n"
+                        "xend mode is enabled and virtual accounts are disabled."
+                    )
                 except ValueError:
                     await tg.send_message(chat_id, "❌ Invalid amount.")
 

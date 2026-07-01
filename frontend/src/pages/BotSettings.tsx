@@ -107,7 +107,7 @@ const BOT_COMMANDS = [
   { cmd: '/help',       emoji: '\u2753',    category: 'General',   desc: 'Full command reference guide' },
   { cmd: '/balance',    emoji: '\u{1F4B0}', category: 'Wallet',    desc: 'View PHP wallet balance & history' },
   { cmd: '/usdbalance', emoji: '\u{1F4B5}', category: 'Wallet',    desc: 'USD wallet balance (USDT TRC20)' },
-  { cmd: '/invoice',    emoji: '\u{1F4B3}', category: 'Payments',  desc: 'Create a Xendit payment invoice' },
+  { cmd: '/invoice',    emoji: '\u{1F4B3}', category: 'Payments',  desc: 'Create a xend payment invoice' },
   { cmd: '/qr',         emoji: '\u{1F4F1}', category: 'Payments',  desc: 'Generate a QR code payment' },
   { cmd: '/link',       emoji: '\u{1F517}', category: 'Payments',  desc: 'Create a payment link' },
   { cmd: '/va',         emoji: '\u{1F3E6}', category: 'Payments',  desc: 'Generate a virtual bank account' },

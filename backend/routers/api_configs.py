@@ -9,6 +9,7 @@ from pydantic import ConfigDict, BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from core.mask_crypto import decrypt_text, key_prefix
 from services.api_configs import Api_configsService
 from dependencies.auth import get_current_user
 from schemas.auth import UserResponse
@@ -17,6 +18,52 @@ from schemas.auth import UserResponse
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/entities/api_configs", tags=["api_configs"])
+
+ALLOWED_API_KEY_SCOPES = {
+    "payments:read",
+    "payments:write",
+    "customers:read",
+    "customers:write",
+    "disbursements:read",
+    "disbursements:write",
+    "wallet:read",
+    "wallet:write",
+    "webhooks:read",
+    "webhooks:manage",
+}
+
+
+def _require_developer_or_super_admin(current_user: UserResponse):
+    perms = current_user.permissions
+    if not perms or not (perms.is_super_admin or perms.can_manage_bot):
+        raise HTTPException(status_code=403, detail="Developer or super admin access required.")
+
+
+def _normalize_scopes(raw_value: str) -> str:
+    scopes = [scope.strip() for scope in str(raw_value or "").split(",") if scope.strip()]
+    if not scopes:
+        raise HTTPException(status_code=400, detail="API key scopes cannot be empty")
+
+    invalid = sorted({scope for scope in scopes if scope not in ALLOWED_API_KEY_SCOPES})
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Invalid API key scopes: {', '.join(invalid)}")
+
+    deduped = sorted(set(scopes))
+    return ",".join(deduped)
+
+
+def _validate_and_normalize_api_config(payload: dict) -> dict:
+    config_key = str(payload.get("config_key") or "").strip().lower()
+    config_value = str(payload.get("config_value") or "").strip()
+
+    if config_key.endswith("_scopes"):
+        payload["config_value"] = _normalize_scopes(config_value)
+
+    if "payment_api_key" in config_key and not config_key.endswith("_scopes"):
+        if len(config_value) < 24:
+            raise HTTPException(status_code=400, detail="Payment API key must be at least 24 characters")
+
+    return payload
 
 
 # ---------- Pydantic Schemas ----------
@@ -90,11 +137,13 @@ async def query_api_configss(
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    reveal: bool = Query(False, description="Reveal decrypted config values"),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Query api_configss with filtering, sorting, and pagination (user can only see their own records)"""
+    _require_developer_or_super_admin(current_user)
     logger.debug(f"Querying api_configss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
     
     service = Api_configsService(db)
@@ -113,6 +162,7 @@ async def query_api_configss(
             query_dict=query_dict,
             sort=sort,
             user_id=str(current_user.id),
+            reveal=reveal,
         )
         logger.debug(f"Found {result['total']} api_configss")
         return result
@@ -129,9 +179,12 @@ async def query_api_configss_all(
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    reveal: bool = Query(False, description="Reveal decrypted config values"),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
+    current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    _require_developer_or_super_admin(current_user)
     # Query api_configss with filtering, sorting, and pagination without user limitation
     logger.debug(f"Querying api_configss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
 
@@ -149,7 +202,8 @@ async def query_api_configss_all(
             skip=skip,
             limit=limit,
             query_dict=query_dict,
-            sort=sort
+            sort=sort,
+            reveal=reveal,
         )
         logger.debug(f"Found {result['total']} api_configss")
         return result
@@ -163,11 +217,13 @@ async def query_api_configss_all(
 @router.get("/{id}", response_model=Api_configsResponse)
 async def get_api_configs(
     id: int,
+    reveal: bool = Query(False, description="Reveal decrypted config value"),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Get a single api_configs by ID (user can only see their own records)"""
+    _require_developer_or_super_admin(current_user)
     logger.debug(f"Fetching api_configs with id: {id}, fields={fields}")
     
     service = Api_configsService(db)
@@ -176,6 +232,12 @@ async def get_api_configs(
         if not result:
             logger.warning(f"Api_configs with id {id} not found")
             raise HTTPException(status_code=404, detail="Api_configs not found")
+
+        if reveal and result.config_value and isinstance(result.config_value, str) and result.config_value.startswith(key_prefix):
+            try:
+                result.config_value = decrypt_text(result.config_value)
+            except Exception:
+                pass
         
         return result
     except HTTPException:
@@ -192,11 +254,13 @@ async def create_api_configs(
     db: AsyncSession = Depends(get_db),
 ):
     """Create a new api_configs"""
+    _require_developer_or_super_admin(current_user)
     logger.debug(f"Creating new api_configs with data: {data}")
     
     service = Api_configsService(db)
     try:
-        result = await service.create(data.model_dump(), user_id=str(current_user.id))
+        payload = _validate_and_normalize_api_config(data.model_dump())
+        result = await service.create(payload, user_id=str(current_user.id))
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create api_configs")
         
@@ -205,6 +269,8 @@ async def create_api_configs(
     except ValueError as e:
         logger.error(f"Validation error creating api_configs: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating api_configs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -217,17 +283,20 @@ async def create_api_configss_batch(
     db: AsyncSession = Depends(get_db),
 ):
     """Create multiple api_configss in a single request"""
+    _require_developer_or_super_admin(current_user)
     logger.debug(f"Batch creating {len(request.items)} api_configss")
     
     service = Api_configsService(db)
     
     try:
         results = await service.bulk_create(
-            [item.model_dump() for item in request.items],
+            [_validate_and_normalize_api_config(item.model_dump()) for item in request.items],
             user_id=str(current_user.id),
         )
         logger.info(f"Batch created {len(results)} api_configss successfully")
         return results
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch create: {str(e)}", exc_info=True)
@@ -241,6 +310,7 @@ async def update_api_configss_batch(
     db: AsyncSession = Depends(get_db),
 ):
     """Update multiple api_configss in a single request (requires ownership)"""
+    _require_developer_or_super_admin(current_user)
     logger.debug(f"Batch updating {len(request.items)} api_configss")
     
     service = Api_configsService(db)
@@ -250,12 +320,25 @@ async def update_api_configss_batch(
         for item in request.items:
             # Only include non-None values for partial updates
             update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
+            current = await service.get_by_id(item.id, user_id=str(current_user.id))
+            if not current:
+                continue
+            merged_payload = {
+                "config_key": current.config_key,
+                "config_value": current.config_value,
+            }
+            merged_payload.update(update_dict)
+            normalized = _validate_and_normalize_api_config(merged_payload)
+            if "config_value" in update_dict:
+                update_dict["config_value"] = normalized["config_value"]
             result = await service.update(item.id, update_dict, user_id=str(current_user.id))
             if result:
                 results.append(result)
         
         logger.info(f"Batch updated {len(results)} api_configss successfully")
         return results
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch update: {str(e)}", exc_info=True)
@@ -270,12 +353,27 @@ async def update_api_configs(
     db: AsyncSession = Depends(get_db),
 ):
     """Update an existing api_configs (requires ownership)"""
+    _require_developer_or_super_admin(current_user)
     logger.debug(f"Updating api_configs {id} with data: {data}")
 
     service = Api_configsService(db)
     try:
         # Only include non-None values for partial updates
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
+        current = await service.get_by_id(id, user_id=str(current_user.id))
+        if not current:
+            logger.warning(f"Api_configs with id {id} not found for update")
+            raise HTTPException(status_code=404, detail="Api_configs not found")
+
+        merged_payload = {
+            "config_key": current.config_key,
+            "config_value": current.config_value,
+        }
+        merged_payload.update(update_dict)
+        normalized = _validate_and_normalize_api_config(merged_payload)
+        if "config_value" in update_dict:
+            update_dict["config_value"] = normalized["config_value"]
+
         result = await service.update(id, update_dict, user_id=str(current_user.id))
         if not result:
             logger.warning(f"Api_configs with id {id} not found for update")
@@ -300,6 +398,7 @@ async def delete_api_configss_batch(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete multiple api_configss by their IDs (requires ownership)"""
+    _require_developer_or_super_admin(current_user)
     logger.debug(f"Batch deleting {len(request.ids)} api_configss")
     
     service = Api_configsService(db)
@@ -326,6 +425,7 @@ async def delete_api_configs(
     db: AsyncSession = Depends(get_db),
 ):
     """Delete a single api_configs by ID (requires ownership)"""
+    _require_developer_or_super_admin(current_user)
     logger.debug(f"Deleting api_configs with id: {id}")
     
     service = Api_configsService(db)

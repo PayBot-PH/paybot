@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, User, LogIn } from 'lucide-react';
+import { getRoleDisplayName } from '@/lib/roleDisplay';
 
 interface ProtectedAdminRouteProps {
   children: React.ReactNode;
@@ -58,7 +59,7 @@ const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({
                   </span>
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Role: {user.role === 'user' ? 'Regular user' : user.role}
+                  Role: {getRoleDisplayName(user.role)}
                 </div>
               </div>
               <p className="text-sm">

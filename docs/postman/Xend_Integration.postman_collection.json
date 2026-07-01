@@ -1,0 +1,330 @@
+{
+  "info": {
+    "name": "Xend Integration API",
+    "description": "Postman collection for xend website payment-channel integration. Includes auth, scoped API config setup, xend checkout creation, and webhook simulation.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    },
+    {
+      "key": "jwt_token",
+      "value": ""
+    },
+    {
+      "key": "service_name",
+      "value": "paymongo"
+    },
+    {
+      "key": "api_key_config",
+      "value": "payment_api_key_prpwhr_20260701090000"
+    },
+    {
+      "key": "generated_api_key",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Developer API Configs",
+      "item": [
+        {
+          "name": "Create Scoped API Key + Metadata (Batch)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    {\n      \"service_name\": \"{{service_name}}\",\n      \"config_key\": \"{{api_key_config}}\",\n      \"config_value\": \"{{generated_api_key}}\",\n      \"is_active\": true\n    },\n    {\n      \"service_name\": \"{{service_name}}\",\n      \"config_key\": \"{{api_key_config}}_scopes\",\n      \"config_value\": \"payments:read,payments:write,webhooks:read\",\n      \"is_active\": true\n    },\n    {\n      \"service_name\": \"{{service_name}}\",\n      \"config_key\": \"{{api_key_config}}_issued_at\",\n      \"config_value\": \"2026-07-01T09:00:00.000Z\",\n      \"is_active\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/entities/api_configs/batch",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entities",
+                "api_configs",
+                "batch"
+              ]
+            }
+          }
+        },
+        {
+          "name": "List API Configs (Reveal)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/entities/api_configs?limit=100&sort=-updated_at&reveal=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entities",
+                "api_configs"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "sort",
+                  "value": "-updated_at"
+                },
+                {
+                  "key": "reveal",
+                  "value": "true"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "xend Payments",
+      "item": [
+        {
+          "name": "Get Supported Payment Methods",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/xend/payment-methods",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "xend",
+                "payment-methods"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1500,\n  \"description\": \"Order #WEB-10001\",\n  \"descriptor\": \"MYSHOP\",\n  \"merchant_name\": \"My Shop PH\",\n  \"customer_name\": \"Juan Dela Cruz\",\n  \"customer_email\": \"juan@example.com\",\n  \"external_id\": \"order-web-10001\",\n  \"payment_methods\": [\"gcash\", \"maya\", \"visa\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/xend/create-invoice",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "xend",
+                "create-invoice"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Payment Link",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 2499,\n  \"description\": \"Subscription Plan A\",\n  \"descriptor\": \"MYSUB\",\n  \"merchant_name\": \"My Subscriptions\",\n  \"external_id\": \"sub-2026-07-001\",\n  \"payment_methods\": [\"gcash\", \"visa\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/xend/create-payment-link",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "xend",
+                "create-payment-link"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create QR Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 799,\n  \"description\": \"QR Checkout Order #A10\",\n  \"merchant_name\": \"QR Merchant\",\n  \"external_id\": \"qr-a10\",\n  \"payment_methods\": [\"qrph\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/xend/create-qr-code",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "xend",
+                "create-qr-code"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhook Testing",
+      "item": [
+        {
+          "name": "Simulate Payment Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_type\": \"invoice\",\n  \"amount\": 1500,\n  \"status\": \"paid\",\n  \"description\": \"Order #WEB-10001\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/events/simulate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "events",
+                "simulate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Webhook Runtime Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{jwt_token}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/telegram/webhook-info",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "telegram",
+                "webhook-info"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

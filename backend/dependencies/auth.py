@@ -6,6 +6,12 @@ from typing import Optional
 from core.auth import AccessTokenError, decode_access_token
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from core.database import get_db
+from core.mask_crypto import decrypt_text, key_prefix
+from models.api_configs import Api_configs
 from schemas.auth import UserResponse, UserPermissions
 
 logger = logging.getLogger(__name__)
@@ -90,3 +96,111 @@ async def get_current_user_id(current_user: UserResponse = Depends(get_current_u
 async def get_current_admin(current_user: UserResponse = Depends(get_admin_user)) -> str:
     """Dependency to ensure current user is admin and return their ID string."""
     return str(current_user.id)
+
+
+def _scope_satisfies(required_scope: str, granted_scopes: set[str]) -> bool:
+    if required_scope in granted_scopes:
+        return True
+    # write implies read for the same resource family
+    if required_scope.endswith(":read"):
+        write_scope = required_scope.replace(":read", ":write")
+        return write_scope in granted_scopes
+    return False
+
+
+async def _resolve_user_by_api_key(
+    api_key: str,
+    db: AsyncSession,
+    required_scope: Optional[str] = None,
+) -> Optional[UserResponse]:
+    key_value = (api_key or "").strip()
+    if not key_value:
+        return None
+
+    query = select(Api_configs).where(
+        Api_configs.is_active.is_(True),
+        Api_configs.config_key.like("payment_api_key%"),
+    )
+    result = await db.execute(query)
+    candidates = result.scalars().all()
+
+    matched_key: Optional[Api_configs] = None
+    for item in candidates:
+        encrypted_value = item.config_value
+        if not isinstance(encrypted_value, str) or not encrypted_value.startswith(key_prefix):
+            continue
+        try:
+            decrypted = decrypt_text(encrypted_value)
+        except Exception:
+            continue
+        if decrypted == key_value:
+            matched_key = item
+            break
+
+    if not matched_key:
+        return None
+
+    scopes_query = select(Api_configs).where(
+        Api_configs.user_id == matched_key.user_id,
+        Api_configs.service_name == matched_key.service_name,
+        Api_configs.config_key == f"{matched_key.config_key}_scopes",
+        Api_configs.is_active.is_(True),
+    )
+    scope_row = (await db.execute(scopes_query)).scalar_one_or_none()
+    if not scope_row:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="API key scopes not configured")
+
+    scope_value = scope_row.config_value
+    scopes_raw = ""
+    if isinstance(scope_value, str) and scope_value.startswith(key_prefix):
+        try:
+            scopes_raw = decrypt_text(scope_value)
+        except Exception:
+            scopes_raw = ""
+    elif isinstance(scope_value, str):
+        scopes_raw = scope_value
+
+    granted_scopes = {scope.strip() for scope in scopes_raw.split(",") if scope.strip()}
+    if required_scope and not _scope_satisfies(required_scope, granted_scopes):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"API key missing required scope: {required_scope}",
+        )
+
+    return UserResponse(
+        id=str(matched_key.user_id),
+        email=f"apikey+{matched_key.user_id}@xend.local",
+        name="API Key Integration",
+        role="admin",
+        permissions=UserPermissions(
+            can_manage_payments=True,
+            can_manage_bot=True,
+        ),
+    )
+
+
+def get_payment_user(required_scope: str):
+    async def _dependency(
+        request: Request,
+        credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+        db: AsyncSession = Depends(get_db),
+    ) -> UserResponse:
+        # Primary path: bearer token (backward-compatible)
+        if credentials and credentials.scheme.lower() == "bearer":
+            try:
+                return await get_current_user(request=request, token=credentials.credentials)
+            except HTTPException:
+                # If bearer auth is invalid but API key is provided, allow key fallback.
+                pass
+
+        api_key = request.headers.get("X-API-Key", "")
+        api_user = await _resolve_user_by_api_key(api_key=api_key, db=db, required_scope=required_scope)
+        if api_user:
+            return api_user
+
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Provide a valid Bearer token or X-API-Key",
+        )
+
+    return _dependency
