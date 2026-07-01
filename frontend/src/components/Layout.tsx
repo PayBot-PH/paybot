@@ -12,6 +12,7 @@ import {
   MessageSquare, ArrowUpFromLine, DollarSign, ClipboardList,
   ChevronDown, Lock, FileCheck, AlertCircle, Sparkles, Code2, BookOpen,
 } from 'lucide-react';
+import { APP_NAME } from '@/lib/brand';
 import '../styles/dashboard-enhancements.css';
 
 interface LayoutProps {
@@ -112,7 +113,7 @@ export default function Layout({ children, connected }: LayoutProps) {
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 group-hover:opacity-40 transition-opacity duration-300" />
               <Sparkles className="h-4 w-4 text-white relative z-10 group-hover:animate-spin transition-transform" />
             </div>
-            <span className="text-base font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent group-hover:from-slate-700 group-hover:to-slate-500 transition-all duration-300">xend</span>
+            <span className="text-base font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent group-hover:from-slate-700 group-hover:to-slate-500 transition-all duration-300">{APP_NAME}</span>
           </Link>
         </div>
 
@@ -200,7 +201,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20 group-hover:opacity-40 transition-opacity" />
                       <Sparkles className="h-4 w-4 text-white relative z-10" />
                     </div>
-                    <span className="text-base font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">xend</span>
+                    <span className="text-base font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">{APP_NAME}</span>
                   </Link>
                 </div>
                 <nav className="py-4 px-3 space-y-6">
@@ -256,7 +257,7 @@ export default function Layout({ children, connected }: LayoutProps) {
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white to-transparent opacity-20" />
                 <Sparkles className="h-3.5 w-3.5 text-white relative z-10" />
               </div>
-              <span className="text-sm font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">xend</span>
+              <span className="text-sm font-bold bg-gradient-to-r from-slate-900 to-slate-600 bg-clip-text text-transparent">{APP_NAME}</span>
             </Link>
           </div>
 

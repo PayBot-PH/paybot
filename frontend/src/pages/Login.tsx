@@ -7,7 +7,7 @@ import {
   UserPlus, Menu, X, Lock, Mail,
 } from 'lucide-react';
 import type { TelegramWidgetUser } from '@/lib/auth';
-import { APP_NAME, SUPPORT_URL } from '@/lib/brand';
+import { APP_NAME, SUPPORT_URL, SUPPORT_HANDLE } from '@/lib/brand';
 import AppFooter from '@/components/AppFooter';
 
 declare global {
@@ -864,7 +864,7 @@ export default function Login() {
                 Need access?{' '}
                 <a href={SUPPORT_URL} target="_blank" rel="noopener noreferrer"
                   className="text-[#0B63FF] hover:text-[#095ed6] transition-colors">
-                  Contact @phsystem
+                  Contact {SUPPORT_HANDLE}
                 </a>
               </p>
             </div>

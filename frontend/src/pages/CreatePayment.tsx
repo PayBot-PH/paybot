@@ -250,19 +250,19 @@ export default function CreatePayment() {
                     })}
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Based on xend payment method guide. Leave unselected to allow gateway defaults.
+                    Select which payment methods to offer. Leave unselected to allow all gateway-supported methods.
                   </p>
                 </div>
 
                 <div>
-                  <Label className="text-muted-foreground">Magpie/Xend API Key (optional)</Label>
+                  <Label className="text-muted-foreground">API Key (optional)</Label>
                   <Input
-                    placeholder="xend_live_..."
+                    placeholder="sk_live_..."
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
                     className="mt-1 bg-muted border-border text-foreground placeholder:text-muted-foreground"
                   />
-                  <p className="text-xs text-muted-foreground mt-1">If provided, requests include <code>X-API-Key</code>.</p>
+                  <p className="text-xs text-muted-foreground mt-1">If provided, requests include an <code>X-API-Key</code> header. Generate keys in Developer Tools.</p>
                 </div>
 
                 <div>

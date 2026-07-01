@@ -188,8 +188,8 @@ export default function Register() {
           <div className="space-y-4">
             {[
               { step: '1', label: 'Submit your information', desc: 'Fill in name, email, phone, and Telegram username' },
-              { step: '2', label: 'KYC verification', desc: `Your identity is verified via the ${APP_NAME} KYC platform` },
-              { step: '3', label: 'Admin review & approval', desc: 'A super admin reviews and approves your application' },
+              { step: '2', label: 'Identity verification', desc: 'Your information is reviewed via our secure KYC process' },
+              { step: '3', label: 'Account review', desc: 'An admin reviews and approves your application' },
               { step: '4', label: 'Dashboard access granted', desc: 'Sign in with Telegram once approved' },
             ].map((s) => (
               <div key={s.step} className="flex items-start gap-3">
@@ -336,7 +336,7 @@ export default function Register() {
             <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-3">
               <ShieldCheck className="h-4 w-4 text-blue-600 shrink-0" />
               <p className="text-muted-foreground text-xs">
-                Your identity will be verified via the <span className="text-blue-600 font-semibold">{APP_NAME} KYC platform</span>.
+                Your submitted information will be reviewed as part of our <span className="text-blue-600 font-semibold">KYC verification process</span>.
               </p>
             </div>
 

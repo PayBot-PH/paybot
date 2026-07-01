@@ -3,49 +3,58 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import Layout from '@/components/Layout';
-import { Users, CreditCard, Code2, ArrowUpRight, ShieldCheck, Settings as SettingsIcon } from 'lucide-react';
+import {
+  Users,
+  CreditCard,
+  Code2,
+  ArrowUpRight,
+  ShieldCheck,
+  Settings as SettingsIcon,
+  BookOpen,
+  Bot,
+} from 'lucide-react';
 
 export default function Settings() {
   const cards = [
     {
       title: 'Your Team',
       description: 'Manage admin access, assign roles, and keep your staff aligned with the right permissions.',
-      icon: <Users className="h-5 w-5 text-sky-500" />, 
+      icon: <Users className="h-5 w-5 text-sky-500" />,
       href: '/admin-management',
       badge: 'Team',
     },
     {
-      title: 'Billing & Fees',
-      description: 'Review pricing, payment fees, and statements so you can control costs and reconciliation.',
-      icon: <CreditCard className="h-5 w-5 text-emerald-500" />, 
-      href: '/pricing',
-      badge: 'Finance',
+      title: 'Roles & Permissions',
+      description: 'Define role presets and apply granular permission sets to admin members.',
+      icon: <ShieldCheck className="h-5 w-5 text-emerald-500" />,
+      href: '/roles',
+      badge: 'Access',
     },
     {
-      title: 'Developers',
-      description: 'Configure webhook endpoints, API tokens, and bot integration settings in one place.',
-      icon: <Code2 className="h-5 w-5 text-violet-500" />, 
-      href: '/bot-settings',
+      title: 'Developer Tools',
+      description: 'Create API keys, configure webhook endpoints, test events, and view integration snippets.',
+      icon: <Code2 className="h-5 w-5 text-violet-500" />,
+      href: '/developer-experience',
       badge: 'Integration',
     },
     {
+      title: 'API Documentation',
+      description: 'Full REST API reference with request/response examples, authentication guides, and code snippets.',
+      icon: <BookOpen className="h-5 w-5 text-blue-500" />,
+      href: '/api-docs',
+      badge: 'Reference',
+    },
+    {
       title: 'Withdrawals',
-      description: 'Request payouts, track withdrawal approvals, and monitor settlement status.',
-      icon: <ArrowUpRight className="h-5 w-5 text-amber-500" />, 
+      description: 'Submit bank payouts, view USDT withdrawal history, and track settlement status.',
+      icon: <ArrowUpRight className="h-5 w-5 text-amber-500" />,
       href: '/wallet',
       badge: 'Cashflow',
     },
     {
-      title: 'Security',
-      description: 'Enable stronger controls, review login activity, and keep your workspace safe.',
-      icon: <ShieldCheck className="h-5 w-5 text-emerald-500" />, 
-      href: '/bot-settings',
-      badge: 'Safety',
-    },
-    {
-      title: 'App Settings',
-      description: 'Update platform settings, notification preferences, and bot behavior across your account.',
-      icon: <SettingsIcon className="h-5 w-5 text-slate-500" />, 
+      title: 'Bot & App Settings',
+      description: 'Update Telegram bot configuration, notification preferences, and platform-level environment settings.',
+      icon: <Bot className="h-5 w-5 text-slate-500" />,
       href: '/bot-settings',
       badge: 'Platform',
     },
@@ -57,14 +66,14 @@ export default function Settings() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Settings</p>
-            <h1 className="mt-2 text-3xl sm:text-4xl font-bold text-foreground">Control center for your account</h1>
+            <h1 className="mt-2 text-3xl sm:text-4xl font-bold text-foreground">Control center</h1>
             <p className="mt-3 text-sm text-muted-foreground max-w-2xl">
-              Find the most important configuration areas in one place. Use these cards to quickly access team, billing, developer, and payout settings.
+              Access team management, developer integrations, API documentation, and platform settings from one place.
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Button asChild size="sm" className="bg-slate-900 hover:bg-slate-800 text-white">
-              <Link to="/bot-settings">Open Bot Settings</Link>
+              <Link to="/developer-experience">Developer Tools</Link>
             </Button>
             <Button asChild variant="outline" size="sm" className="border-slate-300 text-slate-700 hover:bg-slate-100">
               <Link to="/wallet">View Wallet</Link>

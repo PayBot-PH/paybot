@@ -212,9 +212,11 @@ export default function ReportsPage() {
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-muted-foreground">Gateway Balance</p>
+                      <p className="text-sm text-muted-foreground">Avg. Transaction</p>
                       <p className="text-3xl font-bold text-foreground mt-1">
-                        N/A
+                        {report.total_transactions > 0
+                          ? `₱${(report.paid_revenue / report.total_transactions).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : '—'}
                       </p>
                     </div>
                     <div className="h-10 w-10 bg-purple-500/20 rounded-xl flex items-center justify-center">

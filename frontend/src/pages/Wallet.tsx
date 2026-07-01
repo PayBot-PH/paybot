@@ -263,7 +263,7 @@ export default function WalletPage() {
       });
       const data = await res.json();
       if (data.id) {
-        toast.success('USDT top-up request submitted for admin approval');
+        toast.success('USDT top-up request submitted');
         setTopupAmount(''); setTopupNote('');
         await fetchData();
       } else {
@@ -298,7 +298,7 @@ export default function WalletPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success('PHP withdrawal request submitted for admin approval');
+        toast.success('PHP withdrawal request submitted');
         setWrAmount(''); setWrBank(''); setWrAccount(''); setWrName(''); setWrNote('');
         await fetchData();
       } else {
@@ -331,7 +331,7 @@ export default function WalletPage() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success('USDT withdrawal request submitted for admin approval');
+        toast.success('USDT withdrawal request submitted');
         setUsdtAmount(''); setUsdtAddress(''); setUsdtPlatform('');
         await fetchData();
       } else {
@@ -377,10 +377,6 @@ export default function WalletPage() {
                 <p className="text-sm text-slate-500 mt-1 max-w-2xl">
                   Manage PHP and USDT balances, fund your account, submit withdrawals, and track activity in one place.
                 </p>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white/90 px-3 py-2 text-xs text-slate-600">
-                <Clock className="h-3.5 w-3.5 text-amber-500" />
-                Requests are reviewed by admin
               </div>
             </div>
           </div>
@@ -441,7 +437,7 @@ export default function WalletPage() {
                   <span className="inline-block w-12 h-8 bg-slate-100 rounded-lg animate-pulse" />
                 ) : withdrawRequests.filter(r => r.status === 'pending').length}
               </p>
-              <p className="text-xs text-slate-500 mt-1">Awaiting admin approval</p>
+              <p className="text-xs text-slate-500 mt-1">Awaiting review</p>
             </CardContent>
           </Card>
         </div>
@@ -485,7 +481,7 @@ export default function WalletPage() {
                       <p className="text-xs text-slate-600 mt-1">Select a route and submit deposit details.</p>
                     </div>
                     <p className="text-[10px] text-slate-500 max-w-xl">
-                      Admin review happens after submission.
+                      Select a route and submit your details below.
                     </p>
                   </div>
 
@@ -554,13 +550,13 @@ export default function WalletPage() {
                                 {fundMethod === 'bank_transfer' ? (
                                   <>
                                     <p>1. Log in to your bank app or portal.</p>
-                                    <p>2. Transfer to one of xend&apos;s bank accounts below.</p>
+                                    <p>2. Transfer to one of our bank accounts below.</p>
                                     <p>3. Use the selected destination and method when you submit proof.</p>
                                   </>
                                 ) : (
                                   <>
                                     <p>1. Log in to your UnionBank online banking.</p>
-                                    <p>2. Choose Bills Payment and select xend Balance Top-up.</p>
+                                    <p>2. Choose Bills Payment and select your account top-up.</p>
                                     <p>3. Enter the amount and your payment code, then pay.</p>
                                   </>
                                 )}
@@ -752,11 +748,11 @@ export default function WalletPage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
-                    <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
-                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <div className="flex items-start gap-2 p-2 rounded-lg bg-blue-50 border border-blue-200">
+                    <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
                     <div>
-                      <p className="text-[10px] font-medium text-amber-800">USDT → PHP credit</p>
-                      <p className="text-[10px] text-amber-700 mt-0.5">Enter the PHP amount you want credited; admin review applies.</p>
+                      <p className="text-[10px] font-medium text-blue-800">USDT → PHP credit</p>
+                      <p className="text-[10px] text-blue-700 mt-0.5">Enter the PHP amount you want credited to your wallet. TRC-20 network only.</p>
                     </div>
                   </div>
 
@@ -816,18 +812,6 @@ export default function WalletPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Info Banner */}
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs font-medium text-amber-800">Admin Approval Required</p>
-                      <p className="text-xs text-amber-700 mt-0.5">
-                        Your withdrawal request will be sent to the Super Admin for review and approval. 
-                        Processing typically takes 1-2 business days.
-                      </p>
-                    </div>
-                  </div>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs font-medium text-slate-700">Amount (₱)</Label>
@@ -942,17 +926,6 @@ export default function WalletPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Info Banner */}
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-50 border border-amber-200">
-                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                    <div>
-                      <p className="text-xs font-medium text-amber-800">Admin Approval Required · TRC-20 Only</p>
-                      <p className="text-xs text-amber-700 mt-0.5">
-                        Your USDT withdrawal request will be sent to the Super Admin for review. 
-                        Ensure your address supports TRC-20 network. Processing typically takes 1-2 business days.
-                      </p>
-                    </div>
-                  </div>
-
                   {/* Network Badge */}
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-200">
                     <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
