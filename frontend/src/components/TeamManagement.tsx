@@ -16,16 +16,14 @@ import {
   Shield,
   Clock,
   Trash2,
-  RefreshCw,
   Check,
   X,
-  AlertCircle,
   Users,
   Lock,
   Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { client } from '@/lib/api';
 import { getRoleDisplayName } from '@/lib/roleDisplay';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -65,13 +63,6 @@ interface OrganizationWalletBalance {
   pending_balance: number;
 }
 
-interface Role {
-  name: string;
-  description?: string;
-  permissions: Record<string, boolean>;
-  is_builtin: boolean;
-}
-
 const PERMISSION_LABELS: Record<string, string> = {
   can_add_delete_user: 'Add/Delete User',
   can_edit_user_access: 'Edit User Access',
@@ -94,6 +85,68 @@ const PERMISSION_LABELS: Record<string, string> = {
   can_manage_team: 'Manage Team',
 };
 
+async function apiFetch(url: string, options?: RequestInit) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || `Request failed (${res.status})`);
+  }
+  return res.json();
+}
+
+// ── Revoke Confirmation Dialog ────────────────────────────────────────────────
+
+function RevokeConfirmDialog({
+  email,
+  onConfirm,
+  onCancel,
+}: {
+  email: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+      <div className="bg-white rounded-xl shadow-xl p-6 max-w-sm w-full mx-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="h-10 w-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+            <AlertTriangle className="h-5 w-5 text-red-500" />
+          </div>
+          <div>
+            <p className="font-semibold text-slate-900 text-sm">Revoke Invitation</p>
+            <p className="text-xs text-slate-500 mt-0.5 break-all">{email}</p>
+          </div>
+        </div>
+        <p className="text-sm text-slate-600 mb-5">
+          This will cancel the invitation. The recipient will no longer be able to accept it.
+        </p>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs"
+            onClick={onConfirm}
+          >
+            Revoke
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="flex-1 text-xs"
+            onClick={onCancel}
+          >
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Team Invitations Tab ──────────────────────────────────────────────────────
+
 export function TeamInvitationsTab() {
   const { isSuperAdmin } = useAuth();
   const [invitations, setInvitations] = useState<TeamInvitation[]>([]);
@@ -105,86 +158,74 @@ export function TeamInvitationsTab() {
   const [organizationId, setOrganizationId] = useState('');
   const [notes, setNotes] = useState('');
   const [formLoading, setFormLoading] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState<TeamInvitation | null>(null);
 
   const fetchInvitations = async () => {
     try {
       setLoading(true);
-      const res = await client.apiCall.invoke({
-        url: '/api/v1/team/invitations',
-        method: 'GET',
-        data: {},
-      });
-      if (res.data?.invitations) {
-        setInvitations(res.data.invitations);
-      }
-    } catch (err) {
-      toast.error('Failed to load invitations');
-      console.error(err);
+      const data = await apiFetch('/api/v1/team/invitations');
+      if (data?.invitations) setInvitations(data.invitations);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load invitations');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchInvitations();
-  }, []);
+  useEffect(() => { fetchInvitations(); }, []);
 
   const handleSendInvitation = async () => {
-    if (!email) {
-      toast.error('Please enter an email address');
-      return;
-    }
+    if (!email) { toast.error('Please enter an email address'); return; }
     if (isSuperAdmin && selectedRole === 'owner' && !organizationName.trim() && !organizationId.trim()) {
       toast.error('Organization name or ID is required for owner invitations');
       return;
     }
-
     try {
       setFormLoading(true);
-      await client.apiCall.invoke({
-        url: '/api/v1/team/invite',
+      await apiFetch('/api/v1/team/invite', {
         method: 'POST',
-        data: {
+        body: JSON.stringify({
           email,
           role: selectedRole,
           organization_name: isSuperAdmin ? (organizationName.trim() || undefined) : undefined,
           organization_id: isSuperAdmin ? (organizationId.trim() || undefined) : undefined,
           notes: notes || undefined,
-        },
+        }),
       });
       toast.success('Invitation sent successfully');
-      setEmail('');
-      setOrganizationName('');
-      setOrganizationId('');
-      setNotes('');
-      setSelectedRole('admin');
-      setFormOpen(false);
+      setEmail(''); setOrganizationName(''); setOrganizationId(''); setNotes('');
+      setSelectedRole('admin'); setFormOpen(false);
       await fetchInvitations();
     } catch (err: any) {
-      toast.error(err?.data?.detail || 'Failed to send invitation');
+      toast.error(err.message || 'Failed to send invitation');
     } finally {
       setFormLoading(false);
     }
   };
 
-  const handleRevokeInvitation = async (invitationId: number) => {
-    if (!confirm('Are you sure you want to revoke this invitation?')) return;
-
+  const handleRevokeConfirm = async () => {
+    if (!revokeTarget) return;
+    const id = revokeTarget.id;
+    setRevokeTarget(null);
     try {
-      await client.apiCall.invoke({
-        url: `/api/v1/team/invitations/${invitationId}`,
-        method: 'DELETE',
-        data: {},
-      });
+      await apiFetch(`/api/v1/team/invitations/${id}`, { method: 'DELETE' });
       toast.success('Invitation revoked');
       await fetchInvitations();
-    } catch (err) {
-      toast.error('Failed to revoke invitation');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to revoke invitation');
     }
   };
 
   return (
     <div className="space-y-6">
+      {revokeTarget && (
+        <RevokeConfirmDialog
+          email={revokeTarget.email}
+          onConfirm={handleRevokeConfirm}
+          onCancel={() => setRevokeTarget(null)}
+        />
+      )}
+
       {/* Send Invitation Form */}
       <Card className="bg-white border border-slate-200">
         <CardHeader className="pb-3 border-b border-slate-100">
@@ -228,7 +269,7 @@ export function TeamInvitationsTab() {
                     <SelectItem value="admin">Admin</SelectItem>
                     <SelectItem value="editor">Editor</SelectItem>
                     <SelectItem value="viewer">Viewer</SelectItem>
-                    <SelectItem value="developer">Developers</SelectItem>
+                    <SelectItem value="developer">Developer</SelectItem>
                     <SelectItem value="approver">Approver</SelectItem>
                   </SelectContent>
                 </Select>
@@ -245,7 +286,6 @@ export function TeamInvitationsTab() {
                       className="mt-1.5"
                     />
                   </div>
-
                   <div>
                     <Label className="text-sm font-medium">Organization ID (Optional)</Label>
                     <Input
@@ -254,7 +294,7 @@ export function TeamInvitationsTab() {
                       onChange={(e) => setOrganizationId(e.target.value)}
                       className="mt-1.5"
                     />
-                    <p className="text-xs text-slate-500 mt-1">Set either name or ID. Owner invites require one of them.</p>
+                    <p className="text-xs text-slate-500 mt-1">Owner invites require a name or ID.</p>
                   </div>
                 </>
               )}
@@ -270,26 +310,14 @@ export function TeamInvitationsTab() {
               </div>
 
               <div className="flex gap-3 pt-2">
-                <Button
-                  onClick={handleSendInvitation}
-                  disabled={formLoading}
-                  className="gap-2 flex-1"
-                >
+                <Button onClick={handleSendInvitation} disabled={formLoading} className="gap-2 flex-1">
                   {formLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Sending...
-                    </>
+                    <><Loader2 className="h-4 w-4 animate-spin" />Sending...</>
                   ) : (
-                    <>
-                      <Mail className="h-4 w-4" />
-                      Send Invitation
-                    </>
+                    <><Mail className="h-4 w-4" />Send Invitation</>
                   )}
                 </Button>
-                <Button variant="outline" onClick={() => setFormOpen(false)}>
-                  Cancel
-                </Button>
+                <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
               </div>
             </div>
           </CardContent>
@@ -319,12 +347,14 @@ export function TeamInvitationsTab() {
                   className="flex items-start justify-between p-4 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Mail className="h-4 w-4 text-slate-500 flex-shrink-0" />
                       <p className="text-sm font-medium text-slate-900">{inv.email}</p>
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                         inv.status === 'pending'
                           ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : inv.status === 'accepted'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                           : 'bg-slate-100 text-slate-600 border border-slate-200'
                       }`}>
                         {inv.status === 'pending' ? <Clock className="h-3 w-3" /> : <Check className="h-3 w-3" />}
@@ -334,10 +364,13 @@ export function TeamInvitationsTab() {
                     <p className="text-xs text-slate-500 mt-1">
                       Role: <span className="font-medium">{getRoleDisplayName(inv.role)}</span> • Sent{' '}
                       {new Date(inv.invited_at).toLocaleDateString()}
+                      {inv.expires_at && (
+                        <> • Expires {new Date(inv.expires_at).toLocaleDateString()}</>
+                      )}
                     </p>
                     {(inv.organization_name || inv.organization_id) && (
                       <p className="text-xs text-slate-600 mt-1">
-                        Organization: {inv.organization_name || inv.organization_id}
+                        Org: {inv.organization_name || inv.organization_id}
                         {inv.organization_name && inv.organization_id ? ` (${inv.organization_id})` : ''}
                       </p>
                     )}
@@ -356,14 +389,16 @@ export function TeamInvitationsTab() {
                         ))}
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleRevokeInvitation(inv.id)}
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {inv.status === 'pending' && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setRevokeTarget(inv)}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 flex-shrink-0 ml-2"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
@@ -374,6 +409,8 @@ export function TeamInvitationsTab() {
   );
 }
 
+// ── Team Members Tab ──────────────────────────────────────────────────────────
+
 export function TeamMembersTab() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(false);
@@ -382,34 +419,23 @@ export function TeamMembersTab() {
   const fetchMembers = async () => {
     try {
       setLoading(true);
-      const res = await client.apiCall.invoke({
-        url: '/api/v1/team/members',
-        method: 'GET',
-        data: {},
-      });
-      if (res.data?.members) {
-        setMembers(res.data.members);
-      }
+      const data = await apiFetch('/api/v1/team/members');
+      if (data?.members) setMembers(data.members);
 
-      const walletRes = await client.apiCall.invoke({
-        url: '/api/v1/wallet/organization-balance',
-        method: 'GET',
-        data: {},
-      });
-      if (walletRes.data?.organization_id) {
-        setOrgWallet(walletRes.data as OrganizationWalletBalance);
+      try {
+        const walletData = await apiFetch('/api/v1/wallet/organization-balance');
+        if (walletData?.organization_id) setOrgWallet(walletData as OrganizationWalletBalance);
+      } catch {
+        // org wallet is optional — silently ignore if endpoint missing
       }
-    } catch (err) {
-      toast.error('Failed to load team members');
-      console.error(err);
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to load team members');
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchMembers();
-  }, []);
+  useEffect(() => { fetchMembers(); }, []);
 
   return (
     <Card className="bg-white border border-slate-200">
@@ -445,32 +471,30 @@ export function TeamMembersTab() {
           <div className="space-y-3">
             {members.map((member) => (
               <div key={member.id} className="p-4 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-slate-900">{member.name}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">@{member.telegram_id}</p>
-                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 mt-2">
-                      <Shield className="h-3 w-3" />
-                      {getRoleDisplayName(member.role)}
-                    </span>
-                    {(member.organization_name || member.organization_id) && (
-                      <p className="text-[11px] text-slate-500 mt-1">
-                        Org: {member.organization_name || member.organization_id}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {Object.entries(member.permissions)
-                        .filter(([, enabled]) => enabled)
-                        .map(([perm]) => (
-                          <span
-                            key={perm}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600"
-                          >
-                            <Lock className="h-2.5 w-2.5" />
-                            {PERMISSION_LABELS[perm] || perm}
-                          </span>
-                        ))}
-                    </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-900">{member.name}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">@{member.telegram_id}</p>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 mt-2">
+                    <Shield className="h-3 w-3" />
+                    {getRoleDisplayName(member.role)}
+                  </span>
+                  {(member.organization_name || member.organization_id) && (
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      Org: {member.organization_name || member.organization_id}
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {Object.entries(member.permissions)
+                      .filter(([, enabled]) => enabled)
+                      .map(([perm]) => (
+                        <span
+                          key={perm}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600"
+                        >
+                          <Lock className="h-2.5 w-2.5" />
+                          {PERMISSION_LABELS[perm] || perm}
+                        </span>
+                      ))}
                   </div>
                 </div>
               </div>

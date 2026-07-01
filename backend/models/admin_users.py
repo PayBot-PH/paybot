@@ -1,5 +1,5 @@
 from core.database import Base
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Integer, String, JSON
 from sqlalchemy.sql import func
 
 
@@ -14,7 +14,10 @@ class AdminUser(Base):
     is_active = Column(Boolean, default=True, server_default='true', nullable=False)
     is_super_admin = Column(Boolean, default=False, server_default='false', nullable=False)
 
-    # Granular permissions
+    # Role name from the invitation (admin, editor, viewer, withdrawer, developer, approver)
+    role = Column(String(64), nullable=True)
+
+    # Granular permissions (legacy boolean columns kept for backward compat)
     can_manage_payments = Column(Boolean, default=True, server_default='true', nullable=False)
     can_manage_disbursements = Column(Boolean, default=True, server_default='true', nullable=False)
     can_view_reports = Column(Boolean, default=True, server_default='true', nullable=False)
@@ -23,6 +26,9 @@ class AdminUser(Base):
     can_manage_bot = Column(Boolean, default=False, server_default='false', nullable=False)
     can_approve_topups = Column(Boolean, default=False, server_default='false', nullable=False)
     can_manage_team = Column(Boolean, default=False, server_default='false', nullable=False)
+
+    # New 19-permission schema stored as JSON (populated when invitation is accepted)
+    team_permissions = Column(JSON, nullable=True)
 
     # Organization scoping for non-super-admin users
     organization_id = Column(String(64), index=True, nullable=True)

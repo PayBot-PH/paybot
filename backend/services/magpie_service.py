@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -27,7 +28,6 @@ class MagpieService:
         }
         if self.api_key:
             headers["X-API-Key"] = self.api_key
-            headers["Authorization"] = f"Bearer {self.api_key}"
         return headers
 
     async def _post(self, path: str, payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -110,7 +110,7 @@ class MagpieService:
         return self._normalize_checkout_response(result.get("data", {}), external_id)
 
     async def create_invoice(self, *, amount: float, description: str = "") -> Dict[str, Any]:
-        external_id = f"magpie-inv-{int(amount * 100)}"
+        external_id = f"magpie-inv-{uuid.uuid4().hex[:12]}"
         result = await self.create_checkout(
             amount=amount,
             description=description or "Invoice payment",
@@ -126,7 +126,7 @@ class MagpieService:
         }
 
     async def create_payment_link(self, *, amount: float, description: str = "") -> Dict[str, Any]:
-        external_id = f"magpie-link-{int(amount * 100)}"
+        external_id = f"magpie-link-{uuid.uuid4().hex[:12]}"
         result = await self.create_checkout(
             amount=amount,
             description=description or "Payment link",
@@ -148,7 +148,7 @@ class MagpieService:
         channel_code: str,
         mobile_number: str = "",
     ) -> Dict[str, Any]:
-        external_id = f"magpie-ewallet-{int(amount * 100)}"
+        external_id = f"magpie-ewallet-{uuid.uuid4().hex[:12]}"
         result = await self._post(
             "/v1/payments/ewallet",
             {
@@ -317,5 +317,5 @@ class MagpieService:
 
 
 async def run_card_settlement_sweep() -> None:
-    """No-op settlement hook kept for scheduler compatibility during migration."""
+    # TODO: remove once Magpie migration is confirmed stable (added 2026-07)
     logger.info("Magpie settlement sweep hook executed")

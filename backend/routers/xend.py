@@ -36,7 +36,7 @@ class PayQRPhRequest(BaseModel):
     reference_number: str = ""
 
 
-XEND_PAYMENT_METHOD_ALIASES = {
+PAYMENT_METHOD_ALIASES = {
     "visa": "visa",
     "mastercard": "mastercard",
     "jcb": "jcb",
@@ -61,7 +61,7 @@ XEND_PAYMENT_METHOD_ALIASES = {
     "qrph": "qrph",
 }
 
-XEND_SUPPORTED_PAYMENT_METHODS = sorted(set(XEND_PAYMENT_METHOD_ALIASES.values()))
+SUPPORTED_PAYMENT_METHODS = sorted(set(PAYMENT_METHOD_ALIASES.values()))
 
 
 def _normalize_payment_methods(methods: List[str]) -> tuple[List[str], List[str]]:
@@ -71,7 +71,7 @@ def _normalize_payment_methods(methods: List[str]) -> tuple[List[str], List[str]
         key = (raw or "").strip().lower().replace("-", "_").replace(" ", "_")
         if not key:
             continue
-        mapped = XEND_PAYMENT_METHOD_ALIASES.get(key)
+        mapped = PAYMENT_METHOD_ALIASES.get(key)
         if not mapped:
             invalid.append(raw)
             continue
@@ -85,7 +85,7 @@ async def get_supported_payment_methods():
     return {
         "success": True,
         "source": "magpie",
-        "payment_methods": XEND_SUPPORTED_PAYMENT_METHODS,
+        "payment_methods": SUPPORTED_PAYMENT_METHODS,
     }
 
 
@@ -115,7 +115,7 @@ async def _create_checkout_transaction(
     if invalid_methods:
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported payment method(s): {', '.join(invalid_methods)}. Supported: {', '.join(XEND_SUPPORTED_PAYMENT_METHODS)}",
+            detail=f"Unsupported payment method(s): {', '.join(invalid_methods)}. Supported: {', '.join(SUPPORTED_PAYMENT_METHODS)}",
         )
 
     service = MagpieService()

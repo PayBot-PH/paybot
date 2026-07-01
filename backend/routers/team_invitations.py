@@ -3,6 +3,10 @@ Team Invitations and Role Management API
 """
 import secrets
 import re
+import smtplib
+import ssl
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timezone, timedelta
 import logging
 from typing import Optional
@@ -12,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from core.database import get_db
+from core.config import settings
 from dependencies.auth import get_admin_user
 from models.admin_users import AdminUser
 from models.team_invitations import TeamInvitation, AdminRole
@@ -62,7 +67,57 @@ class TeamMemberResponse(BaseModel):
     permissions: dict
 
 
-def _can_manage_team(admin: Optional[AdminUser]) -> bool:
+class CreateRoleRequest(BaseModel):
+    name: str
+    description: Optional[str] = None
+    permissions: dict
+
+
+def _send_invitation_email(to_email: str, token: str, role: str, inviter_name: str = "") -> None:
+    """Send invitation email. Logs the link if SMTP is not configured."""
+    frontend_url = (getattr(settings, "frontend_url", "") or "").rstrip("/")
+    accept_url = f"{frontend_url}/accept-invitation?token={token}" if frontend_url else f"/accept-invitation?token={token}"
+
+    smtp_host = getattr(settings, "smtp_host", "")
+    smtp_from = getattr(settings, "smtp_from_email", "")
+
+    if not smtp_host or not smtp_from:
+        logger.warning(
+            "SMTP not configured — invitation link for %s (role: %s): %s",
+            to_email, role, accept_url,
+        )
+        return
+
+    try:
+        smtp_port = int(getattr(settings, "smtp_port", 587))
+        smtp_user = getattr(settings, "smtp_username", "")
+        smtp_pass = getattr(settings, "smtp_password", "")
+        from_name = getattr(settings, "smtp_from_name", "PayBot")
+
+        body_html = f"""
+        <p>You have been invited to join as <strong>{role}</strong>.</p>
+        <p>Click the link below to accept your invitation (expires in 7 days):</p>
+        <p><a href="{accept_url}">{accept_url}</a></p>
+        <p>If you did not expect this invitation, you can ignore this email.</p>
+        """
+
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = "You've been invited to PayBot"
+        msg["From"] = f"{from_name} <{smtp_from}>"
+        msg["To"] = to_email
+        msg.attach(MIMEText(body_html, "html"))
+
+        context = ssl.create_default_context()
+        with smtplib.SMTP(smtp_host, smtp_port) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            if smtp_user and smtp_pass:
+                server.login(smtp_user, smtp_pass)
+            server.sendmail(smtp_from, to_email, msg.as_string())
+
+        logger.info("Invitation email sent to %s", to_email)
+    except Exception as exc:
+        logger.error("Failed to send invitation email to %s: %s", to_email, exc)
     if not admin:
         return False
     return bool(admin.is_super_admin or admin.can_manage_team)
@@ -371,6 +426,13 @@ async def send_team_invitation(
 
     logger.info(f"Team invitation sent to {request.email} by {current_user.id}")
 
+    # Send email notification (logs link if SMTP not configured)
+    _send_invitation_email(
+        to_email=request.email,
+        token=token,
+        role=role_name,
+    )
+
     return InvitationResponse(
         id=invitation.id,
         email=invitation.email,
@@ -401,7 +463,7 @@ async def list_invitations(
     query = select(TeamInvitation)
     if _is_org_admin(admin):
         query = query.where(TeamInvitation.organization_id == admin.organization_id)
-    result = await db.execute(query.order_by(TeamInvitation.created_at.desc()))
+    result = await db.execute(query.order_by(TeamInvitation.invited_at.desc()))
     invitations = result.scalars().all()
 
     return {
@@ -565,9 +627,7 @@ async def list_roles(
 
 @router.post("/roles")
 async def create_custom_role(
-    name: str,
-    description: Optional[str],
-    permissions: dict,
+    request: CreateRoleRequest,
     current_user: UserResponse = Depends(get_admin_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -582,15 +642,15 @@ async def create_custom_role(
 
     # Check if role exists
     existing = await db.execute(
-        select(AdminRole).where(AdminRole.name == name)
+        select(AdminRole).where(AdminRole.name == request.name)
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Role already exists")
 
     role = AdminRole(
-        name=name,
-        description=description,
-        permissions=permissions,
+        name=request.name,
+        description=request.description,
+        permissions=request.permissions,
         is_builtin=False,
     )
 
@@ -634,17 +694,8 @@ async def list_team_members(
                 "id": admin.id,
                 "name": admin.name or admin.telegram_username,
                 "telegram_id": admin.telegram_id,
-                "role": "super_admin" if admin.is_super_admin else "admin",
-                "permissions": {
-                    "can_manage_payments": admin.can_manage_payments,
-                    "can_manage_disbursements": admin.can_manage_disbursements,
-                    "can_view_reports": admin.can_view_reports,
-                    "can_manage_wallet": admin.can_manage_wallet,
-                    "can_manage_transactions": admin.can_manage_transactions,
-                    "can_manage_bot": admin.can_manage_bot,
-                    "can_approve_topups": admin.can_approve_topups,
-                    "can_manage_team": admin.can_manage_team,
-                },
+                "role": admin.role or ("super_admin" if admin.is_super_admin else "admin"),
+                "permissions": admin.team_permissions or {},
                 "organization_id": admin.organization_id,
                 "organization_name": admin.organization_name,
                 "joined_at": admin.created_at.isoformat() if admin.created_at else None,
@@ -652,4 +703,52 @@ async def list_team_members(
             }
             for admin in admins
         ]
+    }
+
+
+@router.post("/invitations/accept/{token}")
+async def accept_invitation(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Accept a team invitation by token. Returns invitation details on success."""
+    inv_res = await db.execute(
+        select(TeamInvitation).where(TeamInvitation.invitation_token == token)
+    )
+    invitation = inv_res.scalar_one_or_none()
+
+    if not invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found or already used")
+
+    if invitation.status == "revoked":
+        raise HTTPException(status_code=410, detail="This invitation has been revoked")
+
+    if invitation.status == "accepted":
+        raise HTTPException(status_code=409, detail="Invitation already accepted")
+
+    now = datetime.now(timezone.utc)
+    if invitation.expires_at and invitation.expires_at.replace(tzinfo=timezone.utc) < now:
+        invitation.status = "expired"
+        await db.commit()
+        raise HTTPException(status_code=410, detail="Invitation has expired")
+
+    invitation.status = "accepted"
+    invitation.accepted_at = now
+    await db.commit()
+    await db.refresh(invitation)
+
+    logger.info("Invitation %s accepted by %s", invitation.id, invitation.email)
+
+    return {
+        "success": True,
+        "message": "Invitation accepted successfully",
+        "invitation": {
+            "id": invitation.id,
+            "email": invitation.email,
+            "role": invitation.role,
+            "permissions": invitation.permissions,
+            "organization_id": invitation.organization_id,
+            "organization_name": invitation.organization_name,
+            "accepted_at": invitation.accepted_at.isoformat(),
+        },
     }
