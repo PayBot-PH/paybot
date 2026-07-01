@@ -200,7 +200,7 @@ export default function ReportsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Success Rate</p>
-                      <p className="text-3xl font-bold text-emerald-400 mt-1">{report.success_rate}%</p>
+                      <p className="text-3xl font-bold text-emerald-600 mt-1">{report.success_rate}%</p>
                     </div>
                     <div className="h-10 w-10 bg-emerald-500/20 rounded-xl flex items-center justify-center">
                       <Percent className="h-5 w-5 text-emerald-400" />
@@ -324,8 +324,8 @@ export default function ReportsPage() {
                 {feeResult && (
                   <div className="mt-4 p-4 bg-muted/50 rounded-lg grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div><p className="text-xs text-muted-foreground">Amount</p><p className="text-lg font-bold text-foreground">{fmt(feeResult.amount)}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Fee</p><p className="text-lg font-bold text-red-400">{fmt(feeResult.fee)}</p></div>
-                    <div><p className="text-xs text-muted-foreground">Net Amount</p><p className="text-lg font-bold text-emerald-400">{fmt(feeResult.net_amount)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Fee</p><p className="text-lg font-bold text-red-600">{fmt(feeResult.fee)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Net Amount</p><p className="text-lg font-bold text-emerald-600">{fmt(feeResult.net_amount)}</p></div>
                     <div><p className="text-xs text-muted-foreground">Fee Rate</p><p className="text-lg font-bold text-foreground">{feeResult.fee_percentage}% + ₱{feeResult.fee_fixed}</p></div>
                   </div>
                 )}

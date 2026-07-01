@@ -256,7 +256,7 @@ function AdminCard({
     <Card className={`border transition-all duration-200 ${
       admin.is_active
         ? 'bg-card border-border hover:border-border'
-        : 'bg-background/50 border-border/30 opacity-60'
+        : 'bg-background/50 border-border/30 opacity-80'
     }`}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3 mb-3">
@@ -511,7 +511,7 @@ function RoleSelector({
           <div className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
         ) : null}
         {current.label}
-        <ChevronDown className="h-3 w-3 opacity-60" />
+        <ChevronDown className="h-3 w-3 opacity-80" />
       </button>
       {open && (
         <>
@@ -524,7 +524,7 @@ function RoleSelector({
                 className={`w-full text-left px-3 py-2 text-xs font-medium transition-colors hover:bg-muted/60 ${r.color} ${r.value === currentRole ? 'bg-muted/40' : ''}`}
               >
                 {r.label}
-                {r.value === currentRole && <Check className="inline h-3 w-3 ml-1 opacity-60" />}
+                {r.value === currentRole && <Check className="inline h-3 w-3 ml-1" />}
               </button>
             ))}
           </div>
@@ -657,7 +657,7 @@ function RoleManagementTab({
                           key={admin.id}
                           onClick={() => applyRole(preset, admin)}
                           disabled={!!applying}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all duration-150 disabled:opacity-50"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-foreground hover:bg-muted hover:text-foreground transition-all duration-150 disabled:opacity-50"
                         >
                           {isApplying ? (
                             <div className="h-3 w-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />

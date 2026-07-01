@@ -306,7 +306,7 @@ export default function RolesPage() {
                                   key={admin.id}
                                   onClick={() => applyRole(role, admin)}
                                   disabled={!!applying}
-                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-all duration-150 disabled:opacity-50"
+                                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-muted/60 border border-border text-xs text-foreground hover:bg-muted hover:text-foreground transition-all duration-150 disabled:opacity-50"
                                 >
                                   {isApplying ? (
                                     <div className="h-3 w-3 rounded-full border-2 border-slate-400 border-t-transparent animate-spin" />
