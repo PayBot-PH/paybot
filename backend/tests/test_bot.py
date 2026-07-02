@@ -1028,6 +1028,22 @@ class TestxendDescriptorMerchantPropagation:
 
 
 class TestPaymentApiKeyAuth:
+    def test_xend_create_invoice_returns_error_when_magpie_not_configured(self, client, auth_headers):
+        with patch("services.magpie_service.MagpieService.__init__", return_value=None):
+            response = client.post(
+                "/api/v1/xend/create-invoice",
+                headers=auth_headers,
+                json={
+                    "amount": 99.0,
+                    "description": "Missing config invoice",
+                },
+            )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["success"] is False
+        assert "Magpie API key is not configured" in body["message"]
+
     def test_xend_create_invoice_with_api_key_and_scope(self, client, auth_headers):
         service_name = f"xend-int-{int(time.time() * 1000)}"
         key_name = f"payment_api_key_int_{int(time.time() * 1000)}"
@@ -1128,6 +1144,24 @@ class TestPaymentApiKeyAuth:
         )
         assert response.status_code == 403
         assert "missing required scope" in response.json().get("detail", "")
+
+
+class TestWalletBalanceConsistency:
+    @pytest.mark.asyncio
+    async def test_wallet_service_normalizes_integer_user_ids(self):
+        from services.database import initialize_database
+        from core.database import db_manager
+        from services.wallets import WalletsService
+
+        await initialize_database()
+
+        async with db_manager.async_session_maker() as session:
+            service = WalletsService(session)
+            wallet_a = await service.get_or_create_wallet(123456789, "PHP")
+            wallet_b = await service.get_or_create_wallet("123456789", "PHP")
+
+            assert wallet_a.id == wallet_b.id
+            assert wallet_a.user_id == "123456789"
 
 
 class TestEvents:

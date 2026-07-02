@@ -28,6 +28,24 @@ class WalletsService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
+    @staticmethod
+    def _normalize_user_id(user_id: Any, currency: str = "PHP") -> str:
+        """Normalize wallet user IDs so bot and dashboard share the same row."""
+        if user_id is None:
+            raise ValueError("user_id is required")
+
+        normalized = str(user_id).strip()
+        if not normalized:
+            raise ValueError("user_id is required")
+
+        currency_upper = (currency or "PHP").upper()
+        if currency_upper == "PHP" and normalized.startswith("tg-"):
+            normalized = normalized[3:]
+        elif currency_upper == "USD" and not normalized.startswith("tg-"):
+            normalized = f"tg-{normalized}"
+
+        return normalized
+
     async def get_or_create_wallet(self, user_id: str, currency: str = "PHP", lock: bool = False) -> Wallets:
         """Get user's wallet for a given currency, or create one with 0 balance.
 
@@ -36,11 +54,7 @@ class WalletsService:
         to the normalized ID when found.
         """
         currency_upper = currency.upper()
-        normalized_user_id = user_id.strip()
-
-        # PHP wallets migration logic: "tg-123" -> "123"
-        if currency_upper == "PHP" and normalized_user_id.startswith("tg-"):
-            normalized_user_id = normalized_user_id[3:]
+        normalized_user_id = self._normalize_user_id(user_id, currency_upper)
 
         query = select(Wallets).where(
             Wallets.user_id == normalized_user_id,
@@ -186,18 +200,18 @@ class WalletsService:
         """Get wallet balance. For USD, it ensures the balance field is synced with history."""
         currency_upper = currency.upper()
 
+        normalized_user_id = self._normalize_user_id(user_id, currency_upper)
+
         if currency_upper == "USD":
-            # USD wallets use "tg-" prefix internally (heritage from bot)
-            tg_user_id = f"tg-{user_id}" if not user_id.startswith("tg-") else user_id
-            computed = await self.compute_usd_balance(tg_user_id)
-            wallet = await self.get_or_create_wallet(tg_user_id, "USD")
-            
+            computed = await self.compute_usd_balance(normalized_user_id)
+            wallet = await self.get_or_create_wallet(normalized_user_id, "USD")
+
             if abs(computed - wallet.balance) > 0.001:
                 wallet.balance = computed
                 wallet.updated_at = datetime.now(timezone.utc)
                 await self.db.commit()
                 await self.db.refresh(wallet)
-            
+
             return {
                 "wallet_id": wallet.id,
                 "balance": wallet.balance,
@@ -206,7 +220,7 @@ class WalletsService:
                 "currency": "USD"
             }
 
-        wallet = await self.get_or_create_wallet(user_id, currency_upper)
+        wallet = await self.get_or_create_wallet(normalized_user_id, currency_upper)
         return {
             "wallet_id": wallet.id,
             "balance": wallet.balance,

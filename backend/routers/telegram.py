@@ -2663,13 +2663,12 @@ async def telegram_webhook(request: Request, db: AsyncSession = Depends(get_db))
         elif text.startswith("/balance") or text.startswith("/wallet"):
             try:
                 wallet_service = WalletsService(db)
-                # Use service for consistent ID normalization
+                php_res = await wallet_service.get_balance(str(chat_id), "PHP")
+                usd_res = await wallet_service.get_balance(str(chat_id), "USD")
                 wallet = await wallet_service.get_or_create_wallet(chat_id, "PHP")
 
-                php_balance = wallet.balance
-                
-                # USD wallet — compute balance from transaction history
-                usd_balance = await _compute_usd_balance_for_wallet(db, tg_user_id)
+                php_balance = float(php_res.get("balance", 0.0))
+                usd_balance = float(usd_res.get("balance", 0.0))
 
                 # Fetch last 3 PHP wallet transactions
                 wt_res = await db.execute(
