@@ -78,3 +78,11 @@ mobile/*.jks.base64
 mobile/*keystore*.txt
 mobile/android/app/my-release-key.keystore
 mobile_native/android/app/my-release-key.keystore
+
+# Sensitive artifacts (ensure these are not re-added)
+RSA.pem
+merchant_private.pem
+merchant_private_pkcs8.pem
+merchant_public.pem
+private_key_env.txt
+paybot-pos-terminal-live.apk
