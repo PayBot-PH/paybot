@@ -35,9 +35,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: >
-      sh -c "python -m alembic upgrade head &&
-             python -m uvicorn main:app --host 0.0.0.0 --port 8000"
+    # command removed: entrypoint now runs migrations and starts the server
 
 volumes:
   postgres_data:
