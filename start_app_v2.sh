@@ -922,7 +922,12 @@ start_services_with_retry() {
 
         # Start backend service
         log_info "Starting Backend service...$BACKEND_PORT"
-        uvicorn main:app --host 0.0.0.0 --port $BACKEND_PORT --reload &
+        export PATH="$BACKEND_DIR/.venv/bin:$PATH"
+        if [ -x "$BACKEND_DIR/.venv/bin/uvicorn" ]; then
+            "$BACKEND_DIR/.venv/bin/uvicorn" main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload &
+        else
+            uvicorn main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload &
+        fi
         BACKEND_RELOADER_PID=$!  # Parent process (reloader)
 
         # Wait for backend to start

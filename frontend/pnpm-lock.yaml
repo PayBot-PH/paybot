@@ -15,8 +15,8 @@ dependencies:
     specifier: latest
     version: 0.0.14(rollup@2.80.0)(vite@6.4.2)
   '@metagptx/web-sdk':
-    specifier: ^0.0.58
-    version: 0.0.58(eslint@9.39.2)(prettier@3.8.3)(vite@6.4.2)
+    specifier: ^0.0.77
+    version: 0.0.77(eslint@9.39.2)(prettier@3.8.3)(vite@6.4.2)
   '@playwright/mcp':
     specifier: ^0.0.36
     version: 0.0.36(hono@4.12.18)
@@ -720,8 +720,8 @@ packages:
       - supports-color
     dev: false
 
-  /@metagptx/web-sdk@0.0.58(eslint@9.39.2)(prettier@3.8.3)(vite@6.4.2):
-    resolution: {integrity: sha512-xJpI1GBYywzQOK9Z6sh8mML1FyPQP1T76pzSZZ5pDScbnMwo+qezTByUgyktaJ/GwwvOrmcYptKC8yjwTT3lKw==}
+  /@metagptx/web-sdk@0.0.77(eslint@9.39.2)(prettier@3.8.3)(vite@6.4.2):
+    resolution: {integrity: sha512-dFDjxtA8DHvzvdIMPM7XMiOKRAzYC+fGj1kj8owOw80kcsiwuIDNJVziwqkXwRXKm8AIImI2PmNkyyIz+zEm1A==}
     peerDependencies:
       '@babel/parser': ^7.0.0
       '@babel/traverse': ^7.0.0
